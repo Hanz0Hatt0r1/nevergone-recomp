@@ -8,8 +8,9 @@ These scripts are intended to operate on a user's own legally obtained original 
 - `readelf` for ELF metadata and JNI export inspection
 - `strings` for version/build strings
 - `c++filt` for C++ symbol demangling
+- `llvm-objdump` for ARMv7/Thumb PIC-string recovery
 
-On most Linux distributions these are provided by binutils.
+On most Linux distributions the first three binary utilities are provided by binutils. `llvm-objdump` is normally provided by LLVM/Clang.
 
 ## APK inventory
 
@@ -29,6 +30,36 @@ python3 tools/lua_probe.py /path/to/com.hippiegame.nevergone.apk
 
 This does not extract or redistribute scripts. It fingerprints `.lua` payloads, reports source/bytecode/encoded classifications, estimates sampled entropy and groups common headers.
 
+## Asset decoder
+
+The original game's file layer applies a small reversible transform to `.png`, `.hpc`, `.csv`, and `.lua` assets. The transform has been recovered from `CCFileUtilsAndroid::getFileData()` and `cocos2d::Decode()`.
+
+Validate the known encoded assets without writing decoded proprietary content:
+
+```bash
+python3 tools/asset_decoder.py /path/to/com.hippiegame.nevergone.apk
+```
+
+Expected baseline for the known APK:
+
+```text
+processed: 237
+.csv: 14
+.hpc: 19
+.lua: 107
+.png: 97
+validation failures: 0
+```
+
+To create a local decoded tree for research/runtime testing:
+
+```bash
+python3 tools/asset_decoder.py /path/to/com.hippiegame.nevergone.apk \
+  --output build/decoded-assets
+```
+
+Decoded assets/scripts remain copyrighted game data and must not be committed.
+
 ## Native symbol map
 
 Extract `libcocos2dcpp.so` locally from the APK, then run:
@@ -40,6 +71,18 @@ python3 tools/native_symbol_map.py /path/to/libcocos2dcpp.so \
 ```
 
 The generated CSV records function addresses, the raw ARM/Thumb symbol address, symbol size, mangled/demangled names, heuristic subsystem category and top-level class/namespace owner.
+
+## Thumb PIC string map
+
+Many ARMv7 functions construct string constants through a literal-pool load followed by `add <reg>, pc`. Recover these references directly from a named function:
+
+```bash
+python3 tools/pic_string_map.py /path/to/libcocos2dcpp.so \
+  'AppDelegate::AddAllSearchPath()' \
+  --markdown build/add-search-paths-strings.md
+```
+
+For `AppDelegate::AddAllSearchPath()` the known binary yields 61 references: 59 child resource directories plus `assets` and the `%s/%s` formatting string. This is useful for reproducing native string evidence without requiring a shared Ghidra database.
 
 ## DEX native method map
 
