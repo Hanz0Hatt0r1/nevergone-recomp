@@ -1,0 +1,36 @@
+# Local original game files
+*.apk
+*.aab
+*.so
+*.dex
+*.xapk
+
+# Local extraction / analysis output
+build/
+out/
+work/
+extracted/
+decoded/
+*.ghidra
+*.rep
+*.gpr
+*.csv.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Android / Gradle
+.gradle/
+local.properties
+.cxx/
+.externalNativeBuild/
+**/build/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
