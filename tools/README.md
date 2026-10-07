@@ -5,7 +5,7 @@ These scripts are intended to operate on a user's own legally obtained original 
 ## Requirements
 
 - Python 3.10+
-- `readelf` for ELF metadata
+- `readelf` for ELF metadata and JNI export inspection
 - `strings` for version/build strings
 - `c++filt` for C++ symbol demangling
 
@@ -40,6 +40,45 @@ python3 tools/native_symbol_map.py /path/to/libcocos2dcpp.so \
 ```
 
 The generated CSV records function addresses, the raw ARM/Thumb symbol address, symbol size, mangled/demangled names, heuristic subsystem category and top-level class/namespace owner.
+
+## DEX native method map
+
+Extract `classes.dex` locally, then run:
+
+```bash
+python3 tools/dex_native_map.py /path/to/classes.dex \
+  --json build/dex-native.json \
+  --markdown build/dex-native.md
+```
+
+This parser does not decompile Java bytecode. It reads the DEX metadata structures needed to enumerate methods carrying `ACC_NATIVE`, including their declaring class and expected static JNI symbol prefix.
+
+For the known original Never Gone APK it finds 27 native method declarations.
+
+## JNI cross-check
+
+Compare DEX declarations with one or more bundled ELF libraries:
+
+```bash
+python3 tools/jni_crosscheck.py /path/to/classes.dex \
+  /path/to/libcocos2dcpp.so \
+  /path/to/libffmpeg.so \
+  --json build/jni-crosscheck.json \
+  --markdown build/jni-crosscheck.md
+```
+
+The known original APK produces this baseline:
+
+```text
+27 DEX native declarations
+21 Java_* ELF exports
+21 matched declarations
+6 declarations without a static export
+```
+
+The six unmatched declarations are the methods on `com.ngds.cocos.GamepadBridge`. A missing static `Java_*` export is not automatically an error: it can also indicate `RegisterNatives`, a missing vendor library, or unreachable integration code. Use the report to select targets for manual disassembly/JADX analysis rather than treating it as a final diagnosis.
+
+Add `--fail-on-missing` when using the tool in a validation workflow where any unmatched native declaration should cause a non-zero exit code.
 
 ## Repository policy
 
