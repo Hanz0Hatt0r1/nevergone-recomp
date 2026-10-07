@@ -60,6 +60,31 @@ python3 tools/asset_decoder.py /path/to/com.hippiegame.nevergone.apk \
 
 Decoded assets/scripts remain copyrighted game data and must not be committed.
 
+## Lua dependency map
+
+Build a metadata-only graph directly from an original APK. Encoded Lua files are decoded in memory and their source text is not written:
+
+```bash
+python3 tools/lua_dependency_map.py /path/to/com.hippiegame.nevergone.apk \
+  --json build/lua-dependencies.json \
+  --markdown build/lua-dependencies.md
+```
+
+The known APK baseline is:
+
+```text
+107 modules
+108 static loader references
+104 resolved references
+4 unresolved references
+101 modules reachable from Game.StartLua
+6 modules outside the static startup graph
+```
+
+The analyzer recognizes direct string-literal calls to `require`, `CAddDoString`, and `dofile`, strips ordinary Lua comments, and resolves exact or unambiguous suffix module names. It is a static lower bound rather than a full Lua runtime tracer.
+
+See `docs/lua-dependency-map.md` for the current graph findings.
+
 ## Native symbol map
 
 Extract `libcocos2dcpp.so` locally from the APK, then run:
