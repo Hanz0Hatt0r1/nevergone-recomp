@@ -41,6 +41,9 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static native boolean nativeBeginSplashSequence();
     private static native void nativeDrawSplashLayers();
 
+    private static native void nativeResetRecoveredSceneSequence();
+    private static native void nativeBeginRecoveredSceneSequence();
+
     private static native void nativeOnSingleLoginSurfaceCreated();
     private static native void nativeOnSingleLoginSurfaceChanged(int width, int height);
     private static native void nativeClearSingleLoginTexture();
@@ -109,7 +112,10 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     public void reloadImportedSplash() {
         queueEvent(() -> {
             reloadImportedVisualsOnGlThread();
-            mainHandler.post(singleLoginAudio::onAssetsReloaded);
+            mainHandler.post(() -> {
+                singleLoginAudio.setSceneActive(false);
+                singleLoginAudio.onAssetsReloaded();
+            });
         });
     }
 
@@ -212,6 +218,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     }
 
     private void loadImportedSplashOnGlThread() {
+        nativeResetRecoveredSceneSequence();
         nativeClearSplashTexture();
         nativeClearSplashFrames();
 
@@ -249,6 +256,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         }
 
         if (loadedFrames == SPLASH_FILES.length && nativeBeginSplashSequence()) {
+            nativeBeginRecoveredSceneSequence();
             nativeClearSplashTexture();
         }
     }
