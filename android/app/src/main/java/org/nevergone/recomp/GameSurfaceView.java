@@ -3,8 +3,6 @@ package org.nevergone.recomp;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Rect;
 import android.opengl.GLSurfaceView;
 import android.os.Handler;
 import android.os.Looper;
@@ -27,7 +25,6 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static final String SINGLE_LOGIN_DIR = "gamescene_ui/SingleLogin_UI";
     private static final String SINGLE_LOGIN_PLIST = "SingleLogin_default.plist";
     private static final String SINGLE_LOGIN_ATLAS = "SingleLogin_default.png";
-    private static final String SINGLE_LOGIN_BASE_FRAME = "zjmbeijing.png";
 
     private static native void nativeOnSurfaceCreated();
     private static native void nativeOnSurfaceChanged(int width, int height);
@@ -136,49 +133,16 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         }
 
         try {
-            TexturePackerPlist.Frame frame = TexturePackerPlist.readFrame(plist, SINGLE_LOGIN_BASE_FRAME);
-            if (frame == null || frame.rotated || frame.textureWidth <= 0 || frame.textureHeight <= 0 ||
-                    frame.sourceWidth <= 0 || frame.sourceHeight <= 0 ||
-                    ((long) frame.sourceWidth * (long) frame.sourceHeight) > 16_777_216L) {
+            Bitmap composite = SingleLoginAtlasComposer.compose(plist, atlasFile);
+            if (composite == null) {
                 return;
             }
-
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-            Bitmap atlas = BitmapFactory.decodeFile(atlasFile.getAbsolutePath(), options);
-            if (atlas == null) {
-                return;
-            }
-            if (frame.textureX < 0 || frame.textureY < 0 ||
-                    frame.textureX + frame.textureWidth > atlas.getWidth() ||
-                    frame.textureY + frame.textureHeight > atlas.getHeight()) {
-                atlas.recycle();
-                return;
-            }
-
-            Bitmap reconstructed = Bitmap.createBitmap(
-                    frame.sourceWidth, frame.sourceHeight, Bitmap.Config.ARGB_8888);
-            Canvas canvas = new Canvas(reconstructed);
-            int left = (frame.sourceWidth - frame.textureWidth) / 2 + frame.offsetX;
-            int top = (frame.sourceHeight - frame.textureHeight) / 2 - frame.offsetY;
-            Rect source = new Rect(
-                    frame.textureX,
-                    frame.textureY,
-                    frame.textureX + frame.textureWidth,
-                    frame.textureY + frame.textureHeight);
-            Rect destination = new Rect(
-                    left,
-                    top,
-                    left + frame.textureWidth,
-                    top + frame.textureHeight);
-            canvas.drawBitmap(atlas, source, destination, null);
-            atlas.recycle();
-
-            int[] pixels = new int[frame.sourceWidth * frame.sourceHeight];
-            reconstructed.getPixels(
-                    pixels, 0, frame.sourceWidth, 0, 0, frame.sourceWidth, frame.sourceHeight);
-            reconstructed.recycle();
-            nativeUploadSingleLoginTexture(frame.sourceWidth, frame.sourceHeight, pixels);
+            int width = composite.getWidth();
+            int height = composite.getHeight();
+            int[] pixels = new int[width * height];
+            composite.getPixels(pixels, 0, width, 0, 0, width, height);
+            composite.recycle();
+            nativeUploadSingleLoginTexture(width, height, pixels);
         } catch (Exception ignored) {
             nativeClearSingleLoginTexture();
         }
