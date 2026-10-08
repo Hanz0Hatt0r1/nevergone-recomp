@@ -65,6 +65,10 @@ void register_callback(lua_State* state, const char* name) {
 
 void register_login_callback_bindings(lua_State* state) {
 #if defined(NEVERGONE_HAS_LUA)
+    {
+        std::lock_guard<std::mutex> lock(g_callback_mutex);
+        g_callback_events.clear();
+    }
     register_callback(state, "cpp_OnGetServerList");
     register_callback(state, "cpp_OnGetRoleList");
     register_callback(state, "cpp_OnCreateTheRole");
