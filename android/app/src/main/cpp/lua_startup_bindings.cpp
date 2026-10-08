@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 
+#include "client_callback_bridge.h"
 #include "native_binding_registry.h"
 #include "startup_contract.h"
 
@@ -142,10 +143,6 @@ void register_startup_bindings(lua_State* state) {
     set_global(state, "CAddDoString", l_CAddDoString);
     set_global(state, "Lua_GetPlatformString", l_Lua_GetPlatformString);
     set_global(state, "Lua_GetDeviceUUID", l_Lua_GetDeviceUUID);
-    // Reachable login Lua also calls LGG_Device_UUID(), but no Lua definition or
-    // standalone ELF symbol exists in the known Android build. Preserve the
-    // observed guest-identifier semantics by exposing it as an alias to the
-    // confirmed Lua_GetDeviceUUID bridge.
     set_global(state, "LGG_Device_UUID", l_Lua_GetDeviceUUID);
     set_global(state, "Lua_GetBundleVersion", l_Lua_GetBundleVersion);
     set_global(state, "Lua_SetConsoleColor", l_Lua_SetConsoleColor);
@@ -202,6 +199,7 @@ std::string startup_execution_report() {
 
     const auto modules = startup::take_requested_modules();
     const auto ui_events = startup::take_ui_events();
+    const auto callback_events = take_client_callback_events();
     const auto missing_globals = take_missing_globals();
 
     std::ostringstream out;
@@ -211,6 +209,19 @@ std::string startup_execution_report() {
         out << "  - " << module << "\n";
     }
     out << "startup UI events: " << ui_events.size() << "\n";
+    out << "login callback events: " << callback_events.size() << "\n";
+    for (const auto& event : callback_events) {
+        out << "  - " << event.name;
+        if (!event.arguments.empty()) {
+            out << "(";
+            for (size_t index = 0; index < event.arguments.size(); ++index) {
+                if (index != 0) out << ", ";
+                out << event.arguments[index];
+            }
+            out << ")";
+        }
+        out << "\n";
+    }
     out << "missing globals observed: " << missing_globals.size() << "\n";
     for (const auto& item : missing_globals) {
         out << "  - " << item.name << " (" << item.hits << ")\n";
