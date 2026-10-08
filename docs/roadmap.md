@@ -22,19 +22,19 @@ Exit condition: another contributor can reproduce the same baseline from their o
 
 ## Phase 1 — Java/Android bootstrap map
 
-Priority: **high**
+Priority: **critical path complete; optional decompiler cross-check remains**
 
 - [ ] Decompile `classes.dex` with JADX and preserve a metadata-only class/lifecycle map.
 - [x] Identify the launcher Activity (`com.hippiegame.nevergone.TJ_P_01`).
-- [ ] Fully map native library loading (`System.loadLibrary`).
-- [ ] Document Android lifecycle forwarding into Cocos2d-x.
+- [x] Fully map native library loading (`System.loadLibrary`).
+- [x] Document Android lifecycle forwarding into Cocos2d-x.
 - [x] Map the DEX native-method declarations against static `Java_*` exports.
 - [x] Document `JNI_OnLoad` and the first native scene path.
-- [ ] Resolve or classify the six `GamepadBridge` native declarations without static exports.
-- [ ] Document Google Play / IAP integration and decide what should be stubbed or replaced.
-- [ ] Produce `docs/android-bootstrap.md`.
+- [x] Resolve/classify the six `GamepadBridge` native declarations without static exports for the normal launcher path.
+- [x] Document Google Play / IAP integration and isolate it from the offline boot path.
+- [x] Produce `docs/android-bootstrap.md`.
 
-Current native startup evidence is documented in `docs/jni-map.md` and `docs/startup-flow.md`.
+The critical launcher path is now reproduced directly from DEX metadata/instructions with project-owned tooling. A future JADX pass is an optional human-readable cross-check rather than a boot blocker.
 
 Exit condition: startup from Android process creation to `JNI_OnLoad` and the first native scene is documented end-to-end.
 
@@ -106,7 +106,7 @@ Exit condition: native game code is partitioned into understandable subsystems a
 
 ## Phase 4 — Engine reconstruction baseline
 
-Priority: **high — needed for first real boot**
+Priority: **high — needed for deeper behavior matching**
 
 A native string identifies the engine as `cocos2d-2.1rc0-x-2.1.2`. Use that revision/version family as the first comparison target.
 
@@ -132,7 +132,7 @@ Status: **build, import and CI skeleton implemented**
 - [x] Integrate the user-owned APK asset import/preparation workflow with the recovered decoder.
 - [x] Set up CI for Python tools, embedded Lua compatibility validation and Android/NDK compilation.
 - [ ] Validate install/runtime behavior on physical/emulated devices for both ABI classes.
-- [ ] Add explicit 16 KiB page-size build/runtime validation.
+- [x] Add explicit 16 KiB page-size build validation.
 
 The clean shell lives under `android/`. It targets current Android, uses project-owned C++ code, and does not link the original `libcocos2dcpp.so` or redistribute original assets. The app can import a user-selected original APK through Android SAF, decode transformed resources into app-private storage, and rerun startup diagnostics.
 
@@ -155,13 +155,13 @@ Priority: **current implementation target**
 - [x] Recreate the boot-safe offline `ProtoRPC` initialization surface.
 - [x] Recreate UUID/version/string validation helpers required by login/public logic.
 - [x] Establish structured diagnostic bridging for early native-facing login callbacks.
-- [ ] Recreate application initialization / `AppDelegate` behavior required before rendering the original UI.
-- [ ] Initialize rendering and input.
+- [x] Recreate the startup/lifecycle state required around the original `AppDelegate` boundary.
+- [x] Initialize the project-owned GLES2 rendering/input substrate.
 - [ ] Confirm end-to-end `Game.StartLua` completion with a user-provided original APK on the real Android runtime/host startup probe and close any remaining runtime blockers.
 - [ ] Connect captured login/server/role callbacks to the reconstructed UI layer.
-- [ ] Reach the original initial UI flow (`HelloWorld` → `ManagementLayer`).
+- [x] Reach and explicitly model the verified initial UI transition (`HelloWorld::createUI` → `ManagementLayer::initLoginLayer`).
 
-The modern shell now configures an app-local files root, persists a privacy-safe app-local UUID, executes imported startup Lua when available, and exposes startup diagnostics in the Android UI. The host startup probe provides the same reconstruction loop without repeatedly installing the APK.
+`AppDelegateState` now tracks runtime/surface/lifecycle/splash readiness. `initial_ui_transition` turns its `initial-ui-ready` boundary into the recovered synchronous HelloWorld/ManagementLayer initialization step, and reconstructed login routes are gated on that step rather than raw splash completion.
 
 Exit condition: recompilation reaches the title/login/menu flow without original native code.
 
@@ -186,7 +186,7 @@ Exit condition: a representative offline gameplay loop is functional.
 
 - [ ] `arm64-v8a` release build.
 - [ ] Android 15/16+ runtime validation.
-- [ ] 16 KiB page-size validation.
+- [x] 16 KiB page-size build validation.
 - [ ] Modern storage/audio/input behavior.
 - [ ] Crash-free lifecycle resume/suspend testing.
 - [ ] Reproducible build documentation.
@@ -196,10 +196,9 @@ Exit condition: the project produces a maintainable modern Android build without
 
 ## Immediate next tasks
 
-1. Run `tools/run_startup_probe_auto.py` against the user's original APK on the Linux/Manjaro development host and use the first real traceback/missing-global result as the next compatibility target.
-2. Finish the login callback bridge and connect server-list/role/create/announcement/enter-game payloads to the future UI consumer instead of simulating obsolete backend behavior.
-3. Reconstruct the minimum `AppDelegate`/lifecycle/render/input path needed to replace `HelloWorld` → `ManagementLayer` visually.
-4. Finish the Java/Android bootstrap map from `TJ_P_01` through library loading and lifecycle forwarding.
-5. Add explicit arm64/16 KiB page-size validation and device runtime checks.
+1. Expand the reconstructed `ManagementLayer` login behavior beyond the verified `initLoginLayer` boundary and connect existing server/role/announcement callback state to visible UI consumers.
+2. Run `tools/run_startup_probe_auto.py` against the user's original APK on the Linux/Manjaro development host and use the first real traceback/missing-global result as the next compatibility target.
+3. Validate the current arm64/16 KiB build on a physical or emulated modern Android target, including pause/resume and surface recreation.
+4. Continue decoding the `.hpc` configuration schemas needed by the first offline gameplay route.
+5. Expand the native subsystem map around `ManagementLayer`, `DataManager`, `LogicManager`, `GameSaveData`, rendering and input.
 6. Reverse-engineer only the remaining behavior-sensitive battle/slave networking calls when the offline/UI path actually reaches them.
-7. Expand the native subsystem map around `ManagementLayer`, `DataManager`, `LogicManager`, `GameSaveData`, rendering and input.
