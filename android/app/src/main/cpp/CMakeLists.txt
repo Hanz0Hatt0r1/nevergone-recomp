@@ -19,6 +19,14 @@ add_library(nevergone_recomp SHARED
 
 target_compile_features(nevergone_recomp PRIVATE cxx_std_17)
 
+# Keep the final shared object loadable on Android devices that use 16 KiB
+# memory pages. NDK r28 already does this for arm64, but the armeabi-v7a link
+# still defaults to 4 KiB PT_LOAD alignment unless the maximum page size is
+# stated explicitly.
+if(ANDROID)
+    target_link_options(nevergone_recomp PRIVATE "-Wl,-z,max-page-size=16384")
+endif()
+
 set(
     NEVERGONE_LUA_SOURCE_DIR
     "${CMAKE_CURRENT_LIST_DIR}/../../../../../third_party/_local/lua-5.2.3/src"
