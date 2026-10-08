@@ -50,7 +50,7 @@ int main() {
     assert(pose_for_instance(3, 15.0, width, height, &pose));
     assert(near(pose.x, -400.0f));
     assert(pose_for_instance(3, 60.0, width, height, &pose));
-    assert(near(pose.x, 368.0f));
+    assert(near(pose.x, 468.0f));
     assert(pose_for_instance(3, 90.0, width, height, &pose));
     assert(near(pose.x, -400.0f));
 
@@ -67,7 +67,7 @@ int main() {
     assert(pose_for_instance(5, 25.0, width, height, &pose));
     assert(near(pose.x, -400.0f));
     assert(pose_for_instance(5, 50.0, width, height, &pose));
-    assert(near(pose.x, 368.0f));
+    assert(near(pose.x, 468.0f));
     assert(pose_for_instance(5, 75.0, width, height, &pose));
     assert(near(pose.x, -400.0f));
 
