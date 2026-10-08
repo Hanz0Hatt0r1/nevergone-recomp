@@ -7,6 +7,7 @@ add_library(nevergone_recomp SHARED
     lua_startup_bindings.cpp
     native_binding_registry.cpp
     native_bootstrap.cpp
+    protorpc_bindings.cpp
     startup_contract.cpp
 )
 
