@@ -3,6 +3,7 @@
 #include <map>
 #include <mutex>
 
+#include "client_callback_bridge.h"
 #include "filesystem_bindings.h"
 #include "lua_compat.h"
 #include "lua_startup_bindings.h"
@@ -65,6 +66,7 @@ void register_native_bindings(lua_State* state) {
     register_luaxml_compat(state);
     register_xml_validation_binding(state);
     register_string_validation_bindings(state);
+    register_login_callback_bindings(state);
     register_protorpc_bindings(state);
 #else
     (void)state;
