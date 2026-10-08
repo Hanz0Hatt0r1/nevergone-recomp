@@ -1,76 +1,105 @@
 # Never Gone Recomp
 
-Experimental reverse-engineering and recompilation project for the Android version of **Never Gone**.
+Experimental clean-room reverse-engineering and recompilation project for the Android version of **Never Gone**.
 
-The long-term goal is to understand the original game runtime, reconstruct the game-specific native/script integration, and produce a maintainable build for modern Android — including `arm64-v8a` and 64-bit-only devices — without depending on the original obsolete Android toolchain.
+The project aims to reconstruct the original game runtime as maintainable source code for modern Android, including `arm64-v8a`, without depending on the original obsolete Android toolchain or redistributing proprietary game binaries/assets.
 
 > [!IMPORTANT]
-> The project is in an early research/reconstruction stage. It is **not yet a playable recompilation**.
+> The project is **not yet a playable recompilation**, but it has moved well beyond the initial research-only stage. A modern Android/NDK shell now builds project-owned native code, embeds the identified Lua runtime, imports user-owned original resources, executes reconstructed startup behavior, and exposes the next missing runtime dependencies through diagnostics.
+
+## Current state
+
+The current `main` branch includes:
+
+- a modern Gradle/CMake Android application;
+- project-owned C++/JNI runtime code;
+- `armeabi-v7a` and `arm64-v8a` build targets;
+- embedded **Lua 5.2.3**, matching the runtime identified in the original binary;
+- a deterministic decoder for the original transformed Lua/PNG/HPC/CSV resources;
+- Android import flows for user-owned original APK and OBB data;
+- reconstructed startup Lua/native bindings and filesystem/search-path behavior;
+- host-side startup probing for fast compatibility iteration;
+- clean-room replacements for several early Lua/native services;
+- recovered offline startup routing and early `ChooseHero` reconstruction/staging work;
+- CI covering Python tooling, Lua compatibility and Android/NDK compilation.
+
+The current implementation target is the original initial UI/runtime flow and character-selection path without loading the original `libcocos2dcpp.so`.
 
 ## Goals
 
-- Reverse engineer the original Android APK and native libraries.
+- Reverse engineer the original Android APK and native runtime.
 - Recover and document the Android → JNI → Cocos2d-x → Lua startup flow.
 - Separate upstream engine/library code from Never Gone-specific code.
-- Recover the encoded Lua pipeline and script module graph.
-- Reconstruct game-specific native systems as maintainable source.
-- Replace or stub obsolete online/platform integrations where required for preservation.
+- Reconstruct the script/resource pipeline from user-supplied original files.
+- Recreate game-specific native systems as maintainable clean-room source.
+- Restore the offline game flow before attempting obsolete online services.
 - Produce reproducible modern Android builds.
-- Support `arm64-v8a` and modern Android runtime requirements.
-- Keep offline game behavior as close to the original release as practical.
+- Support `arm64-v8a`, modern Android versions and 16 KiB page-size devices.
+- Keep offline behavior as close to the original release as practical.
 
-## Current findings
+## Established findings
 
-The initial research pass has already established several useful facts:
+The reconstruction work has established that:
 
 - package: `com.hippiegame.nevergone`;
 - original version: `1.0.9`;
 - original native ABI: **`armeabi-v7a` only**;
-- native libraries: `libcocos2dcpp.so` and `libffmpeg.so`;
+- original native libraries: `libcocos2dcpp.so` and `libffmpeg.so`;
 - the main library identifies its engine as **`cocos2d-2.1rc0-x-2.1.2`**;
-- the APK contains one `classes.dex`;
-- the APK contains **107 `.lua` files**, all of which appear encoded/obfuscated rather than plain Lua source or standard Lua bytecode;
-- native startup code resolves `assets/Script/Game/StartLua.lua` and passes it toward the embedded Lua runtime;
-- `libcocos2dcpp.so` retains roughly **26,875 defined function symbols**, despite lacking ordinary debug information;
-- many game classes are available by name, including `GameScene`, `GameSceneUI`, `MEPlayer`, `EnemyObject`, `BattleManager`, `GameSaveData`, `DataManager`, and others;
-- 22 JNI exports have been identified;
-- the original native FFmpeg dependency contains a legacy build-machine path (`./obj/local/armeabi-v7a/libffmpeg.so`).
+- the embedded Lua runtime is **Lua 5.2.3**;
+- the APK contains **107 `.lua` modules** transformed with the same reversible asset transform used by several PNG/HPC/CSV resources;
+- the exact `cocos2d::Decode` algorithm and key used by the shipped build have been recovered;
+- all 107 Lua payloads can be decoded locally from a user-owned APK;
+- the static Lua graph contains 107 modules, 104 resolved edges and 101 modules reachable from `Game.StartLua`;
+- the reachable script graph exposes more than one hundred native-shaped/API dependencies, allowing reconstruction to proceed in dependency order;
+- the original `libcocos2dcpp.so` retains roughly **26,875 defined function symbols**, including many useful game class/function names;
+- 22 static JNI exports have been identified and additional DEX native declarations have been mapped;
+- startup reaches `assets/Script/Game/StartLua.lua`, `Game.ClientRequire`, `ShareLogic.require`, `HelloWorld` and `ManagementLayer` through known native/script paths;
+- `AppDelegate::AddAllSearchPath()` and its 59 child search directories have been recovered;
+- major classes visible by symbol include `GameScene`, `GameSceneUI`, `MEPlayer`, `EnemyObject`, `BattleManager`, `DataManager`, `GameSaveData`, `ManagementLayer`, `ChooseHero` and others.
 
-These findings make a dependency-first reconstruction practical and reduce the amount of blind manual decompilation required.
-
-## Current status
+## Project status
 
 | Area | Status |
 | --- | --- |
 | Original APK baseline / hashes | Done |
 | Modern Android installation experiment | Done |
-| Native library inventory | Done |
-| Cocos2d-x version identification | Done — 2.1.2 family |
-| Initial JNI map | Done |
-| Automated native symbol classification | Done |
-| Asset inventory | Done |
-| Lua payload fingerprinting | Done |
-| Lua decoder / recovered scripts | In progress |
-| Java/DEX bootstrap map | Next |
-| Ghidra subsystem map | Next |
-| Buildable native reconstruction | Not started |
-| Modern Gradle/CMake app | Not started |
-| `arm64-v8a` build | Not started |
-| Playable recompilation | Not started |
+| Engine / Lua runtime identification | Done |
+| Native symbol classification | Done |
+| JNI/startup mapping | Substantially mapped |
+| Asset/Lua transform recovery | Done |
+| Lua decoder / recovered script workflow | Done |
+| Lua dependency/native API mapping | Done |
+| Modern Gradle/CMake app | Done |
+| Project-owned JNI/native runtime | Done |
+| Lua 5.2.3 integration | Done |
+| APK asset import | Done |
+| OBB asset import | Done |
+| Startup compatibility bindings | In progress, substantial coverage |
+| Filesystem/search-path reconstruction | In progress, early startup covered |
+| Offline login/startup route reconstruction | In progress |
+| `ChooseHero` asset/background staging | In progress |
+| Rendering/input reconstruction | In progress / next critical path |
+| Original title/menu visual flow | Not yet reached end-to-end |
+| Offline gameplay | Not yet functional |
+| `arm64-v8a` build configuration | Done |
+| Android 15/16 runtime validation | Pending |
+| 16 KiB page-size validation | Pending |
+| Playable recompilation | Not yet |
 
-## Strategy
+## Reconstruction strategy
 
-The project deliberately avoids starting with a full line-by-line rewrite of `libcocos2dcpp.so`.
+The project does **not** attempt a blind line-by-line rewrite of the original `libcocos2dcpp.so`.
 
-The fastest path is currently:
+The current strategy is dependency-driven:
 
-1. recover the Android/JNI startup contract;
-2. recover the Lua decoding/loading path and script module graph;
-3. use the retained C++ symbol table to partition native code into Cocos2d-x, protobuf, Lua, third-party and game-specific subsystems;
-4. compare engine code against the identified Cocos2d-x 2.1.2-era source;
-5. reconstruct only the remaining game-specific native interfaces in dependency order;
-6. create a modern Android/NDK build once those runtime contracts are understood;
-7. restore offline gameplay incrementally, then add `arm64-v8a`/modern Android compatibility.
+1. recover static metadata, symbols, DEX/JNI relationships and script dependencies;
+2. decode user-owned resources locally with reproducible tooling;
+3. execute the real recovered startup scripts against a clean modern runtime;
+4. use missing globals, tracebacks and behavior differences to identify the next required compatibility surface;
+5. recreate only the native/game behavior required by the reachable runtime path;
+6. reconstruct rendering, scene flow and gameplay systems incrementally;
+7. preserve offline behavior while replacing or stubbing obsolete service integrations where necessary.
 
 See **[`docs/roadmap.md`](docs/roadmap.md)** for the detailed development plan.
 
@@ -79,50 +108,162 @@ See **[`docs/roadmap.md`](docs/roadmap.md)** for the detailed development plan.
 ```text
 nevergone-recomp/
 ├── README.md
-├── docs/
+├── android/              # modern Gradle/NDK application and runtime shell
+│   ├── app/
+│   └── README.md
+├── docs/                 # reverse-engineering evidence and reconstruction notes
+│   ├── android-bootstrap.md
 │   ├── apk-analysis.md
+│   ├── choose-hero-background.md
+│   ├── filesystem-bindings.md
+│   ├── jni-map.md
+│   ├── lua-binding-call-shapes.md
+│   ├── lua-dependency-map.md
+│   ├── lua-native-api-map.md
 │   ├── native-analysis.md
-│   └── roadmap.md
-├── tools/
-│   ├── README.md
-│   ├── apk_inventory.py
-│   ├── lua_probe.py
-│   └── native_symbol_map.py
-├── src/                  # reconstructed code (future)
-├── android/              # modern Android wrapper (future)
-├── cmake/                # native build support (future)
-└── tests/                # behavior/format tests (future)
+│   ├── resource-decoding.md
+│   ├── resource-search-paths.md
+│   ├── roadmap.md
+│   └── ...
+├── tools/                # decoder, probes, symbol/Ghidra and build helpers
+├── third_party/_local/   # ignored locally fetched dependencies
+└── .github/              # CI/workflows
 ```
 
-## Analysis tools
+Original Never Gone APK/OBB files, decoded proprietary scripts and copyrighted assets are intentionally not stored in the repository.
 
-The first tooling is already usable and requires no proprietary files in the repository.
+## Modern Android runtime
 
-Generate a reproducible APK inventory:
+The clean-room Android shell under [`android/`](android/) can already:
+
+- target a current Android SDK;
+- build/load project-owned native C++ code;
+- build for `armeabi-v7a` and `arm64-v8a`;
+- report ABI/pointer width/runtime page size;
+- maintain an app-local runtime root and privacy-safe persistent UUID;
+- embed and execute Lua 5.2.3;
+- register reconstructed startup globals;
+- load decoded/imported Lua modules from app-private storage;
+- expose Lua/native startup errors as diagnostics;
+- import original resources supplied by the user through Android storage flows;
+- stage selected recovered resources for reconstructed routes such as `choose-role`.
+
+It does **not** link against the original `libcocos2dcpp.so`.
+
+See **[`android/README.md`](android/README.md)** for runtime/build details.
+
+## Recovered startup compatibility layer
+
+The modern runtime recreates the direct Lua-visible startup contract, including semantic equivalents for:
+
+```text
+CAddDoString
+Lua_GetPlatformString
+Lua_GetDeviceUUID
+cpp_ShowLoadingUI
+cpp_HideLoadingUI
+cpp_ShowErrorDialogUI
+cpp_ShowMessageBoxUI
+```
+
+The reconstruction also covers multiple early reachable dependencies, including:
+
+- Lua module loading and compatibility helpers;
+- filesystem/search-path helpers;
+- Lua 5.1 compatibility surfaces used by original scripts;
+- observed legacy `bit` functionality through Lua 5.2 `bit32`;
+- JSON encode/decode;
+- LuaXML/config helpers;
+- boot-safe offline `ProtoRPC` initialization;
+- UUID/version/string-validation helpers;
+- diagnostic bridging for early login/native callbacks.
+
+The objective is semantic compatibility with the scripts, not ABI compatibility with the old ARM binary.
+
+## Resource recovery
+
+The original resource transform has been recovered and automated.
+
+Decode supported transformed assets locally from a legally obtained APK:
 
 ```bash
-python3 tools/apk_inventory.py /path/to/com.hippiegame.nevergone.apk \
-  --json build/apk-inventory.json \
-  --markdown build/apk-inventory.md
+python3 tools/asset_decoder.py /path/to/com.hippiegame.nevergone.apk \
+  --output build/decoded-assets
 ```
 
-Fingerprint the Lua-like payloads:
+Recovered proprietary output should remain local and must not be committed.
+
+The modern Android app also supports user-owned original resource import into app-private runtime storage. Recent work extends this to OBB content needed by later reconstructed UI paths.
+
+## Lua 5.2.3
+
+The repository does not vendor the upstream Lua source directly. Fetch and verify the exact runtime release with:
 
 ```bash
-python3 tools/lua_probe.py /path/to/com.hippiegame.nevergone.apk
+python3 tools/fetch_lua_5_2_3.py
 ```
 
-Generate a categorized native symbol database:
+This creates the ignored local directory:
+
+```text
+third_party/_local/lua-5.2.3/
+```
+
+The helper verifies the pinned release before extraction, and CMake integrates it into the modern runtime.
+
+## Build
+
+Requirements:
+
+- JDK 17+
+- Android SDK Platform 36
+- Android NDK
+- CMake 3.22.1+
+- Gradle compatible with Android Gradle Plugin 9.4
+- Python 3
+
+Prepare Lua and build:
 
 ```bash
-python3 tools/native_symbol_map.py /path/to/libcocos2dcpp.so \
-  --csv build/native-symbols.csv \
-  --markdown build/native-symbols.md
+python3 tools/fetch_lua_5_2_3.py
+
+cd android
+gradle wrapper
+./gradlew assembleDebug
 ```
 
-See **[`tools/README.md`](tools/README.md)** for details.
+The debug APK is normally produced under:
 
-## Original Android architecture
+```text
+android/app/build/outputs/apk/debug/
+```
+
+## Host-side startup probing
+
+A host-side startup probe is used to shorten the reconstruction loop: the recovered script chain can be run against clean-room bindings on Linux without repeatedly installing an APK.
+
+The probe is intentionally useful when it fails: the first missing global, incompatible call shape or resource lookup becomes the next concrete reconstruction target.
+
+See the tooling documentation under [`tools/`](tools/) and the roadmap for the current probe workflow.
+
+## Character-selection reconstruction
+
+The project has begun reconstructing the offline `choose-role` / `ChooseHero` path.
+
+Current work includes:
+
+- recovered `ChooseHeroBackground` function/symbol evidence;
+- recovered background TexturePacker atlas names and frame metadata;
+- verified OBB paths for required user-supplied atlas pairs;
+- app-private staging and validation of those atlas resources;
+- restoration of TexturePacker source-canvas placement metadata;
+- native scene-owned backing state for the staged background layers.
+
+The project intentionally does **not** guess unresolved animation/phase behavior. Rendering is connected only when sufficient binary evidence has been recovered.
+
+See **[`docs/choose-hero-background.md`](docs/choose-hero-background.md)**.
+
+## Original architecture
 
 Current evidence supports approximately this runtime structure:
 
@@ -138,94 +279,119 @@ Android application
 │   └── libcocos2dcpp.so
 │       ├── Never Gone C++ code
 │       ├── Cocos2d-x 2.1.2-era engine
-│       ├── embedded Lua runtime / bindings
-│       ├── Google protobuf
+│       ├── Lua 5.2.3 / bindings
+│       ├── protobuf
 │       ├── TinyXML
 │       ├── resource / save / networking systems
 │       └── UI / combat / scene code
 │
 ├── libffmpeg.so
 │
-└── assets
-    ├── encoded Lua scripts
+└── assets / OBB
+    ├── transformed Lua scripts
     ├── PNG / plist UI and graphics data
     ├── HPC / CSV configuration data
     └── audio / video
 ```
 
-A high-priority trace already shows `CallLuaCalss::init()` resolving `assets/Script/Game/StartLua.lua` through `CCFileUtils` and invoking `luaL_loadfilex`. The exact byte transform applied before the Lua parser sees the script remains under investigation.
-
 ## Major milestones
 
 ### M0 — Research baseline
 
-- [x] APK documented
-- [x] native libraries identified
-- [x] engine version identified
-- [x] initial JNI and symbol maps generated
-- [x] Lua payloads fingerprinted
+- [x] APK/native baseline documented
+- [x] engine and Lua versions identified
+- [x] JNI/symbol inventory established
+- [x] resource transform recovered
 
-### M1 — Runtime map
+### M1 — Script/resource recovery
 
-- [ ] Java/DEX startup path documented
-- [ ] Lua decoding/loading path recovered
-- [ ] first script recovered reproducibly
-- [ ] major native subsystem graph documented
+- [x] all 107 Lua payloads recoverable locally
+- [x] startup module graph built
+- [x] reachable Lua/native API surface mapped
+- [x] transformed PNG/HPC/CSV decoding validated
+- [x] Android user-owned APK import implemented
+- [x] Android user-owned OBB import implemented
 
-### M2 — Resource/script pipeline
+### M2 — Modern executable skeleton
 
-- [ ] all recoverable Lua modules decoded by tooling
-- [ ] script dependency graph built
-- [ ] HPC/ACTDATA formats investigated as required
-- [ ] user-supplied asset import workflow defined
+- [x] Gradle/CMake project builds
+- [x] project-owned JNI/native library loads
+- [x] Lua 5.2.3 executes in the clean runtime
+- [x] startup diagnostics available
+- [x] `armeabi-v7a` + `arm64-v8a` configured
+- [x] CI build/tool validation present
 
-### M3 — First reconstructed executable
+### M3 — Runtime compatibility
 
-- [ ] modern Gradle/CMake project builds
-- [ ] reconstructed native library loads
-- [ ] Android lifecycle/JNI bridge works
-- [ ] engine/runtime initialization begins without the original `libcocos2dcpp.so`
+- [x] direct `Game.StartLua` contract recreated
+- [x] early filesystem/search-path compatibility recreated
+- [x] multiple reachable Lua/native services recreated
+- [x] host-side startup probe available
+- [ ] complete real startup chain without unresolved runtime blockers
+- [ ] complete AppDelegate/lifecycle reconstruction
 
-### M4 — Boot to UI
+### M4 — Boot to original UI
 
-- [ ] graphics/input initialization works
-- [ ] resource search paths work
-- [ ] Lua startup executes
-- [ ] initial title/login/menu flow appears
+- [ ] initialize reconstructed rendering/input path
+- [ ] reproduce `HelloWorld` → `ManagementLayer`
+- [ ] connect reconstructed login/startup callbacks to UI
+- [ ] render the recovered `ChooseHero` path
 
 ### M5 — Offline gameplay
 
-- [ ] game scene starts
-- [ ] player/enemy control works
-- [ ] combat works
-- [ ] save/load works
-- [ ] audio/video works
+- [ ] character selection
+- [ ] scene loading
+- [ ] player/enemy control
+- [ ] combat
+- [ ] inventory/equipment
+- [ ] save/load
+- [ ] audio/video
+- [ ] progression/tutorials
 
-### M6 — Modern Android target
+### M6 — Modern Android release target
 
-- [ ] `arm64-v8a`
-- [ ] Android 15/16+ validation
-- [ ] 16 KiB-page-size-compatible native build
+- [x] `arm64-v8a` build target configured
+- [ ] Android 15/16+ device validation
+- [ ] explicit 16 KiB page-size validation
+- [ ] lifecycle/resume/suspend validation
 - [ ] reproducible release build
+
+## Immediate priorities
+
+1. Complete the remaining startup/runtime compatibility blockers using the host and Android probes.
+2. Reconstruct the minimum `AppDelegate`, lifecycle, rendering and input path required for visible original UI.
+3. Connect captured offline login/server/role callbacks to the reconstructed UI layer.
+4. Continue evidence-driven `ChooseHero` reconstruction and render the verified staged background resources.
+5. Finish the Java/Android bootstrap/lifecycle map.
+6. Validate `arm64-v8a`, Android 15/16 and 16 KiB page-size behavior on real/emulated devices.
+7. Expand native subsystem reconstruction only as the reachable offline path requires it.
 
 ## Documentation
 
-- **[`docs/apk-analysis.md`](docs/apk-analysis.md)** — original APK/native/assets baseline
-- **[`docs/native-analysis.md`](docs/native-analysis.md)** — symbol counts, JNI addresses, high-value classes and Lua/native observations
-- **[`docs/roadmap.md`](docs/roadmap.md)** — phased reconstruction plan and immediate priorities
+Key documents include:
+
+- **[`docs/roadmap.md`](docs/roadmap.md)** — phased reconstruction plan and current priorities
+- **[`docs/android-bootstrap.md`](docs/android-bootstrap.md)** — Android/native bootstrap research
+- **[`docs/jni-map.md`](docs/jni-map.md)** — Java/JNI/native mapping
+- **[`docs/native-analysis.md`](docs/native-analysis.md)** — native symbol/runtime evidence
+- **[`docs/resource-decoding.md`](docs/resource-decoding.md)** — recovered resource transform
+- **[`docs/lua-dependency-map.md`](docs/lua-dependency-map.md)** — script dependency graph
+- **[`docs/lua-native-api-map.md`](docs/lua-native-api-map.md)** — script/native compatibility surface
+- **[`docs/filesystem-bindings.md`](docs/filesystem-bindings.md)** — reconstructed filesystem APIs
+- **[`docs/choose-hero-background.md`](docs/choose-hero-background.md)** — character-selection background evidence/staging
 
 ## Contributing
 
-Reverse-engineering findings are useful even before they become reconstructed source code. Helpful contributions include function identification, Ghidra analysis, Java/JNI mapping, Cocos2d-x matching, script/resource format research, extraction tools, Android compatibility work and behavior comparison against the original game.
+Reverse-engineering findings are useful even before they become reconstructed source code. Helpful contributions include function identification, Ghidra analysis, Java/JNI mapping, Cocos2d-x matching, script/resource format research, clean-room runtime implementations, Android compatibility work and behavior comparison against the original game.
 
-When documenting reconstructed functions, include evidence whenever practical: binary hash/version, symbol/address, strings, xrefs, imports, call relationships or runtime observations.
+When documenting reconstructed behavior, include evidence whenever practical: binary hash/version, symbol/address, strings, xrefs, imports, call relationships or runtime observations.
 
-Do not commit original APKs, native game binaries, copyrighted game assets or decoded proprietary script contents. Tools and reverse-engineering metadata should be sufficient for users to work from their own legally obtained copy.
+Do not commit original APK/OBB files, original native game binaries, copyrighted game assets or decoded proprietary scripts. Tools, original clean-room code and reverse-engineering metadata should be sufficient for users to work from their own legally obtained copy.
 
 ## Legal notice
 
-This is an independent preservation and reverse-engineering project and is not affiliated with or endorsed by the original developers, publishers, or rights holders of Never Gone.
+This is an independent preservation and reverse-engineering project and is not affiliated with or endorsed by the original developers, publishers or rights holders of Never Gone.
 
-The repository is intended to contain **original project code, documentation and reverse-engineering metadata only**. Users are expected to provide required original game files from their own legally obtained copy.
+The repository is intended to contain **original project code, documentation and reverse-engineering metadata only**. Users are expected to provide any required original game files from their own legally obtained copy.
 
 All trademarks and copyrighted materials belong to their respective owners.
