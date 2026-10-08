@@ -18,6 +18,8 @@ final class OriginalObbImporter {
     private static final String OBB_ASSET_ROOT = "assets/";
     private static final String REQUIRED_ATLAS =
             "gamescene_ui/LevelUI/Gate_Background_UI/Gate_BackgroundPNG_01.plist";
+    private static final String REQUIRED_ATLAS_IMAGE =
+            "gamescene_ui/LevelUI/Gate_Background_UI/Gate_BackgroundPNG_01.png";
     private static final String REQUIRED_LEVEL = "gamescene/gs_list/pvp_scene.glData";
     private static final int MAX_FILES = 30_000;
     private static final long MAX_SINGLE_FILE_BYTES = 256L * 1024L * 1024L;
@@ -63,6 +65,7 @@ final class OriginalObbImporter {
         int decodedFiles = 0;
         long importedBytes = 0;
         boolean foundAtlas = false;
+        boolean foundAtlasImage = false;
         byte[] buffer = new byte[64 * 1024];
 
         try (InputStream raw = resolver.openInputStream(obbUri)) {
@@ -116,6 +119,7 @@ final class OriginalObbImporter {
                     }
 
                     if (REQUIRED_ATLAS.equals(relative)) foundAtlas = fileBytes > 0;
+                    if (REQUIRED_ATLAS_IMAGE.equals(relative)) foundAtlasImage = fileBytes > 0;
                     zip.closeEntry();
                 }
             }
@@ -128,7 +132,9 @@ final class OriginalObbImporter {
             deleteTree(staging);
             throw new IOException("selected file does not contain an OBB assets tree");
         }
-        if (!foundAtlas || !new File(staging, REQUIRED_ATLAS).isFile()) {
+        if (!foundAtlas || !foundAtlasImage ||
+                !new File(staging, REQUIRED_ATLAS).isFile() ||
+                !new File(staging, REQUIRED_ATLAS_IMAGE).isFile()) {
             deleteTree(staging);
             throw new IOException("selected OBB is missing Never Gone background resources");
         }
