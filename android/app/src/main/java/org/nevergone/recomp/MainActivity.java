@@ -21,9 +21,11 @@ public final class MainActivity extends Activity {
     private static final String PREFS = "nevergone_recomp_runtime";
     private static final String DEVICE_ID = "device_id";
     private static final int REQUEST_ORIGINAL_APK = 1001;
+    private static final int REQUEST_ORIGINAL_OBB = 1002;
 
     private TextView status;
     private Button importButton;
+    private Button importObbButton;
     private GameSurfaceView gameSurface;
 
     static {
@@ -62,6 +64,13 @@ public final class MainActivity extends Activity {
         importButton.setText("Import original Never Gone APK");
         importButton.setOnClickListener(view -> chooseOriginalApk());
         content.addView(importButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        importObbButton = new Button(this);
+        importObbButton.setText("Import original Never Gone OBB");
+        importObbButton.setOnClickListener(view -> chooseOriginalObb());
+        content.addView(importObbButton, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -126,15 +135,18 @@ public final class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_ORIGINAL_APK || resultCode != RESULT_OK || data == null) {
-            return;
-        }
-        Uri apkUri = data.getData();
-        if (apkUri == null) {
+        if (resultCode != RESULT_OK || data == null) return;
+
+        Uri uri = data.getData();
+        if (uri == null) {
             status.setText(buildStatusText("Import failed: no file selected."));
             return;
         }
-        importOriginalApk(apkUri);
+        if (requestCode == REQUEST_ORIGINAL_APK) {
+            importOriginalApk(uri);
+        } else if (requestCode == REQUEST_ORIGINAL_OBB) {
+            importOriginalObb(uri);
+        }
     }
 
     private void chooseOriginalApk() {
@@ -144,8 +156,20 @@ public final class MainActivity extends Activity {
         startActivityForResult(intent, REQUEST_ORIGINAL_APK);
     }
 
+    private void chooseOriginalObb() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        startActivityForResult(intent, REQUEST_ORIGINAL_OBB);
+    }
+
+    private void setImportButtonsEnabled(boolean enabled) {
+        importButton.setEnabled(enabled);
+        importObbButton.setEnabled(enabled);
+    }
+
     private void importOriginalApk(Uri apkUri) {
-        importButton.setEnabled(false);
+        setImportButtonsEnabled(false);
         status.setText(buildStatusText("Importing and decoding original APK assets..."));
 
         new Thread(() -> {
@@ -154,30 +178,58 @@ public final class MainActivity extends Activity {
                         getContentResolver(), apkUri, getFilesDir());
                 String summary = String.format(
                         Locale.ROOT,
-                        "Imported %d files (%.2f MiB); decoded %d encoded assets. " +
-                                "Startup diagnostics rerun below.",
+                        "Imported %d APK files (%.2f MiB); decoded %d encoded assets. " +
+                                "Import the original OBB next for expansion/game-scene resources.",
                         result.files,
                         result.bytes / (1024.0 * 1024.0),
                         result.decodedFiles);
                 runOnUiThread(() -> {
-                    importButton.setEnabled(true);
-                    if (gameSurface != null) {
-                        gameSurface.reloadImportedSplash();
-                    }
+                    setImportButtonsEnabled(true);
+                    if (gameSurface != null) gameSurface.reloadImportedSplash();
                     status.setText(buildStatusText(summary));
                 });
             } catch (Exception error) {
-                String message = error.getMessage();
-                if (message == null || message.isEmpty()) {
-                    message = error.getClass().getSimpleName();
-                }
-                String summary = "Import failed: " + message;
-                runOnUiThread(() -> {
-                    importButton.setEnabled(true);
-                    status.setText(buildStatusText(summary));
-                });
+                showImportError(error);
             }
         }, "NeverGoneAssetImport").start();
+    }
+
+    private void importOriginalObb(Uri obbUri) {
+        setImportButtonsEnabled(false);
+        status.setText(buildStatusText("Importing and decoding original OBB assets..."));
+
+        new Thread(() -> {
+            try {
+                OriginalObbImporter.Result result = OriginalObbImporter.importAssets(
+                        getContentResolver(), obbUri, getFilesDir());
+                String summary = String.format(
+                        Locale.ROOT,
+                        "Imported %d OBB files (%.2f MiB); decoded %d encoded assets. " +
+                                "Expansion resources are now available to the reconstructed runtime.",
+                        result.files,
+                        result.bytes / (1024.0 * 1024.0),
+                        result.decodedFiles);
+                runOnUiThread(() -> {
+                    setImportButtonsEnabled(true);
+                    if (gameSurface != null) gameSurface.reloadImportedSplash();
+                    status.setText(buildStatusText(summary));
+                });
+            } catch (Exception error) {
+                showImportError(error);
+            }
+        }, "NeverGoneObbImport").start();
+    }
+
+    private void showImportError(Exception error) {
+        String message = error.getMessage();
+        if (message == null || message.isEmpty()) {
+            message = error.getClass().getSimpleName();
+        }
+        final String summary = "Import failed: " + message;
+        runOnUiThread(() -> {
+            setImportButtonsEnabled(true);
+            status.setText(buildStatusText(summary));
+        });
     }
 
     private String buildStatusText(String notice) {
@@ -187,8 +239,15 @@ public final class MainActivity extends Activity {
         }
 
         File startLua = new File(getFilesDir(), "assets/Script/Game/StartLua.lua");
-        text.append("Original assets: ")
+        File pvpScene = new File(getFilesDir(), "assets/gamescene/gs_list/pvp_scene.glData");
+        File chooseHeroAtlas = new File(
+                getFilesDir(),
+                "assets/gamescene_ui/LevelUI/Gate_Background_UI/Gate_BackgroundPNG_01.plist");
+        text.append("Original APK assets: ")
                 .append(startLua.isFile() ? "present" : "not imported")
+                .append("\n")
+                .append("Original OBB assets: ")
+                .append(pvpScene.isFile() && chooseHeroAtlas.isFile() ? "present" : "not imported")
                 .append("\n");
         if (gameSurface != null) {
             text.append("SingleLogin BGM: ")
