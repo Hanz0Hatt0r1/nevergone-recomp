@@ -130,6 +130,11 @@ ClientUiSnapshot snapshot_client_ui_state() {
     return g_client_ui_state;
 }
 
+void reset_client_ui_state() {
+    std::lock_guard<std::mutex> lock(g_callback_mutex);
+    g_client_ui_state = ClientUiSnapshot{};
+}
+
 std::string client_ui_state_report() {
     const ClientUiSnapshot snapshot = snapshot_client_ui_state();
     std::ostringstream out;
