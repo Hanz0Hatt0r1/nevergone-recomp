@@ -10,8 +10,17 @@
 #include <string>
 #include <vector>
 
+#include "client_callback_bridge.h"
+
 namespace nevergone::render {
 namespace {
+
+struct RenderPhase {
+    const char* name;
+    GLfloat red;
+    GLfloat green;
+    GLfloat blue;
+};
 
 std::atomic<int> g_width{0};
 std::atomic<int> g_height{0};
@@ -33,6 +42,21 @@ std::string g_gl_renderer;
 std::string g_gl_version;
 std::string g_shader_status = "not initialized";
 GLuint g_program = 0;
+GLint g_color_uniform = -1;
+
+RenderPhase current_render_phase() {
+    const auto state = nevergone::lua_runtime::snapshot_client_ui_state();
+    if (!state.enter_game.empty()) return {"entered-game", 0.20f, 0.78f, 0.36f};
+    if (!state.pve_connect.empty()) return {"pve", 0.86f, 0.30f, 0.25f};
+    if (!state.update_data.empty()) return {"data", 0.30f, 0.70f, 0.86f};
+    if (!state.chat_messages.empty()) return {"chat", 0.72f, 0.42f, 0.86f};
+    if (!state.created_role.empty() || !state.role_list.empty()) {
+        return {"role", 0.94f, 0.67f, 0.24f};
+    }
+    if (!state.server_list.empty()) return {"server", 0.24f, 0.52f, 0.90f};
+    if (!state.announcement.empty()) return {"announcement", 0.88f, 0.78f, 0.26f};
+    return {"idle", 0.72f, 0.72f, 0.72f};
+}
 
 std::string gl_string(GLenum name) {
     const GLubyte* value = glGetString(name);
@@ -51,16 +75,12 @@ GLuint compile_shader(GLenum type, const char* source, std::string* error) {
 
     GLint compiled = GL_FALSE;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-    if (compiled == GL_TRUE) {
-        return shader;
-    }
+    if (compiled == GL_TRUE) return shader;
 
     GLint log_length = 0;
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
     std::vector<char> log(static_cast<size_t>(log_length > 1 ? log_length : 1), '\0');
-    if (log_length > 1) {
-        glGetShaderInfoLog(shader, log_length, nullptr, log.data());
-    }
+    if (log_length > 1) glGetShaderInfoLog(shader, log_length, nullptr, log.data());
     if (error != nullptr) {
         *error = log_length > 1 ? std::string(log.data()) : "shader compilation failed";
     }
@@ -78,8 +98,9 @@ void main() {
 
     static constexpr const char* kFragmentShader = R"GLSL(
 precision mediump float;
+uniform vec3 uColor;
 void main() {
-    gl_FragColor = vec4(0.72, 0.72, 0.72, 1.0);
+    gl_FragColor = vec4(uColor, 1.0);
 }
 )GLSL";
 
@@ -115,16 +136,12 @@ void main() {
 
     GLint linked = GL_FALSE;
     glGetProgramiv(program, GL_LINK_STATUS, &linked);
-    if (linked == GL_TRUE) {
-        return program;
-    }
+    if (linked == GL_TRUE) return program;
 
     GLint log_length = 0;
     glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_length);
     std::vector<char> log(static_cast<size_t>(log_length > 1 ? log_length : 1), '\0');
-    if (log_length > 1) {
-        glGetProgramInfoLog(program, log_length, nullptr, log.data());
-    }
+    if (log_length > 1) glGetProgramInfoLog(program, log_length, nullptr, log.data());
     if (error != nullptr) {
         *error = log_length > 1 ? std::string(log.data()) : "program link failed";
     }
@@ -141,6 +158,14 @@ void on_surface_created() {
 
     std::string shader_error;
     g_program = build_smoke_program(&shader_error);
+    if (g_program != 0) {
+        g_color_uniform = glGetUniformLocation(g_program, "uColor");
+        if (g_color_uniform < 0) {
+            shader_error = "uColor uniform unavailable";
+            glDeleteProgram(g_program);
+            g_program = 0;
+        }
+    }
 
     std::lock_guard<std::mutex> lock(g_gl_status_mutex);
     g_gl_vendor = gl_string(GL_VENDOR);
@@ -164,7 +189,9 @@ void on_draw_frame() {
             -0.48f, -0.45f,
             0.48f, -0.45f,
         };
+        const RenderPhase phase = current_render_phase();
         glUseProgram(g_program);
+        glUniform3f(g_color_uniform, phase.red, phase.green, phase.blue);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, kVertices);
         glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -205,6 +232,7 @@ std::string status_report() {
     out << "render surface: " << g_width.load(std::memory_order_relaxed)
         << "x" << g_height.load(std::memory_order_relaxed) << "\n";
     out << "render frames: " << g_frame_count.load(std::memory_order_relaxed) << "\n";
+    out << "client render phase: " << current_render_phase().name << "\n";
     {
         std::lock_guard<std::mutex> lock(g_gl_status_mutex);
         out << "GL vendor: " << (g_gl_vendor.empty() ? "pending" : g_gl_vendor) << "\n";
