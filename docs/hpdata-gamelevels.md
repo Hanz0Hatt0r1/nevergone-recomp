@@ -48,16 +48,31 @@ A project-owned `hp_data::Cursor` layers sequential parsing on top of those expl
 
 The reader/cursor are compiled into the Android native module and have host regression coverage for valid primitive/string reads, sequential advancement, seeking/skipping, and out-of-range rejection.
 
+## Verified LoadGL_Scene prefix
+
+The checked-in ordered call trace now proves the first three stream reads in `GameLevels::LoadGL_Scene()`:
+
+1. `HPData::getBytes(int*, ...)` at call site `0x002d27f0`;
+2. `HPData::getBytes(unsigned int*, ...)` at `0x002d2806`;
+3. `GameSceneData::create()` at `0x002d2824` (no HPData consumption);
+4. `HPData::getBytes(unsigned int*, ...)` at `0x002d284a`.
+
+The next stream read is the unresolved-width `char*` field at `0x002d2868`, so reconstruction intentionally stops before it.
+
+`game_levels_scene_prefix.{h,cpp}` therefore parses exactly three opaque values: `first_i32`, `second_u32`, and `third_u32`. It consumes exactly 12 bytes through the project-owned sequential cursor and updates its output only when all three reads succeed. Truncated input fails without exposing a partially parsed prefix.
+
+This is intentionally not presented as a recovered `GameSceneData` schema. It is a narrow executable contract for the starting fields whose type/order are currently proven; semantic names and the following character-field width remain unresolved.
+
 ## Imported GameLevels asset probe
 
 The reconstructed runtime now has a narrow readiness probe for the first recovered scene resource. It resolves only this user-owned app-private path:
 
 `<files>/assets/gamescene/gs_list/pvp_scene.glData`
 
-The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. Bootstrap diagnostics expose only availability/read status and byte count. They do not dump, decode, persist, hash or otherwise report the proprietary contents.
+The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It also attempts the verified three-field `LoadGL_Scene` prefix and reports only whether those first 12 bytes are readable; bootstrap diagnostics do not print the proprietary field values themselves.
 
-This is deliberately a transport/readiness bridge rather than a format parser. It proves that the imported runtime resource can reach the clean-room HPData reader while keeping `HPRange`, field order, loop counts and object schemas as separate reverse-engineering tasks. A synthetic host regression covers missing, readable, oversized and non-regular paths without requiring any game data.
+This remains a transport/readiness bridge plus a minimal verified parser rather than a full format implementation. It proves that the imported runtime resource can reach both the clean-room HPData reader and the recovered sequential read order while keeping `HPRange`, the following char-field width, later loop counts and object schemas as separate reverse-engineering tasks. Synthetic host regressions cover missing/readable/oversized/non-regular paths, successful 12-byte prefix parsing and truncated-prefix rejection without requiring any game data.
 
 ## Remaining format work
 
-Before wiring this reader to a reconstructed `GameLevels` schema, recover the exact `HPRange` offset/length semantics and then map field order/count loops in each `LoadGL_*` function. Numeric/object layout evidence should come from the focused Ghidra exporter or equivalent metadata; field order and loop counts must not be guessed from likely game structures.
+Recover the exact width/semantic identity of the `char*` field read at `0x002d2868`, then continue with the two following float reads (`0x002d2892`, `0x002d28a8`) and the first nested layer-count read at `0x002d28f2`. The unresolved original `HPRange` ABI should still be recovered from focused Ghidra evidence when needed for binary-compatibility analysis, but the clean-room sequential parser does not need to imitate that ABI internally.

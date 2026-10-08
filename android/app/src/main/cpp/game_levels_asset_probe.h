@@ -14,13 +14,15 @@ struct Snapshot {
     bool regular_file = false;
     bool within_size_limit = false;
     bool loaded = false;
+    bool scene_prefix_readable = false;
     std::uint64_t file_size = 0;
     std::size_t reader_size = 0;
+    std::size_t scene_prefix_bytes_consumed = 0;
 };
 
 // Probe an explicit file path. This is exposed for host regression tests and
-// deliberately validates only file availability/loading, not unresolved
-// GameLevels schema or HPRange semantics.
+// validates transport plus only the verified three-field LoadGL_Scene prefix;
+// it does not claim unresolved GameLevels field semantics or HPRange ABI.
 Snapshot probe_file(const std::string& path, std::size_t max_bytes = kMaxProbeBytes);
 
 // Probe the recovered user-owned startup scene resource below

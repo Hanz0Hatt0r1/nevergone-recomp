@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "game_levels_scene_prefix.h"
 #include "hp_data_reader.h"
 
 namespace nevergone::game_levels_asset_probe {
@@ -44,6 +45,13 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
     hp_data::Reader reader(std::move(bytes));
     result.reader_size = reader.size();
     result.loaded = result.reader_size == static_cast<std::size_t>(raw_size);
+    if (result.loaded) {
+        game_levels_scene_prefix::Prefix prefix;
+        result.scene_prefix_readable = game_levels_scene_prefix::parse(reader, &prefix);
+        if (result.scene_prefix_readable) {
+            result.scene_prefix_bytes_consumed = prefix.bytes_consumed;
+        }
+    }
     return result;
 }
 
@@ -72,8 +80,11 @@ std::string status_report(const std::string& files_dir) {
         out << "too-large (" << state.file_size << " bytes)\n";
     } else if (!state.loaded) {
         out << "read-failed\n";
+    } else if (!state.scene_prefix_readable) {
+        out << "loaded (" << state.reader_size << " bytes; LoadGL_Scene prefix truncated)\n";
     } else {
-        out << "loaded (" << state.reader_size << " bytes)\n";
+        out << "loaded (" << state.reader_size << " bytes; LoadGL_Scene prefix readable, "
+            << state.scene_prefix_bytes_consumed << " bytes verified)\n";
     }
     return out.str();
 }

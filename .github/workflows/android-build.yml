@@ -71,6 +71,17 @@ jobs:
             -o /tmp/hp_data_reader_smoke
           /tmp/hp_data_reader_smoke
 
+      - name: Validate GameLevels scene prefix
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/game_levels_scene_prefix_smoke.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/game_levels_scene_prefix_smoke
+          /tmp/game_levels_scene_prefix_smoke
+
       - name: Validate GameLevels asset probe
         shell: bash
         run: |
@@ -78,6 +89,7 @@ jobs:
             -I android/app/src/main/cpp \
             tools/game_levels_asset_probe_smoke.cpp \
             android/app/src/main/cpp/game_levels_asset_probe.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
             android/app/src/main/cpp/hp_data_reader.cpp \
             -o /tmp/game_levels_asset_probe_smoke
           /tmp/game_levels_asset_probe_smoke
