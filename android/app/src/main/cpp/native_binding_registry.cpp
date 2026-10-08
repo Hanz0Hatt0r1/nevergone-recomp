@@ -3,6 +3,7 @@
 #include <map>
 #include <mutex>
 
+#include "filesystem_bindings.h"
 #include "lua_startup_bindings.h"
 
 #if defined(NEVERGONE_HAS_LUA)
@@ -28,8 +29,6 @@ int missing_global_index(lua_State* state) {
         }
     }
 
-    // Preserve normal Lua semantics: the missing global remains nil. The probe
-    // is diagnostic only and must not hide reconstruction blockers.
     lua_pushnil(state);
     return 1;
 }
@@ -56,6 +55,7 @@ std::vector<MissingGlobal> take_missing_globals() {
 void register_native_bindings(lua_State* state) {
 #if defined(NEVERGONE_HAS_LUA)
     register_startup_bindings(state);
+    register_filesystem_bindings(state);
 #else
     (void)state;
 #endif
