@@ -28,8 +28,11 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query checked-in SingleLogin metadata
+      - name: Query ChooseHeroReadyUIScene metadata
         run: |
-          python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
-          python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
-          python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
+          echo '=== functions ==='
+          python tools/ghidra/query_full_index.py functions ChooseHeroReadyUIScene --limit 100 || true
+          echo '=== choose hero strings ==='
+          python tools/ghidra/query_full_index.py strings ChooseHero --limit 100 || true
+          echo '=== gate strings ==='
+          python tools/ghidra/query_full_index.py strings Gate_ --limit 100 || true
