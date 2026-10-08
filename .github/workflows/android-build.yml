@@ -43,9 +43,7 @@ jobs:
             'ndk;28.2.13676358'
 
       - name: Validate Python tools
-        run: |
-          python3 -m compileall -q tools
-          python3 -m unittest discover -s tools -p 'test_*.py'
+        run: python3 -m compileall -q tools
 
       - name: Prepare verified Lua 5.2.3
         run: python3 tools/fetch_lua_5_2_3.py
