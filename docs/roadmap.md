@@ -4,7 +4,7 @@ This roadmap is ordered to minimize blind manual decompilation. The project shou
 
 ## Phase 0 — Baseline and preservation
 
-Status: **mostly complete**
+Status: **complete**
 
 - [x] Preserve an original APK hash.
 - [x] Verify that a compatibility-patched APK can install on a modern Android version.
@@ -13,8 +13,10 @@ Status: **mostly complete**
 - [x] Record native ABIs and shared libraries.
 - [x] Identify the engine family and exact embedded version string.
 - [x] Create reproducible inventory tooling.
-- [ ] Decode and commit a human-readable manifest summary.
-- [ ] Record signing-certificate metadata for the original APK.
+- [x] Decode and commit a human-readable manifest summary.
+- [x] Record signing-certificate metadata for the original APK.
+
+The metadata-only manifest baseline is reproducible with `tools/apk_manifest_summary.py` and committed as `docs/original-manifest.md`. Public certificate metadata is reproduced by `tools/apk_inventory.py` when `keytool` is available.
 
 Exit condition: another contributor can reproduce the same baseline from their own APK.
 
@@ -40,7 +42,7 @@ Exit condition: startup from Android process creation to `JNI_OnLoad` and the fi
 
 Priority: **critical path — major blockers resolved**
 
-The APK contains 107 files with a `.lua` extension. They are ordinary Lua source passed through the same reversible file transform used for `.png`, `.hpc`, and `.csv` game assets. The original native library also contains the exact runtime banner for **Lua 5.2.3**.
+The APK contains 107 files with a `.lua` extension. They are ordinary Lua source passed through the same reversible file transform used by `.png`, `.hpc`, and `.csv` game assets. The original native library also contains the exact runtime banner for **Lua 5.2.3**.
 
 - [x] Count and fingerprint all Lua-like payloads.
 - [x] Confirm that the archived files are transformed rather than standard Lua source/bytecode.

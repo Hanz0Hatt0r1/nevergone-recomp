@@ -21,7 +21,19 @@ python3 tools/apk_inventory.py /path/to/com.hippiegame.nevergone.apk \
   --markdown build/apk-inventory.md
 ```
 
-The report contains hashes, file counts, asset-extension counts, native dependencies, Cocos strings, JNI exports and a simple classification of Lua-like files.
+The report contains hashes, file counts, asset-extension counts, native dependencies, Cocos strings, JNI exports and a simple classification of Lua-like files. When `keytool` is available it also records public signing-certificate metadata and fingerprints.
+
+## Android manifest summary
+
+Decode the APK's binary `AndroidManifest.xml` without apktool/aapt and emit metadata-only JSON/Markdown:
+
+```bash
+python3 tools/apk_manifest_summary.py /path/to/com.hippiegame.nevergone.apk \
+  --json build/original-manifest.json \
+  --markdown build/original-manifest.md
+```
+
+The self-contained parser records package/version/SDK metadata, GLES requirements, permissions, screen support, launcher activities, application metadata and Android components. It deliberately leaves unresolved resource references as numeric IDs and does not retain proprietary manifest bytes or resource tables. The known baseline is committed as `docs/original-manifest.md`.
 
 ## Lua probe
 
