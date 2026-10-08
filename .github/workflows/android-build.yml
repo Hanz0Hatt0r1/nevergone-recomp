@@ -60,6 +60,14 @@ jobs:
           ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
         run: gradle --no-daemon --stacktrace assembleDebug
 
+      - name: Validate 16 KiB page-size alignment
+        shell: bash
+        run: |
+          APK="$(find android/app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+          test -n "$APK"
+          python3 tools/check_apk_16k_alignment.py "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -v -c -P 16 4 "$APK"
+
       - name: Archive debug APK
         uses: actions/upload-artifact@v4
         with:
