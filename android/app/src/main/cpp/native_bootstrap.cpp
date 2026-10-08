@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "client_callback_bridge.h"
+#include "game_levels_asset_probe.h"
 #include "lua_runtime.h"
 #include "lua_startup_bindings.h"
 #include "offline_startup_flow.h"
@@ -62,10 +63,11 @@ std::string bootstrap_info() {
     out << "app version: " << (runtime.app_version.empty() ? "unknown" : runtime.app_version) << "\n";
     out << nevergone::render::status_report();
     out << nevergone::offline_startup_flow::status_report();
+    out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::lua_runtime::smoke_test();
     out << nevergone::lua_runtime::startup_execution_report();
-    out << "\nNext milestone: render the recovered opening/create-role or choose-role UI route.";
+    out << "\nNext milestone: recover HPRange semantics and parse the first verified GameLevels fields.";
     return out.str();
 }
 
