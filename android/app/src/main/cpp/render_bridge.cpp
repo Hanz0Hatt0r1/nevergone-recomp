@@ -17,6 +17,10 @@ std::atomic<int> g_width{0};
 std::atomic<int> g_height{0};
 std::atomic<std::uint64_t> g_frame_count{0};
 std::atomic<std::uint64_t> g_touch_count{0};
+std::atomic<bool> g_app_resumed{false};
+std::atomic<std::uint64_t> g_pause_count{0};
+std::atomic<std::uint64_t> g_resume_count{0};
+std::atomic<std::uint64_t> g_surface_generation{0};
 std::mutex g_touch_mutex;
 int g_last_touch_action = -1;
 int g_last_touch_pointer = -1;
@@ -130,6 +134,7 @@ void main() {
 
 void on_surface_created() {
     g_frame_count.store(0, std::memory_order_relaxed);
+    g_surface_generation.fetch_add(1, std::memory_order_relaxed);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -180,8 +185,23 @@ void on_touch(int action, int pointer_id, float x, float y) {
 
 }  // namespace
 
+void on_app_pause() {
+    g_app_resumed.store(false, std::memory_order_relaxed);
+    g_pause_count.fetch_add(1, std::memory_order_relaxed);
+}
+
+void on_app_resume() {
+    g_app_resumed.store(true, std::memory_order_relaxed);
+    g_resume_count.fetch_add(1, std::memory_order_relaxed);
+}
+
 std::string status_report() {
     std::ostringstream out;
+    out << "app lifecycle: "
+        << (g_app_resumed.load(std::memory_order_relaxed) ? "resumed" : "paused") << "\n";
+    out << "resume events: " << g_resume_count.load(std::memory_order_relaxed) << "\n";
+    out << "pause events: " << g_pause_count.load(std::memory_order_relaxed) << "\n";
+    out << "GL surface generation: " << g_surface_generation.load(std::memory_order_relaxed) << "\n";
     out << "render surface: " << g_width.load(std::memory_order_relaxed)
         << "x" << g_height.load(std::memory_order_relaxed) << "\n";
     out << "render frames: " << g_frame_count.load(std::memory_order_relaxed) << "\n";
@@ -231,4 +251,14 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnTouch(
         static_cast<int>(pointer_id),
         static_cast<float>(x),
         static_cast<float>(y));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeOnAppPause(JNIEnv*, jclass) {
+    nevergone::render::on_app_pause();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeOnAppResume(JNIEnv*, jclass) {
+    nevergone::render::on_app_resume();
 }
