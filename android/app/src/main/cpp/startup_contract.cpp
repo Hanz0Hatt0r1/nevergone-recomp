@@ -44,22 +44,43 @@ bool CAddDoString(const std::string& module_name) {
 
 void cpp_ShowLoadingUI() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    g_ui_events.push_back({UiEvent::Type::ShowLoading, {}, {}});
+    UiEvent event;
+    event.type = UiEvent::Type::ShowLoading;
+    g_ui_events.push_back(std::move(event));
 }
 
 void cpp_HideLoadingUI() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    g_ui_events.push_back({UiEvent::Type::HideLoading, {}, {}});
+    UiEvent event;
+    event.type = UiEvent::Type::HideLoading;
+    g_ui_events.push_back(std::move(event));
 }
 
-void cpp_ShowErrorDialogUI(std::string message) {
+void cpp_ShowErrorDialogUI(int error_code) {
     std::lock_guard<std::mutex> lock(g_mutex);
-    g_ui_events.push_back({UiEvent::Type::ShowError, "Error", std::move(message)});
+    UiEvent event;
+    event.type = UiEvent::Type::ShowError;
+    event.error_code = error_code;
+    g_ui_events.push_back(std::move(event));
 }
 
-void cpp_ShowMessageBoxUI(std::string title, std::string message) {
+void cpp_ShowMessageBoxUI(
+    std::string arg1,
+    std::string arg2,
+    std::string arg3,
+    std::string arg4) {
     std::lock_guard<std::mutex> lock(g_mutex);
-    g_ui_events.push_back({UiEvent::Type::ShowMessage, std::move(title), std::move(message)});
+    UiEvent event;
+    event.type = UiEvent::Type::ShowMessage;
+    event.title = arg1;
+    event.message = arg2;
+    event.arguments = {
+        std::move(arg1),
+        std::move(arg2),
+        std::move(arg3),
+        std::move(arg4),
+    };
+    g_ui_events.push_back(std::move(event));
 }
 
 std::vector<std::string> take_requested_modules() {
@@ -84,15 +105,20 @@ std::string smoke_test_report() {
     const bool share_require = CAddDoString("ShareLogic.require");
     cpp_ShowLoadingUI();
     cpp_HideLoadingUI();
-    cpp_ShowMessageBoxUI("Never Gone Recomp", "startup bridge smoke test");
-    cpp_ShowErrorDialogUI("startup bridge diagnostic event");
+    cpp_ShowMessageBoxUI("Never Gone Recomp", "startup bridge smoke test", "ok", "cancel");
+    cpp_ShowErrorDialogUI(1);
 
     const auto modules = take_requested_modules();
     const auto events = take_ui_events();
 
+    const bool ui_arguments_ok =
+        events.size() == 4
+        && events[2].arguments.size() == 4
+        && events[3].error_code == 1;
+
     std::ostringstream out;
     out << "startup contract: "
-        << ((client_require && share_require && modules.size() == 2 && events.size() == 4)
+        << ((client_require && share_require && modules.size() == 2 && ui_arguments_ok)
                 ? "ok"
                 : "failed")
         << "\n";
