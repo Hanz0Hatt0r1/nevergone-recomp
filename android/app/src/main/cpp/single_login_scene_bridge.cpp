@@ -1,5 +1,6 @@
 #include <jni.h>
 
+#include "app_delegate_state.h"
 #include "game_clock.h"
 #include "offline_startup_flow.h"
 #include "splash_sequence_state.h"
@@ -22,6 +23,13 @@ void advance_offline_startup_flow() {
         tap_state.scene_generation);
 }
 
+void update_app_delegate_scene_phase() {
+    const std::uint64_t tick = nevergone::game_clock::tick_count();
+    nevergone::app_delegate_state::on_frame(
+        tick,
+        nevergone::splash_sequence_state::complete(tick));
+}
+
 }  // namespace
 
 extern "C" JNIEXPORT void JNICALL
@@ -29,16 +37,24 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeResetRecoveredSceneSequence(JNIE
     nevergone::offline_startup_flow::reset();
     nevergone::tap_to_start_state::reset();
     nevergone::splash_sequence_state::reset();
+    nevergone::app_delegate_state::on_surface_ready();
+    nevergone::app_delegate_state::on_scene_sequence_reset(
+        nevergone::splash_sequence_state::generation());
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeBeginRecoveredSceneSequence(JNIEnv*, jclass) {
-    nevergone::splash_sequence_state::begin(nevergone::game_clock::tick_count());
+    const std::uint64_t tick = nevergone::game_clock::tick_count();
+    nevergone::splash_sequence_state::begin(tick);
+    nevergone::app_delegate_state::on_scene_sequence_begin(
+        nevergone::splash_sequence_state::generation(),
+        tick);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeIsSingleLoginActive(JNIEnv*, jclass) {
     advance_offline_startup_flow();
+    update_app_delegate_scene_phase();
     if (!nevergone::splash_sequence_state::complete(nevergone::game_clock::tick_count())) {
         return JNI_FALSE;
     }
@@ -51,6 +67,7 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeIsSingleLoginActive(JNIEnv*, jcl
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeIsSingleSelectHeroActive(JNIEnv*, jclass) {
     advance_offline_startup_flow();
+    update_app_delegate_scene_phase();
     return nevergone::offline_startup_flow::snapshot().route ==
             nevergone::offline_startup_flow::Route::kOpeningDialogue
         ? JNI_TRUE
