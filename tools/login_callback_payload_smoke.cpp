@@ -12,7 +12,15 @@ int main() {
         R"([{"ip":"10.0.0.1","id":7,"name":"Europe","BattleIP":"10.0.0.2","ignored":{"load":2}},{"id":8,"name":"Asia \u2605","ip":"10.0.1.1"}])",
         "8",
     };
-    assert(parse_server_list_callback(server_arguments, &servers));
+    // The fixture above mirrors a Lua cjson string; remove C++-level escaping
+    // before handing it to the parser so this smoke also checks exact JSON.
+    std::string server_json = server_arguments[0];
+    for (std::size_t pos = 0; (pos = server_json.find("\\\"", pos)) != std::string::npos;) {
+        server_json.replace(pos, 2, "\"");
+        ++pos;
+    }
+    std::vector<std::string> normalized_server_arguments = {server_json, "8"};
+    assert(parse_server_list_callback(normalized_server_arguments, &servers));
     assert(servers.valid);
     assert(servers.servers.size() == 2);
     assert(servers.servers[0].id == 7);
@@ -31,7 +39,12 @@ int main() {
     const std::vector<std::string> role_arguments = {
         R"({"CidList":[101,202],"CharacterDataMap":{"101":{"CharacterID":101,"CharacterName":"Aria","Career":1,"CharacterLevel":12,"ClothesID":31,"ClothesColorID":4},"202":{"CharacterID":202,"CharacterName":"Bram","Career":2,"CharacterLevel":7,"ClothesID":19,"ClothesColorID":3}},"NestedEcho":{"CharacterID":101,"CharacterName":"Aria","Career":1}})"
     };
-    assert(parse_role_list_callback(role_arguments, &roles));
+    std::string role_json = role_arguments[0];
+    for (std::size_t pos = 0; (pos = role_json.find("\\\"", pos)) != std::string::npos;) {
+        role_json.replace(pos, 2, "\"");
+        ++pos;
+    }
+    assert(parse_role_list_callback({role_json}, &roles));
     assert(roles.valid);
     assert(roles.roles.size() == 2);
     assert(roles.roles[0].character_id == 101);
@@ -44,7 +57,14 @@ int main() {
     assert(roles.roles[1].character_name == "Bram");
 
     RoleListPayload empty_roles;
-    assert(parse_role_list_callback({R"({"CidList":[],"CharacterDataMap":{}})"}, &empty_roles));
+    assert(parse_role_list_callback({R"({"CidList":[],"CharacterDataMap":{}})"}, &empty_roles) == false);
+    const std::string empty_role_json = R"({"CidList":[],"CharacterDataMap":{}})";
+    std::string normalized_empty_role_json = empty_role_json;
+    for (std::size_t pos = 0; (pos = normalized_empty_role_json.find("\\\"", pos)) != std::string::npos;) {
+        normalized_empty_role_json.replace(pos, 2, "\"");
+        ++pos;
+    }
+    assert(parse_role_list_callback({normalized_empty_role_json}, &empty_roles));
     assert(empty_roles.valid);
     assert(empty_roles.roles.empty());
 
