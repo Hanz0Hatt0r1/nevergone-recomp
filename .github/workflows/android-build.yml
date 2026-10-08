@@ -45,6 +45,9 @@ jobs:
       - name: Validate Python tools
         run: python3 -m compileall -q tools
 
+      - name: Validate Ghidra metadata index
+        run: python3 tools/ghidra/verify_full_index.py docs/ghidra/full-index
+
       - name: Validate SingleLogin light timeline
         shell: bash
         run: |
