@@ -10,14 +10,14 @@ std::mutex g_mutex;
 Snapshot g_state;
 
 void update_foreground_phase_locked() {
-    if (!g_state.resumed) {
+    if (!g_state.resumed && (g_state.pause_count != 0 || g_state.resume_count != 0)) {
         g_state.phase = Phase::kBackground;
     } else if (g_state.scene_sequence_complete) {
         g_state.phase = Phase::kInitialUiReady;
     } else if (g_state.scene_sequence_started) {
         g_state.phase = Phase::kSplashRunning;
     } else if (g_state.surface_ready) {
-        g_state.phase = Phase::kForegroundReady;
+        g_state.phase = g_state.resumed ? Phase::kForegroundReady : Phase::kSurfaceReady;
     } else if (g_state.runtime_configured) {
         g_state.phase = Phase::kRuntimeConfigured;
     } else {
@@ -44,11 +44,7 @@ void on_surface_ready() {
         g_state.surface_ready = true;
         ++g_state.surface_generation;
     }
-    if (!g_state.resumed) {
-        g_state.phase = Phase::kSurfaceReady;
-    } else {
-        update_foreground_phase_locked();
-    }
+    update_foreground_phase_locked();
 }
 
 void on_app_pause() {
