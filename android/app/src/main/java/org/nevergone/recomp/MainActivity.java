@@ -33,6 +33,8 @@ public final class MainActivity extends Activity {
     private static native void nativeConfigureRuntime(String filesDir, String deviceId, String appVersion);
     private static native String nativeBootstrapInfo();
     private static native String nativeClientUiState();
+    private static native void nativeOnAppPause();
+    private static native void nativeOnAppResume();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,6 +93,7 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        nativeOnAppPause();
         if (gameSurface != null) {
             gameSurface.onPause();
         }
@@ -103,6 +106,7 @@ public final class MainActivity extends Activity {
         if (gameSurface != null) {
             gameSurface.onResume();
         }
+        nativeOnAppResume();
     }
 
     @Override
