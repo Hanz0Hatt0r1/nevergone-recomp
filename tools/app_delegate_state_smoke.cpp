@@ -22,6 +22,12 @@ int main() {
     assert(state.surface_ready);
     assert(state.surface_generation == 1);
 
+    // Asset reloads reuse the same recovered surface readiness boundary.
+    nevergone::app_delegate_state::on_surface_ready();
+    state = nevergone::app_delegate_state::snapshot();
+    assert(state.phase == Phase::kSurfaceReady);
+    assert(state.surface_generation == 1);
+
     nevergone::app_delegate_state::on_app_resume();
     state = nevergone::app_delegate_state::snapshot();
     assert(state.phase == Phase::kForegroundReady);
@@ -51,6 +57,12 @@ int main() {
     assert(state.phase == Phase::kBackground);
     assert(!state.resumed);
     assert(state.pause_count == 1);
+
+    // A GL/resource reload while paused must not make the app foreground-ready.
+    nevergone::app_delegate_state::on_surface_ready();
+    state = nevergone::app_delegate_state::snapshot();
+    assert(state.phase == Phase::kBackground);
+    assert(state.surface_generation == 1);
 
     nevergone::app_delegate_state::on_frame(140, true);
     state = nevergone::app_delegate_state::snapshot();
