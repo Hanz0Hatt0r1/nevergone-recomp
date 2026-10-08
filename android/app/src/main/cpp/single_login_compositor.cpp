@@ -10,6 +10,7 @@
 #include "game_clock.h"
 #include "single_login_cloud_timeline.h"
 #include "single_login_light_timeline.h"
+#include "single_login_sway_timeline.h"
 #include "splash_sequence_state.h"
 
 namespace nevergone::single_login {
@@ -31,6 +32,13 @@ struct SpriteTexture {
     int height = 0;
 };
 
+struct SwayPlacement {
+    float x = 0.0f;
+    float y = 0.0f;
+    float anchor_x = 0.5f;
+    float anchor_y = 0.5f;
+};
+
 constexpr size_t kBackgroundCount = 3;
 constexpr size_t kCloudFrameCount = 2;
 constexpr size_t kBuildingCount = 5;
@@ -43,6 +51,7 @@ std::array<PositionedTexture, kBackgroundCount> g_backgrounds{};
 std::array<SpriteTexture, kCloudFrameCount> g_cloud_frames{};
 std::array<PositionedTexture, kBuildingCount> g_buildings{};
 std::array<PositionedTexture, single_login_light_timeline::kLightCount> g_lights{};
+std::array<PositionedTexture, single_login_sway_timeline::kNodeCount> g_sways{};
 int g_surface_width = 0;
 int g_surface_height = 0;
 std::uint64_t g_scene_generation = 0;
@@ -144,6 +153,10 @@ void clear_lights() {
     clear_layers(&g_lights);
 }
 
+void clear_sways() {
+    clear_layers(&g_sways);
+}
+
 GLuint create_texture(const std::uint32_t* argb, size_t count, int width, int height) {
     if (width <= 0 || height <= 0 || argb == nullptr ||
         count != static_cast<size_t>(width) * static_cast<size_t>(height) ||
@@ -184,6 +197,7 @@ void on_surface_created() {
     g_cloud_frames = {};
     g_buildings = {};
     g_lights = {};
+    g_sways = {};
     g_scene_generation = 0;
     if (g_program != 0) glDeleteProgram(g_program);
     g_program = build_program();
@@ -277,6 +291,20 @@ bool upload_light(
         &g_lights, index, width, height, left, top, source_width, source_height, argb, count);
 }
 
+bool upload_sway(
+    int index,
+    int width,
+    int height,
+    int left,
+    int top,
+    int source_width,
+    int source_height,
+    const std::uint32_t* argb,
+    size_t count) {
+    return upload_positioned(
+        &g_sways, index, width, height, left, top, source_width, source_height, argb, count);
+}
+
 bool backgrounds_ready() {
     for (const auto& layer : g_backgrounds) {
         if (layer.texture == 0) return false;
@@ -287,6 +315,13 @@ bool backgrounds_ready() {
 bool clouds_ready() {
     for (const auto& frame : g_cloud_frames) {
         if (frame.texture == 0) return false;
+    }
+    return true;
+}
+
+bool sways_ready() {
+    for (const auto& layer : g_sways) {
+        if (layer.texture == 0) return false;
     }
     return true;
 }
@@ -321,6 +356,21 @@ void scene_half_extents(int source_width, int source_height, float* half_width, 
     } else {
         *half_width = image_aspect / surface_aspect;
     }
+}
+
+void scene_to_gl(
+    float x,
+    float y,
+    int source_width,
+    int source_height,
+    float scene_half_width,
+    float scene_half_height,
+    GLfloat* out_x,
+    GLfloat* out_y) {
+    *out_x = -scene_half_width +
+        2.0f * scene_half_width * x / static_cast<float>(source_width);
+    *out_y = -scene_half_height +
+        2.0f * scene_half_height * y / static_cast<float>(source_height);
 }
 
 void draw_positioned(const PositionedTexture& layer, float alpha) {
@@ -374,8 +424,6 @@ void draw_cloud(
     const float sprite_half_height = scene_half_height *
         static_cast<float>(frame.height) / static_cast<float>(source_height);
 
-    // Cocos2d-x positive node rotation is clockwise; standard 2-D rotation
-    // is counter-clockwise, hence the negative angle here.
     const float radians = -pose.rotation_degrees * kPi / 180.0f;
     const float c = std::cos(radians);
     const float s = std::sin(radians);
@@ -405,8 +453,88 @@ void draw_cloud_z(
     }
 }
 
+SwayPlacement sway_placement(std::size_t index, int source_width, int source_height) {
+    switch (index) {
+        case 0: return {0.0f, static_cast<float>(source_height) - 171.0f, 0.0f, 0.5f};
+        case 1: return {178.5f, 0.0f, 0.5f, 0.0f};
+        case 2: return {static_cast<float>(source_width) - 143.0f, 0.0f, 0.5f, 0.0f};
+        case 3: return {338.3f, -25.0f, 0.5f, 0.0f};
+        case 4: return {403.8f, -25.0f, 0.5f, 0.0f};
+        case 5: return {519.3f, -25.0f, 0.5f, 0.0f};
+        case 6: return {780.0f, -25.0f, 0.5f, 0.0f};
+        case 7: return {978.0f, -25.0f, 0.5f, 0.0f};
+        case 8: return {1100.0f, -25.0f, 0.5f, 0.0f};
+        default: return {};
+    }
+}
+
+void draw_sway(
+    std::size_t index,
+    const single_login_sway_timeline::NodeSample& pose,
+    int scene_width,
+    int scene_height) {
+    if (index >= g_sways.size()) return;
+    const auto& sprite = g_sways[index];
+    if (sprite.texture == 0 || sprite.source_width <= 0 || sprite.source_height <= 0) return;
+
+    const SwayPlacement placement = sway_placement(index, scene_width, scene_height);
+    const float bottom = static_cast<float>(sprite.source_height - sprite.top - sprite.height);
+    const float local_left = static_cast<float>(sprite.left) -
+        placement.anchor_x * static_cast<float>(sprite.source_width);
+    const float local_right = static_cast<float>(sprite.left + sprite.width) -
+        placement.anchor_x * static_cast<float>(sprite.source_width);
+    const float local_bottom = bottom -
+        placement.anchor_y * static_cast<float>(sprite.source_height);
+    const float local_top = bottom + static_cast<float>(sprite.height) -
+        placement.anchor_y * static_cast<float>(sprite.source_height);
+
+    const float skew_x = std::tan(pose.skew_x_degrees * kPi / 180.0f);
+    const float skew_y = std::tan(pose.skew_y_degrees * kPi / 180.0f);
+    const std::array<std::array<float, 2>, 4> local{{
+        {{local_left, local_top}},
+        {{local_left, local_bottom}},
+        {{local_right, local_top}},
+        {{local_right, local_bottom}},
+    }};
+
+    float scene_half_width = 1.0f;
+    float scene_half_height = 1.0f;
+    scene_half_extents(scene_width, scene_height, &scene_half_width, &scene_half_height);
+    GLfloat vertices[8]{};
+    for (size_t corner = 0; corner < local.size(); ++corner) {
+        const float x = local[corner][0];
+        const float y = local[corner][1];
+        const float transformed_x = x + skew_x * y;
+        const float transformed_y = skew_y * x + y;
+        scene_to_gl(
+            placement.x + transformed_x,
+            placement.y + transformed_y,
+            scene_width,
+            scene_height,
+            scene_half_width,
+            scene_half_height,
+            &vertices[corner * 2],
+            &vertices[corner * 2 + 1]);
+    }
+    draw_quad(sprite.texture, vertices, 1.0f);
+}
+
+void draw_sway_z(
+    const single_login_sway_timeline::Sample& sway_sample,
+    const std::array<single_login_sway_timeline::NodeConfig, single_login_sway_timeline::kNodeCount>& configs,
+    int z,
+    int scene_width,
+    int scene_height) {
+    for (size_t index = 0; index < g_sways.size(); ++index) {
+        if (configs[index].z_order == z) {
+            draw_sway(index, sway_sample.nodes[index], scene_width, scene_height);
+        }
+    }
+}
+
 void draw() {
-    if (!backgrounds_ready() || !clouds_ready() || g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
+    if (!backgrounds_ready() || !clouds_ready() || !sways_ready() ||
+        g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
         g_surface_width <= 0 || g_surface_height <= 0) {
         return;
     }
@@ -418,7 +546,9 @@ void draw() {
     const std::uint64_t generation = splash_sequence_state::generation();
     if (generation != g_scene_generation) {
         const std::time_t now = std::time(nullptr);
-        single_login_light_timeline::reset(now > 0 ? static_cast<std::uint64_t>(now) : 0ULL);
+        const std::uint64_t seed = now > 0 ? static_cast<std::uint64_t>(now) : 0ULL;
+        single_login_light_timeline::reset(seed);
+        single_login_sway_timeline::reset(seed);
         g_scene_generation = generation;
     }
 
@@ -430,6 +560,8 @@ void draw() {
         static_cast<float>(source_height),
         static_cast<float>(g_cloud_frames[0].width),
         static_cast<float>(g_cloud_frames[0].height));
+    const auto sway_sample = single_login_sway_timeline::sample(scene_seconds);
+    const auto& sway_configs = single_login_sway_timeline::configs();
 
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(g_program);
@@ -440,6 +572,7 @@ void draw() {
     draw_cloud_z(cloud_sample, 2, source_width, source_height);
     draw_positioned(g_backgrounds[2], 1.0f);  // z=3, inserted before later z=3 clouds
     draw_cloud_z(cloud_sample, 3, source_width, source_height);
+    draw_sway_z(sway_sample, sway_configs, 3, source_width, source_height);  // later z=3 trees
 
     for (const auto& building : g_buildings) {
         draw_positioned(building, 1.0f);       // z=4
@@ -447,8 +580,9 @@ void draw() {
 
     const auto light_sample = single_login_light_timeline::sample(scene_seconds);
     for (size_t index = 0; index < g_lights.size(); ++index) {
-        draw_positioned(g_lights[index], light_sample.alpha[index]);  // z=5
+        draw_positioned(g_lights[index], light_sample.alpha[index]);  // earlier z=5 lights
     }
+    draw_sway_z(sway_sample, sway_configs, 5, source_width, source_height);  // later z=5 foreground
 
     glBindTexture(GL_TEXTURE_2D, 0);
 }
@@ -541,6 +675,11 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginLights(JNIEnv*, 
     nevergone::single_login::clear_lights();
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginSways(JNIEnv*, jclass) {
+    nevergone::single_login::clear_sways();
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginBackground(
     JNIEnv* env,
@@ -602,6 +741,23 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginLight(
     return nevergone::single_login::upload_jni_layer(
         env, light_index, width, height, left, top, source_width, source_height, pixels,
         nevergone::single_login::upload_light) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginSway(
+    JNIEnv* env,
+    jclass,
+    jint sway_index,
+    jint width,
+    jint height,
+    jint left,
+    jint top,
+    jint source_width,
+    jint source_height,
+    jintArray pixels) {
+    return nevergone::single_login::upload_jni_layer(
+        env, sway_index, width, height, left, top, source_width, source_height, pixels,
+        nevergone::single_login::upload_sway) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL
