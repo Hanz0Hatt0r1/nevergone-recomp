@@ -49,7 +49,7 @@ The background functions reference these confirmed frames:
 
 Checked-in TexturePacker metadata confirms `bejingyueliang.png` and `bejingwuyun.png` are exact, non-rotated 1136x640 full-canvas frames. `yueliang.png`, `yueliangzhezhao.png`, `xingkong.png`, `bejingyueliang01.png`, and `diguang.png` are trimmed frames whose source canvas is also 1136x640, so their atlas offsets are sufficient to reconstruct exact design-canvas placement.
 
-`ChooseHeroBackgroundComposer` extracts these frames through the shared TexturePacker restoration path and verifies those source-canvas invariants. The three foreground-cloud frames are also extracted, but their scene positions remain action/operand-driven and are intentionally not inferred from their independent texture sizes.
+`ChooseHeroBackgroundComposer` extracts these frames through the shared TexturePacker restoration path and verifies those source-canvas invariants. For the three foreground clouds, the runtime now combines their restored TexturePacker trim placement with the recovered Cocos sprite anchor/position instead of inferring scene placement from texture size.
 
 ## Effective shipped `createUI()` dispatch
 
@@ -85,12 +85,35 @@ The deterministic first visible layer is therefore a six-second fade of `bejingw
 
 For comparison, focused evidence also shows `PartTow()` fades `bejingyueliang.png` in over 8 seconds, while `CreateSun()` repeats a 3-second fade-in / 3-second fade-out on `bejingyueliang01.png`; neither is on the effective shipped initial `createUI()` sequence described above.
 
+## Recovered `BalckCloud()` motion
+
+`BalckCloud()` is part of the shipped `init()` path and creates six foreground-cloud sprites at z-order 30. All six use anchor `(1.0, 0.5)`, so their Cocos X coordinate represents the right edge of the untrimmed sprite-frame source rectangle. The two dim cloud groups use opacity 178; `qianjingyun02` stays at the default full opacity.
+
+The exact repeated motion is:
+
+| Frame | Copy | Start X | Y | Delay | Move | End X | Opacity |
+| --- | ---: | ---: | --- | ---: | ---: | --- | ---: |
+| `qianjingyun02.png` | 0 | `0` | `H - h/2` | `0s` | `40s` | `W + w` | 255 |
+| `qianjingyun02.png` | 1 | `0` | `H - h/2` | `20s` | `40s` | `W + w` | 255 |
+| `qianjingyun03.png` | 0 | `-w` | `100 + h/2` | `0s` | `60s` | `W + w` | 178 |
+| `qianjingyun03.png` | 1 | `-2w` | `100 + h/2` | `30s` | `60s` | `W + w` | 178 |
+| `qianjingyun01.png` | 0 | `-w` | `350 + h/2` | `0s` | `50s` | `W + w` | 178 |
+| `qianjingyun01.png` | 1 | `-2w` | `400 + h/2` | `25s` | `50s` | `W + w` | 178 |
+
+Here `W/H` are the 1136x640 visible design dimensions and `w/h` are each sprite frame's **untrimmed source dimensions**. After each move, a zero-duration `CCMoveTo` resets the sprite to its starting X. The entire sequence is wrapped in `CCRepeatForever`.
+
+The delay on the second copy of each group is inside the repeated sequence rather than being a one-time startup offset. Consequently their full repeat periods are 60 seconds (`20+40`), 90 seconds (`30+60`), and 75 seconds (`25+50`). This behavior is covered by `choose_hero_black_cloud_timeline_smoke.cpp`.
+
+For rendering trimmed TexturePacker frames, the runtime reconstructs the source rectangle from the recovered `(1.0,0.5)` anchor and then applies the atlas `left/top/width/height` placement inside that source rectangle. This keeps the original motion path based on untrimmed dimensions while drawing only the stored upright pixels.
+
 ## Current runtime boundary
 
 When the reconstructed offline startup route becomes `choose-role`, `GameSurfaceView` lazily decodes the two confirmed background atlases from app-private imported assets, runs the ten recovered frames through `ChooseHeroBackgroundComposer`, and uploads their restored pixel/placement metadata into a synchronized native scene-owned backing store. Leaving `choose-role` clears that backing store. A hot asset re-import also clears it so a later route entry uses the refreshed user-owned files.
 
-The native compositor now consumes the exact full-canvas `bejingwuyun.png` frame and reproduces the recovered `CCFadeIn(6.0f)` using the existing 35 Hz reconstructed game clock. It does not clear the prior frame before drawing, so alpha 0 begins transparently over the previous reconstructed scene just as a Cocos sprite fade would. The texture is recreated when staged asset generation changes or a GLES context invalidates the old texture name.
+The first compositor consumes the exact full-canvas `bejingwuyun.png` frame and reproduces the recovered `CCFadeIn(6.0f)` using the existing 35 Hz reconstructed game clock. It does not clear the prior frame before drawing, so alpha 0 begins transparently over the previous reconstructed scene just as a Cocos sprite fade would.
 
-`BalckCloud()` is still called by the shipped `init()` before `createUI()`, but its cloud movement positions/durations have not yet been fully promoted into a clean-room semantic model. Those foreground clouds therefore remain staged but undrawn. The same conservative boundary applies to the random lightning/thunder/ground-light behavior created by `PartThree()`.
+The `BalckCloud` compositor then draws the six recovered cloud sprites above that background, preserving the original z-order relationship (`PartThree` background z=10, clouds z=30). It uses the same scene-generation-local 35 Hz clock, the exact repeated delay/move cycles listed above, and the user-imported atlas pixels. Both compositors recreate their GLES textures when staged asset generation changes or a surface/context recreation invalidates old texture names.
+
+The remaining visual gap is the random lightning/thunder/ground-light behavior created by `PartThree()`. Those nodes begin at opacity 0 and are not shown until the separate random-effect contract is fully reconstructed. Role-selection UI and scene entry are also separate remaining work.
 
 No original image/audio bytes or instruction dumps are stored in the repository; only the recovered behavioral contract is recorded here.
