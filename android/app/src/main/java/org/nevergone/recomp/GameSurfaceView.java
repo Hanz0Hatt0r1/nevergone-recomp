@@ -57,6 +57,9 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             int sourceWidth,
             int sourceHeight,
             int[] argbPixels);
+    private static native void nativeClearSingleLoginClouds();
+    private static native boolean nativeUploadSingleLoginCloud(
+            int cloudFrameIndex, int width, int height, int[] argbPixels);
     private static native void nativeClearSingleLoginBuildings();
     private static native boolean nativeUploadSingleLoginBuilding(
             int buildingIndex,
@@ -184,6 +187,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
 
     private void clearSingleLoginSceneOnGlThread() {
         nativeClearSingleLoginBackgrounds();
+        nativeClearSingleLoginClouds();
         nativeClearSingleLoginBuildings();
         nativeClearSingleLoginLights();
     }
@@ -200,7 +204,8 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         try {
             SingleLoginAtlasComposer.SceneAssets scene =
                     SingleLoginAtlasComposer.composeScene(plist, atlasFile);
-            if (scene == null || scene.backgrounds == null || scene.backgrounds.length != 3) {
+            if (scene == null || scene.backgrounds == null || scene.backgrounds.length != 3 ||
+                    scene.clouds == null || scene.clouds.length != 2) {
                 return;
             }
 
@@ -215,6 +220,15 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
                         background.sourceWidth,
                         background.sourceHeight,
                         background.pixels)) {
+                    clearSingleLoginSceneOnGlThread();
+                    return;
+                }
+            }
+
+            for (int index = 0; index < scene.clouds.length; index++) {
+                SingleLoginAtlasComposer.AtlasTexture cloud = scene.clouds[index];
+                if (cloud == null || !nativeUploadSingleLoginCloud(
+                        index, cloud.width, cloud.height, cloud.pixels)) {
                     clearSingleLoginSceneOnGlThread();
                     return;
                 }
