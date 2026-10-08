@@ -5,6 +5,7 @@
 
 #include "filesystem_bindings.h"
 #include "lua_startup_bindings.h"
+#include "protorpc_bindings.h"
 
 #if defined(NEVERGONE_HAS_LUA)
 extern "C" {
@@ -56,6 +57,7 @@ void register_native_bindings(lua_State* state) {
 #if defined(NEVERGONE_HAS_LUA)
     register_startup_bindings(state);
     register_filesystem_bindings(state);
+    register_protorpc_bindings(state);
 #else
     (void)state;
 #endif
