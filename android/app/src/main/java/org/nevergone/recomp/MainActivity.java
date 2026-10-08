@@ -32,6 +32,7 @@ public final class MainActivity extends Activity {
 
     private static native void nativeConfigureRuntime(String filesDir, String deviceId, String appVersion);
     private static native String nativeBootstrapInfo();
+    private static native String nativeClientUiState();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -168,7 +169,9 @@ public final class MainActivity extends Activity {
         text.append("Original assets: ")
                 .append(startLua.isFile() ? "present" : "not imported")
                 .append("\n\n")
-                .append(nativeBootstrapInfo());
+                .append(nativeBootstrapInfo())
+                .append("\n\nClient UI state\n")
+                .append(nativeClientUiState());
         return text.toString();
     }
 
