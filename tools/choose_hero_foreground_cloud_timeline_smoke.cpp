@@ -71,6 +71,14 @@ int main() {
     assert(pose_for_instance(5, 75.0, width, height, &pose));
     assert(near(pose.x, -400.0f));
 
+    // The original code truncates half-pixel positions through float->int->float.
+    assert(pose_for_instance(0, 0.0, width, 101.0f, &pose));
+    assert(near(pose.y, 589.0f));
+    assert(pose_for_instance(2, 0.0, width, 101.0f, &pose));
+    assert(near(pose.y, 150.0f));
+    assert(pose_for_instance(4, 0.0, width, 101.0f, &pose));
+    assert(near(pose.y, 400.0f));
+
     assert(!pose_for_instance(6, 0.0, width, height, &pose));
     assert(!pose_for_instance(0, 0.0, 0.0f, height, &pose));
     return 0;
