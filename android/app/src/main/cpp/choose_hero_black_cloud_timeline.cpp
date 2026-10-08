@@ -10,6 +10,14 @@ constexpr int kCloud02AssetIndex = 8;
 constexpr int kCloud03AssetIndex = 9;
 constexpr float kDimAlpha = 178.0f / 255.0f;
 
+float original_coordinate(float value) {
+    // The shipped ARMv7 BalckCloud path converts the computed CCPoint
+    // coordinates float -> signed int -> float before setPosition/MoveTo.
+    // VCVTR.S32.F32 uses round-toward-zero here, so retain that pixel-grid
+    // quantization instead of introducing half-pixel starting positions.
+    return std::trunc(value);
+}
+
 float repeat_move(
         double elapsed_seconds,
         double delay_seconds,
@@ -62,9 +70,9 @@ std::array<CloudPose, kCloudCount> sample(
     const float w03 = qianjingyun03.source_width;
     const float h03 = qianjingyun03.source_height;
 
-    const float end02 = design_width + w02;
-    const float end03 = design_width + w03;
-    const float end01 = design_width + w01;
+    const float end02 = original_coordinate(design_width + w02);
+    const float end03 = original_coordinate(design_width + w03);
+    const float end01 = original_coordinate(design_width + w01);
 
     return {{
         // qianjingyun02: both copies start at x=0. The second copy repeats
@@ -72,37 +80,57 @@ std::array<CloudPose, kCloudCount> sample(
         pose(
             kCloud02AssetIndex,
             repeat_move(elapsed_seconds, 0.0, 40.0, 0.0f, end02),
-            design_height - h02 * 0.5f,
+            original_coordinate(design_height - h02 * 0.5f),
             1.0f),
         pose(
             kCloud02AssetIndex,
             repeat_move(elapsed_seconds, 20.0, 40.0, 0.0f, end02),
-            design_height - h02 * 0.5f,
+            original_coordinate(design_height - h02 * 0.5f),
             1.0f),
 
         // qianjingyun03: lower cloud pair, opacity 178. The delayed copy
         // repeats Delay(30) + MoveTo(60), not a one-time phase offset.
         pose(
             kCloud03AssetIndex,
-            repeat_move(elapsed_seconds, 0.0, 60.0, -w03, end03),
-            100.0f + h03 * 0.5f,
+            repeat_move(
+                elapsed_seconds,
+                0.0,
+                60.0,
+                original_coordinate(-w03),
+                end03),
+            original_coordinate(100.0f + h03 * 0.5f),
             kDimAlpha),
         pose(
             kCloud03AssetIndex,
-            repeat_move(elapsed_seconds, 30.0, 60.0, -2.0f * w03, end03),
-            100.0f + h03 * 0.5f,
+            repeat_move(
+                elapsed_seconds,
+                30.0,
+                60.0,
+                original_coordinate(-2.0f * w03),
+                end03),
+            original_coordinate(100.0f + h03 * 0.5f),
             kDimAlpha),
 
         // qianjingyun01: two slightly different vertical lanes, opacity 178.
         pose(
             kCloud01AssetIndex,
-            repeat_move(elapsed_seconds, 0.0, 50.0, -w01, end01),
-            350.0f + h01 * 0.5f,
+            repeat_move(
+                elapsed_seconds,
+                0.0,
+                50.0,
+                original_coordinate(-w01),
+                end01),
+            original_coordinate(350.0f + h01 * 0.5f),
             kDimAlpha),
         pose(
             kCloud01AssetIndex,
-            repeat_move(elapsed_seconds, 25.0, 50.0, -2.0f * w01, end01),
-            400.0f + h01 * 0.5f,
+            repeat_move(
+                elapsed_seconds,
+                25.0,
+                50.0,
+                original_coordinate(-2.0f * w01),
+                end01),
+            original_coordinate(400.0f + h01 * 0.5f),
             kDimAlpha),
     }};
 }
