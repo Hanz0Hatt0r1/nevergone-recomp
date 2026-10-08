@@ -76,18 +76,25 @@ std::string smoke_test() {
         "local unpack_ok = unpack ~= nil and unpack({4, 5}) == 4; "
         "local bit_ok = bit ~= nil and bit.band(0xf3, 0x0f) == 3 and "
         "bit.bor(1, 4) == 5 and bit.lshift(1, 4) == 16 and bit.rshift(16, 4) == 1; "
+        "local encoded = cjson.encode({name='Never Gone', count=3, flags={true, false}, quote=[[a\"b]]}); "
+        "local decoded = cjson.decode(encoded); "
+        "local with_null = cjson.decode([[{\"value\":null}]]); "
+        "local cjson_ok = decoded.name == 'Never Gone' and decoded.count == 3 and "
+        "decoded.flags[1] == true and decoded.flags[2] == false and decoded.quote == [[a\"b]] and "
+        "with_null.value == cjson.null; "
         "local module_ok = false; "
         "do local xml = { native = true }; _G.xml = xml; "
         "local function chunk() module('xml'); value = 7 end; chunk(); "
         "module_ok = package.loaded.xml == xml and xml.value == 7 and xml.native == true end; "
-        "return uuid_ok, imported == true and connected == false, unpack_ok, bit_ok, module_ok");
+        "return uuid_ok, imported == true and connected == false, unpack_ok, bit_ok, cjson_ok, module_ok");
     if (status == 0) {
-        status = lua_pcall(state, 0, 5, 0);
+        status = lua_pcall(state, 0, 6, 0);
     }
-    const bool uuid_alias_ok = status == 0 && lua_toboolean(state, -5) != 0;
-    const bool protorpc_ok = status == 0 && lua_toboolean(state, -4) != 0;
-    const bool unpack_ok = status == 0 && lua_toboolean(state, -3) != 0;
-    const bool bit_ok = status == 0 && lua_toboolean(state, -2) != 0;
+    const bool uuid_alias_ok = status == 0 && lua_toboolean(state, -6) != 0;
+    const bool protorpc_ok = status == 0 && lua_toboolean(state, -5) != 0;
+    const bool unpack_ok = status == 0 && lua_toboolean(state, -4) != 0;
+    const bool bit_ok = status == 0 && lua_toboolean(state, -3) != 0;
+    const bool cjson_ok = status == 0 && lua_toboolean(state, -2) != 0;
     const bool module_ok = status == 0 && lua_toboolean(state, -1) != 0;
 
     lua_settop(state, 0);
@@ -109,7 +116,8 @@ std::string smoke_test() {
     }
 
     out << "lua smoke test: "
-        << ((basic_ok && uuid_alias_ok && protorpc_ok && unpack_ok && bit_ok && module_ok && probe_ok)
+        << ((basic_ok && uuid_alias_ok && protorpc_ok && unpack_ok && bit_ok && cjson_ok &&
+             module_ok && probe_ok)
                 ? "ok"
                 : "failed")
         << "\n";
@@ -118,6 +126,7 @@ std::string smoke_test() {
     out << "ProtoRPC shell: " << (protorpc_ok ? "ok" : "failed") << "\n";
     out << "global unpack compat: " << (unpack_ok ? "ok" : "failed") << "\n";
     out << "legacy bit compat: " << (bit_ok ? "ok" : "failed") << "\n";
+    out << "cjson compat: " << (cjson_ok ? "ok" : "failed") << "\n";
     out << "module() compat: " << (module_ok ? "ok" : "failed") << "\n";
     out << "missing-global probe: " << (probe_ok ? "ok" : "failed") << "\n";
     lua_close(state);
