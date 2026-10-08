@@ -31,9 +31,30 @@ management-login-initialized
 
 `hello-world-create-ui` is retained as an explicit semantic step even though the recovered call into `ManagementLayer::initLoginLayer()` is synchronous. The transition counter therefore advances twice when a scene generation first reaches the initial-UI boundary.
 
+## ManagementLayer login routes
+
+The same state now models the first callback-driven `ManagementLayer` UI routes:
+
+```text
+login-root
+  -> announcement       cpp_OnGameAnnoucement
+  -> server-selection   cpp_OnGetServerList
+  -> role-selection     cpp_OnGetRoleList
+  -> role-created       cpp_OnCreateTheRole
+  -> entering-game      cpp_OnEnterGame
+```
+
+These names describe reconstructed semantic routes, not original class layouts or widget implementations.
+
+Relevant callbacks that arrive before `management-login-initialized` are retained as a pending route. They do not become visible to the renderer until the verified `HelloWorld::createUI()` / `ManagementLayer::initLoginLayer()` boundary is reached. Once initialized, subsequent relevant callbacks move the reconstructed UI route in arrival order.
+
+Diagnostic callbacks such as chat, update-data and PVE-connect remain captured but do not change the login route.
+
+`client_callback_bridge.cpp` keeps the original captured payloads but projects the renderer-visible login payloads through the active Management route. This removes the previous behavior where the renderer inferred a route solely from whichever stored callback string happened to be non-empty.
+
 ## Generation behavior
 
-The state is keyed to the recovered splash scene generation. Importing/reloading assets or beginning a new recovered scene sequence resets the transition. A stale ready signal from an earlier generation cannot activate the new login scene.
+The state is keyed to the recovered splash scene generation. Importing/reloading assets or beginning a new recovered scene sequence resets both the startup transition and the Management login route. A stale ready signal or pending callback from an earlier generation cannot activate the new login scene.
 
 Repeated polling after initialization is idempotent and does not replay `createUI`/`initLoginLayer` semantics.
 
@@ -45,10 +66,10 @@ The same boundary also gates `splash_sequence_state::single_login_seconds()`. Th
 
 On the first frame where the splash completes, the compositor remains inactive until the bridge records the recovered HelloWorld/ManagementLayer transition. Subsequent frames then use the same scene generation and local login time. A hot asset reload revokes this gate for the new generation.
 
-The existing `offline_startup_flow` remains responsible for post-login local routing such as the recovered standalone-role branch. This change only establishes the verified UI initialization boundary before those routes are allowed to render.
+The existing `offline_startup_flow` remains responsible for local standalone-role routing. The Management route state covers the callback-driven login/server/role path and provides a stable place to attach recovered widgets as their behavior is reconstructed.
 
 ## Scope
 
-This does **not** claim that all behavior inside `HelloWorld::createUI()` or `ManagementLayer::initLoginLayer()` has been reconstructed. It provides a stable, testable boundary for incrementally adding the recovered login widgets, callbacks and state in the correct startup order.
+This does **not** claim that all behavior inside `HelloWorld::createUI()` or `ManagementLayer::initLoginLayer()` has been reconstructed. It establishes the verified startup boundary plus the first callback-driven UI routing semantics so later work can replace diagnostic rendering with recovered widgets without changing the route contract.
 
 Host regression coverage lives in `tools/initial_ui_transition_smoke.cpp` and `tools/splash_sequence_state_smoke.cpp`.

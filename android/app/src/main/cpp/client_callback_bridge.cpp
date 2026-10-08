@@ -4,6 +4,8 @@
 #include <sstream>
 #include <utility>
 
+#include "initial_ui_transition.h"
+
 #if defined(NEVERGONE_HAS_LUA)
 extern "C" {
 #include <lua.h>
@@ -48,6 +50,20 @@ void apply_event_to_ui_state(const ClientCallbackEvent& event) {
     } else if (event.name == "cpp_connect_pve") {
         g_client_ui_state.pve_connect = payload;
     }
+
+    nevergone::initial_ui_transition::on_management_callback(event.name);
+}
+
+void filter_login_payloads_for_management_route(ClientUiSnapshot* state) {
+    if (state == nullptr) return;
+    const auto route = nevergone::initial_ui_transition::snapshot().management_route;
+    using nevergone::initial_ui_transition::ManagementRoute;
+
+    if (route != ManagementRoute::kAnnouncement) state->announcement.clear();
+    if (route != ManagementRoute::kServerSelection) state->server_list.clear();
+    if (route != ManagementRoute::kRoleSelection) state->role_list.clear();
+    if (route != ManagementRoute::kRoleCreated) state->created_role.clear();
+    if (route != ManagementRoute::kEnteringGame) state->enter_game.clear();
 }
 
 #if defined(NEVERGONE_HAS_LUA)
@@ -127,7 +143,9 @@ std::vector<ClientCallbackEvent> take_client_callback_events() {
 
 ClientUiSnapshot snapshot_client_ui_state() {
     std::lock_guard<std::mutex> lock(g_callback_mutex);
-    return g_client_ui_state;
+    ClientUiSnapshot projected = g_client_ui_state;
+    filter_login_payloads_for_management_route(&projected);
+    return projected;
 }
 
 void reset_client_ui_state() {
@@ -137,9 +155,12 @@ void reset_client_ui_state() {
 
 std::string client_ui_state_report() {
     const ClientUiSnapshot snapshot = snapshot_client_ui_state();
+    const auto transition = nevergone::initial_ui_transition::snapshot();
     std::ostringstream out;
     out << "events captured: " << snapshot.event_count << "\n";
     out << "last callback: " << (snapshot.last_event.empty() ? "none" : snapshot.last_event) << "\n";
+    out << "management UI route: "
+        << nevergone::initial_ui_transition::management_route_name(transition.management_route) << "\n";
     if (!snapshot.server_list.empty()) out << "server list: " << snapshot.server_list << "\n";
     if (!snapshot.role_list.empty()) out << "role list: " << snapshot.role_list << "\n";
     if (!snapshot.created_role.empty()) out << "created role: " << snapshot.created_role << "\n";
