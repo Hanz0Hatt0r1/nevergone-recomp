@@ -8,7 +8,7 @@
 
 #include "game_clock.h"
 #include "single_login_light_timeline.h"
-#include "splash_timeline.h"
+#include "splash_sequence_state.h"
 
 namespace nevergone::single_login {
 namespace {
@@ -35,6 +35,7 @@ std::array<PositionedTexture, kBuildingCount> g_buildings{};
 std::array<PositionedTexture, single_login_light_timeline::kLightCount> g_lights{};
 int g_surface_width = 0;
 int g_surface_height = 0;
+std::uint64_t g_scene_generation = 0;
 
 GLuint compile_shader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
@@ -164,20 +165,16 @@ GLuint create_texture(const std::uint32_t* argb, size_t count, int width, int he
 }
 
 void on_surface_created() {
-    // A recreated GL context invalidates old object names; do not attempt to
-    // delete them from the new context.
     g_texture = 0;
     g_texture_width = 0;
     g_texture_height = 0;
     g_buildings = {};
     g_lights = {};
+    g_scene_generation = 0;
     if (g_program != 0) glDeleteProgram(g_program);
     g_program = build_program();
     g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
     g_alpha = g_program != 0 ? glGetUniformLocation(g_program, "uAlpha") : -1;
-
-    const std::time_t now = std::time(nullptr);
-    single_login_light_timeline::reset(now > 0 ? static_cast<std::uint64_t>(now) : 0ULL);
 }
 
 bool upload_texture(int width, int height, const std::uint32_t* argb, size_t count) {
@@ -318,7 +315,15 @@ void draw() {
     }
 
     const std::uint64_t tick = game_clock::tick_count();
-    if (!splash_timeline::sample_tick(tick).complete) return;
+    const double scene_seconds = splash_sequence_state::single_login_seconds(tick);
+    if (scene_seconds < 0.0) return;
+
+    const std::uint64_t generation = splash_sequence_state::generation();
+    if (generation != g_scene_generation) {
+        const std::time_t now = std::time(nullptr);
+        single_login_light_timeline::reset(now > 0 ? static_cast<std::uint64_t>(now) : 0ULL);
+        g_scene_generation = generation;
+    }
 
     float half_width = 1.0f;
     float half_height = 1.0f;
@@ -334,14 +339,10 @@ void draw() {
     glUseProgram(g_program);
     draw_quad(g_texture, base_vertices, 1.0f);
 
-    // InitUI assigns z=4 to all five zjmjianzhu nodes. They sit above the
-    // reconstructed z0/z2/z3 base stack and below the z=5 light effects.
     for (const auto& building : g_buildings) {
         draw_positioned(building, 1.0f);
     }
 
-    const double scene_seconds = static_cast<double>(tick) * game_clock::kFixedStepSeconds -
-        splash_timeline::kTimelineCompleteSeconds;
     const auto light_sample = single_login_light_timeline::sample(scene_seconds);
     for (size_t index = 0; index < g_lights.size(); ++index) {
         draw_positioned(g_lights[index], light_sample.alpha[index]);
