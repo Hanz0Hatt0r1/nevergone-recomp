@@ -33,8 +33,9 @@ bool frame_valid(const FrameAsset& frame, int index) {
                     static_cast<std::size_t>(frame.width) * static_cast<std::size_t>(frame.height);
 }
 
-bool ready_locked() {
-    for (int index = 0; index < kFrameCount; ++index) {
+bool range_ready_locked(int first, int end) {
+    if (first < 0 || end > kFrameCount || first > end) return false;
+    for (int index = first; index < end; ++index) {
         if (!frame_valid(g_frames[static_cast<std::size_t>(index)], index)) return false;
     }
     return true;
@@ -88,7 +89,12 @@ bool upload(
 
 bool ready() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    return ready_locked();
+    return range_ready_locked(0, kBackgroundFrameCount);
+}
+
+bool effects_ready() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return range_ready_locked(kLightningFirstIndex, kFrameCount);
 }
 
 bool route_active() {
@@ -158,6 +164,12 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeChooseHeroBackgroundAssetsReady(
         JNIEnv*, jclass) {
     return nevergone::choose_hero_background::ready() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeChooseHeroEffectAssetsReady(
+        JNIEnv*, jclass) {
+    return nevergone::choose_hero_background::effects_ready() ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
