@@ -111,6 +111,11 @@ final class ChooseHeroBackgroundComposer {
             if (cloud == null) return null;
         }
 
+        // Effect staging is optional for the already reconstructed storm/cloud
+        // visuals. Missing/ambiguous effect frames leave slots 10..21 not-ready
+        // without discarding the valid background scene returned below.
+        ChooseHeroEffectStager.stage(lightning, thunder);
+
         return new SceneAssets(
                 moon,
                 moonMask,
