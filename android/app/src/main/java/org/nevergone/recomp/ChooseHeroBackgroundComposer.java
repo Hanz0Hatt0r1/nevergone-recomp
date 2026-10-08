@@ -7,6 +7,7 @@ import java.io.File;
 final class ChooseHeroBackgroundComposer {
     static final int DESIGN_WIDTH = 1136;
     static final int DESIGN_HEIGHT = 640;
+    static final int EFFECT_FRAME_COUNT = 6;
 
     static final class SceneAssets {
         final TexturePackerAtlasExtractor.ExtractedFrame moon;
@@ -17,6 +18,8 @@ final class ChooseHeroBackgroundComposer {
         final TexturePackerAtlasExtractor.ExtractedFrame stormBackground;
         final TexturePackerAtlasExtractor.ExtractedFrame groundLight;
         final TexturePackerAtlasExtractor.ExtractedFrame[] foregroundClouds;
+        final TexturePackerAtlasExtractor.ExtractedFrame[] lightning;
+        final TexturePackerAtlasExtractor.ExtractedFrame[] thunder;
 
         SceneAssets(
                 TexturePackerAtlasExtractor.ExtractedFrame moon,
@@ -26,7 +29,9 @@ final class ChooseHeroBackgroundComposer {
                 TexturePackerAtlasExtractor.ExtractedFrame moonGlow,
                 TexturePackerAtlasExtractor.ExtractedFrame stormBackground,
                 TexturePackerAtlasExtractor.ExtractedFrame groundLight,
-                TexturePackerAtlasExtractor.ExtractedFrame[] foregroundClouds) {
+                TexturePackerAtlasExtractor.ExtractedFrame[] foregroundClouds,
+                TexturePackerAtlasExtractor.ExtractedFrame[] lightning,
+                TexturePackerAtlasExtractor.ExtractedFrame[] thunder) {
             this.moon = moon;
             this.moonMask = moonMask;
             this.starField = starField;
@@ -35,6 +40,8 @@ final class ChooseHeroBackgroundComposer {
             this.stormBackground = stormBackground;
             this.groundLight = groundLight;
             this.foregroundClouds = foregroundClouds;
+            this.lightning = lightning;
+            this.thunder = thunder;
         }
     }
 
@@ -71,6 +78,26 @@ final class ChooseHeroBackgroundComposer {
                 extract(atlas02Plist, atlas02, "qianjingyun03.png"),
         };
 
+        TexturePackerAtlasExtractor.ExtractedFrame[] lightning =
+                new TexturePackerAtlasExtractor.ExtractedFrame[EFFECT_FRAME_COUNT];
+        TexturePackerAtlasExtractor.ExtractedFrame[] thunder =
+                new TexturePackerAtlasExtractor.ExtractedFrame[EFFECT_FRAME_COUNT];
+        for (int index = 0; index < EFFECT_FRAME_COUNT; index++) {
+            int suffix = index + 1;
+            lightning[index] = extractFromEitherAtlas(
+                    atlas01Plist,
+                    atlas01,
+                    atlas02Plist,
+                    atlas02,
+                    String.format("shandian%02d.png", suffix));
+            thunder[index] = extractFromEitherAtlas(
+                    atlas01Plist,
+                    atlas01,
+                    atlas02Plist,
+                    atlas02,
+                    String.format("menlei%02d.png", suffix));
+        }
+
         if (!isDesignCanvasFrame(moon) ||
                 !isDesignCanvasFrame(moonMask) ||
                 !isDesignCanvasFrame(starField) ||
@@ -92,7 +119,9 @@ final class ChooseHeroBackgroundComposer {
                 moonGlow,
                 stormBackground,
                 groundLight,
-                foregroundClouds);
+                foregroundClouds,
+                lightning,
+                thunder);
     }
 
     private static TexturePackerAtlasExtractor.ExtractedFrame extract(
@@ -102,6 +131,24 @@ final class ChooseHeroBackgroundComposer {
         return TexturePackerAtlasExtractor.extract(
                 TexturePackerPlist.readFrame(plist, frameName),
                 atlas);
+    }
+
+    private static TexturePackerAtlasExtractor.ExtractedFrame extractFromEitherAtlas(
+            File atlas01Plist,
+            Bitmap atlas01,
+            File atlas02Plist,
+            Bitmap atlas02,
+            String frameName) throws Exception {
+        TexturePackerPlist.Frame frame01 = TexturePackerPlist.readFrame(atlas01Plist, frameName);
+        TexturePackerPlist.Frame frame02 = TexturePackerPlist.readFrame(atlas02Plist, frameName);
+        if ((frame01 == null) == (frame02 == null)) {
+            // The checked-in atlas verifier requires exactly one match across
+            // the recovered pair. Reject missing or ambiguous runtime content.
+            return null;
+        }
+        return frame01 != null
+                ? TexturePackerAtlasExtractor.extract(frame01, atlas01)
+                : TexturePackerAtlasExtractor.extract(frame02, atlas02);
     }
 
     private static boolean isDesignCanvasFrame(
