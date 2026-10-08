@@ -51,8 +51,9 @@ int main() {
     // Exact-design surface makes the recovered row hit easy to assert. Android
     // Y is top-down, so original design Y=320 maps to surface Y=320.
     assert(hit_test_surface(4, 1136, 640, 66.0f, 320.0f) == 0);
-    assert(hit_test_surface(4, 1136, 640, 506.0f, 320.0f) == 0);
-    assert(hit_test_surface(4, 1136, 640, 546.0f, 320.0f) == -1);
+    assert(hit_test_surface(4, 1136, 640, 495.0f, 320.0f) == 0);
+    assert(hit_test_surface(4, 1136, 640, 520.0f, 320.0f) == -1);
+    assert(hit_test_surface(4, 1136, 640, 546.0f, 320.0f) == 1);
 
     const auto confirm = confirm_rect();
     assert(confirm.original_tag == 10002);
