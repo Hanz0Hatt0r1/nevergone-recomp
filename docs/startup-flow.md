@@ -33,8 +33,9 @@ bool AppDelegate::applicationDidFinishLaunching() {
 
     AddAllSearchPath();
 
-    // One director/display configuration call follows here.
-    // Exact virtual method name still needs vtable/type confirmation.
+    // Director timing/display configuration follows here.
+    // The loaded interval strongly indicates an approximately 35 Hz target;
+    // the exact virtual slot still needs final vtable confirmation.
 
     CCScene* scene = HelloWorld::scene();
     this->initialScene = scene;
@@ -44,6 +45,24 @@ bool AppDelegate::applicationDidFinishLaunching() {
 ```
 
 The important result is that the first game-owned scene is **`HelloWorld`**, not `LoadingLayer` or `LoginScreen` directly.
+
+### Frame pacing evidence
+
+Immediately before the director configuration call, `AppDelegate::applicationDidFinishLaunching()` loads the double value:
+
+```text
+0.02857142873108387 seconds
+```
+
+which is effectively `1 / 35` second. The shipped ELF also retains the named Cocos2d-x symbol:
+
+```text
+cocos2d::CCDisplayLinkDirector::setAnimationInterval(double)
+```
+
+Together these are strong evidence that the original client targeted approximately **35 updates/frames per second** through the display-link director. The specific virtual call slot in `applicationDidFinishLaunching()` has not yet been formally matched to the vtable entry, so the recomp currently records 35 Hz as the original timing target rather than forcing the new GLES surface to that rate prematurely.
+
+The modern renderer should keep this distinction: Android presentation may remain synchronized to the device display, while the reconstructed game/update loop can adopt the verified original interval once the scene scheduler is restored.
 
 ## `HelloWorld::scene()`
 
@@ -146,6 +165,8 @@ AppDelegate::applicationDidFinishLaunching
         |
         +--> AppDelegate::AddAllSearchPath
         |
+        +--> director timing target (~35 Hz evidence)
+        |
         +--> HelloWorld::scene
                  |
                  v
@@ -173,12 +194,14 @@ AppDelegate::applicationDidFinishLaunching
 
 ## Reverse-engineering implications
 
-The boot path is now narrow enough that the next analysis can focus on a small set of functions instead of scanning the whole binary:
+The startup path is now narrow enough to keep reconstruction dependency-driven:
 
-1. `AppDelegate::AddAllSearchPath()` — recover exact search paths and startup resource locations.
-2. `ManagementLayer::initLoginLayer()` — identify local initialization versus unavailable online-service work.
-3. `GoToTapToStart()`, `GoToLoginScreen()` and `GoToGameLayer()` — determine the shortest path into offline gameplay.
-4. Find where `DataManager`, `LogicManager` and `GameSaveData` are initialized.
-5. Locate the transformation applied to encoded `.lua` payloads before Lua parses them.
+1. Finish the Android/Cocos lifecycle map around `TJ_P_01`, `CCEGLView`, pause/resume and display timing.
+2. Restore the minimum scene/scheduler behavior needed to reproduce the `HelloWorld` splash path on the project-owned GLES surface.
+3. Reconstruct `ManagementLayer::initLoginLayer()`, `GoToTapToStart()`, `GoToLoginScreen()` and `GoToGameLayer()` around the already recovered Lua/client callback boundary.
+4. Identify where `DataManager`, `LogicManager` and `GameSaveData` become mandatory for the first offline scene.
+5. Preserve the original approximately 35 Hz game timing separately from physical display refresh unless later evidence shows they must be coupled.
+
+The 59 startup search paths and the transformed Lua/resource decoder have already been recovered and implemented in the modern runtime/import path, so further native work should focus on scene, timing, UI and gameplay behavior rather than re-solving resource discovery.
 
 A modern recompilation does not need to preserve the obsolete online login stack exactly. The intended preservation target should isolate or stub external services while keeping the original local initialization and gameplay state transitions.
