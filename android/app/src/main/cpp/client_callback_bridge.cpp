@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "initial_ui_transition.h"
+#include "server_selection_state.h"
 
 #if defined(NEVERGONE_HAS_LUA)
 extern "C" {
@@ -38,6 +39,8 @@ void apply_event_to_ui_state(const ClientCallbackEvent& event) {
         login_callback_payload::parse_server_list_callback(
             event.arguments,
             &g_client_ui_state.server_list_model);
+        nevergone::server_selection_state::sync_server_list(
+            g_client_ui_state.server_list_model);
     } else if (event.name == "cpp_OnGetRoleList") {
         g_client_ui_state.role_list = payload;
         login_callback_payload::parse_role_list_callback(
@@ -133,6 +136,7 @@ void register_login_callback_bindings(lua_State* state) {
         g_callback_events.clear();
         g_client_ui_state = ClientUiSnapshot{};
     }
+    nevergone::server_selection_state::reset();
     register_callback(state, "cpp_OnGetServerList");
     register_callback(state, "cpp_OnGetRoleList");
     register_callback(state, "cpp_OnCreateTheRole");
@@ -161,8 +165,11 @@ ClientUiSnapshot snapshot_client_ui_state() {
 }
 
 void reset_client_ui_state() {
-    std::lock_guard<std::mutex> lock(g_callback_mutex);
-    g_client_ui_state = ClientUiSnapshot{};
+    {
+        std::lock_guard<std::mutex> lock(g_callback_mutex);
+        g_client_ui_state = ClientUiSnapshot{};
+    }
+    nevergone::server_selection_state::reset();
 }
 
 std::string client_ui_state_report() {
@@ -192,6 +199,9 @@ std::string client_ui_state_report() {
     if (!snapshot.chat_messages.empty()) out << "chat: " << snapshot.chat_messages << "\n";
     if (!snapshot.update_data.empty()) out << "data update: " << snapshot.update_data << "\n";
     if (!snapshot.pve_connect.empty()) out << "PVE connect: " << snapshot.pve_connect << "\n";
+    if (transition.management_route == nevergone::initial_ui_transition::ManagementRoute::kServerSelection) {
+        out << nevergone::server_selection_state::status_report();
+    }
     return out.str();
 }
 
