@@ -5,7 +5,7 @@ Experimental clean-room reverse-engineering and recompilation project for the An
 The goal is to reconstruct the original game runtime as maintainable source code for modern Android, including `arm64-v8a`, without depending on the obsolete original Android toolchain and without redistributing proprietary game binaries or assets.
 
 > [!IMPORTANT]
-> The project is **not yet a playable recompilation**. It is, however, well beyond the research-only stage: the repository now contains a modern Android/NDK shell, project-owned native runtime code, embedded Lua 5.2.3, original-resource import/decoding workflows, reconstructed startup/lifecycle state, a verified `HelloWorld` → `ManagementLayer` initialization boundary, early offline routing, `ChooseHero` staging work and bounded clean-room parsers for verified portions of the original scene-data format.
+> The project is **not yet a playable recompilation**. It is, however, well beyond the research-only stage: the repository contains a modern Android/NDK shell, project-owned native runtime code, embedded Lua 5.2.3, user-owned resource import/decoding workflows, reconstructed startup/lifecycle state, callback-driven `ManagementLayer` routing, structured login/server/role models, reconstructed server-selection state, `ChooseHero` staging work and bounded clean-room parsers for verified portions of the original scene-data format.
 
 ## Current state
 
@@ -21,16 +21,18 @@ The current `main` branch includes:
 - reconstructed `AppDelegate` startup-state semantics;
 - recovered splash/initial-scene sequencing and generation handling;
 - an explicit clean-room transition for the verified `HelloWorld::createUI()` → `ManagementLayer::initLoginLayer()` boundary;
-- login/UI route gating on that recovered transition rather than on splash completion alone;
+- callback-driven `ManagementLayer` routes for announcement, server selection, role selection, role creation and enter-game state;
+- structured parsing of recovered server-list and role-list callback payloads into project-owned C++ models;
+- reconstructed `NewServerList` selection semantics, including `LastLoginServer` preselection, the recovered tap-vs-drag threshold and one-shot enter requests;
 - reconstructed Lua/native startup bindings and filesystem/search-path behavior;
-- host-side startup and state-machine probes for fast compatibility iteration;
+- host-side startup, login-state and binary-parser probes for fast compatibility iteration;
 - clean-room replacements for several early Lua/native services;
 - recovered offline startup routing and early `ChooseHero` reconstruction/staging work;
 - a bounds-checked `HPData` reader/cursor with recovered `HPRange` semantics;
-- verified parsing/probing of the `GameLevels::LoadGL_Scene()` top-level prefix and first scene header from imported user-owned data;
-- CI coverage for Python tooling, Lua compatibility, startup/lifecycle state, initial UI transition, scene-data parser regressions and Android/NDK compilation.
+- verified parsing of the `GameLevels::LoadGL_Scene()` top-level prefix, first scene header, first layer header and first object-record prefix;
+- CI coverage for Python tooling, Lua compatibility, startup/lifecycle state, login callback routing, structured login payloads, server-selection state, scene-data parser regressions, Android/NDK compilation and page-size validation.
 
-The current critical path is no longer basic Android bootstrap discovery. Work is focused on expanding reconstructed `ManagementLayer` login behavior, connecting that state to the renderer/UI, extending the verified `GameLevels` scene/layer boundary and reaching a visible offline character-selection flow without loading the original `libcocos2dcpp.so`.
+The current critical path is no longer bootstrap discovery. Work is focused on turning the recovered login state into visible renderer/UI behavior, completing the server/role presentation path, extending the verified `GameLevels` object boundary and reaching a visible offline character-selection flow without loading the original `libcocos2dcpp.so`.
 
 ## Goals
 
@@ -61,26 +63,29 @@ The reconstruction work has established that:
 - the reachable script graph exposes more than one hundred native-shaped/API dependencies;
 - the original `libcocos2dcpp.so` retains roughly **26,875 defined function symbols**;
 - 22 static JNI exports have been identified and additional DEX native declarations have been mapped;
-- the critical launcher path, native library loading and Android lifecycle forwarding are mapped well enough to drive the reconstructed runtime;
+- the manifest launcher is `com.hippiegame.nevergone.TJ_P_01` and the critical launcher/native lifecycle flow is mapped;
 - startup reaches `assets/Script/Game/StartLua.lua`, `Game.ClientRequire`, `ShareLogic.require`, `HelloWorld` and `ManagementLayer` through known native/script paths;
 - `AppDelegate::AddAllSearchPath()` and its 59 child search directories have been recovered;
 - the original startup sequence contains a verified synchronous `HelloWorld::createUI()` → `ManagementLayer::initLoginLayer()` boundary;
 - the modern runtime models that boundary explicitly and keys it to the reconstructed scene generation so stale readiness cannot leak across reloads;
+- recovered client callbacks route `cpp_OnGameAnnoucement`, `cpp_OnGetServerList`, `cpp_OnGetRoleList`, `cpp_OnCreateTheRole` and `cpp_OnEnterGame` into distinct reconstructed `ManagementLayer` states;
+- server and role callback JSON is decoded into bounded project-owned models while retaining the raw callback payload for diagnostics;
+- original `NewServerList` behavior preselects only an exact `LastLoginServer` id match, rejects row selection when vertical movement exceeds 10 pixels and confirms by calling the equivalent of `g_UILogin.EnterGameLogicServer(ip, id)`;
 - the original 32-bit `HPRange` used by `HPData::getBytes(...)` is `{byte_offset, byte_length}`;
 - `GameLevels::LoadGameLevels()` loads scene, action, global and port-node sections in a recovered fixed order;
-- the beginning of `GameLevels::LoadGL_Scene()` has a verified top-level scene count and a verified first-scene header containing a bounded string payload, two floats used as a point and a layer count;
-- the imported `gamescene/gs_list/pvp_scene.glData` resource can be probed through the reconstructed reader without exposing proprietary parsed values in diagnostics;
-- major classes visible by symbol include `GameScene`, `GameSceneUI`, `MEPlayer`, `EnemyObject`, `BattleManager`, `DataManager`, `GameSaveData`, `ManagementLayer`, `ChooseHero` and others.
+- the verified `LoadGL_Scene()` boundary now reaches the first `GameSceneLayerData` header and the immediately sequential first-object `int32`/`uint32` prefix, then stops before an unresolved-width `char*` read;
+- imported `gamescene/gs_list/pvp_scene.glData` data can be probed through the reconstructed reader without exposing proprietary parsed values in diagnostics;
+- major classes visible by symbol include `GameScene`, `GameSceneUI`, `MEPlayer`, `EnemyObject`, `BattleManager`, `DataManager`, `GameSaveData`, `ManagementLayer`, `ChooseHero`, `NewServerList` and others.
 
 ## Project status
 
 | Area | Status |
 | --- | --- |
 | Original APK baseline / hashes | Done |
-| Modern Android installation experiment | Done |
+| Manifest/signing metadata baseline | Done |
 | Engine / Lua runtime identification | Done |
 | Native symbol classification | Done |
-| Java/Android bootstrap mapping | Critical launcher path complete; optional decompiler cross-check remains |
+| Java/Android bootstrap mapping | Critical launcher/lifecycle path complete |
 | JNI/startup mapping | Substantially mapped |
 | Asset/Lua transform recovery | Done |
 | Lua decoder / recovered script workflow | Done |
@@ -96,18 +101,21 @@ The reconstruction work has established that:
 | Android lifecycle forwarding | Implemented for reconstructed startup state |
 | Splash/initial-scene sequencing | Implemented and generation-aware |
 | `HelloWorld` → `ManagementLayer` initialization boundary | Implemented as verified semantic transition |
-| Login/UI gating on recovered transition | Implemented |
+| Callback-driven `ManagementLayer` login routes | Implemented |
+| Structured server/role callback decoding | Implemented and host-tested |
+| Reconstructed `NewServerList` selection state | Implemented and host-tested |
+| Visible server/role UI compositor | In progress / not yet end-to-end |
 | Offline login/startup route reconstruction | In progress |
 | `ChooseHero` asset/background staging | In progress |
 | `HPData` / `HPRange` reconstruction | Reader foundation done; range semantics verified |
-| `GameLevels` binary format reconstruction | In progress; top-level prefix and first scene header verified |
-| Imported `pvp_scene.glData` readiness probe | Done for the currently verified scene header boundary |
+| `GameLevels` binary format reconstruction | In progress; first layer + first object prefix verified |
+| Imported `pvp_scene.glData` readiness probe | Implemented through current verified parser boundary |
 | Rendering/input reconstruction | In progress; current critical path |
 | Original login/title visual flow | Not yet reached end-to-end |
 | Offline gameplay | Not yet functional |
 | `arm64-v8a` build configuration | Done |
+| 16 KiB page-size build validation | Covered in CI; device/runtime validation still needed |
 | Android 15/16 runtime validation | Pending |
-| 16 KiB page-size validation | Pending |
 | Playable recompilation | Not yet |
 
 ## Reconstruction strategy
@@ -119,12 +127,13 @@ The current strategy is dependency-driven and evidence-driven:
 1. recover static metadata, symbols, DEX/JNI relationships and script dependencies;
 2. decode user-owned resources locally with reproducible tooling;
 3. execute the recovered startup scripts against a clean modern runtime;
-4. reconstruct startup/lifecycle state machines at verified semantic boundaries instead of copying the original ABI;
-5. use missing globals, tracebacks, binary call ordering and behavior differences to identify the next required compatibility surface;
-6. reconstruct binary resource readers only to verified field boundaries, assigning semantic names only when original control flow makes them unambiguous;
-7. recreate only the native/game behavior required by the reachable offline runtime path;
-8. reconstruct rendering, scene flow and gameplay systems incrementally;
-9. preserve offline behavior while replacing or stubbing obsolete service integrations where necessary.
+4. reconstruct startup/lifecycle and UI state machines at verified semantic boundaries instead of copying the original ABI;
+5. convert recovered callback payloads into bounded project-owned models before attaching them to renderer/UI state;
+6. use missing globals, tracebacks, binary call ordering and behavior differences to identify the next required compatibility surface;
+7. reconstruct binary resource readers only to verified field boundaries, assigning semantic names only when original control flow makes them unambiguous;
+8. recreate only the native/game behavior required by the reachable offline runtime path;
+9. reconstruct rendering, scene flow and gameplay systems incrementally;
+10. preserve offline behavior while replacing or stubbing obsolete service integrations where necessary.
 
 See **[`docs/roadmap.md`](docs/roadmap.md)** for the detailed development plan.
 
@@ -150,6 +159,7 @@ nevergone-recomp/
 │   ├── native-analysis.md
 │   ├── resource-decoding.md
 │   ├── resource-search-paths.md
+│   ├── server-selection-runtime.md
 │   ├── roadmap.md
 │   └── ...
 ├── tools/                # decoder, state probes, symbol/Ghidra and build helpers
@@ -177,19 +187,19 @@ The clean-room Android shell under [`android/`](android/) can already:
 - preserve pre-resume startup phases and make surface readiness idempotent;
 - maintain recovered scene/splash generation state across reloads;
 - expose a tested semantic `HelloWorld` → `ManagementLayer` initial-UI transition;
-- prevent SingleLogin/SingleSelectHero activation and login-local timing before the recovered UI initialization boundary;
+- defer login callback routes until the recovered ManagementLayer boundary is active;
+- retain route-scoped structured server/role models;
+- maintain reconstructed server selection state and produce a one-shot enter request from the selected record;
 - stage selected recovered resources for reconstructed routes such as `choose-role`;
-- locate imported `gamescene/gs_list/pvp_scene.glData` data and validate its currently verified `LoadGL_Scene` prefix/first-scene header through the project-owned bounded reader.
+- locate imported `gamescene/gs_list/pvp_scene.glData` data and validate it through the currently verified `LoadGL_Scene` parser boundary.
 
 It does **not** link against the original `libcocos2dcpp.so`.
 
 See **[`android/README.md`](android/README.md)** for runtime/build details.
 
-## Recovered startup and initial UI flow
+## Recovered login/UI flow
 
-The reconstructed runtime now models the startup path as explicit clean-room state rather than allowing the renderer to advance simply because the splash timer elapsed.
-
-At the verified boundary the recovered native sequence is:
+The reconstructed runtime models startup and login progression as explicit clean-room state rather than advancing merely because a splash timer elapsed.
 
 ```text
 reconstructed AppDelegate startup state
@@ -202,15 +212,37 @@ HelloWorld::createUI()
         v
 ManagementLayer::initLoginLayer()
         |
-        v
-SingleLogin / later offline routing becomes eligible
+        | callback-driven route changes
+        +--> announcement
+        +--> server-selection
+        +--> role-selection
+        +--> role-created
+        `--> entering-game
 ```
 
-The implementation is generation-aware: importing/reloading assets or starting a fresh recovered scene sequence resets the transition, and stale readiness from an earlier generation cannot activate the new login scene. Repeated polling after initialization is idempotent.
+The implementation is generation-aware: importing/reloading assets or starting a fresh recovered scene sequence resets the transition and pending routes so stale state cannot activate a new scene generation.
 
-This does **not** mean all behavior inside `HelloWorld::createUI()` or `ManagementLayer::initLoginLayer()` has been reconstructed. The next step is to expand the login-layer widgets, callbacks and renderer integration from this verified boundary.
+### Structured login payloads
 
-See **[`docs/initial-ui-transition.md`](docs/initial-ui-transition.md)** and **[`docs/android-bootstrap.md`](docs/android-bootstrap.md)**.
+Recovered callbacks are now decoded into project-owned models:
+
+- `cpp_OnGetServerList(...)` preserves server `id`, `name`, `ip`, optional battle endpoint data and the separate `LastLoginServer` argument;
+- `cpp_OnGetRoleList(...)` preserves recovered role identity/selection fields from nested character records;
+- raw callback payloads remain available for diagnostics, while renderer-facing state is filtered by the active Management route.
+
+### Reconstructed server selection
+
+The project also has a host-tested semantic replacement for the recovered `NewServerList` selection state:
+
+- preselection occurs only when `LastLoginServer` exactly matches a decoded server id;
+- row taps are rejected when absolute vertical movement is greater than 10 pixels;
+- selection changes are tracked independently of presentation;
+- confirmation produces a one-shot enter request containing the selected server id, name and ip;
+- the recovered destination contract is equivalent to `g_UILogin.EnterGameLogicServer(ip, id)`.
+
+This does **not** mean the original `ManagementLayer`/`NewServerList` widget ABI or visual assets have been recreated. The current task is to consume these verified contracts from the project-owned renderer/compositor.
+
+See **[`docs/initial-ui-transition.md`](docs/initial-ui-transition.md)** and **[`docs/server-selection-runtime.md`](docs/server-selection-runtime.md)**.
 
 ## Recovered Lua/native compatibility layer
 
@@ -302,11 +334,14 @@ android/app/build/outputs/apk/debug/
 
 Host-side probes shorten the reconstruction loop without repeatedly installing an APK.
 
-Current host regressions cover, among other things:
+Current regressions cover, among other things:
 
 - reconstructed Lua startup behavior;
 - `AppDelegate` startup-state semantics;
 - the initial UI transition into `ManagementLayer`;
+- callback-driven Management routes and scene-generation reset behavior;
+- structured server/role callback payload decoding;
+- reconstructed `NewServerList` selection and confirmation semantics;
 - splash/local-login timing gates;
 - bounded `HPData`/`GameLevels` parsing with truncated and hostile-length inputs.
 
@@ -343,11 +378,12 @@ For `GameLevels::LoadGL_Scene()` the currently verified parse boundary includes:
 3. for the first scene, a byte-length field followed by one still-unresolved skipped byte;
 4. the bounded string payload;
 5. two floats assigned as a point;
-6. the scene layer count.
+6. the scene layer count;
+7. the first layer's still-opaque float;
+8. that layer's `object_count`;
+9. for the first object, one immediately sequential `int32` followed by one `uint32`.
 
-The parser updates output only after the entire verified boundary is available. Imported asset diagnostics report readiness and verified byte counts, not proprietary parsed field values.
-
-The next known binary boundary begins inside each `GameSceneLayerData` record: a float is followed by a `uint32` used as the object-loop bound. Extending this verified layer/object boundary is one of the current critical-path tasks.
+The parser stops deliberately before the next unresolved-width `char*` read in the original object-record path. Output is updated only after the entire verified boundary is available, and imported-asset diagnostics report readiness rather than proprietary parsed values.
 
 See **[`docs/hpdata-gamelevels.md`](docs/hpdata-gamelevels.md)**.
 
@@ -388,6 +424,7 @@ Android application
 ### M0 — Research baseline
 
 - [x] APK/native baseline documented
+- [x] manifest/signing metadata documented
 - [x] engine and Lua versions identified
 - [x] JNI/symbol inventory established
 - [x] resource transform recovered
@@ -416,11 +453,11 @@ Android application
 - [x] early filesystem/search-path compatibility recreated
 - [x] multiple reachable Lua/native services recreated
 - [x] host-side startup probe available
-- [x] critical Android launcher/native-loading path mapped
+- [x] critical Android launcher/native-loading/lifecycle path mapped
 - [x] reconstructed `AppDelegate` startup/lifecycle state implemented
 - [x] project-owned bounded `HPData` reader/cursor implemented
 - [x] original `HPRange` offset/length semantics recovered
-- [x] first verified `GameLevels::LoadGL_Scene()` scene header parser/probe implemented
+- [x] verified `GameLevels::LoadGL_Scene()` parser through first object prefix implemented
 - [ ] complete remaining real startup/runtime compatibility blockers
 
 ### M4 — Boot to original UI
@@ -428,11 +465,14 @@ Android application
 - [x] reconstruct recovered splash/initial-scene sequencing
 - [x] model verified `HelloWorld::createUI()` → `ManagementLayer::initLoginLayer()` semantic boundary
 - [x] gate reconstructed login route/timing on that UI transition
-- [ ] expand reconstructed `ManagementLayer` login behavior
-- [ ] initialize/complete the rendering and input path required for visible original UI
-- [ ] connect reconstructed login/startup callbacks to visible UI
+- [x] route recovered login callbacks through project-owned Management state
+- [x] decode structured server/role callback payloads
+- [x] reconstruct server selection/confirm state from `NewServerList`
+- [ ] render server selection using the recovered state contract
+- [ ] render role selection / role creation state
+- [ ] complete rendering and input required for visible original login UI
 - [ ] render the recovered `ChooseHero` path
-- [ ] extend verified `GameLevels` parsing through the scene/layer records needed by character selection
+- [ ] extend verified `GameLevels` parsing beyond the first object prefix
 
 ### M5 — Offline gameplay
 
@@ -448,20 +488,21 @@ Android application
 ### M6 — Modern Android release target
 
 - [x] `arm64-v8a` build target configured
+- [x] 16 KiB page-alignment/build validation present in CI
 - [ ] Android 15/16+ device validation
-- [ ] explicit 16 KiB page-size validation
+- [ ] explicit runtime validation on 16 KiB page-size devices/emulators
 - [ ] full lifecycle/resume/suspend validation on target devices
 - [ ] reproducible release build
 
 ## Immediate priorities
 
-1. Expand reconstructed `ManagementLayer::initLoginLayer()` behavior beyond the verified initialization boundary and connect the required widgets/callbacks to the renderer.
-2. Complete the rendering/input path required to display the recovered login flow and then `ChooseHero`.
-3. Extend evidence-driven `GameLevels::LoadGL_Scene()` reconstruction into the first layer/object records, starting from the verified layer float and object-loop count boundary.
-4. Connect captured offline login/server/role callbacks to the reconstructed visible UI while preserving generation/lifecycle correctness.
+1. Connect the structured server-list model and reconstructed server-selection state to the renderer/compositor, including touch hit-testing and confirm dispatch.
+2. Extend the same project-owned visible flow through role selection, role creation and the enter-game transition.
+3. Complete the rendering/input path required to display the recovered login flow and then `ChooseHero`.
+4. Recover the width/semantics of the next `GameSceneLayerObjectData` field after the verified `int32`/`uint32` prefix, then extend `LoadGL_Scene()` only to the next proven boundary.
 5. Continue `ChooseHero` reconstruction and connect staged user-owned resources/scene data only where semantics are verified.
 6. Close remaining startup/runtime compatibility blockers discovered by host and Android probes.
-7. Validate `arm64-v8a`, Android 15/16 and 16 KiB page-size behavior on real/emulated devices.
+7. Validate `arm64-v8a`, Android 15/16 and 16 KiB runtime behavior on real/emulated devices.
 8. Expand native subsystem reconstruction only as the reachable offline path requires it.
 
 ## Documentation
@@ -471,6 +512,7 @@ Key documents include:
 - **[`docs/roadmap.md`](docs/roadmap.md)** — phased reconstruction plan and current priorities
 - **[`docs/android-bootstrap.md`](docs/android-bootstrap.md)** — Android/native bootstrap and lifecycle research
 - **[`docs/initial-ui-transition.md`](docs/initial-ui-transition.md)** — recovered `HelloWorld` → `ManagementLayer` transition and renderer gate
+- **[`docs/server-selection-runtime.md`](docs/server-selection-runtime.md)** — recovered `NewServerList` behavior and project-owned selection contract
 - **[`docs/jni-map.md`](docs/jni-map.md)** — Java/JNI/native mapping
 - **[`docs/native-analysis.md`](docs/native-analysis.md)** — native symbol/runtime evidence
 - **[`docs/resource-decoding.md`](docs/resource-decoding.md)** — recovered resource transform
