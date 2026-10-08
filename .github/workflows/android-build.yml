@@ -45,6 +45,16 @@ jobs:
       - name: Validate Python tools
         run: python3 -m compileall -q tools
 
+      - name: Validate TexturePacker rotated-frame transform
+        shell: bash
+        run: |
+          rm -rf /tmp/texturepacker-java
+          mkdir -p /tmp/texturepacker-java
+          javac -d /tmp/texturepacker-java \
+            android/app/src/main/java/org/nevergone/recomp/TexturePackerPixelTransform.java \
+            tools/TexturePackerPixelTransformSmoke.java
+          java -cp /tmp/texturepacker-java org.nevergone.recomp.TexturePackerPixelTransformSmoke
+
       - name: Validate Ghidra metadata index
         run: python3 tools/ghidra/verify_full_index.py docs/ghidra/full-index
 
