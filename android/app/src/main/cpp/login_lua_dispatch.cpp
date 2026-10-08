@@ -43,7 +43,7 @@ bool call_enter_game_logic_server(
     lua_pushlstring(state, ip.data(), ip.size());
     lua_pushinteger(state, static_cast<lua_Integer>(server_id));
     const int status = lua_pcall(state, 2, 0, 0);
-    if (status != LUA_OK) {
+    if (status != 0) {
         const char* message = lua_tostring(state, -1);
         if (error != nullptr) {
             *error = message != nullptr ? message : "EnterGameLogicServer failed";
