@@ -83,6 +83,17 @@ int l_Lua_GetDeviceUUID(lua_State* state) {
     return 1;
 }
 
+int l_Lua_GetBundleVersion(lua_State* state) {
+    const std::string value = startup::Lua_GetBundleVersion();
+    lua_pushlstring(state, value.data(), value.size());
+    return 1;
+}
+
+int l_Lua_SetConsoleColor(lua_State* state) {
+    startup::Lua_SetConsoleColor(static_cast<int>(luaL_optinteger(state, 1, 0)));
+    return 0;
+}
+
 int l_cpp_ShowLoadingUI(lua_State*) {
     startup::cpp_ShowLoadingUI();
     return 0;
@@ -131,6 +142,8 @@ void register_startup_bindings(lua_State* state) {
     set_global(state, "CAddDoString", l_CAddDoString);
     set_global(state, "Lua_GetPlatformString", l_Lua_GetPlatformString);
     set_global(state, "Lua_GetDeviceUUID", l_Lua_GetDeviceUUID);
+    set_global(state, "Lua_GetBundleVersion", l_Lua_GetBundleVersion);
+    set_global(state, "Lua_SetConsoleColor", l_Lua_SetConsoleColor);
     set_global(state, "cpp_ShowLoadingUI", l_cpp_ShowLoadingUI);
     set_global(state, "cpp_HideLoadingUI", l_cpp_HideLoadingUI);
     set_global(state, "cpp_ShowErrorDialogUI", l_cpp_ShowErrorDialogUI);
