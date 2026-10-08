@@ -19,6 +19,7 @@ add_library(nevergone_recomp SHARED
     single_login_lightning_timeline.cpp
     single_login_scene_bridge.cpp
     single_login_sway_timeline.cpp
+    single_login_thunder_bridge.cpp
     splash_layer_renderer.cpp
     splash_sequence_state.cpp
     splash_timeline.cpp
