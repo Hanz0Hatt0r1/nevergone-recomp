@@ -38,12 +38,23 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        int actionIndex = event.getActionIndex();
-        nativeOnTouch(
-                event.getActionMasked(),
-                event.getPointerId(actionIndex),
-                event.getX(actionIndex),
-                event.getY(actionIndex));
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_MOVE) {
+            for (int index = 0; index < event.getPointerCount(); index++) {
+                nativeOnTouch(
+                        action,
+                        event.getPointerId(index),
+                        event.getX(index),
+                        event.getY(index));
+            }
+        } else {
+            int actionIndex = event.getActionIndex();
+            nativeOnTouch(
+                    action,
+                    event.getPointerId(actionIndex),
+                    event.getX(actionIndex),
+                    event.getY(actionIndex));
+        }
         return true;
     }
 }
