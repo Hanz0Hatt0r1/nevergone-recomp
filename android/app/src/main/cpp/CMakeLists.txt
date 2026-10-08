@@ -7,6 +7,7 @@ add_library(nevergone_recomp SHARED
     filesystem_bindings.cpp
     game_clock.cpp
     game_levels_asset_probe.cpp
+    game_levels_scene_prefix.cpp
     hp_data_reader.cpp
     lua_compat.cpp
     lua_runtime.cpp
