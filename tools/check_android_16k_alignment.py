@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """Validate 16 KiB page compatibility of native libraries packaged in an APK.
 
-Checks both parts that matter for modern Android devices with 16 KiB pages:
-- every ELF PT_LOAD segment in lib/*/*.so has p_align >= 16 KiB
-- every stored native library starts at a 16 KiB-aligned offset inside the APK
+Checks the two independent Android requirements:
+- APK storage/alignment for every packaged native library
+- 16 KiB ELF PT_LOAD alignment for 64-bit Android ABIs that run on 16 KiB
+  page-size devices (arm64-v8a and x86_64)
+
+Android's official ELF alignment check reports arm64-v8a libraries and directs
+updates for unaligned arm64-v8a/x86_64 libraries. 32-bit armeabi-v7a remains a
+supported companion ABI, but its 4 KiB PT_LOAD alignment is not treated as a
+16 KiB-device failure.
 
 The checker uses only Python's standard library so it can run in CI and on a
 local Linux development machine without Android-specific inspection tools.
@@ -20,6 +26,7 @@ from pathlib import Path
 PAGE_SIZE = 16 * 1024
 PT_LOAD = 1
 ELF_MAGIC = b"\x7fELF"
+ELF_16K_ABIS = {"arm64-v8a", "x86_64"}
 
 
 class AlignmentError(ValueError):
@@ -100,9 +107,15 @@ def zip_data_offset(apk: io.BufferedReader, info: zipfile.ZipInfo) -> int:
     return info.header_offset + 30 + name_length + extra_length
 
 
+def abi_from_library_path(name: str) -> str:
+    parts = name.split("/")
+    return parts[1] if len(parts) >= 3 and parts[0] == "lib" else ""
+
+
 def validate_apk(apk_path: Path) -> list[str]:
     errors: list[str] = []
     checked = 0
+    elf_checked = 0
 
     with apk_path.open("rb") as raw, zipfile.ZipFile(raw) as archive:
         native_entries = [
@@ -116,6 +129,7 @@ def validate_apk(apk_path: Path) -> list[str]:
         for info in native_entries:
             checked += 1
             name = info.filename
+            abi = abi_from_library_path(name)
 
             if info.compress_type != zipfile.ZIP_STORED:
                 errors.append(f"{name}: native library is compressed in APK")
@@ -129,20 +143,30 @@ def validate_apk(apk_path: Path) -> list[str]:
                 except AlignmentError as error:
                     errors.append(f"{name}: {error}")
 
+            if abi not in ELF_16K_ABIS:
+                print(f"ELF 16 KiB check: skip {name} ({abi or 'unknown ABI'})")
+                continue
+
+            elf_checked += 1
             try:
                 blob = archive.read(info)
                 aligns = load_alignments(blob)
                 bad = [value for value in aligns if value < PAGE_SIZE]
+                formatted = ", ".join(f"0x{value:x}" for value in aligns)
                 if bad:
-                    formatted = ", ".join(f"0x{value:x}" for value in aligns)
                     errors.append(
                         f"{name}: PT_LOAD alignments [{formatted}] are not all >= 0x4000"
                     )
+                else:
+                    print(f"ELF 16 KiB check: ok {name} [{formatted}]")
             except (AlignmentError, OSError, zipfile.BadZipFile) as error:
                 errors.append(f"{name}: ELF validation failed: {error}")
 
     if not errors:
-        print(f"16 KiB alignment: ok ({checked} native libraries)")
+        print(
+            f"16 KiB alignment: ok ({checked} packaged native libraries, "
+            f"{elf_checked} 64-bit ELF libraries checked)"
+        )
     return errors
 
 
