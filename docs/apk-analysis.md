@@ -13,6 +13,23 @@ This document records metadata derived from the original Android APK used during
 
 The compatibility experiment performed before creation of this repository raised the legacy `targetSdkVersion` from 17 to 24 and repaired a malformed native FFmpeg dependency. That patched APK is not part of the recompilation source tree.
 
+## Original signing certificate
+
+The unmodified baseline APK is signed with a self-issued X.509 certificate whose public metadata can be reproduced with `keytool -printcert -jarfile` or `tools/apk_inventory.py` when `keytool` is available.
+
+- Subject/owner: `CN=xipishi, OU=xipishi, O=xipishi, L=zhuhai, ST=guangdong, C=CN`
+- Issuer: `CN=xipishi, OU=xipishi, O=xipishi, L=zhuhai, ST=guangdong, C=CN`
+- Serial number: `9d1a4a`
+- Valid from: `Tue Feb 07 09:23:42 UTC 2017`
+- Valid until: `Thu Jan 14 09:23:42 UTC 2117`
+- Signature algorithm: `SHA256withRSA`
+- Public key: `2048-bit RSA key`
+- Certificate version: `3`
+- SHA-1 fingerprint: `7F:11:60:D8:FA:92:65:49:74:7D:23:EE:54:7B:12:C4:84:E4:8C:89`
+- SHA-256 fingerprint: `D5:74:95:5F:77:33:1A:DC:09:8C:A4:CE:A2:B6:1E:12:47:93:9F:42:F0:D2:40:99:01:33:B7:31:0C:C2:05:36`
+
+Only certificate metadata is documented. No private signing material is present in the repository. Modified or recompiled builds must use a project/user-controlled signing key and therefore cannot be signature-compatible upgrades over the original package unless the original private key is independently available to its owner.
+
 ## Native libraries
 
 The original APK contains only the `armeabi-v7a` ABI.
@@ -141,4 +158,4 @@ python3 tools/apk_inventory.py /path/to/original.apk \
 python3 tools/lua_probe.py /path/to/original.apk
 ```
 
-The generated files under `build/` should remain local unless they contain only non-proprietary metadata suitable for publication.
+When `keytool` is installed, the APK inventory also records public signing-certificate metadata and fingerprints. The generated files under `build/` should remain local unless they contain only non-proprietary metadata suitable for publication.
