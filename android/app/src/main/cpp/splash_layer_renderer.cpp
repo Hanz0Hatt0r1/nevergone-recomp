@@ -99,12 +99,16 @@ void delete_texture(GLuint* texture) {
     }
 }
 
-void clear_frames() {
+void release_frame_textures() {
     for (std::size_t i = 0; i < kFrameCount; ++i) {
         delete_texture(&g_textures[i]);
         g_widths[i] = 0;
         g_heights[i] = 0;
     }
+}
+
+void clear_frames() {
+    release_frame_textures();
     g_active = false;
 }
 
@@ -261,6 +265,10 @@ void draw() {
     const std::uint64_t elapsed_tick = now >= g_start_tick ? now - g_start_tick : 0;
     const auto timeline = nevergone::splash_timeline::sample_tick(elapsed_tick);
     if (timeline.complete) {
+        // The original transition removes its splash node and then asks the
+        // texture cache to release unused textures. These six textures have no
+        // users after the recovered 5.5 s sequence, so reclaim them immediately.
+        release_frame_textures();
         g_active = false;
         return;
     }
