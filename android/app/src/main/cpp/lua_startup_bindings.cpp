@@ -138,10 +138,10 @@ bool execute_module(lua_State* state, const std::string& module_name, std::strin
     }
 
     int status = luaL_loadfilex(state, path.c_str(), nullptr);
-    if (status == LUA_OK) {
+    if (status == 0) {
         status = lua_pcall(state, 0, 0, 0);
     }
-    if (status == LUA_OK) {
+    if (status == 0) {
         return true;
     }
 
