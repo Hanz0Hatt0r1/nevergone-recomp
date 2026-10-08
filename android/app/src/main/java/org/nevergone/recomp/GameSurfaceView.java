@@ -45,6 +45,16 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static native void nativeOnSingleLoginSurfaceChanged(int width, int height);
     private static native void nativeClearSingleLoginTexture();
     private static native boolean nativeUploadSingleLoginTexture(int width, int height, int[] argbPixels);
+    private static native void nativeClearSingleLoginBuildings();
+    private static native boolean nativeUploadSingleLoginBuilding(
+            int buildingIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
     private static native void nativeClearSingleLoginLights();
     private static native boolean nativeUploadSingleLoginLight(
             int lightIndex,
@@ -135,6 +145,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
 
     private void loadSingleLoginSceneOnGlThread() {
         nativeClearSingleLoginTexture();
+        nativeClearSingleLoginBuildings();
         nativeClearSingleLoginLights();
         File directory = new File(assetRoot, SINGLE_LOGIN_DIR);
         File plist = new File(directory, SINGLE_LOGIN_PLIST);
@@ -157,12 +168,29 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             composite.getPixels(pixels, 0, width, 0, 0, width, height);
             composite.recycle();
             if (!nativeUploadSingleLoginTexture(width, height, pixels)) {
+                nativeClearSingleLoginBuildings();
                 nativeClearSingleLoginLights();
                 return;
             }
 
+            for (int index = 0; index < scene.buildings.length; index++) {
+                SingleLoginAtlasComposer.AtlasLayer building = scene.buildings[index];
+                if (building == null || !nativeUploadSingleLoginBuilding(
+                        index,
+                        building.width,
+                        building.height,
+                        building.left,
+                        building.top,
+                        building.sourceWidth,
+                        building.sourceHeight,
+                        building.pixels)) {
+                    nativeClearSingleLoginBuildings();
+                    break;
+                }
+            }
+
             for (int index = 0; index < scene.lights.length; index++) {
-                SingleLoginAtlasComposer.LightLayer light = scene.lights[index];
+                SingleLoginAtlasComposer.AtlasLayer light = scene.lights[index];
                 if (light == null || !nativeUploadSingleLoginLight(
                         index,
                         light.width,
@@ -178,6 +206,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             }
         } catch (Exception ignored) {
             nativeClearSingleLoginTexture();
+            nativeClearSingleLoginBuildings();
             nativeClearSingleLoginLights();
         }
     }

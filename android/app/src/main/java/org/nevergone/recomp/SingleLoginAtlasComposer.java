@@ -8,18 +8,12 @@ import android.graphics.Rect;
 import java.io.File;
 
 final class SingleLoginAtlasComposer {
-    // Recovered from SingleLoginLayer::InitUI(): zjmbeijing.png is z=0,
-    // while the dynamic zjmbeijing%02d loop creates 02 at z=2 and 03 at z=3.
     private static final String[] BASE_STACK = {
             "zjmbeijing.png",
             "zjmbeijing02.png",
             "zjmbeijing03.png"
     };
 
-    // The next recovered animated group is created from zjmbeijing%02d loop
-    // indices 2..5 and resolves to these four atlas frames. They remain small
-    // trimmed textures; native rendering positions them in the shared source
-    // coordinate system instead of allocating four 1136x640 bitmaps.
     private static final String[] LIGHT_STACK = {
             "zjmdengguang01.png",
             "zjmdengguang02.png",
@@ -27,7 +21,17 @@ final class SingleLoginAtlasComposer {
             "zjmdengguang04.png"
     };
 
-    static final class LightLayer {
+    // InitUI indices 6..10 map to these five frames; the recovered z-order
+    // literal array assigns all of them z=4 and no action-chain is attached.
+    private static final String[] BUILDING_STACK = {
+            "zjmjianzhu01.png",
+            "zjmjianzhu02.png",
+            "zjmjianzhu03.png",
+            "zjmjianzhu04.png",
+            "zjmjianzhu05.png"
+    };
+
+    static final class AtlasLayer {
         final int width;
         final int height;
         final int left;
@@ -36,7 +40,7 @@ final class SingleLoginAtlasComposer {
         final int sourceHeight;
         final int[] pixels;
 
-        LightLayer(
+        AtlasLayer(
                 int width,
                 int height,
                 int left,
@@ -56,10 +60,12 @@ final class SingleLoginAtlasComposer {
 
     static final class SceneAssets {
         final Bitmap base;
-        final LightLayer[] lights;
+        final AtlasLayer[] buildings;
+        final AtlasLayer[] lights;
 
-        SceneAssets(Bitmap base, LightLayer[] lights) {
+        SceneAssets(Bitmap base, AtlasLayer[] buildings, AtlasLayer[] lights) {
             this.base = base;
+            this.buildings = buildings;
             this.lights = lights;
         }
     }
@@ -68,8 +74,9 @@ final class SingleLoginAtlasComposer {
 
     static SceneAssets composeScene(File plistFile, File atlasFile) throws Exception {
         TexturePackerPlist.Frame[] baseFrames = readFrames(plistFile, BASE_STACK);
+        TexturePackerPlist.Frame[] buildingFrames = readFrames(plistFile, BUILDING_STACK);
         TexturePackerPlist.Frame[] lightFrames = readFrames(plistFile, LIGHT_STACK);
-        if (baseFrames == null || lightFrames == null) return null;
+        if (baseFrames == null || buildingFrames == null || lightFrames == null) return null;
 
         final int sourceWidth = baseFrames[0].sourceWidth;
         final int sourceHeight = baseFrames[0].sourceHeight;
@@ -78,6 +85,7 @@ final class SingleLoginAtlasComposer {
             return null;
         }
         if (!sameSourceSize(baseFrames, sourceWidth, sourceHeight) ||
+                !sameSourceSize(buildingFrames, sourceWidth, sourceHeight) ||
                 !sameSourceSize(lightFrames, sourceWidth, sourceHeight)) {
             return null;
         }
@@ -98,43 +106,57 @@ final class SingleLoginAtlasComposer {
                 drawFrame(canvas, atlas, frame, sourceWidth, sourceHeight);
             }
 
-            LightLayer[] lights = new LightLayer[lightFrames.length];
-            for (int index = 0; index < lightFrames.length; index++) {
-                TexturePackerPlist.Frame frame = lightFrames[index];
-                if (!insideAtlas(frame, atlas)) {
-                    composite.recycle();
-                    return null;
-                }
-                int[] pixels = new int[frame.textureWidth * frame.textureHeight];
-                atlas.getPixels(
-                        pixels,
-                        0,
-                        frame.textureWidth,
-                        frame.textureX,
-                        frame.textureY,
-                        frame.textureWidth,
-                        frame.textureHeight);
-                int left = (sourceWidth - frame.textureWidth) / 2 + frame.offsetX;
-                int top = (sourceHeight - frame.textureHeight) / 2 - frame.offsetY;
-                lights[index] = new LightLayer(
-                        frame.textureWidth,
-                        frame.textureHeight,
-                        left,
-                        top,
-                        sourceWidth,
-                        sourceHeight,
-                        pixels);
-            }
-            return new SceneAssets(composite, lights);
+            AtlasLayer[] buildings = extractLayers(
+                    buildingFrames, atlas, sourceWidth, sourceHeight, composite);
+            if (buildings == null) return null;
+            AtlasLayer[] lights = extractLayers(
+                    lightFrames, atlas, sourceWidth, sourceHeight, composite);
+            if (lights == null) return null;
+            return new SceneAssets(composite, buildings, lights);
         } finally {
             atlas.recycle();
         }
     }
 
-    // Retained for small callers/tests that only need the static base stack.
     static Bitmap compose(File plistFile, File atlasFile) throws Exception {
         SceneAssets scene = composeScene(plistFile, atlasFile);
         return scene != null ? scene.base : null;
+    }
+
+    private static AtlasLayer[] extractLayers(
+            TexturePackerPlist.Frame[] frames,
+            Bitmap atlas,
+            int sourceWidth,
+            int sourceHeight,
+            Bitmap compositeToRecycleOnFailure) {
+        AtlasLayer[] layers = new AtlasLayer[frames.length];
+        for (int index = 0; index < frames.length; index++) {
+            TexturePackerPlist.Frame frame = frames[index];
+            if (!insideAtlas(frame, atlas)) {
+                compositeToRecycleOnFailure.recycle();
+                return null;
+            }
+            int[] pixels = new int[frame.textureWidth * frame.textureHeight];
+            atlas.getPixels(
+                    pixels,
+                    0,
+                    frame.textureWidth,
+                    frame.textureX,
+                    frame.textureY,
+                    frame.textureWidth,
+                    frame.textureHeight);
+            int left = (sourceWidth - frame.textureWidth) / 2 + frame.offsetX;
+            int top = (sourceHeight - frame.textureHeight) / 2 - frame.offsetY;
+            layers[index] = new AtlasLayer(
+                    frame.textureWidth,
+                    frame.textureHeight,
+                    left,
+                    top,
+                    sourceWidth,
+                    sourceHeight,
+                    pixels);
+        }
+        return layers;
     }
 
     private static TexturePackerPlist.Frame[] readFrames(File plistFile, String[] names) throws Exception {
