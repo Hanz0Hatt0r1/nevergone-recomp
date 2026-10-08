@@ -30,27 +30,15 @@ jobs:
         run: python tools/ghidra/test_query_full_index.py
       - name: Run TapToStart reconstruction queries
         run: |
-          echo '=== ENTRY FLOW FUNCTIONS ==='
           python tools/ghidra/query_full_index.py functions TapToStart --limit 50 || true
-          python tools/ghidra/query_full_index.py functions initLoginLayer --limit 20 || true
-          python tools/ghidra/query_full_index.py functions GoToLoginScreen --limit 20 || true
-          python tools/ghidra/query_full_index.py functions GoToTapToStart --limit 20 || true
-          python tools/ghidra/query_full_index.py functions androidSdkCallBack --limit 20 || true
-          python tools/ghidra/query_full_index.py functions platformAutoLogin --limit 20 || true
-          echo '=== CALL GRAPH GoToTapToStart ==='
           python tools/ghidra/query_full_index.py callers 003063c2 --limit 50 || true
           python tools/ghidra/query_full_index.py callees 003063c2 --limit 50 || true
-          echo '=== CALL GRAPH OnTapScreen ==='
           python tools/ghidra/query_full_index.py callers 0030c400 --limit 50 || true
           python tools/ghidra/query_full_index.py callees 0030c400 --limit 50 || true
-          echo '=== CALL GRAPH ccTouchBegan ==='
           python tools/ghidra/query_full_index.py callees 0030c440 --limit 50 || true
-          echo '=== CALL GRAPH OnLogin ==='
           python tools/ghidra/query_full_index.py callers 0030c454 --limit 50 || true
           python tools/ghidra/query_full_index.py callees 0030c454 --limit 50 || true
-          echo '=== CALL GRAPH init ==='
           python tools/ghidra/query_full_index.py callees 0030ca18 --limit 200 || true
-          echo '=== CALL GRAPH AndroidSdk callback/auto-login ==='
           python tools/ghidra/query_full_index.py callees 002a0b0c --limit 100 || true
           python tools/ghidra/query_full_index.py callers 00306ca6 --limit 100 || true
           python tools/ghidra/query_full_index.py callees 00306ca6 --limit 100 || true
@@ -63,27 +51,20 @@ jobs:
               with gzip.open(root / name, 'rt', encoding='utf-8', newline='') as f:
                   yield from csv.DictReader(f, delimiter='\t')
           def h(value):
-              try:
-                  return int(value, 16)
-              except Exception:
-                  return None
-          funcs=[]
+              try: return int(value, 16)
+              except Exception: return None
+          entries=[]
           for r in rows('libcocos2dcpp.functions.tsv.gz'):
               e=h(r.get('entry',''))
-              if e is not None:
-                  funcs.append((e,r))
-          funcs.sort(key=lambda p:p[0])
-          entries=[e for e,_ in funcs]
+              if e is not None: entries.append(e)
+          entries.sort()
           strings={}
           for r in rows('libcocos2dcpp.strings.tsv.gz'):
               a=h(r.get('address',''))
               if a is None: continue
-              try: text=base64.b64decode(r['utf8_base64']).decode('utf-8','replace')
-              except Exception: continue
-              strings[a]=text
+              try: strings[a]=base64.b64decode(r['utf8_base64']).decode('utf-8','replace')
+              except Exception: pass
           xrefs=list(rows('libcocos2dcpp.xrefs.tsv.gz'))
-          if xrefs:
-              print('xref columns:', ','.join(xrefs[0].keys()))
           targets={
               0x003063c2:'ManagementLayer::GoToTapToStart',
               0x003063ec:'ManagementLayer::initLoginLayer',
@@ -95,13 +76,12 @@ jobs:
               0x00306ca6:'ManagementLayer::androidSdkCallBack',
           }
           for start,name in targets.items():
-              nxt=min((e for e in entries if e>start),default=start+0x2000)
+              nxt=min((e for e in entries if e>start), default=start+0x2000)
               print(f'--- {name} [{start:08x},{nxt:08x}) ---')
               seen=set()
               for xr in xrefs:
-                  frm=h(xr.get('from_address','')); to=h(xr.get('to_address',''))
-                  if frm is None or to is None or not(start<=frm<nxt) or to not in strings:
-                      continue
+                  frm=h(xr.get('from','')); to=h(xr.get('to',''))
+                  if frm is None or to is None or not(start<=frm<nxt) or to not in strings: continue
                   item=(frm,to,strings[to],xr.get('type',''))
                   if item in seen: continue
                   seen.add(item)
