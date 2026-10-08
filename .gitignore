@@ -11,6 +11,7 @@ out/
 work/
 extracted/
 decoded/
+third_party/_local/
 *.ghidra
 *.rep
 *.gpr
