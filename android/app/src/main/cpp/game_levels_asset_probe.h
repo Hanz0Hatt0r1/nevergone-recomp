@@ -15,11 +15,11 @@ struct Snapshot {
     bool within_size_limit = false;
     bool loaded = false;
     bool scene_prefix_readable = false;
-    bool first_record_header_readable = false;
+    bool first_scene_header_readable = false;
     std::uint64_t file_size = 0;
     std::size_t reader_size = 0;
     std::size_t scene_prefix_bytes_consumed = 0;
-    std::size_t first_record_header_bytes_consumed = 0;
+    std::size_t first_scene_header_bytes_consumed = 0;
 };
 
 // Probe an explicit file path. This is exposed for host regression tests and
