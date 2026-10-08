@@ -89,7 +89,7 @@ public final class MainActivity extends Activity {
 
     private void importOriginalApk(Uri apkUri) {
         importButton.setEnabled(false);
-        status.setText(buildStatusText("Importing original APK assets..."));
+        status.setText(buildStatusText("Importing and decoding original APK assets..."));
 
         new Thread(() -> {
             try {
@@ -97,9 +97,11 @@ public final class MainActivity extends Activity {
                         getContentResolver(), apkUri, getFilesDir());
                 String summary = String.format(
                         Locale.ROOT,
-                        "Imported %d files (%.2f MiB). Startup diagnostics rerun below.",
+                        "Imported %d files (%.2f MiB); decoded %d encoded assets. " +
+                                "Startup diagnostics rerun below.",
                         result.files,
-                        result.bytes / (1024.0 * 1024.0));
+                        result.bytes / (1024.0 * 1024.0),
+                        result.decodedFiles);
                 runOnUiThread(() -> {
                     importButton.setEnabled(true);
                     status.setText(buildStatusText(summary));
