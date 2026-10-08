@@ -49,7 +49,9 @@ The background functions reference these confirmed frames:
 
 Checked-in TexturePacker metadata confirms `bejingyueliang.png` and `bejingwuyun.png` are exact, non-rotated 1136x640 full-canvas frames. `yueliang.png`, `yueliangzhezhao.png`, `xingkong.png`, `bejingyueliang01.png`, and `diguang.png` are trimmed frames whose source canvas is also 1136x640, so their atlas offsets are sufficient to reconstruct exact design-canvas placement.
 
-`ChooseHeroBackgroundComposer` extracts these frames through the shared TexturePacker restoration path and verifies those source-canvas invariants. For the three foreground clouds, the runtime now combines their restored TexturePacker trim placement with the recovered Cocos sprite anchor/position instead of inferring scene placement from texture size.
+The checked-in full atlas index also confirms that all twelve `shandian01..06.png` and `menlei01..06.png` frames exist exactly once across the recovered `Gate_BackgroundPNG_01/02` atlas pair. The verifier treats that uniqueness as the contract instead of hard-coding an unproven plist choice into the runtime.
+
+`ChooseHeroBackgroundComposer` extracts these frames through the shared TexturePacker restoration path. For effect frames it checks both recovered Gate atlases and rejects missing or ambiguous membership. For the three foreground clouds, the runtime combines their restored TexturePacker trim placement with the recovered Cocos sprite anchor/position instead of inferring scene placement from texture size.
 
 ## Effective shipped `createUI()` dispatch
 
@@ -81,7 +83,7 @@ This distinction matters for the recompilation: the dormant helper functions rem
 - creates centered `diguang.png` at z-order 20 with opacity 0;
 - calls the separate random-thunder path after those invisible effect nodes exist.
 
-The deterministic first visible layer is therefore a six-second fade of `bejingwuyun.png`. Lightning, thunder visuals and ground light begin invisible and are intentionally deferred until their separate random-effect behavior is reconstructed.
+The deterministic first visible layer is therefore a six-second fade of `bejingwuyun.png`. Lightning, thunder visuals and ground light begin invisible; their random scheduling is reconstructed separately in `choose_hero_thunder_scheduler` and `docs/choose-hero-thunder-scheduler.md`.
 
 For comparison, focused evidence also shows `PartTow()` fades `bejingyueliang.png` in over 8 seconds, while `CreateSun()` repeats a 3-second fade-in / 3-second fade-out on `bejingyueliang01.png`; neither is on the effective shipped initial `createUI()` sequence described above.
 
@@ -100,20 +102,36 @@ The exact repeated motion is:
 | `qianjingyun01.png` | 0 | `-w` | `350 + h/2` | `0s` | `50s` | `W + w` | 178 |
 | `qianjingyun01.png` | 1 | `-2w` | `400 + h/2` | `25s` | `50s` | `W + w` | 178 |
 
-Here `W/H` are the 1136x640 visible design dimensions and `w/h` are each sprite frame's **untrimmed source dimensions**. After each move, a zero-duration `CCMoveTo` resets the sprite to its starting X. The entire sequence is wrapped in `CCRepeatForever`.
+Here `W/H` are the 1136x640 visible design dimensions and `w/h` are each sprite frame's **untrimmed source dimensions**. Before the original code creates the relevant `CCPoint` values it performs float -> signed-int -> float conversion, so the reconstructed timeline preserves that truncation to the original pixel grid. After each move, a zero-duration `CCMoveTo` resets the sprite to its starting X. The entire sequence is wrapped in `CCRepeatForever`.
 
 The delay on the second copy of each group is inside the repeated sequence rather than being a one-time startup offset. Consequently their full repeat periods are 60 seconds (`20+40`), 90 seconds (`30+60`), and 75 seconds (`25+50`). This behavior is covered by `choose_hero_black_cloud_timeline_smoke.cpp`.
 
 For rendering trimmed TexturePacker frames, the runtime reconstructs the source rectangle from the recovered `(1.0,0.5)` anchor and then applies the atlas `left/top/width/height` placement inside that source rectangle. This keeps the original motion path based on untrimmed dimensions while drawing only the stored upright pixels.
 
+## Native staging contract
+
+The native ChooseHero backing store now reserves stable indices without changing the already shipped reconstructed layers:
+
+```text
+0..9   existing background / ground-light / foreground-cloud frames
+10..15 shandian01..06.png
+16..21 menlei01..06.png
+```
+
+The old `ready()` contract intentionally remains limited to slots `0..9`; storm and `BalckCloud` rendering therefore continue even if effect staging is absent or incomplete. `effects_ready()` separately requires all twelve slots `10..21`.
+
+The Java effect stager uploads only those new slots and refuses indices outside the effect range. Partial staging cannot be promoted as ready. A route exit or hot asset re-import still clears the entire scene-owned store, so no stale effect frame survives into a later generation.
+
 ## Current runtime boundary
 
-When the reconstructed offline startup route becomes `choose-role`, `GameSurfaceView` lazily decodes the two confirmed background atlases from app-private imported assets, runs the ten recovered frames through `ChooseHeroBackgroundComposer`, and uploads their restored pixel/placement metadata into a synchronized native scene-owned backing store. Leaving `choose-role` clears that backing store. A hot asset re-import also clears it so a later route entry uses the refreshed user-owned files.
+When the reconstructed offline startup route becomes `choose-role`, `GameSurfaceView` lazily decodes the two confirmed background atlases from app-private imported assets. `ChooseHeroBackgroundComposer` restores the original pixels/placement for the ten established background/cloud layers and now also extracts the twelve PartThree effect frames. `ChooseHeroEffectStager` uploads the effects into native slots `10..21` while the existing `GameSurfaceView` path uploads slots `0..9` as before.
 
 The first compositor consumes the exact full-canvas `bejingwuyun.png` frame and reproduces the recovered `CCFadeIn(6.0f)` using the existing 35 Hz reconstructed game clock. It does not clear the prior frame before drawing, so alpha 0 begins transparently over the previous reconstructed scene just as a Cocos sprite fade would.
 
 The `BalckCloud` compositor then draws the six recovered cloud sprites above that background, preserving the original z-order relationship (`PartThree` background z=10, clouds z=30). It uses the same scene-generation-local 35 Hz clock, the exact repeated delay/move cycles listed above, and the user-imported atlas pixels. Both compositors recreate their GLES textures when staged asset generation changes or a surface/context recreation invalidates old texture names.
 
-The remaining visual gap is the random lightning/thunder/ground-light behavior created by `PartThree()`. Those nodes begin at opacity 0 and are not shown until the separate random-effect contract is fully reconstructed. Role-selection UI and scene entry are also separate remaining work.
+The twelve `shandian/menlei` frames are now staged but deliberately remain invisible. The next visual increment is to bind slots `10..21` plus the already staged `diguang.png` at slot 6 to the recovered `choose_hero_thunder_scheduler`, then route its seven optional sound selections through imported `sound/SingleLogin_UI/...` audio. That integration must preserve the original running-action gates, RNG draw order, opacity transitions and z=20 placement instead of fabricating a simpler random flash loop.
+
+Role-selection UI and scene entry remain separate work.
 
 No original image/audio bytes or instruction dumps are stored in the repository; only the recovered behavioral contract is recorded here.
