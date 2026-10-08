@@ -5,6 +5,8 @@
 #include <sstream>
 #include <string>
 
+#include "startup_contract.h"
+
 namespace {
 
 const char* abi_name() {
@@ -21,6 +23,19 @@ const char* abi_name() {
 #endif
 }
 
+std::string jstring_to_utf8(JNIEnv* env, jstring value) {
+    if (value == nullptr) {
+        return {};
+    }
+    const char* chars = env->GetStringUTFChars(value, nullptr);
+    if (chars == nullptr) {
+        return {};
+    }
+    std::string result(chars);
+    env->ReleaseStringUTFChars(value, chars);
+    return result;
+}
+
 std::string bootstrap_info() {
     utsname system_info{};
     const bool have_uname = uname(&system_info) == 0;
@@ -35,11 +50,28 @@ std::string bootstrap_info() {
         out << "kernel: " << system_info.release << "\n";
         out << "machine: " << system_info.machine << "\n";
     }
-    out << "\nNext milestone: Cocos2d-x 2.1.2 compatibility layer + AppDelegate.";
+
+    const auto& runtime = nevergone::startup::config();
+    out << "files dir configured: " << (!runtime.files_dir.empty() ? "yes" : "no") << "\n";
+    out << nevergone::startup::smoke_test_report();
+    out << "\nNext milestone: Lua runtime + real CAddDoString module execution.";
     return out.str();
 }
 
 }  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeConfigureRuntime(
+    JNIEnv* env,
+    jclass,
+    jstring files_dir,
+    jstring device_id) {
+    nevergone::startup::RuntimeConfig config;
+    config.files_dir = jstring_to_utf8(env, files_dir);
+    config.device_id = jstring_to_utf8(env, device_id);
+    config.platform = "android";
+    nevergone::startup::configure(std::move(config));
+}
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_nevergone_recomp_MainActivity_nativeBootstrapInfo(JNIEnv* env, jclass) {
