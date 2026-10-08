@@ -32,55 +32,80 @@ int main() {
 
     const std::string root = make_temp_dir();
     const std::string missing = root + "/missing.glData";
-    auto state = probe_file(missing, 16);
+    auto state = probe_file(missing, 64);
     assert(state.configured);
     assert(!state.present);
     assert(!state.loaded);
     assert(!state.scene_prefix_readable);
+    assert(!state.first_scene_header_readable);
 
     const std::string file = root + "/scene.glData";
     write_file(file, std::string(
-            "\x01\x02\x03\x04"
-            "\x05\x06\x07\x08"
-            "\x09\x0a\x0b\x0c",
-            12));
+            "\x01\x00\x00\x00"  // unresolved signed header field
+            "\x01\x00\x00\x00"  // scene_count
+            "\x04\x00\x00\x00"  // first string length
+            "\x7f"                  // skipped opaque byte
+            "hero"
+            "\x00\x00\x80\x3f"  // 1.0f
+            "\x00\x00\x00\x40"  // 2.0f
+            "\x03\x00\x00\x00", // layer_count
+            29));
 
-    state = probe_file(file, 16);
+    state = probe_file(file, 64);
     assert(state.present);
     assert(state.regular_file);
     assert(state.within_size_limit);
     assert(state.loaded);
-    assert(state.file_size == 12);
-    assert(state.reader_size == 12);
+    assert(state.file_size == 29);
+    assert(state.reader_size == 29);
     assert(state.scene_prefix_readable);
-    assert(state.scene_prefix_bytes_consumed == 12);
+    assert(state.scene_prefix_bytes_consumed == 8);
+    assert(state.first_scene_header_readable);
+    assert(state.first_scene_header_bytes_consumed == 29);
 
     const std::string short_file = root + "/short.glData";
     write_file(short_file, std::string(
-            "\x01\x02\x03\x04"
-            "\x05\x06\x07\x08",
-            8));
-    state = probe_file(short_file, 16);
+            "\x01\x00\x00\x00"
+            "\x01\x00\x00\x00"
+            "\x04\x00\x00\x00"
+            "\x7fhero"
+            "\x00\x00\x80\x3f"
+            "\x00\x00\x00\x40", // missing layer_count
+            25));
+    state = probe_file(short_file, 64);
     assert(state.loaded);
-    assert(state.reader_size == 8);
-    assert(!state.scene_prefix_readable);
-    assert(state.scene_prefix_bytes_consumed == 0);
+    assert(state.scene_prefix_readable);
+    assert(state.scene_prefix_bytes_consumed == 8);
+    assert(!state.first_scene_header_readable);
+    assert(state.first_scene_header_bytes_consumed == 0);
 
-    state = probe_file(file, 11);
+    const std::string no_scene_file = root + "/empty-scene-list.glData";
+    write_file(no_scene_file, std::string(
+            "\x01\x00\x00\x00"
+            "\x00\x00\x00\x00",
+            8));
+    state = probe_file(no_scene_file, 64);
+    assert(state.loaded);
+    assert(state.scene_prefix_readable);
+    assert(!state.first_scene_header_readable);
+
+    state = probe_file(file, 28);
     assert(state.present);
     assert(state.regular_file);
     assert(!state.within_size_limit);
     assert(!state.loaded);
     assert(!state.scene_prefix_readable);
+    assert(!state.first_scene_header_readable);
 
-    state = probe_file(root, 16);
+    state = probe_file(root, 64);
     assert(state.present);
     assert(!state.regular_file);
     assert(!state.loaded);
 
-    state = probe_file("", 16);
+    state = probe_file("", 64);
     assert(!state.configured);
 
+    std::remove(no_scene_file.c_str());
     std::remove(short_file.c_str());
     std::remove(file.c_str());
     rmdir(root.c_str());
