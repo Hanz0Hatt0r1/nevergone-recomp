@@ -77,6 +77,16 @@ jobs:
             -o /tmp/choose_hero_black_cloud_timeline_smoke
           /tmp/choose_hero_black_cloud_timeline_smoke
 
+      - name: Validate ChooseHero thunder scheduler
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/choose_hero_thunder_scheduler_smoke.cpp \
+            android/app/src/main/cpp/choose_hero_thunder_scheduler.cpp \
+            -o /tmp/choose_hero_thunder_scheduler_smoke
+          /tmp/choose_hero_thunder_scheduler_smoke
+
       - name: Validate AppDelegate startup state
         shell: bash
         run: |
