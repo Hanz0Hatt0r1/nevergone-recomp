@@ -12,6 +12,11 @@ final class SingleLoginAtlasComposer {
             "zjmbeijing03.png"
     };
 
+    private static final String[] CLOUD_STACK = {
+            "zjmyun01.png",
+            "zjmyun02.png"
+    };
+
     private static final String[] LIGHT_STACK = {
             "zjmdengguang01.png",
             "zjmdengguang02.png",
@@ -19,8 +24,6 @@ final class SingleLoginAtlasComposer {
             "zjmdengguang04.png"
     };
 
-    // InitUI indices 6..10 map to these five frames; the recovered z-order
-    // literal array assigns all of them z=4 and no action-chain is attached.
     private static final String[] BUILDING_STACK = {
             "zjmjianzhu01.png",
             "zjmjianzhu02.png",
@@ -56,13 +59,31 @@ final class SingleLoginAtlasComposer {
         }
     }
 
+    static final class AtlasTexture {
+        final int width;
+        final int height;
+        final int[] pixels;
+
+        AtlasTexture(int width, int height, int[] pixels) {
+            this.width = width;
+            this.height = height;
+            this.pixels = pixels;
+        }
+    }
+
     static final class SceneAssets {
         final AtlasLayer[] backgrounds;
+        final AtlasTexture[] clouds;
         final AtlasLayer[] buildings;
         final AtlasLayer[] lights;
 
-        SceneAssets(AtlasLayer[] backgrounds, AtlasLayer[] buildings, AtlasLayer[] lights) {
+        SceneAssets(
+                AtlasLayer[] backgrounds,
+                AtlasTexture[] clouds,
+                AtlasLayer[] buildings,
+                AtlasLayer[] lights) {
             this.backgrounds = backgrounds;
+            this.clouds = clouds;
             this.buildings = buildings;
             this.lights = lights;
         }
@@ -72,9 +93,11 @@ final class SingleLoginAtlasComposer {
 
     static SceneAssets composeScene(File plistFile, File atlasFile) throws Exception {
         TexturePackerPlist.Frame[] backgroundFrames = readFrames(plistFile, BACKGROUND_STACK);
+        TexturePackerPlist.Frame[] cloudFrames = readFrames(plistFile, CLOUD_STACK);
         TexturePackerPlist.Frame[] buildingFrames = readFrames(plistFile, BUILDING_STACK);
         TexturePackerPlist.Frame[] lightFrames = readFrames(plistFile, LIGHT_STACK);
-        if (backgroundFrames == null || buildingFrames == null || lightFrames == null) return null;
+        if (backgroundFrames == null || cloudFrames == null ||
+                buildingFrames == null || lightFrames == null) return null;
 
         final int sourceWidth = backgroundFrames[0].sourceWidth;
         final int sourceHeight = backgroundFrames[0].sourceHeight;
@@ -95,10 +118,11 @@ final class SingleLoginAtlasComposer {
 
         try {
             AtlasLayer[] backgrounds = extractLayers(backgroundFrames, atlas, sourceWidth, sourceHeight);
+            AtlasTexture[] clouds = extractTextures(cloudFrames, atlas);
             AtlasLayer[] buildings = extractLayers(buildingFrames, atlas, sourceWidth, sourceHeight);
             AtlasLayer[] lights = extractLayers(lightFrames, atlas, sourceWidth, sourceHeight);
-            if (backgrounds == null || buildings == null || lights == null) return null;
-            return new SceneAssets(backgrounds, buildings, lights);
+            if (backgrounds == null || clouds == null || buildings == null || lights == null) return null;
+            return new SceneAssets(backgrounds, clouds, buildings, lights);
         } finally {
             atlas.recycle();
         }
@@ -113,16 +137,7 @@ final class SingleLoginAtlasComposer {
         for (int index = 0; index < frames.length; index++) {
             TexturePackerPlist.Frame frame = frames[index];
             if (!insideAtlas(frame, atlas)) return null;
-
-            int[] pixels = new int[frame.textureWidth * frame.textureHeight];
-            atlas.getPixels(
-                    pixels,
-                    0,
-                    frame.textureWidth,
-                    frame.textureX,
-                    frame.textureY,
-                    frame.textureWidth,
-                    frame.textureHeight);
+            int[] pixels = extractPixels(frame, atlas);
             int left = (sourceWidth - frame.textureWidth) / 2 + frame.offsetX;
             int top = (sourceHeight - frame.textureHeight) / 2 - frame.offsetY;
             layers[index] = new AtlasLayer(
@@ -135,6 +150,33 @@ final class SingleLoginAtlasComposer {
                     pixels);
         }
         return layers;
+    }
+
+    private static AtlasTexture[] extractTextures(TexturePackerPlist.Frame[] frames, Bitmap atlas) {
+        AtlasTexture[] textures = new AtlasTexture[frames.length];
+        for (int index = 0; index < frames.length; index++) {
+            TexturePackerPlist.Frame frame = frames[index];
+            if (!insideAtlas(frame, atlas) || frame.offsetX != 0 || frame.offsetY != 0 ||
+                    frame.textureWidth != frame.sourceWidth || frame.textureHeight != frame.sourceHeight) {
+                return null;
+            }
+            textures[index] = new AtlasTexture(
+                    frame.textureWidth, frame.textureHeight, extractPixels(frame, atlas));
+        }
+        return textures;
+    }
+
+    private static int[] extractPixels(TexturePackerPlist.Frame frame, Bitmap atlas) {
+        int[] pixels = new int[frame.textureWidth * frame.textureHeight];
+        atlas.getPixels(
+                pixels,
+                0,
+                frame.textureWidth,
+                frame.textureX,
+                frame.textureY,
+                frame.textureWidth,
+                frame.textureHeight);
+        return pixels;
     }
 
     private static TexturePackerPlist.Frame[] readFrames(File plistFile, String[] names) throws Exception {
