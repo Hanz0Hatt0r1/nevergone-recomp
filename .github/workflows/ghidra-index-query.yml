@@ -28,26 +28,22 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query opening/create-character evidence
+      - name: Query SingleSelectHero initial scene evidence
         run: |
-          echo '=== OpeningDalogue / SingleSelectHero functions ==='
-          python tools/ghidra/query_full_index.py functions OpeningDalogue --limit 100 || true
-          python tools/ghidra/query_full_index.py functions SingleSelectHero --limit 150 || true
-          echo '=== OpeningDalogue call graph ==='
-          python tools/ghidra/query_full_index.py callees 004352d8 --limit 120 || true
-          python tools/ghidra/query_full_index.py callees 00435334 --limit 120 || true
-          python tools/ghidra/query_full_index.py callees 00435394 --limit 120 || true
-          echo '=== SingleSelectHero create and nearby call graph ==='
-          python tools/ghidra/query_full_index.py callers 00437614 --limit 80 || true
-          python tools/ghidra/query_full_index.py callees 00437614 --limit 100 || true
-          echo '=== candidate strings/assets ==='
-          python tools/ghidra/query_full_index.py strings Opening --limit 100 || true
-          python tools/ghidra/query_full_index.py strings SelectHero --limit 100 || true
-          python tools/ghidra/query_full_index.py strings selecthero --limit 100 || true
-          python tools/ghidra/query_full_index.py assets Opening --limit 100 || true
-          python tools/ghidra/query_full_index.py assets SelectHero --limit 100 || true
-          python tools/ghidra/query_full_index.py atlases SelectHero --limit 100 || true
-          echo '=== direct strings from target bodies ==='
+          echo '=== Management transition ==='
+          python tools/ghidra/query_full_index.py functions initSelectHero --limit 30 || true
+          python tools/ghidra/query_full_index.py callees 00306244 --limit 100 || true
+          echo '=== SingleSelectHero init/initUI/FuncBegin call graph ==='
+          python tools/ghidra/query_full_index.py callees 0043705c --limit 200 || true
+          python tools/ghidra/query_full_index.py callees 00438c20 --limit 350 || true
+          python tools/ghidra/query_full_index.py callees 00439ac8 --limit 250 || true
+          echo '=== exact initial atlas frames ==='
+          python tools/ghidra/query_full_index.py atlases xrbeijing.png --limit 10 || true
+          python tools/ghidra/query_full_index.py atlases xrshiguan.png --limit 10 || true
+          python tools/ghidra/query_full_index.py atlases xrguangai.png --limit 10 || true
+          python tools/ghidra/query_full_index.py atlases xrguancaigai.png --limit 10 || true
+          python tools/ghidra/query_full_index.py atlases xrtengman --limit 20 || true
+          echo '=== direct strings from SingleSelectHero bodies ==='
           python - <<'PY'
           import base64, csv, gzip
           from pathlib import Path
@@ -71,16 +67,20 @@ jobs:
               except: pass
           xrefs=list(rows('libcocos2dcpp.xrefs.tsv.gz'))
           targets={
-              0x004352d8:'OpeningDalogue::FuncLayerBegin',
-              0x00435334:'OpeningDalogue::initUI',
-              0x00435394:'OpeningDalogue::init',
-              0x00437614:'SingleSelectHero::create',
+              0x00306244:'ManagementLayer::initSelectHero',
+              0x0043705c:'SingleSelectHero::FuncBegin',
+              0x00438c20:'SingleSelectHero::initUI',
+              0x00439ac8:'SingleSelectHero::init',
           }
           for start,name in targets.items():
-              end=min((e for e in funcs if e>start),default=start+0x2000)
+              end=min((e for e in funcs if e>start),default=start+0x4000)
               print(f'--- {name} [{start:08x},{end:08x}) ---')
+              seen=set()
               for xr in xrefs:
                   frm=hx(xr.get('from','')); to=hx(xr.get('to',''))
-                  if frm is not None and to in strings and start<=frm<end:
-                      print(f'{frm:08x} -> {to:08x} [{xr.get("type","")}] {strings[to]}')
+                  if frm is None or to not in strings or not(start<=frm<end): continue
+                  item=(frm,to,strings[to],xr.get('type',''))
+                  if item in seen: continue
+                  seen.add(item)
+                  print(f'{frm:08x} -> {to:08x} [{item[3]}] {item[2]}')
           PY
