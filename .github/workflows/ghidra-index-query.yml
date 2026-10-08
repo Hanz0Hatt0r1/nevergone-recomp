@@ -28,8 +28,39 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query checked-in SingleLogin metadata
+      - name: Trace initial SingleSelectHero initUI calls
         run: |
-          python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
-          python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
-          python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
+          python - <<'PY'
+          import base64, csv, gzip
+          from pathlib import Path
+          root=Path('docs/ghidra/full-index')
+          def rows(name):
+              with gzip.open(root/name,'rt',encoding='utf-8',newline='') as f:
+                  yield from csv.DictReader(f,delimiter='\t')
+          def hx(value):
+              try:return int(value,16)
+              except:return None
+          funcs={r['entry'].lower().removeprefix('0x'):r.get('name','') for r in rows('libcocos2dcpp.functions.tsv.gz')}
+          strings={}
+          for r in rows('libcocos2dcpp.strings.tsv.gz'):
+              a=hx(r.get('address',''))
+              if a is None: continue
+              try: strings[a]=base64.b64decode(r['utf8_base64']).decode('utf-8','replace')
+              except: pass
+          start=0x00438c20
+          events=[]
+          for r in rows('libcocos2dcpp.calls.tsv.gz'):
+              if r.get('caller_entry','').lower().removeprefix('0x') != '00438c20': continue
+              site=hx(r.get('call_site',''))
+              callee=r.get('callee_entry','').lower().removeprefix('0x')
+              if site is not None:
+                  events.append((site,'CALL',f"{callee} {funcs.get(callee,'<unknown>')}"))
+          for r in rows('libcocos2dcpp.xrefs.tsv.gz'):
+              frm=hx(r.get('from','')); to=hx(r.get('to',''))
+              if frm is not None and 0x00438c20 <= frm < 0x00439ac8 and to in strings:
+                  events.append((frm,'STR',strings[to]))
+          for site,kind,value in sorted(events):
+              print(f'{site:08x}\t{kind}\t{value}')
+          PY
+          echo '=== vine atlas metadata ==='
+          python tools/ghidra/query_full_index.py atlases xrtengman --limit 10
