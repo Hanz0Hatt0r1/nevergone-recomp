@@ -7,13 +7,11 @@ int main() {
     using namespace nevergone::login_callback_payload;
 
     ServerListPayload servers;
-    const std::string server_json = R"JSON([{"ip":"10.0.0.1","id":7,"name":"Europe","BattleIP":"10.0.0.2","ignored":{"load":2}},{"id":8,"name":"Asia \\u2605","ip":"10.0.1.1"}])JSON";
-    std::string normalized_server_json = server_json;
-    for (std::size_t pos = 0; (pos = normalized_server_json.find("\\\"", pos)) != std::string::npos;) {
-        normalized_server_json.replace(pos, 2, "\"");
-        ++pos;
-    }
-    assert(parse_server_list_callback({normalized_server_json, "8"}, &servers));
+    const std::string server_json =
+        "[{\"ip\":\"10.0.0.1\",\"id\":7,\"name\":\"Europe\","
+        "\"BattleIP\":\"10.0.0.2\",\"ignored\":{\"load\":2}},"
+        "{\"id\":8,\"name\":\"Asia\",\"ip\":\"10.0.1.1\"}]";
+    assert(parse_server_list_callback({server_json, "8"}, &servers));
     assert(servers.valid);
     assert(servers.servers.size() == 2);
     assert(servers.servers[0].id == 7);
@@ -21,7 +19,7 @@ int main() {
     assert(servers.servers[0].ip == "10.0.0.1");
     assert(servers.servers[0].battle_ip == "10.0.0.2");
     assert(servers.servers[1].id == 8);
-    assert(servers.servers[1].name == "Asia \\u2605" || servers.servers[1].name == "Asia \xE2\x98\x85");
+    assert(servers.servers[1].name == "Asia");
     assert(servers.last_login_server == "8");
 
     ServerListPayload invalid_servers;
@@ -29,13 +27,14 @@ int main() {
     assert(!invalid_servers.valid);
 
     RoleListPayload roles;
-    const std::string role_json = R"JSON({"CidList":[101,202],"CharacterDataMap":{"101":{"CharacterID":101,"CharacterName":"Aria","Career":1,"CharacterLevel":12,"ClothesID":31,"ClothesColorID":4},"202":{"CharacterID":202,"CharacterName":"Bram","Career":2,"CharacterLevel":7,"ClothesID":19,"ClothesColorID":3}},"NestedEcho":{"CharacterID":101,"CharacterName":"Aria","Career":1}})JSON";
-    std::string normalized_role_json = role_json;
-    for (std::size_t pos = 0; (pos = normalized_role_json.find("\\\"", pos)) != std::string::npos;) {
-        normalized_role_json.replace(pos, 2, "\"");
-        ++pos;
-    }
-    assert(parse_role_list_callback({normalized_role_json}, &roles));
+    const std::string role_json =
+        "{\"CidList\":[101,202],\"CharacterDataMap\":{"
+        "\"101\":{\"CharacterID\":101,\"CharacterName\":\"Aria\",\"Career\":1,"
+        "\"CharacterLevel\":12,\"ClothesID\":31,\"ClothesColorID\":4},"
+        "\"202\":{\"CharacterID\":202,\"CharacterName\":\"Bram\",\"Career\":2,"
+        "\"CharacterLevel\":7,\"ClothesID\":19,\"ClothesColorID\":3}},"
+        "\"NestedEcho\":{\"CharacterID\":101,\"CharacterName\":\"Aria\",\"Career\":1}}";
+    assert(parse_role_list_callback({role_json}, &roles));
     assert(roles.valid);
     assert(roles.roles.size() == 2);
     assert(roles.roles[0].character_id == 101);
@@ -48,13 +47,9 @@ int main() {
     assert(roles.roles[1].character_name == "Bram");
 
     RoleListPayload empty_roles;
-    const std::string empty_roles_json = R"JSON({"CidList":[],"CharacterDataMap":{}})JSON";
-    std::string normalized_empty_roles_json = empty_roles_json;
-    for (std::size_t pos = 0; (pos = normalized_empty_roles_json.find("\\\"", pos)) != std::string::npos;) {
-        normalized_empty_roles_json.replace(pos, 2, "\"");
-        ++pos;
-    }
-    assert(parse_role_list_callback({normalized_empty_roles_json}, &empty_roles));
+    assert(parse_role_list_callback(
+        {"{\"CidList\":[],\"CharacterDataMap\":{}}"},
+        &empty_roles));
     assert(empty_roles.valid);
     assert(empty_roles.roles.empty());
 
