@@ -28,23 +28,8 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query ChooseHero scene metadata
+      - name: Query ChooseHero background frame metadata
         run: |
-          echo '=== ChooseHero functions ==='
-          python tools/ghidra/query_full_index.py functions 'ChooseHero::' --limit 80 || true
-          python tools/ghidra/query_full_index.py functions 'ChooseHeroBackground::' --limit 80 || true
-          echo '=== likely scene entry functions ==='
-          python tools/ghidra/query_full_index.py functions 'ChooseHero::create' --limit 20 || true
-          python tools/ghidra/query_full_index.py functions 'ChooseHero::init' --limit 20 || true
-          python tools/ghidra/query_full_index.py functions 'ChooseHeroBackground::init' --limit 20 || true
-          python tools/ghidra/query_full_index.py functions 'ChooseHeroBackground::createUI' --limit 20 || true
-          python tools/ghidra/query_full_index.py functions 'ChooseHeroBackground::LoadingTexture' --limit 20 || true
-          echo '=== choose hero assets/archives ==='
-          python tools/ghidra/query_full_index.py strings 'ChooseHero' --limit 150 || true
-          python tools/ghidra/query_full_index.py strings 'choosehero' --limit 150 || true
-          python tools/ghidra/query_full_index.py strings 'xuanz' --limit 150 || true
-          python tools/ghidra/query_full_index.py strings 'wj' --limit 150 || true
-          echo '=== function-local strings and calls ==='
           python - <<'PY'
           import base64, csv, gzip
           from pathlib import Path
@@ -55,11 +40,10 @@ jobs:
           def hx(v):
               try:return int(v,16)
               except:return None
-          funcs=[]; funcnames={}
+          funcs=[]; names={}
           for r in rows('libcocos2dcpp.functions.tsv.gz'):
               e=hx(r.get('entry',''))
-              if e is not None:
-                  funcs.append(e); funcnames[e]=r.get('name','')
+              if e is not None: funcs.append(e); names[e]=r.get('name','')
           funcs.sort()
           strings={}
           for r in rows('libcocos2dcpp.strings.tsv.gz'):
@@ -67,13 +51,16 @@ jobs:
               if a is None: continue
               try: strings[a]=base64.b64decode(r['utf8_base64']).decode('utf-8','replace')
               except: pass
-          targets=[e for e,n in funcnames.items() if n in {
-              'ChooseHero::init','ChooseHero::create','ChooseHeroBackground::init',
-              'ChooseHeroBackground::createUI','ChooseHeroBackground::LoadingTexture'}]
+          wanted={
+              'ChooseHeroBackground::BalckCloud','ChooseHeroBackground::PartOne',
+              'ChooseHeroBackground::PartTow','ChooseHeroBackground::PartThree',
+              'ChooseHeroBackground::CreateSun','ChooseHeroBackground::CreateStar',
+              'ChooseHeroBackground::CreateMeteor','ChooseHeroBackground::CreateEagle',
+              'ChooseHero::initBG','ChooseHero::initSaveDataUI'}
           xrefs=list(rows('libcocos2dcpp.xrefs.tsv.gz')); calls=list(rows('libcocos2dcpp.calls.tsv.gz'))
-          for start in sorted(targets):
-              name=funcnames[start]; end=min((e for e in funcs if e>start),default=start+0x3000)
-              print(f'--- {start:08x} {name} [{end:08x}) ---')
+          for start in sorted(e for e,n in names.items() if n in wanted):
+              end=min((e for e in funcs if e>start),default=start+0x3000)
+              print(f'--- {start:08x} {names[start]} [{end:08x}) ---')
               for xr in xrefs:
                   frm=hx(xr.get('from','')); to=hx(xr.get('to',''))
                   if frm is not None and start<=frm<end and to in strings:
@@ -81,5 +68,11 @@ jobs:
               for c in calls:
                   ce=hx(c.get('caller_entry','')); site=hx(c.get('call_site','')); callee=hx(c.get('callee_entry',''))
                   if ce==start and site is not None:
-                      print(f'CALL\t{site:08x}\t{callee:08x}\t{funcnames.get(callee,"<unknown>")}')
+                      print(f'CALL\t{site:08x}\t{callee:08x}\t{names.get(callee,"<unknown>")}')
           PY
+          echo '=== archive entries around Gate_Background ==='
+          python tools/ghidra/query_full_index.py archives 'Gate_Background' --limit 200 || true
+          echo '=== atlas frame searches ==='
+          python tools/ghidra/query_full_index.py atlases 'wj' --limit 200 || true
+          python tools/ghidra/query_full_index.py atlases 'beijing' --limit 200 || true
+          python tools/ghidra/query_full_index.py atlases 'background' --limit 200 || true
