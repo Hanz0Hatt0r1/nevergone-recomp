@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "client_callback_bridge.h"
+#include "game_clock.h"
 
 namespace nevergone::render {
 namespace {
@@ -155,6 +156,7 @@ void main() {
 
 void on_surface_created() {
     g_frame_count.store(0, std::memory_order_relaxed);
+    nevergone::game_clock::reset();
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -184,6 +186,11 @@ void on_surface_changed(int width, int height) {
 }
 
 void on_draw_frame() {
+    // Preserve the original update cadence independently of physical display
+    // refresh. The returned tick count becomes the scheduler/Lua work budget
+    // once those update paths are reconstructed.
+    (void)nevergone::game_clock::advance();
+
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (g_program != 0) {
@@ -220,6 +227,7 @@ std::string status_report() {
     out << "render surface: " << g_width.load(std::memory_order_relaxed)
         << "x" << g_height.load(std::memory_order_relaxed) << "\n";
     out << "render frames: " << g_frame_count.load(std::memory_order_relaxed) << "\n";
+    out << nevergone::game_clock::status_report();
     out << "client render phase: " << current_render_phase().name << "\n";
     {
         std::lock_guard<std::mutex> lock(g_gl_status_mutex);
