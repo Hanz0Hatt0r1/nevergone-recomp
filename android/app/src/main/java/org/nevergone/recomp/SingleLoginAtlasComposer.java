@@ -32,6 +32,18 @@ final class SingleLoginAtlasComposer {
             "zjmjianzhu05.png"
     };
 
+    private static final String[] SWAY_STACK = {
+            "zjmqianjingshuzhi01.png",
+            "zjmqianjingshuzhi02.png",
+            "zjmqianjingshuzhi03.png",
+            "ZJMyuanjing_tree_left01.png",
+            "ZJMyuanjing_tree_left02.png",
+            "ZJMyuanjing_tree_left03.png",
+            "ZJMyuanjing_tree_left04.png",
+            "ZJMyuanjing_tree_left05.png",
+            "ZJMyuanjing_tree_left06.png"
+    };
+
     static final class AtlasLayer {
         final int width;
         final int height;
@@ -76,16 +88,19 @@ final class SingleLoginAtlasComposer {
         final AtlasTexture[] clouds;
         final AtlasLayer[] buildings;
         final AtlasLayer[] lights;
+        final AtlasLayer[] sways;
 
         SceneAssets(
                 AtlasLayer[] backgrounds,
                 AtlasTexture[] clouds,
                 AtlasLayer[] buildings,
-                AtlasLayer[] lights) {
+                AtlasLayer[] lights,
+                AtlasLayer[] sways) {
             this.backgrounds = backgrounds;
             this.clouds = clouds;
             this.buildings = buildings;
             this.lights = lights;
+            this.sways = sways;
         }
     }
 
@@ -96,8 +111,9 @@ final class SingleLoginAtlasComposer {
         TexturePackerPlist.Frame[] cloudFrames = readFrames(plistFile, CLOUD_STACK);
         TexturePackerPlist.Frame[] buildingFrames = readFrames(plistFile, BUILDING_STACK);
         TexturePackerPlist.Frame[] lightFrames = readFrames(plistFile, LIGHT_STACK);
-        if (backgroundFrames == null || cloudFrames == null ||
-                buildingFrames == null || lightFrames == null) return null;
+        TexturePackerPlist.Frame[] swayFrames = readFrames(plistFile, SWAY_STACK);
+        if (backgroundFrames == null || cloudFrames == null || buildingFrames == null ||
+                lightFrames == null || swayFrames == null) return null;
 
         final int sourceWidth = backgroundFrames[0].sourceWidth;
         final int sourceHeight = backgroundFrames[0].sourceHeight;
@@ -121,8 +137,10 @@ final class SingleLoginAtlasComposer {
             AtlasTexture[] clouds = extractTextures(cloudFrames, atlas);
             AtlasLayer[] buildings = extractLayers(buildingFrames, atlas, sourceWidth, sourceHeight);
             AtlasLayer[] lights = extractLayers(lightFrames, atlas, sourceWidth, sourceHeight);
-            if (backgrounds == null || clouds == null || buildings == null || lights == null) return null;
-            return new SceneAssets(backgrounds, clouds, buildings, lights);
+            AtlasLayer[] sways = extractSpriteLayers(swayFrames, atlas);
+            if (backgrounds == null || clouds == null || buildings == null ||
+                    lights == null || sways == null) return null;
+            return new SceneAssets(backgrounds, clouds, buildings, lights, sways);
         } finally {
             atlas.recycle();
         }
@@ -137,19 +155,38 @@ final class SingleLoginAtlasComposer {
         for (int index = 0; index < frames.length; index++) {
             TexturePackerPlist.Frame frame = frames[index];
             if (!insideAtlas(frame, atlas)) return null;
-            int[] pixels = extractPixels(frame, atlas);
-            int left = (sourceWidth - frame.textureWidth) / 2 + frame.offsetX;
-            int top = (sourceHeight - frame.textureHeight) / 2 - frame.offsetY;
-            layers[index] = new AtlasLayer(
-                    frame.textureWidth,
-                    frame.textureHeight,
-                    left,
-                    top,
-                    sourceWidth,
-                    sourceHeight,
-                    pixels);
+            layers[index] = makeLayer(frame, atlas, sourceWidth, sourceHeight);
         }
         return layers;
+    }
+
+    private static AtlasLayer[] extractSpriteLayers(
+            TexturePackerPlist.Frame[] frames, Bitmap atlas) {
+        AtlasLayer[] layers = new AtlasLayer[frames.length];
+        for (int index = 0; index < frames.length; index++) {
+            TexturePackerPlist.Frame frame = frames[index];
+            if (!insideAtlas(frame, atlas)) return null;
+            layers[index] = makeLayer(frame, atlas, frame.sourceWidth, frame.sourceHeight);
+        }
+        return layers;
+    }
+
+    private static AtlasLayer makeLayer(
+            TexturePackerPlist.Frame frame,
+            Bitmap atlas,
+            int sourceWidth,
+            int sourceHeight) {
+        int[] pixels = extractPixels(frame, atlas);
+        int left = (sourceWidth - frame.textureWidth) / 2 + frame.offsetX;
+        int top = (sourceHeight - frame.textureHeight) / 2 - frame.offsetY;
+        return new AtlasLayer(
+                frame.textureWidth,
+                frame.textureHeight,
+                left,
+                top,
+                sourceWidth,
+                sourceHeight,
+                pixels);
     }
 
     private static AtlasTexture[] extractTextures(TexturePackerPlist.Frame[] frames, Bitmap atlas) {
