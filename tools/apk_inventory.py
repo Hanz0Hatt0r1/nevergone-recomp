@@ -3,7 +3,8 @@
 
 The script intentionally uses only Python's standard library. Optional ELF
 metadata is collected with the host `readelf`/`strings` utilities when they are
-available.
+available. Original APK signing-certificate metadata is collected with the host
+`keytool` utility when available.
 """
 from __future__ import annotations
 
@@ -37,6 +38,44 @@ def run_text(args: list[str]) -> str:
         return subprocess.check_output(args, stderr=subprocess.STDOUT, text=True, errors="replace")
     except (subprocess.CalledProcessError, FileNotFoundError):
         return ""
+
+
+def signing_certificate_metadata(apk_path: Path) -> dict[str, Any]:
+    """Return public signing-certificate metadata without retaining certificate bytes."""
+    if not shutil.which("keytool"):
+        return {"available": False, "note": "keytool not found; signing certificate details skipped"}
+
+    output = run_text(["keytool", "-printcert", "-jarfile", str(apk_path)])
+    if not output:
+        return {"available": False, "note": "keytool could not read APK signing certificate metadata"}
+
+    def match(pattern: str) -> str | None:
+        found = re.search(pattern, output, re.MULTILINE)
+        return found.group(1).strip() if found else None
+
+    fingerprints: dict[str, str] = {}
+    for algorithm in ("SHA1", "SHA256"):
+        value = match(rf"^\s*{algorithm}:\s*(.+)$")
+        if value:
+            fingerprints[algorithm.lower()] = value
+
+    owner = match(r"^Owner:\s*(.+)$")
+    issuer = match(r"^Issuer:\s*(.+)$")
+    result: dict[str, Any] = {
+        "available": True,
+        "owner": owner,
+        "issuer": issuer,
+        "serial_number": match(r"^Serial number:\s*(.+)$"),
+        "valid_from": match(r"^Valid from:\s*(.+?)\s+until:"),
+        "valid_until": match(r"^Valid from:.*?\s+until:\s*(.+)$"),
+        "signature_algorithm": match(r"^Signature algorithm name:\s*(.+)$"),
+        "public_key_algorithm": match(r"^Subject Public Key Algorithm:\s*(.+)$"),
+        "certificate_version": match(r"^Version:\s*(.+)$"),
+        "fingerprints": fingerprints,
+    }
+    if owner and issuer:
+        result["self_signed_subject_issuer_match"] = owner == issuer
+    return result
 
 
 def elf_metadata(data: bytes, name: str) -> dict[str, Any]:
@@ -128,6 +167,7 @@ def build_inventory(apk_path: Path) -> dict[str, Any]:
                 "uncompressed_size": sum(i.file_size for i in infos),
                 "compressed_size": sum(i.compress_size for i in infos),
             },
+            "signing_certificate": signing_certificate_metadata(apk_path),
             "dex_files": sorted(dex),
             "assets": {
                 "count": len(assets),
@@ -154,6 +194,34 @@ def markdown(inv: dict[str, Any]) -> str:
         f"- DEX files: `{', '.join(inv['dex_files']) or 'none'}`",
         f"- Asset files: `{inv['assets']['count']}`",
         f"- Lua-like files: `{inv['lua']['count']}`",
+    ]
+
+    cert = inv.get("signing_certificate", {})
+    out += ["", "## Signing certificate", ""]
+    if cert.get("available"):
+        for label, key in (
+            ("Owner", "owner"),
+            ("Issuer", "issuer"),
+            ("Serial number", "serial_number"),
+            ("Valid from", "valid_from"),
+            ("Valid until", "valid_until"),
+            ("Signature algorithm", "signature_algorithm"),
+            ("Public key", "public_key_algorithm"),
+            ("Certificate version", "certificate_version"),
+        ):
+            if cert.get(key):
+                out.append(f"- {label}: `{cert[key]}`")
+        if "self_signed_subject_issuer_match" in cert:
+            out.append(
+                "- Subject/issuer match: `" +
+                ("yes" if cert["self_signed_subject_issuer_match"] else "no") + "`"
+            )
+        for algorithm, value in cert.get("fingerprints", {}).items():
+            out.append(f"- {algorithm.upper()} fingerprint: `{value}`")
+    else:
+        out.append(f"- {cert.get('note', 'unavailable')}")
+
+    out += [
         "",
         "## Asset extensions",
         "",
