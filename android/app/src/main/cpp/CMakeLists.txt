@@ -18,6 +18,7 @@ add_library(nevergone_recomp SHARED
     single_login_scene_bridge.cpp
     splash_layer_renderer.cpp
     splash_timeline.cpp
+    startup_audio_bridge.cpp
     startup_contract.cpp
     string_validation_bindings.cpp
     xml_validation_binding.cpp
