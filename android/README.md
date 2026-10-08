@@ -29,12 +29,6 @@ The repository does not commit the Gradle wrapper JAR yet. With a compatible loc
 ```bash
 cd android
 gradle wrapper
-a./gradlew assembleDebug
-```
-
-On Unix-like systems use:
-
-```bash
 ./gradlew assembleDebug
 ```
 
