@@ -263,6 +263,16 @@ bool string_field(const JsonValue& object, const char* name, std::string* output
     return true;
 }
 
+int role_richness(const RoleEntry& role) {
+    int richness = 0;
+    if (!role.character_name.empty()) ++richness;
+    if (role.career != 0) ++richness;
+    if (role.character_level != 0) ++richness;
+    if (role.clothes_id != 0) ++richness;
+    if (role.clothes_color_id != 0) ++richness;
+    return richness;
+}
+
 void collect_roles(const JsonValue& value, std::map<std::int64_t, RoleEntry>* roles, int depth) {
     if (roles == nullptr || depth > 64) return;
     if (value.type == JsonType::kObject) {
@@ -274,7 +284,12 @@ void collect_roles(const JsonValue& value, std::map<std::int64_t, RoleEntry>* ro
             int64_field(value, "CharacterLevel", &role.character_level);
             int64_field(value, "ClothesID", &role.clothes_id);
             int64_field(value, "ClothesColorID", &role.clothes_color_id);
-            roles->insert_or_assign(role.character_id, std::move(role));
+            const auto existing = roles->find(role.character_id);
+            if (existing == roles->end()) {
+                roles->emplace(role.character_id, std::move(role));
+            } else if (role_richness(role) > role_richness(existing->second)) {
+                existing->second = std::move(role);
+            }
         }
         for (const auto& entry : value.object) collect_roles(entry.second, roles, depth + 1);
     } else if (value.type == JsonType::kArray) {
