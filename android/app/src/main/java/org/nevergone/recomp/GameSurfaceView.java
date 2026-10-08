@@ -123,6 +123,12 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static native boolean nativeIsSingleLoginActive();
     private static native int nativePollSingleLoginThunderSound();
 
+    private static native void nativeOnServerSelectionSurfaceCreated();
+    private static native void nativeOnServerSelectionSurfaceChanged(int width, int height);
+    private static native void nativeDrawServerSelectionLayer();
+    private static native boolean nativeOnServerSelectionTouch(
+            int action, int pointerId, float x, float y);
+
     private static native void nativeOnSingleSelectHeroSurfaceCreated();
     private static native void nativeOnSingleSelectHeroSurfaceChanged(int width, int height);
     private static native void nativeClearSingleSelectHeroBackground();
@@ -178,6 +184,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         nativeOnSurfaceCreated();
         nativeOnSingleLoginSurfaceCreated();
+        nativeOnServerSelectionSurfaceCreated();
         nativeOnSingleSelectHeroSurfaceCreated();
         nativeOnSplashSurfaceCreated();
         reloadImportedVisualsOnGlThread();
@@ -189,6 +196,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     public void onSurfaceChanged(GL10 gl, int width, int height) {
         nativeOnSurfaceChanged(width, height);
         nativeOnSingleLoginSurfaceChanged(width, height);
+        nativeOnServerSelectionSurfaceChanged(width, height);
         nativeOnSingleSelectHeroSurfaceChanged(width, height);
     }
 
@@ -198,6 +206,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         nativeDrawSingleLoginLayer();
         nativeDrawSingleSelectHeroLayer();
         nativeDrawSplashLayers();
+        nativeDrawServerSelectionLayer();
         updateImportedAudioStateOnGlThread();
         updateChooseHeroBackgroundAssetsOnGlThread();
     }
@@ -613,15 +622,33 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_MOVE) {
             for (int index = 0; index < event.getPointerCount(); index++) {
-                nativeOnTouch(action, event.getPointerId(index), event.getX(index), event.getY(index));
+                boolean handled = nativeOnServerSelectionTouch(
+                        action,
+                        event.getPointerId(index),
+                        event.getX(index),
+                        event.getY(index));
+                if (!handled) {
+                    nativeOnTouch(
+                            action,
+                            event.getPointerId(index),
+                            event.getX(index),
+                            event.getY(index));
+                }
             }
         } else {
             int actionIndex = event.getActionIndex();
-            nativeOnTouch(
+            boolean handled = nativeOnServerSelectionTouch(
                     action,
                     event.getPointerId(actionIndex),
                     event.getX(actionIndex),
                     event.getY(actionIndex));
+            if (!handled) {
+                nativeOnTouch(
+                        action,
+                        event.getPointerId(actionIndex),
+                        event.getX(actionIndex),
+                        event.getY(actionIndex));
+            }
         }
         return true;
     }
