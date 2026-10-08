@@ -30,6 +30,6 @@ jobs:
         run: python tools/ghidra/test_query_full_index.py
       - name: Query ChooseHero atlas archive names
         run: |
-          python tools/ghidra/query_full_index.py archives Gate_BackgroundPNG_01 --limit 20 || true
-          python tools/ghidra/query_full_index.py archives Gate_BackgroundPNG_02 --limit 20 || true
-          python tools/ghidra/query_full_index.py archives Gate_Background_UI --limit 50 || true
+          python tools/ghidra/query_full_index.py assets Gate_BackgroundPNG_01 --limit 20 || true
+          python tools/ghidra/query_full_index.py assets Gate_BackgroundPNG_02 --limit 20 || true
+          python tools/ghidra/query_full_index.py assets Gate_Background_UI --limit 50 || true
