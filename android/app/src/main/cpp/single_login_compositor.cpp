@@ -2,11 +2,13 @@
 #include <jni.h>
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <ctime>
 #include <vector>
 
 #include "game_clock.h"
+#include "single_login_cloud_timeline.h"
 #include "single_login_light_timeline.h"
 #include "splash_sequence_state.h"
 
@@ -23,13 +25,22 @@ struct PositionedTexture {
     int source_height = 0;
 };
 
+struct SpriteTexture {
+    GLuint texture = 0;
+    int width = 0;
+    int height = 0;
+};
+
 constexpr size_t kBackgroundCount = 3;
+constexpr size_t kCloudFrameCount = 2;
 constexpr size_t kBuildingCount = 5;
+constexpr float kPi = 3.14159265358979323846f;
 
 GLuint g_program = 0;
 GLint g_sampler = -1;
 GLint g_alpha = -1;
 std::array<PositionedTexture, kBackgroundCount> g_backgrounds{};
+std::array<SpriteTexture, kCloudFrameCount> g_cloud_frames{};
 std::array<PositionedTexture, kBuildingCount> g_buildings{};
 std::array<PositionedTexture, single_login_light_timeline::kLightCount> g_lights{};
 int g_surface_width = 0;
@@ -118,6 +129,13 @@ void clear_backgrounds() {
     clear_layers(&g_backgrounds);
 }
 
+void clear_clouds() {
+    for (auto& frame : g_cloud_frames) {
+        delete_texture(&frame.texture);
+        frame = {};
+    }
+}
+
 void clear_buildings() {
     clear_layers(&g_buildings);
 }
@@ -163,6 +181,7 @@ GLuint create_texture(const std::uint32_t* argb, size_t count, int width, int he
 
 void on_surface_created() {
     g_backgrounds = {};
+    g_cloud_frames = {};
     g_buildings = {};
     g_lights = {};
     g_scene_generation = 0;
@@ -218,6 +237,18 @@ bool upload_background(
         &g_backgrounds, index, width, height, left, top, source_width, source_height, argb, count);
 }
 
+bool upload_cloud(int index, int width, int height, const std::uint32_t* argb, size_t count) {
+    if (g_program == 0 || index < 0 || index >= static_cast<int>(g_cloud_frames.size())) return false;
+    GLuint texture = create_texture(argb, count, width, height);
+    if (texture == 0) return false;
+    auto& frame = g_cloud_frames[static_cast<size_t>(index)];
+    delete_texture(&frame.texture);
+    frame.texture = texture;
+    frame.width = width;
+    frame.height = height;
+    return true;
+}
+
 bool upload_building(
     int index,
     int width,
@@ -249,6 +280,13 @@ bool upload_light(
 bool backgrounds_ready() {
     for (const auto& layer : g_backgrounds) {
         if (layer.texture == 0) return false;
+    }
+    return true;
+}
+
+bool clouds_ready() {
+    for (const auto& frame : g_cloud_frames) {
+        if (frame.texture == 0) return false;
     }
     return true;
 }
@@ -312,8 +350,63 @@ void draw_positioned(const PositionedTexture& layer, float alpha) {
     draw_quad(layer.texture, vertices, alpha);
 }
 
+void draw_cloud(
+    const single_login_cloud_timeline::CloudPose& pose,
+    int source_width,
+    int source_height) {
+    if (pose.alpha <= 0.0f || pose.frame_index < 0 ||
+        pose.frame_index >= static_cast<int>(g_cloud_frames.size())) {
+        return;
+    }
+    const auto& frame = g_cloud_frames[static_cast<size_t>(pose.frame_index)];
+    if (frame.texture == 0 || frame.width <= 0 || frame.height <= 0) return;
+
+    float scene_half_width = 1.0f;
+    float scene_half_height = 1.0f;
+    scene_half_extents(source_width, source_height, &scene_half_width, &scene_half_height);
+
+    const float center_x = -scene_half_width +
+        2.0f * scene_half_width * pose.x / static_cast<float>(source_width);
+    const float center_y = -scene_half_height +
+        2.0f * scene_half_height * pose.y / static_cast<float>(source_height);
+    const float sprite_half_width = scene_half_width *
+        static_cast<float>(frame.width) / static_cast<float>(source_width);
+    const float sprite_half_height = scene_half_height *
+        static_cast<float>(frame.height) / static_cast<float>(source_height);
+
+    // Cocos2d-x positive node rotation is clockwise; standard 2-D rotation
+    // is counter-clockwise, hence the negative angle here.
+    const float radians = -pose.rotation_degrees * kPi / 180.0f;
+    const float c = std::cos(radians);
+    const float s = std::sin(radians);
+    const std::array<std::array<float, 2>, 4> corners{{
+        {{-sprite_half_width,  sprite_half_height}},
+        {{-sprite_half_width, -sprite_half_height}},
+        {{ sprite_half_width,  sprite_half_height}},
+        {{ sprite_half_width, -sprite_half_height}},
+    }};
+    GLfloat vertices[8]{};
+    for (size_t index = 0; index < corners.size(); ++index) {
+        const float dx = corners[index][0];
+        const float dy = corners[index][1];
+        vertices[index * 2] = center_x + dx * c - dy * s;
+        vertices[index * 2 + 1] = center_y + dx * s + dy * c;
+    }
+    draw_quad(frame.texture, vertices, pose.alpha);
+}
+
+void draw_cloud_z(
+    const single_login_cloud_timeline::Sample& cloud_sample,
+    int z,
+    int source_width,
+    int source_height) {
+    for (const auto& cloud : cloud_sample.clouds) {
+        if (cloud.z == z) draw_cloud(cloud, source_width, source_height);
+    }
+}
+
 void draw() {
-    if (!backgrounds_ready() || g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
+    if (!backgrounds_ready() || !clouds_ready() || g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
         g_surface_width <= 0 || g_surface_height <= 0) {
         return;
     }
@@ -329,15 +422,24 @@ void draw() {
         g_scene_generation = generation;
     }
 
+    const int source_width = g_backgrounds[0].source_width;
+    const int source_height = g_backgrounds[0].source_height;
+    const auto cloud_sample = single_login_cloud_timeline::sample(
+        scene_seconds,
+        static_cast<float>(source_width),
+        static_cast<float>(source_height),
+        static_cast<float>(g_cloud_frames[0].width),
+        static_cast<float>(g_cloud_frames[0].height));
+
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(g_program);
 
-    // Recovered static stack. These are kept as distinct draw calls so the
-    // confirmed cloud layers can later be inserted at z=1/2/3 without
-    // flattening them above the entire background.
-    draw_positioned(g_backgrounds[0], 1.0f);  // z=0: zjmbeijing.png
-    draw_positioned(g_backgrounds[1], 1.0f);  // z=2: zjmbeijing02.png
-    draw_positioned(g_backgrounds[2], 1.0f);  // z=3: zjmbeijing03.png
+    draw_positioned(g_backgrounds[0], 1.0f);  // z=0
+    draw_cloud_z(cloud_sample, 1, source_width, source_height);
+    draw_positioned(g_backgrounds[1], 1.0f);  // z=2, inserted before later z=2 clouds
+    draw_cloud_z(cloud_sample, 2, source_width, source_height);
+    draw_positioned(g_backgrounds[2], 1.0f);  // z=3, inserted before later z=3 clouds
+    draw_cloud_z(cloud_sample, 3, source_width, source_height);
 
     for (const auto& building : g_buildings) {
         draw_positioned(building, 1.0f);       // z=4
@@ -382,6 +484,28 @@ bool upload_jni_layer(
     return ok;
 }
 
+bool upload_jni_cloud(
+    JNIEnv* env,
+    jint index,
+    jint width,
+    jint height,
+    jintArray pixels) {
+    if (pixels == nullptr || width <= 0 || height <= 0) return false;
+    const jsize length = env->GetArrayLength(pixels);
+    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (static_cast<size_t>(length) != expected) return false;
+    jint* values = env->GetIntArrayElements(pixels, nullptr);
+    if (values == nullptr) return false;
+    const bool ok = upload_cloud(
+        static_cast<int>(index),
+        static_cast<int>(width),
+        static_cast<int>(height),
+        reinterpret_cast<const std::uint32_t*>(values),
+        expected);
+    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
+    return ok;
+}
+
 }  // namespace
 }  // namespace nevergone::single_login
 
@@ -400,6 +524,11 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnSingleLoginSurfaceChanged(
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginBackgrounds(JNIEnv*, jclass) {
     nevergone::single_login::clear_backgrounds();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginClouds(JNIEnv*, jclass) {
+    nevergone::single_login::clear_clouds();
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -427,6 +556,18 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginBackground(
     return nevergone::single_login::upload_jni_layer(
         env, background_index, width, height, left, top, source_width, source_height, pixels,
         nevergone::single_login::upload_background) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginCloud(
+    JNIEnv* env,
+    jclass,
+    jint cloud_frame_index,
+    jint width,
+    jint height,
+    jintArray pixels) {
+    return nevergone::single_login::upload_jni_cloud(
+        env, cloud_frame_index, width, height, pixels) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
