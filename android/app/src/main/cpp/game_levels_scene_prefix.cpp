@@ -12,7 +12,6 @@ bool parse(const hp_data::Reader& reader, Prefix* out) {
     if (!cursor.read_i32_le(&parsed.first_i32)) return false;
     if (!cursor.read_u32_le(&parsed.scene_count)) return false;
     parsed.bytes_consumed = cursor.offset();
-
     *out = parsed;
     return true;
 }
@@ -26,7 +25,6 @@ bool parse_first_scene_header(const hp_data::Reader& reader, FirstSceneHeader* o
     hp_data::Cursor cursor(reader, prefix.bytes_consumed);
     FirstSceneHeader parsed;
     parsed.prefix = prefix;
-
     if (!cursor.read_u32_le(&parsed.first_string_length)) return false;
     if (!cursor.skip(1)) return false;
 
@@ -42,7 +40,6 @@ bool parse_first_scene_header(const hp_data::Reader& reader, FirstSceneHeader* o
     if (!cursor.read_f32_le(&parsed.first_point_y)) return false;
     if (!cursor.read_u32_le(&parsed.layer_count)) return false;
     parsed.bytes_consumed = cursor.offset();
-
     *out = std::move(parsed);
     return true;
 }
@@ -61,7 +58,24 @@ bool parse_first_layer_header(const hp_data::Reader& reader, FirstLayerHeader* o
     if (!cursor.read_f32_le(&parsed.first_float)) return false;
     if (!cursor.read_u32_le(&parsed.object_count)) return false;
     parsed.bytes_consumed = cursor.offset();
+    *out = std::move(parsed);
+    return true;
+}
 
+bool parse_first_object_prefix(const hp_data::Reader& reader, FirstObjectPrefix* out) {
+    if (out == nullptr) return false;
+
+    FirstLayerHeader layer_header;
+    if (!parse_first_layer_header(reader, &layer_header) || layer_header.object_count == 0) {
+        return false;
+    }
+
+    hp_data::Cursor cursor(reader, layer_header.bytes_consumed);
+    FirstObjectPrefix parsed;
+    parsed.layer_header = std::move(layer_header);
+    if (!cursor.read_i32_le(&parsed.first_i32)) return false;
+    if (!cursor.read_u32_le(&parsed.second_u32)) return false;
+    parsed.bytes_consumed = cursor.offset();
     *out = std::move(parsed);
     return true;
 }

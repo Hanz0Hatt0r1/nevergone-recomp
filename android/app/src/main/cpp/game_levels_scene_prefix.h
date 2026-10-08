@@ -40,6 +40,16 @@ struct FirstLayerHeader {
     std::size_t bytes_consumed = 0;
 };
 
+// The beginning of each GameSceneLayerObjectData record is proven to contain
+// an int32 followed immediately by a uint32 before the first unresolved-width
+// char field. Their semantic identities are still unknown.
+struct FirstObjectPrefix {
+    FirstLayerHeader layer_header;
+    std::int32_t first_i32 = 0;
+    std::uint32_t second_u32 = 0;
+    std::size_t bytes_consumed = 0;
+};
+
 // Parse only the verified top-level LoadGL_Scene prefix. The output is updated
 // atomically on success; truncated input leaves it unchanged.
 bool parse(const hp_data::Reader& reader, Prefix* out);
@@ -54,5 +64,9 @@ bool parse_first_scene_header(const hp_data::Reader& reader, FirstSceneHeader* o
 // fails when the first scene has no layers. The output is updated only after
 // both the opaque float and proven object_count are available.
 bool parse_first_layer_header(const hp_data::Reader& reader, FirstLayerHeader* out);
+
+// Parse only the verified 8-byte prefix of the first object. This fails when
+// object_count is zero and deliberately stops before the following char field.
+bool parse_first_object_prefix(const hp_data::Reader& reader, FirstObjectPrefix* out);
 
 }  // namespace nevergone::game_levels_scene_prefix

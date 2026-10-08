@@ -93,18 +93,28 @@ The uint32 is therefore the layer's object count. The float's semantic purpose i
 
 `game_levels_scene_prefix::parse_first_layer_header()` extends the first-scene header by exactly 8 verified bytes and returns `{first_float, object_count}` plus the total consumed byte count. It fails cleanly when `layer_count == 0`, when either primitive is truncated, or when an earlier scene-header boundary is invalid.
 
+## Verified first-object prefix
+
+A dedicated ordered-call metadata probe of the object body establishes the first reads after `GameSceneLayerObjectData::create()`:
+
+1. `HPData::getBytes(int*, ...)` at `0x002d29a4`;
+2. `HPData::getBytes(unsigned int*, ...)` at `0x002d29bc`;
+3. the next operation is an unresolved-width `HPData::getBytes(char*, ...)` at `0x002d29e6`.
+
+The first two fields form an immediately sequential 8-byte prefix. Their semantic meanings are not yet proven, so `parse_first_object_prefix()` exposes them only as `first_i32` and `second_u32`. It requires `object_count > 0`, updates output only when both values are present, and stops before the char field.
+
 ## Imported GameLevels asset probe
 
 The reconstructed runtime resolves the user-owned app-private resource:
 
 `<files>/assets/gamescene/gs_list/pvp_scene.glData`
 
-The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It validates the 8-byte top-level prefix, the first-scene header when a scene exists, and now the first-layer header when a layer exists.
+The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It validates the 8-byte top-level prefix, the first-scene header when a scene exists, the first-layer header when a layer exists, and the first-object prefix when an object exists.
 
-Bootstrap diagnostics report only readiness and verified byte counts. They do **not** print the imported scene's strings, coordinates, counts, floats, or other proprietary field values. Synthetic host regressions cover missing/readable/oversized/non-regular paths, zero scenes, zero layers, valid nested headers, truncated fields, and hostile string lengths without requiring game data.
+Bootstrap diagnostics report only readiness and verified byte counts. They do **not** print the imported scene's strings, coordinates, counts, floats, object fields, or other proprietary field values. Synthetic host regressions cover missing/readable/oversized/non-regular paths, zero scenes, zero layers, zero objects, valid nested headers, truncated fields, and hostile string lengths without requiring game data.
 
 ## Remaining format work
 
-The next boundary starts inside `GameSceneLayerObjectData`. The object records contain a larger sequence of mixed integer, character, float and boolean reads. Continue reconstructing that record in small verified chunks before attempting to skip multiple objects or layers; without the object record size/schema, parsing a second layer would be speculative.
+Recover the exact range construction for the first object `char*` read at `0x002d29e6`. Only after its byte width/offset is proven should reconstruction advance into the five following floats and the remaining object fields. Parsing a second object/layer before the complete object-record size/schema is known would be speculative.
 
 Semantic names should be assigned only when the value's use in the original code makes them unambiguous.
