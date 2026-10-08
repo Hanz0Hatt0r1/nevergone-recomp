@@ -27,6 +27,10 @@ std::atomic<int> g_width{0};
 std::atomic<int> g_height{0};
 std::atomic<std::uint64_t> g_frame_count{0};
 std::atomic<std::uint64_t> g_touch_count{0};
+std::atomic<bool> g_app_resumed{false};
+std::atomic<std::uint64_t> g_pause_count{0};
+std::atomic<std::uint64_t> g_resume_count{0};
+std::atomic<std::uint64_t> g_surface_generation{0};
 std::mutex g_touch_mutex;
 int g_last_touch_action = -1;
 int g_last_touch_pointer = -1;
@@ -66,22 +70,16 @@ GLuint compile_shader(GLenum type, const char* source, std::string* error) {
         if (error != nullptr) *error = "glCreateShader returned 0";
         return 0;
     }
-
     glShaderSource(shader, 1, &source, nullptr);
     glCompileShader(shader);
-
     GLint compiled = GL_FALSE;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-    if (compiled == GL_TRUE) {
-        return shader;
-    }
+    if (compiled == GL_TRUE) return shader;
 
     GLint log_length = 0;
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
     std::vector<char> log(static_cast<size_t>(log_length > 1 ? log_length : 1), '\0');
-    if (log_length > 1) {
-        glGetShaderInfoLog(shader, log_length, nullptr, log.data());
-    }
+    if (log_length > 1) glGetShaderInfoLog(shader, log_length, nullptr, log.data());
     if (error != nullptr) {
         *error = log_length > 1 ? std::string(log.data()) : "shader compilation failed";
     }
@@ -96,7 +94,6 @@ void main() {
     gl_Position = vec4(aPosition, 0.0, 1.0);
 }
 )GLSL";
-
     static constexpr const char* kFragmentShader = R"GLSL(
 precision mediump float;
 uniform vec3 uColor;
@@ -111,7 +108,6 @@ void main() {
         if (error != nullptr) *error = "vertex shader: " + vertex_error;
         return 0;
     }
-
     std::string fragment_error;
     const GLuint fragment = compile_shader(GL_FRAGMENT_SHADER, kFragmentShader, &fragment_error);
     if (fragment == 0) {
@@ -127,7 +123,6 @@ void main() {
         if (error != nullptr) *error = "glCreateProgram returned 0";
         return 0;
     }
-
     glAttachShader(program, vertex);
     glAttachShader(program, fragment);
     glBindAttribLocation(program, 0, "aPosition");
@@ -137,16 +132,12 @@ void main() {
 
     GLint linked = GL_FALSE;
     glGetProgramiv(program, GL_LINK_STATUS, &linked);
-    if (linked == GL_TRUE) {
-        return program;
-    }
+    if (linked == GL_TRUE) return program;
 
     GLint log_length = 0;
     glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_length);
     std::vector<char> log(static_cast<size_t>(log_length > 1 ? log_length : 1), '\0');
-    if (log_length > 1) {
-        glGetProgramInfoLog(program, log_length, nullptr, log.data());
-    }
+    if (log_length > 1) glGetProgramInfoLog(program, log_length, nullptr, log.data());
     if (error != nullptr) {
         *error = log_length > 1 ? std::string(log.data()) : "program link failed";
     }
@@ -156,7 +147,11 @@ void main() {
 
 void on_surface_created() {
     g_frame_count.store(0, std::memory_order_relaxed);
+    g_surface_generation.fetch_add(1, std::memory_order_relaxed);
     nevergone::game_clock::reset();
+    if (!g_app_resumed.load(std::memory_order_relaxed)) {
+        nevergone::game_clock::pause();
+    }
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -186,11 +181,7 @@ void on_surface_changed(int width, int height) {
 }
 
 void on_draw_frame() {
-    // Preserve the original update cadence independently of physical display
-    // refresh. The returned tick count becomes the scheduler/Lua work budget
-    // once those update paths are reconstructed.
     (void)nevergone::game_clock::advance();
-
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (g_program != 0) {
@@ -222,8 +213,25 @@ void on_touch(int action, int pointer_id, float x, float y) {
 
 }  // namespace
 
+void on_app_pause() {
+    g_app_resumed.store(false, std::memory_order_relaxed);
+    g_pause_count.fetch_add(1, std::memory_order_relaxed);
+    nevergone::game_clock::pause();
+}
+
+void on_app_resume() {
+    g_app_resumed.store(true, std::memory_order_relaxed);
+    g_resume_count.fetch_add(1, std::memory_order_relaxed);
+    nevergone::game_clock::resume();
+}
+
 std::string status_report() {
     std::ostringstream out;
+    out << "app lifecycle: "
+        << (g_app_resumed.load(std::memory_order_relaxed) ? "resumed" : "paused") << "\n";
+    out << "resume events: " << g_resume_count.load(std::memory_order_relaxed) << "\n";
+    out << "pause events: " << g_pause_count.load(std::memory_order_relaxed) << "\n";
+    out << "GL surface generation: " << g_surface_generation.load(std::memory_order_relaxed) << "\n";
     out << "render surface: " << g_width.load(std::memory_order_relaxed)
         << "x" << g_height.load(std::memory_order_relaxed) << "\n";
     out << "render frames: " << g_frame_count.load(std::memory_order_relaxed) << "\n";
@@ -275,4 +283,14 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnTouch(
         static_cast<int>(pointer_id),
         static_cast<float>(x),
         static_cast<float>(y));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeOnAppPause(JNIEnv*, jclass) {
+    nevergone::render::on_app_pause();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeOnAppResume(JNIEnv*, jclass) {
+    nevergone::render::on_app_resume();
 }
