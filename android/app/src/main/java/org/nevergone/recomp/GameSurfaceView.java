@@ -112,11 +112,13 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             int[] argbPixels);
     private static native void nativeDrawSingleLoginLayer();
     private static native boolean nativeIsSingleLoginActive();
+    private static native int nativePollSingleLoginThunderSound();
 
     private final File assetRoot;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final StartupLogoAudio startupLogoAudio;
     private final SingleLoginAudio singleLoginAudio;
+    private final SingleLoginThunderAudio singleLoginThunderAudio;
     private boolean lastSplashSoundDue;
     private boolean lastSingleLoginActive;
 
@@ -125,6 +127,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         assetRoot = new File(context.getFilesDir(), "assets");
         startupLogoAudio = new StartupLogoAudio(assetRoot);
         singleLoginAudio = new SingleLoginAudio(assetRoot);
+        singleLoginThunderAudio = new SingleLoginThunderAudio(assetRoot);
         setEGLContextClientVersion(2);
         setRenderer(this);
         setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
@@ -161,11 +164,13 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             mainHandler.post(() -> {
                 startupLogoAudio.resetSequence();
                 singleLoginAudio.setSceneActive(false);
+                singleLoginThunderAudio.setSceneActive(false);
             });
             reloadImportedVisualsOnGlThread();
             mainHandler.post(() -> {
                 startupLogoAudio.onAssetsReloaded();
                 singleLoginAudio.onAssetsReloaded();
+                singleLoginThunderAudio.onAssetsReloaded();
             });
         });
     }
@@ -174,6 +179,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         mainHandler.post(() -> {
             startupLogoAudio.onPause();
             singleLoginAudio.onPause();
+            singleLoginThunderAudio.onPause();
         });
     }
 
@@ -181,6 +187,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         mainHandler.post(() -> {
             startupLogoAudio.onResume();
             singleLoginAudio.onResume();
+            singleLoginThunderAudio.onResume();
         });
     }
 
@@ -188,12 +195,14 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         mainHandler.post(() -> {
             startupLogoAudio.release();
             singleLoginAudio.release();
+            singleLoginThunderAudio.release();
         });
     }
 
     public String importedAudioStatus() {
         return "Splash SFX: " + startupLogoAudio.status() +
-                "\nSingleLogin BGM: " + singleLoginAudio.status();
+                "\nSingleLogin BGM: " + singleLoginAudio.status() +
+                "\nSingleLogin thunder: " + singleLoginThunderAudio.status();
     }
 
     private void updateImportedAudioStateOnGlThread() {
@@ -206,7 +215,17 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         boolean singleLoginActive = nativeIsSingleLoginActive();
         if (singleLoginActive != lastSingleLoginActive) {
             lastSingleLoginActive = singleLoginActive;
-            mainHandler.post(() -> singleLoginAudio.setSceneActive(singleLoginActive));
+            mainHandler.post(() -> {
+                singleLoginAudio.setSceneActive(singleLoginActive);
+                singleLoginThunderAudio.setSceneActive(singleLoginActive);
+            });
+        }
+
+        for (int soundIndex = nativePollSingleLoginThunderSound();
+                soundIndex >= 0;
+                soundIndex = nativePollSingleLoginThunderSound()) {
+            final int queuedSound = soundIndex;
+            mainHandler.post(() -> singleLoginThunderAudio.play(queuedSound));
         }
     }
 
