@@ -28,8 +28,26 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query checked-in SingleLogin metadata
+      - name: Query SingleSelectHero lifecycle evidence
         run: |
-          python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
-          python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
-          python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
+          echo '=== lifecycle functions ==='
+          python tools/ghidra/query_full_index.py functions 'SingleSelectHero::onExit' --limit 10 || true
+          python tools/ghidra/query_full_index.py functions 'SingleSelectHero::menuConfirm' --limit 10 || true
+          python tools/ghidra/query_full_index.py functions 'SingleSelectHero::menuBackToLastUI' --limit 10 || true
+          python tools/ghidra/query_full_index.py functions 'SingleSelectHero::ccTouchEnded' --limit 20 || true
+          echo '=== onExit ==='
+          python tools/ghidra/query_full_index.py callers 00436fdc --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 00436fdc --limit 120 || true
+          echo '=== menuBack ==='
+          python tools/ghidra/query_full_index.py callers 00437044 --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 00437044 --limit 100 || true
+          echo '=== menuConfirm ==='
+          python tools/ghidra/query_full_index.py callers 0043745c --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 0043745c --limit 180 || true
+          echo '=== touch ended ==='
+          python tools/ghidra/query_full_index.py callees 00436edc --limit 100 || true
+          echo '=== transition/audio strings ==='
+          python tools/ghidra/query_full_index.py strings Confirm.mp3 --limit 20 || true
+          python tools/ghidra/query_full_index.py strings SingleSelectHero_bj.mp3 --limit 20 || true
+          python tools/ghidra/query_full_index.py strings CloseTheDoor.mp3 --limit 20 || true
+          python tools/ghidra/query_full_index.py strings OpenTheDoor.mp3 --limit 20 || true
