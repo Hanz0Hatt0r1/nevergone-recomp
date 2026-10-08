@@ -28,8 +28,42 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query checked-in SingleLogin metadata
+      - name: Probe HPRange and GameLevels binary reads
         run: |
-          python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
-          python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
-          python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
+          echo '=== HPData typed getBytes functions ==='
+          python tools/ghidra/query_full_index.py functions 'HPData::getBytes' --limit 20 || true
+          for addr in 002d6568 002d658a 002d65ac 002d65ce 002d65f0; do
+            echo "--- callers $addr ---"
+            python tools/ghidra/query_full_index.py callers "$addr" --limit 250 || true
+            echo "--- callees $addr ---"
+            python tools/ghidra/query_full_index.py callees "$addr" --limit 100 || true
+            echo "--- xrefs $addr ---"
+            python tools/ghidra/query_full_index.py xrefs "$addr" --limit 150 || true
+          done
+          echo '=== GameLevels section calls ==='
+          for addr in 002d27b8 002d198c 002d1c5c 002d2090 002d2f1c; do
+            echo "--- function/callees $addr ---"
+            python tools/ghidra/query_full_index.py callees "$addr" --limit 400 || true
+            python tools/ghidra/query_full_index.py xrefs "$addr" --limit 150 || true
+          done
+          echo '=== ordered calls inside LoadGL_Scene ==='
+          python - <<'PY'
+          import csv,gzip
+          from pathlib import Path
+          root=Path('docs/ghidra/full-index')
+          def rows(name):
+              with gzip.open(root/name,'rt',encoding='utf-8',newline='') as f:
+                  yield from csv.DictReader(f,delimiter='\t')
+          def hx(v):
+              try:return int(v,16)
+              except:return None
+          funcs={r.get('entry','').lower().removeprefix('0x'):r.get('name','') for r in rows('libcocos2dcpp.functions.tsv.gz')}
+          start=0x002d27b8
+          entries=sorted(x for x in (hx(r.get('entry','')) for r in rows('libcocos2dcpp.functions.tsv.gz')) if x is not None)
+          end=min((x for x in entries if x>start), default=start+0x2000)
+          for r in rows('libcocos2dcpp.calls.tsv.gz'):
+              site=hx(r.get('call_site',''))
+              if site is None or not (start<=site<end): continue
+              callee=r.get('callee_entry','').lower().removeprefix('0x')
+              print(f'{site:08x}\t{callee}\t{funcs.get(callee,"<unknown>")}')
+          PY
