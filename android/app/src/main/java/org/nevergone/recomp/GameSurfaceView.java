@@ -12,14 +12,23 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceView.Renderer {
-    private static final String SPLASH_FILE = "HIPPIEGOLO01.png";
+    private static final String[] SPLASH_FILES = {
+            "HIPPIEGOLO01.png",
+            "HIPPIEGOLO02.png",
+            "HIPPIEGOLO03.png",
+            "HIPPIEGOLO04.png",
+            "HIPPIEGOLO05.png",
+            "HIPPIEGOLO06.png"
+    };
 
     private static native void nativeOnSurfaceCreated();
     private static native void nativeOnSurfaceChanged(int width, int height);
     private static native void nativeOnDrawFrame();
     private static native void nativeOnTouch(int action, int pointerId, float x, float y);
-    private static native boolean nativeUploadSplashTexture(int width, int height, int[] argbPixels);
-    private static native void nativeClearSplashTexture();
+    private static native boolean nativeUploadSplashFrame(
+            int frameIndex, int width, int height, int[] argbPixels);
+    private static native void nativeClearSplashFrames();
+    private static native void nativeSetSplashFrame(int frameIndex);
 
     private final File assetRoot;
 
@@ -53,40 +62,47 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     }
 
     private void loadImportedSplashOnGlThread() {
-        nativeClearSplashTexture();
-        File splash = findFile(assetRoot, SPLASH_FILE, 0);
-        if (splash == null) {
-            return;
-        }
-
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-        Bitmap decoded = BitmapFactory.decodeFile(splash.getAbsolutePath(), options);
-        if (decoded == null) {
-            return;
-        }
-
-        Bitmap bitmap = decoded;
-        if (decoded.getConfig() != Bitmap.Config.ARGB_8888) {
-            Bitmap converted = decoded.copy(Bitmap.Config.ARGB_8888, false);
-            decoded.recycle();
-            if (converted == null) {
-                return;
+        nativeClearSplashFrames();
+        int loaded = 0;
+        for (int frameIndex = 0; frameIndex < SPLASH_FILES.length; frameIndex++) {
+            File splash = findFile(assetRoot, SPLASH_FILES[frameIndex], 0);
+            if (splash == null) {
+                continue;
             }
-            bitmap = converted;
-        }
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+            Bitmap decoded = BitmapFactory.decodeFile(splash.getAbsolutePath(), options);
+            if (decoded == null) {
+                continue;
+            }
 
-        int width = bitmap.getWidth();
-        int height = bitmap.getHeight();
-        if (width <= 0 || height <= 0 || ((long) width * (long) height) > 16_777_216L) {
+            Bitmap bitmap = decoded;
+            if (decoded.getConfig() != Bitmap.Config.ARGB_8888) {
+                Bitmap converted = decoded.copy(Bitmap.Config.ARGB_8888, false);
+                decoded.recycle();
+                if (converted == null) {
+                    continue;
+                }
+                bitmap = converted;
+            }
+
+            int width = bitmap.getWidth();
+            int height = bitmap.getHeight();
+            if (width <= 0 || height <= 0 || ((long) width * (long) height) > 16_777_216L) {
+                bitmap.recycle();
+                continue;
+            }
+
+            int[] pixels = new int[width * height];
+            bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
             bitmap.recycle();
-            return;
+            if (nativeUploadSplashFrame(frameIndex, width, height, pixels)) {
+                loaded++;
+            }
         }
-
-        int[] pixels = new int[width * height];
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
-        bitmap.recycle();
-        nativeUploadSplashTexture(width, height, pixels);
+        if (loaded > 0) {
+            nativeSetSplashFrame(0);
+        }
     }
 
     private static File findFile(File directory, String targetName, int depth) {
