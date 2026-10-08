@@ -28,8 +28,27 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query checked-in SingleLogin metadata
+      - name: Probe HPRange symbols and call sites
         run: |
-          python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
-          python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
-          python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
+          echo '=== functions containing HPRange ==='
+          python tools/ghidra/query_full_index.py functions HPRange --limit 100 || true
+          echo '=== symbols containing HPRange ==='
+          python tools/ghidra/query_full_index.py symbols HPRange --limit 250 || true
+          echo '=== symbols around HPData typed readers ==='
+          python tools/ghidra/query_full_index.py symbols 002d6568 --limit 20 || true
+          python tools/ghidra/query_full_index.py symbols 002d658a --limit 20 || true
+          python tools/ghidra/query_full_index.py symbols 002d65ac --limit 20 || true
+          python tools/ghidra/query_full_index.py symbols 002d65ce --limit 20 || true
+          python tools/ghidra/query_full_index.py symbols 002d65f0 --limit 20 || true
+          echo '=== raw HPRange symbol rows and likely constructors ==='
+          python - <<'PY'
+          import csv,gzip
+          from pathlib import Path
+          root=Path('docs/ghidra/full-index')
+          with gzip.open(root/'libcocos2dcpp.symbols.tsv.gz','rt',encoding='utf-8',newline='') as f:
+              rows=list(csv.DictReader(f,delimiter='\t'))
+          for r in rows:
+              text='\t'.join(r.values())
+              if 'hprange' in text.casefold():
+                  print(text)
+          PY
