@@ -9,6 +9,7 @@
 #include "client_callback_bridge.h"
 #include "lua_runtime.h"
 #include "lua_startup_bindings.h"
+#include "render_bridge.h"
 #include "startup_contract.h"
 
 namespace {
@@ -58,10 +59,11 @@ std::string bootstrap_info() {
     const auto& runtime = nevergone::startup::config();
     out << "files dir configured: " << (!runtime.files_dir.empty() ? "yes" : "no") << "\n";
     out << "app version: " << (runtime.app_version.empty() ? "unknown" : runtime.app_version) << "\n";
+    out << nevergone::render::status_report();
     out << nevergone::startup::smoke_test_report();
     out << nevergone::lua_runtime::smoke_test();
     out << nevergone::lua_runtime::startup_execution_report();
-    out << "\nNext milestone: connect client state to the reconstructed title/login UI.";
+    out << "\nNext milestone: connect reconstructed UI/render behavior to the persistent client state.";
     return out.str();
 }
 
