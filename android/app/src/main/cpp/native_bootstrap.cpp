@@ -14,6 +14,8 @@
 #include "lua_startup_bindings.h"
 #include "offline_startup_flow.h"
 #include "render_bridge.h"
+#include "server_selection_compositor.h"
+#include "server_selection_state.h"
 #include "startup_contract.h"
 
 namespace {
@@ -66,12 +68,14 @@ std::string bootstrap_info() {
     out << nevergone::app_delegate_state::status_report();
     out << nevergone::initial_ui_transition::status_report();
     out << nevergone::render::status_report();
+    out << nevergone::server_selection_state::status_report();
+    out << nevergone::server_selection_compositor::status_report();
     out << nevergone::offline_startup_flow::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::lua_runtime::smoke_test();
     out << nevergone::lua_runtime::startup_execution_report();
-    out << "\nNext milestone: expand reconstructed ManagementLayer login behavior beyond the verified init boundary.";
+    out << "\nNext milestone: persist the reconstructed Lua login runtime so confirmed server requests can dispatch to g_UILogin.EnterGameLogicServer(ip, id).";
     return out.str();
 }
 

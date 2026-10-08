@@ -77,9 +77,25 @@ centerY = 320 - 90 * row + scrollOffsetY
 bottomY = centerY - rowHeight / 2
 ```
 
-`GetDrawRectSp` confirms that normal server-row hit rectangles use the sprite's full content width/height and add the scrolling content layer's Y position before `containsPoint`. This is represented by `server_selection_layout.{h,cpp}`. The row width and height are deliberately caller-supplied because the original `border1.png` is absent from the baseline APK; no guessed dimensions are embedded in the runtime.
+`GetDrawRectSp` confirms that normal server-row hit rectangles use the sprite's full content width/height and add the scrolling content layer's Y position before `containsPoint`. This is represented by `server_selection_layout.{h,cpp}`. The row width and height remain caller-supplied because the original `border1.png` is absent from the baseline APK.
 
-The broader reconstructed UI uses the verified 1136x640 design-canvas contract. `server_selection_layout` records that contract but keeps surface-to-design conversion out of the row module so a later compositor can share the same viewport policy as the rest of the reconstructed UI.
+## Surface mapping and visible fallback
+
+`server_selection_view.{h,cpp}` maps Android top-left surface coordinates into the verified `1136x640` design canvas using aspect-fit letterboxing. The same mapping is used for drawing and input, so recovered row hit rectangles stay aligned on non-16:9 devices.
+
+`server_selection_compositor.{h,cpp}` is now wired into the normal `GameSurfaceView` GL lifecycle. It is active only while the reconstructed `ManagementLayer` route is `server-selection` and a valid server payload is present. It draws after the recovered SingleLogin/splash layers, so it behaves as an overlay rather than replacing the recovered background.
+
+Because the original server-list artwork is unavailable, the current visible rows and confirm control are explicitly **project-owned fallback visuals**:
+
+- fallback row size: `440x72` design pixels;
+- row placement/hit testing still uses the recovered `NewServerList` geometry;
+- selected rows receive a distinct fallback highlight;
+- fallback confirm uses the recovered logical tag `10002` but a project-owned rectangle;
+- a confirmed selection changes the fallback confirm color while the `EnterRequest` is pending.
+
+`GameSurfaceView.onTouchEvent` offers each pointer event to the server-selection compositor first. If the server route is inactive, the compositor returns `false` and the existing `nativeOnTouch`/TapToStart path remains unchanged. While active, row taps use the recovered `<=10` design-pixel vertical movement rule before updating selection.
+
+Scrolling is not yet reconstructed in the fallback compositor. `server_selection_layout` already supports a content-layer Y offset, so a later verified scroll model can be connected without changing row placement or hit-test semantics.
 
 ## Visual-resource boundary
 
@@ -91,4 +107,6 @@ The original binary references server-list resources such as:
 - `ServerList/RANDOM.png`
 - `ServerList/RANDOMName.png`
 
-Those files are not present in the baseline APK archive used by this project. A direct filename search on the connected project Drive also did not expose standalone copies. They may belong to downloaded/update/expansion content. The recompilation therefore does not present project-created graphics as original server-list assets. A later compositor may use user-imported copies if those resources are available, with an explicitly project-owned fallback otherwise.
+Those files are not present in the baseline APK archive used by this project. A direct ZIP-name check of the user-provided baseline APK returned zero `ServerList` files, and a filename search on the connected project Drive did not expose standalone copies. They may belong to downloaded/update/expansion content.
+
+If user-imported update/OBB resources later provide the original row/button artwork, the compositor can replace only the fallback dimensions/textures while retaining the already verified callback, selection, layout, hit-test and confirm-request semantics.
