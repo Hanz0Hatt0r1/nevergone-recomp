@@ -63,4 +63,18 @@ bool Reader::read_bool8(std::size_t offset, bool* out) const {
     return true;
 }
 
+bool Reader::read_fixed_string(
+        std::size_t offset,
+        std::size_t field_length,
+        std::string* out) const {
+    if (out == nullptr || offset > bytes_.size() || field_length > bytes_.size() - offset) {
+        return false;
+    }
+    const auto* begin = bytes_.data() + offset;
+    std::size_t length = 0;
+    while (length < field_length && begin[length] != 0) ++length;
+    out->assign(reinterpret_cast<const char*>(begin), length);
+    return true;
+}
+
 }  // namespace nevergone::hp_data
