@@ -40,8 +40,10 @@ void on_runtime_configured() {
 
 void on_surface_ready() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    g_state.surface_ready = true;
-    ++g_state.surface_generation;
+    if (!g_state.surface_ready) {
+        g_state.surface_ready = true;
+        ++g_state.surface_generation;
+    }
     if (!g_state.resumed) {
         g_state.phase = Phase::kSurfaceReady;
     } else {
