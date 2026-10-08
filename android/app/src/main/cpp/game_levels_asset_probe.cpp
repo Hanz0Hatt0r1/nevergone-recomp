@@ -52,11 +52,18 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
             result.scene_prefix_bytes_consumed = prefix.bytes_consumed;
         }
 
-        game_levels_scene_prefix::FirstSceneHeader header;
+        game_levels_scene_prefix::FirstSceneHeader scene_header;
         result.first_scene_header_readable =
-                game_levels_scene_prefix::parse_first_scene_header(reader, &header);
+                game_levels_scene_prefix::parse_first_scene_header(reader, &scene_header);
         if (result.first_scene_header_readable) {
-            result.first_scene_header_bytes_consumed = header.bytes_consumed;
+            result.first_scene_header_bytes_consumed = scene_header.bytes_consumed;
+        }
+
+        game_levels_scene_prefix::FirstLayerHeader layer_header;
+        result.first_layer_header_readable =
+                game_levels_scene_prefix::parse_first_layer_header(reader, &layer_header);
+        if (result.first_layer_header_readable) {
+            result.first_layer_header_bytes_consumed = layer_header.bytes_consumed;
         }
     }
     return result;
@@ -91,9 +98,11 @@ std::string status_report(const std::string& files_dir) {
         out << "loaded (" << state.reader_size << " bytes; LoadGL_Scene prefix truncated)\n";
     } else if (!state.first_scene_header_readable) {
         out << "loaded (" << state.reader_size << " bytes; prefix readable, first scene header unavailable)\n";
+    } else if (!state.first_layer_header_readable) {
+        out << "loaded (" << state.reader_size << " bytes; first scene header readable, first layer header unavailable)\n";
     } else {
-        out << "loaded (" << state.reader_size << " bytes; first scene header readable, "
-            << state.first_scene_header_bytes_consumed << " bytes verified)\n";
+        out << "loaded (" << state.reader_size << " bytes; first layer header readable, "
+            << state.first_layer_header_bytes_consumed << " bytes verified)\n";
     }
     return out.str();
 }
