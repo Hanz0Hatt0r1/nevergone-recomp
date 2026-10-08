@@ -4,6 +4,7 @@ project(nevergone_recomp LANGUAGES C CXX)
 add_library(nevergone_recomp SHARED
     client_callback_bridge.cpp
     filesystem_bindings.cpp
+    game_clock.cpp
     lua_compat.cpp
     lua_runtime.cpp
     lua_startup_bindings.cpp
