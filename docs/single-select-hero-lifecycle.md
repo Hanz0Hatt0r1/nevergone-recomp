@@ -15,7 +15,9 @@ Resolved callees show this sequence:
 5. `CCTextureCache::sharedTextureCache`
 6. `CCTextureCache::removeUnusedTextures`
 
-For the recompilation this is evidence that SingleSelectHero-owned visual resources should not remain permanently resident after the scene is left. The custom GLES renderer does not use Cocos sprite-frame caches, so the equivalent cleanup is release of scene-owned GLES textures and other reconstructed scene resources when a real exit transition is implemented.
+For the recompilation this is evidence that SingleSelectHero-owned visual resources should not remain permanently resident after the scene is left. The custom GLES renderer does not use Cocos sprite-frame caches, so the equivalent cleanup is release of scene-owned GLES textures when the recovered route is no longer active.
+
+The current compositor applies that mapping to the reconstructed base background: imported pixels remain as CPU-side reload backing, but the GLES texture is created only while the offline startup route is `opening-dialogue`. Leaving that route deletes the texture; re-entering the route recreates it from the imported backing pixels. This avoids keeping a scene-owned GPU resource resident while still allowing a later reconstructed Back transition to re-enter the scene without requiring a second asset import.
 
 ## Back transition
 
@@ -60,4 +62,4 @@ The checked-in string/archive metadata confirms:
 - `SingleLogin_UI/SingleSelectHero/audio/CloseTheDoor.mp3`
 - `SingleLogin_UI/SingleSelectHero/audio/Heart_Siow.wav`
 
-The presence of these strings establishes the resource identity only. Action timings and loop/branch constants require focused operand evidence before exact reproduction.
+A focused metadata probe additionally resolves `SingleSelectHero::FuncBegin` at `0x0043705c`. It constructs action/fade sequences, installs two repeating `FadeTo` loops, and calls `playEffect` for `Heart_Siow.wav`. Exact positions, durations and the callback timing that enters `FuncBegin` still require focused numeric operand evidence and are not guessed in the runtime.
