@@ -6,11 +6,12 @@ These scripts are intended to operate on a user's own legally obtained original 
 
 - Python 3.10+
 - `readelf` for ELF metadata and JNI export inspection
-- `strings` for version/build strings
+- `nm` for dynamic-symbol matching
+- `strings` for version/build/registration strings
 - `c++filt` for C++ symbol demangling
 - `llvm-objdump` for ARMv7/Thumb PIC-string recovery
 
-On most Linux distributions the first three binary utilities are provided by binutils. `llvm-objdump` is normally provided by LLVM/Clang.
+On most Linux distributions the GNU binary utilities are provided by binutils. `llvm-objdump` is normally provided by LLVM/Clang.
 
 ## APK inventory
 
@@ -84,6 +85,33 @@ The known APK baseline is:
 The analyzer recognizes direct string-literal calls to `require`, `CAddDoString`, and `dofile`, strips ordinary Lua comments, and resolves exact or unambiguous suffix module names. It is a static lower bound rather than a full Lua runtime tracer.
 
 See `docs/lua-dependency-map.md` for the current graph findings.
+
+## Lua to native API map
+
+Cross-reference calls made by startup-reachable Lua modules against the original native library:
+
+```bash
+python3 tools/lua_native_api_map.py /path/to/com.hippiegame.nevergone.apk \
+  --json build/lua-native-api.json \
+  --markdown build/lua-native-api.md
+```
+
+When APK input is used, the script automatically reads `lib/armeabi-v7a/libcocos2dcpp.so` from the archive. For an already-decoded Lua tree, pass the ELF with `--elf`.
+
+Known APK baseline:
+
+```text
+107 Lua modules
+101 startup-reachable modules analyzed
+117 native-shaped/evidenced API candidates
+108 candidates confirmed by native ELF evidence
+106 dynamic-symbol matches
+1 binary-string registration/name match
+1 native-class symbol match
+9 native-shaped names still unconfirmed
+```
+
+The report is metadata-only and does not emit script bodies. It filters Lua-owned functions/tables so the output is focused on reconstruction targets. See `docs/lua-native-api-map.md` for the current startup contract and implementation order.
 
 ## Native symbol map
 
