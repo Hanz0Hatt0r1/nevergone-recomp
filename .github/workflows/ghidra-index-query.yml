@@ -28,14 +28,15 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Trace GameLevels glData loader
+      - name: Trace GameLevels parser entry
         run: |
-          echo '=== loader functions ==='
-          python tools/ghidra/query_full_index.py functions LoadGameLevelsWithFile --limit 20 || true
-          python tools/ghidra/query_full_index.py functions GameLevels --limit 100 || true
-          echo '=== loader callees ==='
-          python tools/ghidra/query_full_index.py callees 0034fec0 --limit 200 || true
-          echo '=== direct loader strings ==='
+          for addr in 002d2f1c 002d1c5c 002d27b8 002d2090 002d198c; do
+            echo "=== $addr callees ==="
+            python tools/ghidra/query_full_index.py callees "$addr" --limit 250 || true
+          done
+          echo '=== HPData functions ==='
+          python tools/ghidra/query_full_index.py functions HPData --limit 100 || true
+          echo '=== direct parser strings ==='
           python - <<'PY'
           import base64,csv,gzip
           from pathlib import Path
@@ -53,11 +54,11 @@ jobs:
               try: strings[a]=base64.b64decode(r['utf8_base64']).decode('utf-8','replace')
               except: pass
           xrefs=list(rows('libcocos2dcpp.xrefs.tsv.gz'))
-          start=0x0034fec0
-          end=min((e for e in entries if e>start),default=start+0x3000)
-          print(f'--- LoadGameLevelsWithFile [{start:08x},{end:08x}) ---')
-          for xr in xrefs:
-              frm=hx(xr.get('from','')); to=hx(xr.get('to',''))
-              if frm is not None and start<=frm<end and to in strings:
-                  print(f'{frm:08x} -> {to:08x} [{xr.get("type","")}] {strings[to]}')
+          for start,name in [(0x002d2f1c,'LoadGameLevels'),(0x002d1c5c,'LoadGL_Global'),(0x002d27b8,'LoadGL_Scene'),(0x002d2090,'LoadGL_PortNode'),(0x002d198c,'LoadGL_Actions')]:
+              end=min((e for e in entries if e>start),default=start+0x4000)
+              print(f'--- {name} [{start:08x},{end:08x}) ---')
+              for xr in xrefs:
+                  frm=hx(xr.get('from','')); to=hx(xr.get('to',''))
+                  if frm is not None and start<=frm<end and to in strings:
+                      print(f'{frm:08x} -> {to:08x} [{xr.get("type","")}] {strings[to]}')
           PY
