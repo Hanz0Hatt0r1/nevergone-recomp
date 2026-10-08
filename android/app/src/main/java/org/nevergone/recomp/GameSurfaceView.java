@@ -90,6 +90,26 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             int sourceWidth,
             int sourceHeight,
             int[] argbPixels);
+    private static native void nativeClearSingleLoginLightning();
+    private static native boolean nativeUploadSingleLoginLightning(
+            int lightningIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
+    private static native void nativeClearSingleLoginIllumination();
+    private static native boolean nativeUploadSingleLoginIllumination(
+            int illuminationIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
     private static native void nativeDrawSingleLoginLayer();
     private static native boolean nativeIsSingleLoginActive();
 
@@ -201,6 +221,8 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         nativeClearSingleLoginBuildings();
         nativeClearSingleLoginLights();
         nativeClearSingleLoginSways();
+        nativeClearSingleLoginLightning();
+        nativeClearSingleLoginIllumination();
     }
 
     private void loadSingleLoginSceneOnGlThread() {
@@ -217,7 +239,9 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
                     SingleLoginAtlasComposer.composeScene(plist, atlasFile);
             if (scene == null || scene.backgrounds == null || scene.backgrounds.length != 3 ||
                     scene.clouds == null || scene.clouds.length != 2 ||
-                    scene.sways == null || scene.sways.length != 9) {
+                    scene.sways == null || scene.sways.length != 9 ||
+                    scene.lightning == null || scene.lightning.length != 7 ||
+                    scene.illumination == null || scene.illumination.length != 4) {
                 return;
             }
 
@@ -289,6 +313,38 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
                         sway.sourceWidth,
                         sway.sourceHeight,
                         sway.pixels)) {
+                    clearSingleLoginSceneOnGlThread();
+                    return;
+                }
+            }
+
+            for (int index = 0; index < scene.lightning.length; index++) {
+                SingleLoginAtlasComposer.AtlasLayer lightning = scene.lightning[index];
+                if (lightning == null || !nativeUploadSingleLoginLightning(
+                        index,
+                        lightning.width,
+                        lightning.height,
+                        lightning.left,
+                        lightning.top,
+                        lightning.sourceWidth,
+                        lightning.sourceHeight,
+                        lightning.pixels)) {
+                    clearSingleLoginSceneOnGlThread();
+                    return;
+                }
+            }
+
+            for (int index = 0; index < scene.illumination.length; index++) {
+                SingleLoginAtlasComposer.AtlasLayer illumination = scene.illumination[index];
+                if (illumination == null || !nativeUploadSingleLoginIllumination(
+                        index,
+                        illumination.width,
+                        illumination.height,
+                        illumination.left,
+                        illumination.top,
+                        illumination.sourceWidth,
+                        illumination.sourceHeight,
+                        illumination.pixels)) {
                     clearSingleLoginSceneOnGlThread();
                     return;
                 }

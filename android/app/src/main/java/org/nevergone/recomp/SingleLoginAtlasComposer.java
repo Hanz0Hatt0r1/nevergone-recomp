@@ -44,6 +44,23 @@ final class SingleLoginAtlasComposer {
             "ZJMyuanjing_tree_left06.png"
     };
 
+    private static final String[] LIGHTNING_STACK = {
+            "zjmshandian01.png",
+            "zjmshandian02.png",
+            "zjmshandian03.png",
+            "zjmshandian04.png",
+            "zjmshandian05.png",
+            "zjmshandian06.png",
+            "zjmshandian07.png"
+    };
+
+    private static final String[] ILLUMINATION_STACK = {
+            "zjmjianzhuzhaoliang01.png",
+            "zjmjianzhuzhaoliang02.png",
+            "zjmjianzhuzhaoliang03.png",
+            "zjmjianzhuzhaoliang04.png"
+    };
+
     static final class AtlasLayer {
         final int width;
         final int height;
@@ -89,18 +106,24 @@ final class SingleLoginAtlasComposer {
         final AtlasLayer[] buildings;
         final AtlasLayer[] lights;
         final AtlasLayer[] sways;
+        final AtlasLayer[] lightning;
+        final AtlasLayer[] illumination;
 
         SceneAssets(
                 AtlasLayer[] backgrounds,
                 AtlasTexture[] clouds,
                 AtlasLayer[] buildings,
                 AtlasLayer[] lights,
-                AtlasLayer[] sways) {
+                AtlasLayer[] sways,
+                AtlasLayer[] lightning,
+                AtlasLayer[] illumination) {
             this.backgrounds = backgrounds;
             this.clouds = clouds;
             this.buildings = buildings;
             this.lights = lights;
             this.sways = sways;
+            this.lightning = lightning;
+            this.illumination = illumination;
         }
     }
 
@@ -112,8 +135,11 @@ final class SingleLoginAtlasComposer {
         TexturePackerPlist.Frame[] buildingFrames = readFrames(plistFile, BUILDING_STACK);
         TexturePackerPlist.Frame[] lightFrames = readFrames(plistFile, LIGHT_STACK);
         TexturePackerPlist.Frame[] swayFrames = readFrames(plistFile, SWAY_STACK);
+        TexturePackerPlist.Frame[] lightningFrames = readFrames(plistFile, LIGHTNING_STACK);
+        TexturePackerPlist.Frame[] illuminationFrames = readFrames(plistFile, ILLUMINATION_STACK);
         if (backgroundFrames == null || cloudFrames == null || buildingFrames == null ||
-                lightFrames == null || swayFrames == null) return null;
+                lightFrames == null || swayFrames == null || lightningFrames == null ||
+                illuminationFrames == null) return null;
 
         final int sourceWidth = backgroundFrames[0].sourceWidth;
         final int sourceHeight = backgroundFrames[0].sourceHeight;
@@ -123,7 +149,9 @@ final class SingleLoginAtlasComposer {
         }
         if (!sameSourceSize(backgroundFrames, sourceWidth, sourceHeight) ||
                 !sameSourceSize(buildingFrames, sourceWidth, sourceHeight) ||
-                !sameSourceSize(lightFrames, sourceWidth, sourceHeight)) {
+                !sameSourceSize(lightFrames, sourceWidth, sourceHeight) ||
+                !sameSourceSize(lightningFrames, sourceWidth, sourceHeight) ||
+                !sameSourceSize(illuminationFrames, sourceWidth, sourceHeight)) {
             return null;
         }
 
@@ -138,9 +166,12 @@ final class SingleLoginAtlasComposer {
             AtlasLayer[] buildings = extractLayers(buildingFrames, atlas, sourceWidth, sourceHeight);
             AtlasLayer[] lights = extractLayers(lightFrames, atlas, sourceWidth, sourceHeight);
             AtlasLayer[] sways = extractSpriteLayers(swayFrames, atlas);
+            AtlasLayer[] lightning = extractLayers(lightningFrames, atlas, sourceWidth, sourceHeight);
+            AtlasLayer[] illumination = extractLayers(illuminationFrames, atlas, sourceWidth, sourceHeight);
             if (backgrounds == null || clouds == null || buildings == null ||
-                    lights == null || sways == null) return null;
-            return new SceneAssets(backgrounds, clouds, buildings, lights, sways);
+                    lights == null || sways == null || lightning == null || illumination == null) return null;
+            return new SceneAssets(
+                    backgrounds, clouds, buildings, lights, sways, lightning, illumination);
         } finally {
             atlas.recycle();
         }
