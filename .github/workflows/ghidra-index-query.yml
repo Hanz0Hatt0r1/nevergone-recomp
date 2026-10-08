@@ -28,11 +28,42 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query ChooseHeroReadyUIScene metadata
+      - name: Trace ChooseHeroReadyUIScene init and touch flow
         run: |
-          echo '=== functions ==='
-          python tools/ghidra/query_full_index.py functions ChooseHeroReadyUIScene --limit 100 || true
-          echo '=== choose hero strings ==='
-          python tools/ghidra/query_full_index.py strings ChooseHero --limit 100 || true
-          echo '=== gate strings ==='
-          python tools/ghidra/query_full_index.py strings Gate_ --limit 100 || true
+          echo '=== init callees ==='
+          python tools/ghidra/query_full_index.py callees 002f13d0 --limit 200 || true
+          echo '=== touchEnded callees ==='
+          python tools/ghidra/query_full_index.py callees 002f080c --limit 200 || true
+          echo '=== createLevelData callees ==='
+          python tools/ghidra/query_full_index.py callees 002f07d8 --limit 100 || true
+          echo '=== direct strings ==='
+          python - <<'PY'
+          import base64, csv, gzip
+          from pathlib import Path
+          root=Path('docs/ghidra/full-index')
+          def rows(name):
+              with gzip.open(root/name,'rt',encoding='utf-8',newline='') as f:
+                  yield from csv.DictReader(f,delimiter='\t')
+          def hx(v):
+              try:return int(v,16)
+              except:return None
+          entries=[]
+          for r in rows('libcocos2dcpp.functions.tsv.gz'):
+              e=hx(r.get('entry',''))
+              if e is not None: entries.append(e)
+          entries.sort()
+          strings={}
+          for r in rows('libcocos2dcpp.strings.tsv.gz'):
+              a=hx(r.get('address',''))
+              if a is None: continue
+              try: strings[a]=base64.b64decode(r['utf8_base64']).decode('utf-8','replace')
+              except: pass
+          xrefs=list(rows('libcocos2dcpp.xrefs.tsv.gz'))
+          for start,name in [(0x002f13d0,'init'),(0x002f080c,'touchEnded'),(0x002f07d8,'createLevelData')]:
+              end=min((e for e in entries if e>start),default=start+0x2000)
+              print(f'--- {name} [{start:08x},{end:08x}) ---')
+              for xr in xrefs:
+                  frm=hx(xr.get('from','')); to=hx(xr.get('to',''))
+                  if frm is not None and start<=frm<end and to in strings:
+                      print(f'{frm:08x} -> {to:08x} [{xr.get("type","")}] {strings[to]}')
+          PY
