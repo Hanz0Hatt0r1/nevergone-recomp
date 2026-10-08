@@ -47,4 +47,23 @@ bool parse_first_scene_header(const hp_data::Reader& reader, FirstSceneHeader* o
     return true;
 }
 
+bool parse_first_layer_header(const hp_data::Reader& reader, FirstLayerHeader* out) {
+    if (out == nullptr) return false;
+
+    FirstSceneHeader scene_header;
+    if (!parse_first_scene_header(reader, &scene_header) || scene_header.layer_count == 0) {
+        return false;
+    }
+
+    hp_data::Cursor cursor(reader, scene_header.bytes_consumed);
+    FirstLayerHeader parsed;
+    parsed.scene_header = std::move(scene_header);
+    if (!cursor.read_f32_le(&parsed.first_float)) return false;
+    if (!cursor.read_u32_le(&parsed.object_count)) return false;
+    parsed.bytes_consumed = cursor.offset();
+
+    *out = std::move(parsed);
+    return true;
+}
+
 }  // namespace nevergone::game_levels_scene_prefix
