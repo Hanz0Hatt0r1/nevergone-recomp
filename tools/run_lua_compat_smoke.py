@@ -28,11 +28,6 @@ def main() -> int:
     args = parser.parse_args()
 
     script = extract_compat_script(args.source.read_text(encoding="utf-8"))
-    # Android creates each runtime state with luaL_openlibs(). The generic host
-    # Lua target can omit the package table depending on its platform feature
-    # defines, so provide the minimum package.loaded surface that the real
-    # runtime guarantees before executing the embedded compatibility layer.
-    runtime_prelude = "package = package or { loaded = {} }; package.loaded = package.loaded or {}\n"
     smoke = r'''
 assert(type(unpack) == "function")
 assert(unpack({4, 5}) == 4)
@@ -65,7 +60,6 @@ print("lua compatibility smoke: ok")
 '''
 
     with tempfile.NamedTemporaryFile("w", suffix=".lua", encoding="utf-8", delete=False) as handle:
-        handle.write(runtime_prelude)
         handle.write(script)
         handle.write("\n")
         handle.write(smoke)
