@@ -33,7 +33,7 @@ The same routine directly calls `CCDelayTime::create`, `CCFadeIn::create`, `CCFa
 
 The `HIPPIEGOLO02` sequence reaches `HelloWorld::FuncNEND2`, which removes the splash node, clears unused textures, and calls `HelloWorld::createUI()`. This establishes a splash-completion point of approximately 5.5 seconds after the sequence starts.
 
-The recovered startup sound callback fires at approximately 0.2 seconds. Audio playback itself is not reconstructed by the current runtime yet.
+The recovered startup sound callback fires at approximately 0.2 seconds and calls the original asset `sound/Load/Logo_finVer.mp3`. Audio playback itself is not reconstructed by the current runtime yet, and the audio asset is not committed.
 
 ## Runtime mapping
 
