@@ -26,6 +26,7 @@ RUNNER = r'''
 local root = assert(arg[1], "script root required")
 local modules = {}
 local missing = {}
+local callbacks = {}
 
 local function path_for(module_name)
     assert(type(module_name) == "string" and module_name ~= "", "module name expected")
@@ -71,6 +72,28 @@ function LGG_IsFileExist(path)
 end
 function Lua_IsXmlValid() return false end
 
+-- These checks have clean-room runtime implementations. The host startup probe
+-- only needs boot-safe semantics so initialization can advance to the next
+-- genuinely missing binding; it does not reproduce the imported word list.
+function Lua_CheckStringLegal(value)
+    return type(value) == "string" and value ~= ""
+end
+
+function Lua_CheckNickName(value)
+    if type(value) ~= "string" or value == "" then return false end
+    return value:match("^[%w\128-\255]+$") ~= nil
+end
+
+local function capture_callback(name, ...)
+    callbacks[#callbacks + 1] = {name = name, argc = select("#", ...)}
+end
+
+function cpp_OnGetServerList(...) capture_callback("cpp_OnGetServerList", ...) end
+function cpp_OnGetRoleList(...) capture_callback("cpp_OnGetRoleList", ...) end
+function cpp_OnCreateTheRole(...) capture_callback("cpp_OnCreateTheRole", ...) end
+function cpp_OnGameAnnoucement(...) capture_callback("cpp_OnGameAnnoucement", ...) end
+function cpp_OnEnterGame(...) capture_callback("cpp_OnEnterGame", ...) end
+
 xml = {
     load = function() return nil end,
     encode = function(value) return tostring(value or "") end,
@@ -112,6 +135,11 @@ io.write("startup probe: ", ok and "executed" or "failed", "\n")
 io.write("modules requested: ", #modules, "\n")
 for index, name in ipairs(modules) do
     io.write(string.format("%03d %s\n", index, name))
+end
+
+io.write("client callbacks observed: ", #callbacks, "\n")
+for index, callback in ipairs(callbacks) do
+    io.write(string.format("%03d %s argc=%d\n", index, callback.name, callback.argc))
 end
 
 local names = {}
