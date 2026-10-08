@@ -2,30 +2,19 @@
 
 #include <array>
 #include <cstdint>
+#include <mutex>
 #include <utility>
-#include <vector>
 
+#include "choose_hero_background_assets.h"
+#include "choose_hero_background_compositor.h"
 #include "offline_startup_flow.h"
 
 namespace nevergone::choose_hero_background {
 namespace {
 
-constexpr int kFrameCount = 10;
-constexpr int kDesignPhaseFrameCount = 7;
-constexpr int kDesignWidth = 1136;
-constexpr int kDesignHeight = 640;
-
-struct FrameAsset {
-    int width = 0;
-    int height = 0;
-    int left = 0;
-    int top = 0;
-    int source_width = 0;
-    int source_height = 0;
-    std::vector<std::uint32_t> pixels;
-};
-
+std::mutex g_mutex;
 std::array<FrameAsset, kFrameCount> g_frames{};
+std::uint64_t g_generation = 0;
 
 bool frame_valid(const FrameAsset& frame, int index) {
     const bool design_canvas_ok = index >= kDesignPhaseFrameCount ||
@@ -43,8 +32,19 @@ bool frame_valid(const FrameAsset& frame, int index) {
                     static_cast<std::size_t>(frame.width) * static_cast<std::size_t>(frame.height);
 }
 
+bool ready_locked() {
+    for (int index = 0; index < kFrameCount; ++index) {
+        if (!frame_valid(g_frames[static_cast<std::size_t>(index)], index)) return false;
+    }
+    return true;
+}
+
+}  // namespace
+
 void clear() {
+    std::lock_guard<std::mutex> lock(g_mutex);
     for (FrameAsset& frame : g_frames) frame = {};
+    ++g_generation;
 }
 
 bool upload(
@@ -79,22 +79,38 @@ bool upload(
     frame.pixels.assign(pixels, pixels + count);
     if (!frame_valid(frame, index)) return false;
 
+    std::lock_guard<std::mutex> lock(g_mutex);
     g_frames[static_cast<std::size_t>(index)] = std::move(frame);
+    ++g_generation;
     return true;
 }
 
 bool ready() {
-    for (int index = 0; index < kFrameCount; ++index) {
-        if (!frame_valid(g_frames[static_cast<std::size_t>(index)], index)) return false;
-    }
-    return true;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return ready_locked();
 }
 
 bool route_active() {
     return offline_startup_flow::snapshot().route == offline_startup_flow::Route::kChooseRole;
 }
 
-}  // namespace
+std::uint64_t generation() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_generation;
+}
+
+bool copy_frame(int index, FrameAsset* output) {
+    if (output == nullptr || index < 0 || index >= kFrameCount) return false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const FrameAsset& frame = g_frames[static_cast<std::size_t>(index)];
+    if (!frame_valid(frame, index)) {
+        *output = {};
+        return false;
+    }
+    *output = frame;
+    return true;
+}
+
 }  // namespace nevergone::choose_hero_background
 
 extern "C" JNIEXPORT void JNICALL
@@ -146,5 +162,9 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeChooseHeroBackgroundAssetsReady(
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeIsChooseHeroRouteActive(
         JNIEnv*, jclass) {
+    // GameSurfaceView calls this once per GL frame from its existing ChooseHero
+    // asset lifecycle. Tick the recovered visual here so this increment does
+    // not expand the Java renderer ABI merely to add a deterministic overlay.
+    nevergone::choose_hero_background_compositor::draw();
     return nevergone::choose_hero_background::route_active() ? JNI_TRUE : JNI_FALSE;
 }
