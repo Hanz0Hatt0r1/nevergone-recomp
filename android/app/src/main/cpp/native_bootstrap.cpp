@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "lua_runtime.h"
+#include "lua_startup_bindings.h"
 #include "startup_contract.h"
 
 namespace {
@@ -57,7 +58,8 @@ std::string bootstrap_info() {
     out << "files dir configured: " << (!runtime.files_dir.empty() ? "yes" : "no") << "\n";
     out << nevergone::startup::smoke_test_report();
     out << nevergone::lua_runtime::smoke_test();
-    out << "\nNext milestone: register startup bindings and execute Game.StartLua.";
+    out << nevergone::lua_runtime::startup_execution_report();
+    out << "\nNext milestone: satisfy the next native bindings requested by Game.StartLua.";
     return out.str();
 }
 
