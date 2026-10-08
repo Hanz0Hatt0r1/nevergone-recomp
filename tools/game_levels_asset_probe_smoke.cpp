@@ -38,6 +38,7 @@ int main() {
     assert(!state.loaded);
     assert(!state.scene_prefix_readable);
     assert(!state.first_scene_header_readable);
+    assert(!state.first_layer_header_readable);
 
     const std::string file = root + "/scene.glData";
     write_file(file, std::string(
@@ -48,20 +49,24 @@ int main() {
             "hero"
             "\x00\x00\x80\x3f"  // 1.0f
             "\x00\x00\x00\x40"  // 2.0f
-            "\x03\x00\x00\x00", // layer_count
-            29));
+            "\x01\x00\x00\x00"  // layer_count
+            "\x00\x00\x40\x3f"  // first layer float: 0.75f
+            "\x02\x00\x00\x00", // object_count
+            37));
 
     state = probe_file(file, 64);
     assert(state.present);
     assert(state.regular_file);
     assert(state.within_size_limit);
     assert(state.loaded);
-    assert(state.file_size == 29);
-    assert(state.reader_size == 29);
+    assert(state.file_size == 37);
+    assert(state.reader_size == 37);
     assert(state.scene_prefix_readable);
     assert(state.scene_prefix_bytes_consumed == 8);
     assert(state.first_scene_header_readable);
     assert(state.first_scene_header_bytes_consumed == 29);
+    assert(state.first_layer_header_readable);
+    assert(state.first_layer_header_bytes_consumed == 37);
 
     const std::string short_file = root + "/short.glData";
     write_file(short_file, std::string(
@@ -70,14 +75,33 @@ int main() {
             "\x04\x00\x00\x00"
             "\x7fhero"
             "\x00\x00\x80\x3f"
-            "\x00\x00\x00\x40", // missing layer_count
-            25));
+            "\x00\x00\x00\x40"
+            "\x01\x00\x00\x00"
+            "\x00\x00\x40\x3f", // missing object_count
+            33));
     state = probe_file(short_file, 64);
     assert(state.loaded);
     assert(state.scene_prefix_readable);
     assert(state.scene_prefix_bytes_consumed == 8);
-    assert(!state.first_scene_header_readable);
-    assert(state.first_scene_header_bytes_consumed == 0);
+    assert(state.first_scene_header_readable);
+    assert(state.first_scene_header_bytes_consumed == 29);
+    assert(!state.first_layer_header_readable);
+    assert(state.first_layer_header_bytes_consumed == 0);
+
+    const std::string no_layer_file = root + "/empty-layer-list.glData";
+    write_file(no_layer_file, std::string(
+            "\x01\x00\x00\x00"
+            "\x01\x00\x00\x00"
+            "\x00\x00\x00\x00"
+            "\x00"
+            "\x00\x00\x00\x00"
+            "\x00\x00\x00\x00"
+            "\x00\x00\x00\x00",
+            25));
+    state = probe_file(no_layer_file, 64);
+    assert(state.loaded);
+    assert(state.first_scene_header_readable);
+    assert(!state.first_layer_header_readable);
 
     const std::string no_scene_file = root + "/empty-scene-list.glData";
     write_file(no_scene_file, std::string(
@@ -88,14 +112,16 @@ int main() {
     assert(state.loaded);
     assert(state.scene_prefix_readable);
     assert(!state.first_scene_header_readable);
+    assert(!state.first_layer_header_readable);
 
-    state = probe_file(file, 28);
+    state = probe_file(file, 36);
     assert(state.present);
     assert(state.regular_file);
     assert(!state.within_size_limit);
     assert(!state.loaded);
     assert(!state.scene_prefix_readable);
     assert(!state.first_scene_header_readable);
+    assert(!state.first_layer_header_readable);
 
     state = probe_file(root, 64);
     assert(state.present);
@@ -106,6 +132,7 @@ int main() {
     assert(!state.configured);
 
     std::remove(no_scene_file.c_str());
+    std::remove(no_layer_file.c_str());
     std::remove(short_file.c_str());
     std::remove(file.c_str());
     rmdir(root.c_str());
