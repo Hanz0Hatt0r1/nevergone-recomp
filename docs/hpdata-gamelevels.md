@@ -48,16 +48,24 @@ A project-owned `hp_data::Cursor` layers sequential parsing on top of those expl
 
 The reader/cursor are compiled into the Android native module and have host regression coverage for valid primitive/string reads, sequential advancement, seeking/skipping, and out-of-range rejection.
 
+## Verified LoadGL_Scene prefix
+
+The broad metadata index proves only the primitive ordering at the beginning of `GameLevels::LoadGL_Scene()`: one signed 32-bit integer read followed by one unsigned 32-bit integer read before the function allocates its first `GameSceneData` object. Their semantic field identities are not yet recovered.
+
+`game_levels_scene_prefix.{h,cpp}` therefore parses exactly those two values into deliberately opaque fields named `first_i32` and `second_u32`. It consumes exactly eight bytes through the project-owned sequential cursor and updates its output only when both reads succeed. Truncated input fails without exposing a partially parsed prefix.
+
+This is intentionally not presented as a recovered `GameSceneData` schema. It is a narrow executable contract for the only two starting fields whose type/order are currently proven.
+
 ## Imported GameLevels asset probe
 
 The reconstructed runtime now has a narrow readiness probe for the first recovered scene resource. It resolves only this user-owned app-private path:
 
 `<files>/assets/gamescene/gs_list/pvp_scene.glData`
 
-The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. Bootstrap diagnostics expose only availability/read status and byte count. They do not dump, decode, persist, hash or otherwise report the proprietary contents.
+The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It also attempts the verified two-field `LoadGL_Scene` prefix and reports only whether those first eight bytes are readable; bootstrap diagnostics do not print the proprietary field values themselves.
 
-This is deliberately a transport/readiness bridge rather than a format parser. It proves that the imported runtime resource can reach the clean-room HPData reader while keeping `HPRange`, field order, loop counts and object schemas as separate reverse-engineering tasks. A synthetic host regression covers missing, readable, oversized and non-regular paths without requiring any game data.
+This remains a transport/readiness bridge plus a minimal verified parser rather than a full format implementation. It proves that the imported runtime resource can reach both the clean-room HPData reader and the recovered sequential read order while keeping `HPRange`, later field widths, loop counts and object schemas as separate reverse-engineering tasks. Synthetic host regressions cover missing/readable/oversized/non-regular paths, successful eight-byte prefix parsing and truncated-prefix rejection without requiring any game data.
 
 ## Remaining format work
 
-Before wiring this reader to a reconstructed `GameLevels` schema, recover the exact `HPRange` offset/length semantics and then map field order/count loops in each `LoadGL_*` function. Numeric/object layout evidence should come from the focused Ghidra exporter or equivalent metadata; field order and loop counts must not be guessed from likely game structures.
+Recover the exact field widths and semantic identities after the first two `LoadGL_Scene` primitives, then continue mapping the count loops and nested `GameSceneData`/layer/object fields. The unresolved original `HPRange` ABI should still be recovered from focused Ghidra evidence when needed for binary-compatibility analysis, but the clean-room sequential parser does not need to imitate that ABI internally.
