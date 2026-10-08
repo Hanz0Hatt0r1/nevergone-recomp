@@ -39,7 +39,20 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeBeginRecoveredSceneSequence(JNIE
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeIsSingleLoginActive(JNIEnv*, jclass) {
     advance_offline_startup_flow();
-    return nevergone::splash_sequence_state::complete(nevergone::game_clock::tick_count())
+    if (!nevergone::splash_sequence_state::complete(nevergone::game_clock::tick_count())) {
+        return JNI_FALSE;
+    }
+    return nevergone::offline_startup_flow::snapshot().route ==
+            nevergone::offline_startup_flow::Route::kInactive
+        ? JNI_TRUE
+        : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeIsSingleSelectHeroActive(JNIEnv*, jclass) {
+    advance_offline_startup_flow();
+    return nevergone::offline_startup_flow::snapshot().route ==
+            nevergone::offline_startup_flow::Route::kOpeningDialogue
         ? JNI_TRUE
         : JNI_FALSE;
 }
