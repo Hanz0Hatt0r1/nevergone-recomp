@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <sstream>
 
+#include "client_callback_bridge.h"
 #include "native_binding_registry.h"
 #include "startup_contract.h"
 
@@ -106,6 +107,8 @@ std::string smoke_test() {
         "loaded ~= nil and loaded[0] == 'root' and loaded.a == '1' and "
         "loaded[1] ~= nil and loaded[1][0] == 'child' and loaded[1][1] == 'text & more' and "
         "loaded[2] ~= nil and loaded[2][0] == 'empty'; "
+        "cpp_OnGetServerList([[{\"id\":1}]], 3); "
+        "cpp_OnEnterGame([[{\"cid\":9}]]); "
         "return uuid_ok, imported == true and connected == false, unpack_ok, bit_ok, cjson_ok, nickname_ok, module_ok, xml_ok");
     if (status == 0) {
         status = lua_pcall(state, 0, 8, 0);
@@ -118,6 +121,16 @@ std::string smoke_test() {
     const bool nickname_ok = status == 0 && lua_toboolean(state, -3) != 0;
     const bool module_ok = status == 0 && lua_toboolean(state, -2) != 0;
     const bool xml_ok = status == 0 && lua_toboolean(state, -1) != 0;
+
+    const auto callback_events = take_client_callback_events();
+    const bool callback_bridge_ok = callback_events.size() == 2 &&
+        callback_events[0].name == "cpp_OnGetServerList" &&
+        callback_events[0].arguments.size() == 2 &&
+        callback_events[0].arguments[0] == "{\"id\":1}" &&
+        callback_events[0].arguments[1] == "3" &&
+        callback_events[1].name == "cpp_OnEnterGame" &&
+        callback_events[1].arguments.size() == 1 &&
+        callback_events[1].arguments[0] == "{\"cid\":9}";
 
     std::error_code cleanup_error;
     std::filesystem::remove(xml_smoke_path, cleanup_error);
@@ -142,7 +155,7 @@ std::string smoke_test() {
 
     out << "lua smoke test: "
         << ((basic_ok && uuid_alias_ok && protorpc_ok && unpack_ok && bit_ok && cjson_ok &&
-             nickname_ok && module_ok && xml_ok && probe_ok)
+             nickname_ok && module_ok && xml_ok && callback_bridge_ok && probe_ok)
                 ? "ok"
                 : "failed")
         << "\n";
@@ -155,6 +168,7 @@ std::string smoke_test() {
     out << "nickname validation: " << (nickname_ok ? "ok" : "failed") << "\n";
     out << "module() compat: " << (module_ok ? "ok" : "failed") << "\n";
     out << "LuaXML compat: " << (xml_ok ? "ok" : "failed") << "\n";
+    out << "login callback bridge: " << (callback_bridge_ok ? "ok" : "failed") << "\n";
     out << "missing-global probe: " << (probe_ok ? "ok" : "failed") << "\n";
     lua_close(state);
     return out.str();
