@@ -2,13 +2,11 @@ package org.nevergone.recomp;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Rect;
 
 import java.io.File;
 
 final class SingleLoginAtlasComposer {
-    private static final String[] BASE_STACK = {
+    private static final String[] BACKGROUND_STACK = {
             "zjmbeijing.png",
             "zjmbeijing02.png",
             "zjmbeijing03.png"
@@ -59,12 +57,12 @@ final class SingleLoginAtlasComposer {
     }
 
     static final class SceneAssets {
-        final Bitmap base;
+        final AtlasLayer[] backgrounds;
         final AtlasLayer[] buildings;
         final AtlasLayer[] lights;
 
-        SceneAssets(Bitmap base, AtlasLayer[] buildings, AtlasLayer[] lights) {
-            this.base = base;
+        SceneAssets(AtlasLayer[] backgrounds, AtlasLayer[] buildings, AtlasLayer[] lights) {
+            this.backgrounds = backgrounds;
             this.buildings = buildings;
             this.lights = lights;
         }
@@ -73,18 +71,18 @@ final class SingleLoginAtlasComposer {
     private SingleLoginAtlasComposer() {}
 
     static SceneAssets composeScene(File plistFile, File atlasFile) throws Exception {
-        TexturePackerPlist.Frame[] baseFrames = readFrames(plistFile, BASE_STACK);
+        TexturePackerPlist.Frame[] backgroundFrames = readFrames(plistFile, BACKGROUND_STACK);
         TexturePackerPlist.Frame[] buildingFrames = readFrames(plistFile, BUILDING_STACK);
         TexturePackerPlist.Frame[] lightFrames = readFrames(plistFile, LIGHT_STACK);
-        if (baseFrames == null || buildingFrames == null || lightFrames == null) return null;
+        if (backgroundFrames == null || buildingFrames == null || lightFrames == null) return null;
 
-        final int sourceWidth = baseFrames[0].sourceWidth;
-        final int sourceHeight = baseFrames[0].sourceHeight;
+        final int sourceWidth = backgroundFrames[0].sourceWidth;
+        final int sourceHeight = backgroundFrames[0].sourceHeight;
         if (sourceWidth <= 0 || sourceHeight <= 0 ||
                 ((long) sourceWidth * (long) sourceHeight) > 16_777_216L) {
             return null;
         }
-        if (!sameSourceSize(baseFrames, sourceWidth, sourceHeight) ||
+        if (!sameSourceSize(backgroundFrames, sourceWidth, sourceHeight) ||
                 !sameSourceSize(buildingFrames, sourceWidth, sourceHeight) ||
                 !sameSourceSize(lightFrames, sourceWidth, sourceHeight)) {
             return null;
@@ -95,47 +93,27 @@ final class SingleLoginAtlasComposer {
         Bitmap atlas = BitmapFactory.decodeFile(atlasFile.getAbsolutePath(), options);
         if (atlas == null) return null;
 
-        Bitmap composite = Bitmap.createBitmap(sourceWidth, sourceHeight, Bitmap.Config.ARGB_8888);
         try {
-            Canvas canvas = new Canvas(composite);
-            for (TexturePackerPlist.Frame frame : baseFrames) {
-                if (!insideAtlas(frame, atlas)) {
-                    composite.recycle();
-                    return null;
-                }
-                drawFrame(canvas, atlas, frame, sourceWidth, sourceHeight);
-            }
-
-            AtlasLayer[] buildings = extractLayers(
-                    buildingFrames, atlas, sourceWidth, sourceHeight, composite);
-            if (buildings == null) return null;
-            AtlasLayer[] lights = extractLayers(
-                    lightFrames, atlas, sourceWidth, sourceHeight, composite);
-            if (lights == null) return null;
-            return new SceneAssets(composite, buildings, lights);
+            AtlasLayer[] backgrounds = extractLayers(backgroundFrames, atlas, sourceWidth, sourceHeight);
+            AtlasLayer[] buildings = extractLayers(buildingFrames, atlas, sourceWidth, sourceHeight);
+            AtlasLayer[] lights = extractLayers(lightFrames, atlas, sourceWidth, sourceHeight);
+            if (backgrounds == null || buildings == null || lights == null) return null;
+            return new SceneAssets(backgrounds, buildings, lights);
         } finally {
             atlas.recycle();
         }
-    }
-
-    static Bitmap compose(File plistFile, File atlasFile) throws Exception {
-        SceneAssets scene = composeScene(plistFile, atlasFile);
-        return scene != null ? scene.base : null;
     }
 
     private static AtlasLayer[] extractLayers(
             TexturePackerPlist.Frame[] frames,
             Bitmap atlas,
             int sourceWidth,
-            int sourceHeight,
-            Bitmap compositeToRecycleOnFailure) {
+            int sourceHeight) {
         AtlasLayer[] layers = new AtlasLayer[frames.length];
         for (int index = 0; index < frames.length; index++) {
             TexturePackerPlist.Frame frame = frames[index];
-            if (!insideAtlas(frame, atlas)) {
-                compositeToRecycleOnFailure.recycle();
-                return null;
-            }
+            if (!insideAtlas(frame, atlas)) return null;
+
             int[] pixels = new int[frame.textureWidth * frame.textureHeight];
             atlas.getPixels(
                     pixels,
@@ -181,27 +159,6 @@ final class SingleLoginAtlasComposer {
         return frame.textureX >= 0 && frame.textureY >= 0 &&
                 frame.textureX + frame.textureWidth <= atlas.getWidth() &&
                 frame.textureY + frame.textureHeight <= atlas.getHeight();
-    }
-
-    private static void drawFrame(
-            Canvas canvas,
-            Bitmap atlas,
-            TexturePackerPlist.Frame frame,
-            int sourceWidth,
-            int sourceHeight) {
-        int left = (sourceWidth - frame.textureWidth) / 2 + frame.offsetX;
-        int top = (sourceHeight - frame.textureHeight) / 2 - frame.offsetY;
-        Rect source = new Rect(
-                frame.textureX,
-                frame.textureY,
-                frame.textureX + frame.textureWidth,
-                frame.textureY + frame.textureHeight);
-        Rect destination = new Rect(
-                left,
-                top,
-                left + frame.textureWidth,
-                top + frame.textureHeight);
-        canvas.drawBitmap(atlas, source, destination, null);
     }
 
     private static boolean valid(TexturePackerPlist.Frame frame) {
