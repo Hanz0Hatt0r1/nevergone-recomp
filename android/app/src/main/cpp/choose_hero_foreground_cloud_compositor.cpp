@@ -192,15 +192,20 @@ bool upload_slot(std::size_t slot_index, int frame_index) {
     return true;
 }
 
+bool textures_valid() {
+    for (const TextureSlot& slot : g_slots) {
+        if (slot.texture == 0 || glIsTexture(slot.texture) != GL_TRUE) return false;
+    }
+    return true;
+}
+
 bool ensure_textures() {
     const std::uint64_t asset_generation = choose_hero_background::generation();
-    if (g_texture_generation == asset_generation) {
-        for (const TextureSlot& slot : g_slots) {
-            if (slot.texture == 0 || glIsTexture(slot.texture) != GL_TRUE) return false;
-        }
-        return true;
-    }
+    if (g_texture_generation == asset_generation && textures_valid()) return true;
 
+    // A recreated EGL context invalidates old texture names without changing
+    // the CPU-side staged asset generation, so invalid names must force a
+    // reload even when the generation number is unchanged.
     delete_textures();
     if (!upload_slot(0, 7) || !upload_slot(1, 8) || !upload_slot(2, 9)) {
         delete_textures();
@@ -327,8 +332,6 @@ void draw() {
     for (std::size_t index = 0;
             index < choose_hero_foreground_cloud_timeline::kInstanceCount;
             ++index) {
-        // The frame choice is part of the recovered timeline. Find the staged
-        // frame first so the Cocos content-size semantics use source dimensions.
         choose_hero_foreground_cloud_timeline::Pose probe;
         if (!choose_hero_foreground_cloud_timeline::pose_for_instance(
                 index, elapsed_seconds, 1.0f, 1.0f, &probe)) {
