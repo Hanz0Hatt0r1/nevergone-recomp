@@ -107,6 +107,16 @@ jobs:
             -o /tmp/server_selection_state_smoke
           /tmp/server_selection_state_smoke
 
+      - name: Validate server selection layout
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/server_selection_layout_smoke.cpp \
+            android/app/src/main/cpp/server_selection_layout.cpp \
+            -o /tmp/server_selection_layout_smoke
+          /tmp/server_selection_layout_smoke
+
       - name: Validate HPData reader foundation
         shell: bash
         run: |
