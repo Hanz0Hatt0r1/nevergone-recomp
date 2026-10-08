@@ -36,7 +36,16 @@ jobs:
           python tools/ghidra/query_full_index.py functions GoToChooseRole --limit 30 || true
           python tools/ghidra/query_full_index.py functions showChooseHeroPane --limit 30 || true
           python tools/ghidra/query_full_index.py functions LoadStandaloneHeroDataList --limit 30 || true
-          python tools/ghidra/query_full_index.py functions Opening --limit 80 || true
-          echo '=== OnSelectCharacter call graph ==='
+          python tools/ghidra/query_full_index.py functions initOpeningDalogue --limit 30 || true
+          echo '=== OnSelectCharacter ==='
           python tools/ghidra/query_full_index.py callers 00307154 --limit 50 || true
           python tools/ghidra/query_full_index.py callees 00307154 --limit 100 || true
+          echo '=== ReadIcloud ==='
+          python tools/ghidra/query_full_index.py callers 00307028 --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 00307028 --limit 150 || true
+          echo '=== GoToChooseRole ==='
+          python tools/ghidra/query_full_index.py callers 00306454 --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 00306454 --limit 100 || true
+          echo '=== OpeningDalogue init ==='
+          python tools/ghidra/query_full_index.py callers 003062a0 --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 003062a0 --limit 100 || true
