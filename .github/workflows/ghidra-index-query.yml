@@ -28,19 +28,15 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query checked-in SingleLogin metadata
+      - name: Run TapToStart reconstruction queries
         run: |
-          python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
-          python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
-          python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
-      - name: Query TapToStart reconstruction metadata
-        run: |
-          echo '=== FUNCTIONS TapToStart ==='
+          echo '=== ENTRY FLOW FUNCTIONS ==='
           python tools/ghidra/query_full_index.py functions TapToStart --limit 50 || true
-          echo '=== FUNCTIONS ManagementLayer entry flow ==='
           python tools/ghidra/query_full_index.py functions initLoginLayer --limit 20 || true
           python tools/ghidra/query_full_index.py functions GoToLoginScreen --limit 20 || true
           python tools/ghidra/query_full_index.py functions GoToTapToStart --limit 20 || true
+          python tools/ghidra/query_full_index.py functions androidSdkCallBack --limit 20 || true
+          python tools/ghidra/query_full_index.py functions platformAutoLogin --limit 20 || true
           echo '=== CALL GRAPH GoToTapToStart ==='
           python tools/ghidra/query_full_index.py callers 003063c2 --limit 50 || true
           python tools/ghidra/query_full_index.py callees 003063c2 --limit 50 || true
@@ -48,18 +44,16 @@ jobs:
           python tools/ghidra/query_full_index.py callers 0030c400 --limit 50 || true
           python tools/ghidra/query_full_index.py callees 0030c400 --limit 50 || true
           echo '=== CALL GRAPH ccTouchBegan ==='
-          python tools/ghidra/query_full_index.py callers 0030c440 --limit 50 || true
           python tools/ghidra/query_full_index.py callees 0030c440 --limit 50 || true
           echo '=== CALL GRAPH OnLogin ==='
           python tools/ghidra/query_full_index.py callers 0030c454 --limit 50 || true
           python tools/ghidra/query_full_index.py callees 0030c454 --limit 50 || true
           echo '=== CALL GRAPH init ==='
-          python tools/ghidra/query_full_index.py callers 0030ca18 --limit 50 || true
           python tools/ghidra/query_full_index.py callees 0030ca18 --limit 200 || true
-          echo '=== XREF HEADERS / ENTRY REFS ==='
-          python tools/ghidra/query_full_index.py xrefs 0030c400 --limit 100 || true
-          python tools/ghidra/query_full_index.py xrefs 0030c454 --limit 100 || true
-          python tools/ghidra/query_full_index.py xrefs 0030ca18 --limit 100 || true
+          echo '=== CALL GRAPH AndroidSdk callback/auto-login ==='
+          python tools/ghidra/query_full_index.py callees 002a0b0c --limit 100 || true
+          python tools/ghidra/query_full_index.py callers 00306ca6 --limit 100 || true
+          python tools/ghidra/query_full_index.py callees 00306ca6 --limit 100 || true
           echo '=== DIRECT STRINGS REFERENCED FROM TARGET BODIES ==='
           python - <<'PY'
           import base64, csv, gzip
@@ -68,29 +62,48 @@ jobs:
           def rows(name):
               with gzip.open(root / name, 'rt', encoding='utf-8', newline='') as f:
                   yield from csv.DictReader(f, delimiter='\t')
-          funcs = list(rows('libcocos2dcpp.functions.tsv.gz'))
-          funcs.sort(key=lambda r: int(r['entry'], 16))
-          strings = {int(r['address'],16): base64.b64decode(r['utf8_base64']).decode('utf-8','replace') for r in rows('libcocos2dcpp.strings.tsv.gz')}
-          xrefs = list(rows('libcocos2dcpp.xrefs.tsv.gz'))
-          targets = {
+          def h(value):
+              try:
+                  return int(value, 16)
+              except Exception:
+                  return None
+          funcs=[]
+          for r in rows('libcocos2dcpp.functions.tsv.gz'):
+              e=h(r.get('entry',''))
+              if e is not None:
+                  funcs.append((e,r))
+          funcs.sort(key=lambda p:p[0])
+          entries=[e for e,_ in funcs]
+          strings={}
+          for r in rows('libcocos2dcpp.strings.tsv.gz'):
+              a=h(r.get('address',''))
+              if a is None: continue
+              try: text=base64.b64decode(r['utf8_base64']).decode('utf-8','replace')
+              except Exception: continue
+              strings[a]=text
+          xrefs=list(rows('libcocos2dcpp.xrefs.tsv.gz'))
+          if xrefs:
+              print('xref columns:', ','.join(xrefs[0].keys()))
+          targets={
               0x003063c2:'ManagementLayer::GoToTapToStart',
+              0x003063ec:'ManagementLayer::initLoginLayer',
               0x0030c400:'TapToStart::OnTapScreen',
               0x0030c440:'TapToStart::ccTouchBegan',
               0x0030c454:'TapToStart::OnLogin',
               0x0030ca18:'TapToStart::init',
+              0x002a0b0c:'AndroidSdkMgr::platformAutoLogin',
+              0x00306ca6:'ManagementLayer::androidSdkCallBack',
           }
-          entries = [int(r['entry'],16) for r in funcs]
           for start,name in targets.items():
-              nxt = min((e for e in entries if e > start), default=start+0x2000)
+              nxt=min((e for e in entries if e>start),default=start+0x2000)
               print(f'--- {name} [{start:08x},{nxt:08x}) ---')
-              hits=[]
+              seen=set()
               for xr in xrefs:
-                  try:
-                      frm=int(xr['from_address'],16); to=int(xr['to_address'],16)
-                  except Exception:
+                  frm=h(xr.get('from_address','')); to=h(xr.get('to_address',''))
+                  if frm is None or to is None or not(start<=frm<nxt) or to not in strings:
                       continue
-                  if start <= frm < nxt and to in strings:
-                      hits.append((frm,to,strings[to],xr.get('type','')))
-              for frm,to,text,typ in hits:
-                  print(f'{frm:08x} -> {to:08x} [{typ}] {text}')
+                  item=(frm,to,strings[to],xr.get('type',''))
+                  if item in seen: continue
+                  seen.add(item)
+                  print(f'{frm:08x} -> {to:08x} [{item[3]}] {item[2]}')
           PY
