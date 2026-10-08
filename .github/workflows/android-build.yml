@@ -243,6 +243,19 @@ jobs:
           make -C third_party/_local/lua-5.2.3 generic
           python3 tools/run_lua_compat_smoke.py third_party/_local/lua-5.2.3/src/lua
 
+      - name: Validate reconstructed login Lua dispatch
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 -DNEVERGONE_HAS_LUA=1 \
+            -I android/app/src/main/cpp \
+            -I third_party/_local/lua-5.2.3/src \
+            tools/login_lua_dispatch_smoke.cpp \
+            android/app/src/main/cpp/login_lua_dispatch.cpp \
+            third_party/_local/lua-5.2.3/src/liblua.a \
+            -ldl -lm \
+            -o /tmp/login_lua_dispatch_smoke
+          /tmp/login_lua_dispatch_smoke
+
       - name: Build debug APK
         working-directory: android
         env:
