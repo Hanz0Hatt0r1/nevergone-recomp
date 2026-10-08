@@ -6,6 +6,7 @@ add_library(nevergone_recomp SHARED
     client_callback_bridge.cpp
     filesystem_bindings.cpp
     game_clock.cpp
+    game_levels_asset_probe.cpp
     hp_data_reader.cpp
     lua_compat.cpp
     lua_runtime.cpp
