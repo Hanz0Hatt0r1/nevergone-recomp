@@ -23,14 +23,13 @@ struct PositionedTexture {
     int source_height = 0;
 };
 
+constexpr size_t kBackgroundCount = 3;
 constexpr size_t kBuildingCount = 5;
 
 GLuint g_program = 0;
 GLint g_sampler = -1;
 GLint g_alpha = -1;
-GLuint g_texture = 0;
-int g_texture_width = 0;
-int g_texture_height = 0;
+std::array<PositionedTexture, kBackgroundCount> g_backgrounds{};
 std::array<PositionedTexture, kBuildingCount> g_buildings{};
 std::array<PositionedTexture, single_login_light_timeline::kLightCount> g_lights{};
 int g_surface_width = 0;
@@ -106,12 +105,6 @@ void delete_texture(GLuint* texture) {
     }
 }
 
-void clear_texture() {
-    delete_texture(&g_texture);
-    g_texture_width = 0;
-    g_texture_height = 0;
-}
-
 template <size_t N>
 void clear_layers(std::array<PositionedTexture, N>* layers) {
     if (layers == nullptr) return;
@@ -119,6 +112,10 @@ void clear_layers(std::array<PositionedTexture, N>* layers) {
         delete_texture(&layer.texture);
         layer = {};
     }
+}
+
+void clear_backgrounds() {
+    clear_layers(&g_backgrounds);
 }
 
 void clear_buildings() {
@@ -165,9 +162,7 @@ GLuint create_texture(const std::uint32_t* argb, size_t count, int width, int he
 }
 
 void on_surface_created() {
-    g_texture = 0;
-    g_texture_width = 0;
-    g_texture_height = 0;
+    g_backgrounds = {};
     g_buildings = {};
     g_lights = {};
     g_scene_generation = 0;
@@ -175,18 +170,6 @@ void on_surface_created() {
     g_program = build_program();
     g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
     g_alpha = g_program != 0 ? glGetUniformLocation(g_program, "uAlpha") : -1;
-}
-
-bool upload_texture(int width, int height, const std::uint32_t* argb, size_t count) {
-    if (g_program == 0) return false;
-    GLuint texture = create_texture(argb, count, width, height);
-    if (texture == 0) return false;
-
-    clear_texture();
-    g_texture = texture;
-    g_texture_width = width;
-    g_texture_height = height;
-    return true;
 }
 
 template <size_t N>
@@ -202,7 +185,7 @@ bool upload_positioned(
     const std::uint32_t* argb,
     size_t count) {
     if (g_program == 0 || layers == nullptr || index < 0 || index >= static_cast<int>(layers->size()) ||
-        source_width <= 0 || source_height <= 0 || left < 0 || top < 0 ||
+        width <= 0 || height <= 0 || source_width <= 0 || source_height <= 0 || left < 0 || top < 0 ||
         left + width > source_width || top + height > source_height) {
         return false;
     }
@@ -219,6 +202,20 @@ bool upload_positioned(
     layer.source_width = source_width;
     layer.source_height = source_height;
     return true;
+}
+
+bool upload_background(
+    int index,
+    int width,
+    int height,
+    int left,
+    int top,
+    int source_width,
+    int source_height,
+    const std::uint32_t* argb,
+    size_t count) {
+    return upload_positioned(
+        &g_backgrounds, index, width, height, left, top, source_width, source_height, argb, count);
 }
 
 bool upload_building(
@@ -247,6 +244,13 @@ bool upload_light(
     size_t count) {
     return upload_positioned(
         &g_lights, index, width, height, left, top, source_width, source_height, argb, count);
+}
+
+bool backgrounds_ready() {
+    for (const auto& layer : g_backgrounds) {
+        if (layer.texture == 0) return false;
+    }
+    return true;
 }
 
 void draw_quad(GLuint texture, const GLfloat* vertices, float alpha) {
@@ -309,7 +313,7 @@ void draw_positioned(const PositionedTexture& layer, float alpha) {
 }
 
 void draw() {
-    if (g_texture == 0 || g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
+    if (!backgrounds_ready() || g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
         g_surface_width <= 0 || g_surface_height <= 0) {
         return;
     }
@@ -325,30 +329,57 @@ void draw() {
         g_scene_generation = generation;
     }
 
-    float half_width = 1.0f;
-    float half_height = 1.0f;
-    scene_half_extents(g_texture_width, g_texture_height, &half_width, &half_height);
-    const GLfloat base_vertices[] = {
-        -half_width,  half_height,
-        -half_width, -half_height,
-         half_width,  half_height,
-         half_width, -half_height,
-    };
-
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(g_program);
-    draw_quad(g_texture, base_vertices, 1.0f);
+
+    // Recovered static stack. These are kept as distinct draw calls so the
+    // confirmed cloud layers can later be inserted at z=1/2/3 without
+    // flattening them above the entire background.
+    draw_positioned(g_backgrounds[0], 1.0f);  // z=0: zjmbeijing.png
+    draw_positioned(g_backgrounds[1], 1.0f);  // z=2: zjmbeijing02.png
+    draw_positioned(g_backgrounds[2], 1.0f);  // z=3: zjmbeijing03.png
 
     for (const auto& building : g_buildings) {
-        draw_positioned(building, 1.0f);
+        draw_positioned(building, 1.0f);       // z=4
     }
 
     const auto light_sample = single_login_light_timeline::sample(scene_seconds);
     for (size_t index = 0; index < g_lights.size(); ++index) {
-        draw_positioned(g_lights[index], light_sample.alpha[index]);
+        draw_positioned(g_lights[index], light_sample.alpha[index]);  // z=5
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+bool upload_jni_layer(
+    JNIEnv* env,
+    jint index,
+    jint width,
+    jint height,
+    jint left,
+    jint top,
+    jint source_width,
+    jint source_height,
+    jintArray pixels,
+    bool (*uploader)(int, int, int, int, int, int, int, const std::uint32_t*, size_t)) {
+    if (pixels == nullptr || width <= 0 || height <= 0 || uploader == nullptr) return false;
+    const jsize length = env->GetArrayLength(pixels);
+    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (static_cast<size_t>(length) != expected) return false;
+    jint* values = env->GetIntArrayElements(pixels, nullptr);
+    if (values == nullptr) return false;
+    const bool ok = uploader(
+        static_cast<int>(index),
+        static_cast<int>(width),
+        static_cast<int>(height),
+        static_cast<int>(left),
+        static_cast<int>(top),
+        static_cast<int>(source_width),
+        static_cast<int>(source_height),
+        reinterpret_cast<const std::uint32_t*>(values),
+        expected);
+    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
+    return ok;
 }
 
 }  // namespace
@@ -367,8 +398,8 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnSingleLoginSurfaceChanged(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginTexture(JNIEnv*, jclass) {
-    nevergone::single_login::clear_texture();
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginBackgrounds(JNIEnv*, jclass) {
+    nevergone::single_login::clear_backgrounds();
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -382,19 +413,20 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginLights(JNIEnv*, 
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginTexture(
-    JNIEnv* env, jclass, jint width, jint height, jintArray pixels) {
-    if (pixels == nullptr || width <= 0 || height <= 0) return JNI_FALSE;
-    const jsize length = env->GetArrayLength(pixels);
-    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
-    if (static_cast<size_t>(length) != expected) return JNI_FALSE;
-    jint* values = env->GetIntArrayElements(pixels, nullptr);
-    if (values == nullptr) return JNI_FALSE;
-    const bool ok = nevergone::single_login::upload_texture(
-        static_cast<int>(width), static_cast<int>(height),
-        reinterpret_cast<const std::uint32_t*>(values), expected);
-    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
-    return ok ? JNI_TRUE : JNI_FALSE;
+Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginBackground(
+    JNIEnv* env,
+    jclass,
+    jint background_index,
+    jint width,
+    jint height,
+    jint left,
+    jint top,
+    jint source_width,
+    jint source_height,
+    jintArray pixels) {
+    return nevergone::single_login::upload_jni_layer(
+        env, background_index, width, height, left, top, source_width, source_height, pixels,
+        nevergone::single_login::upload_background) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -409,24 +441,9 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginBuilding(
     jint source_width,
     jint source_height,
     jintArray pixels) {
-    if (pixels == nullptr || width <= 0 || height <= 0) return JNI_FALSE;
-    const jsize length = env->GetArrayLength(pixels);
-    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
-    if (static_cast<size_t>(length) != expected) return JNI_FALSE;
-    jint* values = env->GetIntArrayElements(pixels, nullptr);
-    if (values == nullptr) return JNI_FALSE;
-    const bool ok = nevergone::single_login::upload_building(
-        static_cast<int>(building_index),
-        static_cast<int>(width),
-        static_cast<int>(height),
-        static_cast<int>(left),
-        static_cast<int>(top),
-        static_cast<int>(source_width),
-        static_cast<int>(source_height),
-        reinterpret_cast<const std::uint32_t*>(values),
-        expected);
-    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
-    return ok ? JNI_TRUE : JNI_FALSE;
+    return nevergone::single_login::upload_jni_layer(
+        env, building_index, width, height, left, top, source_width, source_height, pixels,
+        nevergone::single_login::upload_building) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -441,24 +458,9 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginLight(
     jint source_width,
     jint source_height,
     jintArray pixels) {
-    if (pixels == nullptr || width <= 0 || height <= 0) return JNI_FALSE;
-    const jsize length = env->GetArrayLength(pixels);
-    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
-    if (static_cast<size_t>(length) != expected) return JNI_FALSE;
-    jint* values = env->GetIntArrayElements(pixels, nullptr);
-    if (values == nullptr) return JNI_FALSE;
-    const bool ok = nevergone::single_login::upload_light(
-        static_cast<int>(light_index),
-        static_cast<int>(width),
-        static_cast<int>(height),
-        static_cast<int>(left),
-        static_cast<int>(top),
-        static_cast<int>(source_width),
-        static_cast<int>(source_height),
-        reinterpret_cast<const std::uint32_t*>(values),
-        expected);
-    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
-    return ok ? JNI_TRUE : JNI_FALSE;
+    return nevergone::single_login::upload_jni_layer(
+        env, light_index, width, height, left, top, source_width, source_height, pixels,
+        nevergone::single_login::upload_light) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL
