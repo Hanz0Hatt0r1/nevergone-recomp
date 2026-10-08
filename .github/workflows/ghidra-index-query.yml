@@ -37,15 +37,60 @@ jobs:
         run: |
           echo '=== FUNCTIONS TapToStart ==='
           python tools/ghidra/query_full_index.py functions TapToStart --limit 50 || true
-          echo '=== SYMBOLS TapToStart ==='
-          python tools/ghidra/query_full_index.py symbols TapToStart --limit 100 || true
-          echo '=== STRINGS TapToStart ==='
-          python tools/ghidra/query_full_index.py strings TapToStart --limit 100 || true
-          echo '=== STRINGS tap ==='
-          python tools/ghidra/query_full_index.py strings tap --limit 100 || true
-          echo '=== ASSETS TapToStart ==='
-          python tools/ghidra/query_full_index.py assets TapToStart --limit 100 || true
-          echo '=== ATLASES TapToStart ==='
-          python tools/ghidra/query_full_index.py atlases TapToStart --limit 100 || true
-          echo '=== ATLASES tap ==='
-          python tools/ghidra/query_full_index.py atlases tap --limit 100 || true
+          echo '=== FUNCTIONS ManagementLayer entry flow ==='
+          python tools/ghidra/query_full_index.py functions initLoginLayer --limit 20 || true
+          python tools/ghidra/query_full_index.py functions GoToLoginScreen --limit 20 || true
+          python tools/ghidra/query_full_index.py functions GoToTapToStart --limit 20 || true
+          echo '=== CALL GRAPH GoToTapToStart ==='
+          python tools/ghidra/query_full_index.py callers 003063c2 --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 003063c2 --limit 50 || true
+          echo '=== CALL GRAPH OnTapScreen ==='
+          python tools/ghidra/query_full_index.py callers 0030c400 --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 0030c400 --limit 50 || true
+          echo '=== CALL GRAPH ccTouchBegan ==='
+          python tools/ghidra/query_full_index.py callers 0030c440 --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 0030c440 --limit 50 || true
+          echo '=== CALL GRAPH OnLogin ==='
+          python tools/ghidra/query_full_index.py callers 0030c454 --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 0030c454 --limit 50 || true
+          echo '=== CALL GRAPH init ==='
+          python tools/ghidra/query_full_index.py callers 0030ca18 --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 0030ca18 --limit 200 || true
+          echo '=== XREF HEADERS / ENTRY REFS ==='
+          python tools/ghidra/query_full_index.py xrefs 0030c400 --limit 100 || true
+          python tools/ghidra/query_full_index.py xrefs 0030c454 --limit 100 || true
+          python tools/ghidra/query_full_index.py xrefs 0030ca18 --limit 100 || true
+          echo '=== DIRECT STRINGS REFERENCED FROM TARGET BODIES ==='
+          python - <<'PY'
+          import base64, csv, gzip
+          from pathlib import Path
+          root = Path('docs/ghidra/full-index')
+          def rows(name):
+              with gzip.open(root / name, 'rt', encoding='utf-8', newline='') as f:
+                  yield from csv.DictReader(f, delimiter='\t')
+          funcs = list(rows('libcocos2dcpp.functions.tsv.gz'))
+          funcs.sort(key=lambda r: int(r['entry'], 16))
+          strings = {int(r['address'],16): base64.b64decode(r['utf8_base64']).decode('utf-8','replace') for r in rows('libcocos2dcpp.strings.tsv.gz')}
+          xrefs = list(rows('libcocos2dcpp.xrefs.tsv.gz'))
+          targets = {
+              0x003063c2:'ManagementLayer::GoToTapToStart',
+              0x0030c400:'TapToStart::OnTapScreen',
+              0x0030c440:'TapToStart::ccTouchBegan',
+              0x0030c454:'TapToStart::OnLogin',
+              0x0030ca18:'TapToStart::init',
+          }
+          entries = [int(r['entry'],16) for r in funcs]
+          for start,name in targets.items():
+              nxt = min((e for e in entries if e > start), default=start+0x2000)
+              print(f'--- {name} [{start:08x},{nxt:08x}) ---')
+              hits=[]
+              for xr in xrefs:
+                  try:
+                      frm=int(xr['from_address'],16); to=int(xr['to_address'],16)
+                  except Exception:
+                      continue
+                  if start <= frm < nxt and to in strings:
+                      hits.append((frm,to,strings[to],xr.get('type','')))
+              for frm,to,text,typ in hits:
+                  print(f'{frm:08x} -> {to:08x} [{typ}] {text}')
+          PY
