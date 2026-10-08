@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 
+#include "lua_runtime.h"
 #include "startup_contract.h"
 
 namespace {
@@ -55,7 +56,8 @@ std::string bootstrap_info() {
     const auto& runtime = nevergone::startup::config();
     out << "files dir configured: " << (!runtime.files_dir.empty() ? "yes" : "no") << "\n";
     out << nevergone::startup::smoke_test_report();
-    out << "\nNext milestone: Lua runtime + real CAddDoString module execution.";
+    out << nevergone::lua_runtime::smoke_test();
+    out << "\nNext milestone: register startup bindings and execute Game.StartLua.";
     return out.str();
 }
 
