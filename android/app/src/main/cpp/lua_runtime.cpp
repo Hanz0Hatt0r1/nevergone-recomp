@@ -138,6 +138,14 @@ std::string smoke_test() {
         callback_events[2].arguments[1] == "12" &&
         callback_events[2].arguments[2] == "true";
 
+    const auto client_ui_snapshot = snapshot_client_ui_state();
+    const bool client_ui_state_ok = client_ui_snapshot.event_count == 3 &&
+        client_ui_snapshot.last_event == "cpp_OnUpdateData" &&
+        client_ui_snapshot.server_list == "{\"id\":1} | 3" &&
+        client_ui_snapshot.enter_game == "{\"cid\":9}" &&
+        client_ui_snapshot.update_data == "inventory | 12 | true";
+    reset_client_ui_state();
+
     std::error_code cleanup_error;
     std::filesystem::remove(xml_smoke_path, cleanup_error);
 
@@ -161,7 +169,7 @@ std::string smoke_test() {
 
     out << "lua smoke test: "
         << ((basic_ok && uuid_alias_ok && protorpc_ok && unpack_ok && bit_ok && cjson_ok &&
-             nickname_ok && module_ok && xml_ok && callback_bridge_ok && probe_ok)
+             nickname_ok && module_ok && xml_ok && callback_bridge_ok && client_ui_state_ok && probe_ok)
                 ? "ok"
                 : "failed")
         << "\n";
@@ -175,6 +183,7 @@ std::string smoke_test() {
     out << "module() compat: " << (module_ok ? "ok" : "failed") << "\n";
     out << "LuaXML compat: " << (xml_ok ? "ok" : "failed") << "\n";
     out << "client callback bridge: " << (callback_bridge_ok ? "ok" : "failed") << "\n";
+    out << "client UI state: " << (client_ui_state_ok ? "ok" : "failed") << "\n";
     out << "missing-global probe: " << (probe_ok ? "ok" : "failed") << "\n";
     lua_close(state);
     return out.str();
