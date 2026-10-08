@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "login_callback_payload.h"
+
 struct lua_State;
 
 namespace nevergone::lua_runtime {
@@ -24,6 +26,8 @@ struct ClientUiSnapshot {
     std::string chat_messages;
     std::string update_data;
     std::string pve_connect;
+    login_callback_payload::ServerListPayload server_list_model;
+    login_callback_payload::RoleListPayload role_list_model;
 };
 
 void register_login_callback_bindings(lua_State* state);
