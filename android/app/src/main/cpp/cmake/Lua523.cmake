@@ -12,7 +12,6 @@ else()
         nevergone_lua523
         URL https://www.lua.org/ftp/lua-5.2.3.tar.gz
         URL_HASH SHA256=13c2fb97961381f7d06d5b5cea55b743c163800896fd5c5e2356201d3619002d
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     )
     FetchContent_GetProperties(nevergone_lua523)
     if(NOT nevergone_lua523_POPULATED)
