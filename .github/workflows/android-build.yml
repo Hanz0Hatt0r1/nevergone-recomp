@@ -61,6 +61,16 @@ jobs:
       - name: Validate ChooseHero background atlas contract
         run: python3 tools/verify_choose_hero_background_contract.py
 
+      - name: Validate HPData reader foundation
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/hp_data_reader_smoke.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/hp_data_reader_smoke
+          /tmp/hp_data_reader_smoke
+
       - name: Validate SingleLogin light timeline
         shell: bash
         run: |
