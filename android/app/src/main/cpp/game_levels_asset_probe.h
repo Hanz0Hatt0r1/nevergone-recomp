@@ -21,7 +21,7 @@ struct Snapshot {
 };
 
 // Probe an explicit file path. This is exposed for host regression tests and
-// validates transport plus only the verified two-field LoadGL_Scene prefix;
+// validates transport plus only the verified three-field LoadGL_Scene prefix;
 // it does not claim unresolved GameLevels field semantics or HPRange ABI.
 Snapshot probe_file(const std::string& path, std::size_t max_bytes = kMaxProbeBytes);
 
