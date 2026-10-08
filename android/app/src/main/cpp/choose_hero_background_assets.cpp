@@ -8,6 +8,7 @@ namespace nevergone::choose_hero_background {
 namespace {
 
 constexpr int kFrameCount = 10;
+constexpr int kDesignPhaseFrameCount = 7;
 constexpr int kDesignWidth = 1136;
 constexpr int kDesignHeight = 640;
 
@@ -23,11 +24,14 @@ struct FrameAsset {
 
 std::array<FrameAsset, kFrameCount> g_frames{};
 
-bool frame_valid(const FrameAsset& frame) {
+bool frame_valid(const FrameAsset& frame, int index) {
+    const bool design_canvas_ok = index >= kDesignPhaseFrameCount ||
+            (frame.source_width == kDesignWidth && frame.source_height == kDesignHeight);
     return frame.width > 0 &&
             frame.height > 0 &&
-            frame.source_width == kDesignWidth &&
-            frame.source_height == kDesignHeight &&
+            frame.source_width > 0 &&
+            frame.source_height > 0 &&
+            design_canvas_ok &&
             frame.left >= 0 &&
             frame.top >= 0 &&
             frame.left + frame.width <= frame.source_width &&
@@ -51,8 +55,9 @@ bool upload(
         const std::uint32_t* pixels,
         std::size_t count) {
     if (index < 0 || index >= kFrameCount ||
-            width <= 0 || height <= 0 ||
-            source_width != kDesignWidth || source_height != kDesignHeight ||
+            width <= 0 || height <= 0 || source_width <= 0 || source_height <= 0 ||
+            (index < kDesignPhaseFrameCount &&
+                    (source_width != kDesignWidth || source_height != kDesignHeight)) ||
             left < 0 || top < 0 ||
             left + width > source_width || top + height > source_height ||
             pixels == nullptr ||
@@ -69,15 +74,15 @@ bool upload(
     frame.source_width = source_width;
     frame.source_height = source_height;
     frame.pixels.assign(pixels, pixels + count);
-    if (!frame_valid(frame)) return false;
+    if (!frame_valid(frame, index)) return false;
 
     g_frames[static_cast<std::size_t>(index)] = std::move(frame);
     return true;
 }
 
 bool ready() {
-    for (const FrameAsset& frame : g_frames) {
-        if (!frame_valid(frame)) return false;
+    for (int index = 0; index < kFrameCount; ++index) {
+        if (!frame_valid(g_frames[static_cast<std::size_t>(index)], index)) return false;
     }
     return true;
 }
