@@ -61,6 +61,20 @@ int main() {
     clouds = sample(75.0, width, height, q01, q02, q03);
     assert(near(clouds[5].x, -600.0f));
 
+    // The shipped ARMv7 path converts computed coordinates float->int->float
+    // before creating CCPoint values. Odd source heights therefore truncate
+    // half-pixel Y coordinates toward zero rather than retaining .5.
+    const CloudInput odd01{301.0f, 121.0f};
+    const CloudInput odd02{401.0f, 161.0f};
+    const CloudInput odd03{201.0f, 101.0f};
+    clouds = sample(0.0, width, height, odd01, odd02, odd03);
+    assert(near(clouds[0].y, 559.0f));
+    assert(near(clouds[2].y, 150.0f));
+    assert(near(clouds[4].y, 410.0f));
+    assert(near(clouds[5].y, 460.0f));
+    assert(near(clouds[2].x, -201.0f));
+    assert(near(clouds[3].x, -402.0f));
+
     // Negative elapsed time clamps to the recovered starting placements.
     clouds = sample(-5.0, width, height, q01, q02, q03);
     assert(near(clouds[0].x, 0.0f));
