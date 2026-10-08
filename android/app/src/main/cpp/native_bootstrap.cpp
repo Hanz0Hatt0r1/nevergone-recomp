@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 
+#include "app_delegate_state.h"
 #include "client_callback_bridge.h"
 #include "game_levels_asset_probe.h"
 #include "lua_runtime.h"
@@ -61,13 +62,14 @@ std::string bootstrap_info() {
     const auto& runtime = nevergone::startup::config();
     out << "files dir configured: " << (!runtime.files_dir.empty() ? "yes" : "no") << "\n";
     out << "app version: " << (runtime.app_version.empty() ? "unknown" : runtime.app_version) << "\n";
+    out << nevergone::app_delegate_state::status_report();
     out << nevergone::render::status_report();
     out << nevergone::offline_startup_flow::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::lua_runtime::smoke_test();
     out << nevergone::lua_runtime::startup_execution_report();
-    out << "\nNext milestone: recover HPRange semantics and parse the first verified GameLevels fields.";
+    out << "\nNext milestone: connect initial-ui-ready to reconstructed HelloWorld/ManagementLayer behavior.";
     return out.str();
 }
 
@@ -86,6 +88,17 @@ Java_org_nevergone_recomp_MainActivity_nativeConfigureRuntime(
     config.app_version = jstring_to_utf8(env, app_version);
     config.platform = "android";
     nevergone::startup::configure(std::move(config));
+    nevergone::app_delegate_state::on_runtime_configured();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeAppDelegateOnPause(JNIEnv*, jclass) {
+    nevergone::app_delegate_state::on_app_pause();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeAppDelegateOnResume(JNIEnv*, jclass) {
+    nevergone::app_delegate_state::on_app_resume();
 }
 
 extern "C" JNIEXPORT jstring JNICALL
