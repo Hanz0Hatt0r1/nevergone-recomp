@@ -3,7 +3,6 @@ package org.nevergone.recomp;
 import android.graphics.Bitmap;
 
 import java.io.File;
-import java.io.IOException;
 
 final class ChooseHeroBackgroundComposer {
     static final int DESIGN_WIDTH = 1136;
@@ -45,7 +44,7 @@ final class ChooseHeroBackgroundComposer {
             File atlas01Plist,
             Bitmap atlas01,
             File atlas02Plist,
-            Bitmap atlas02) throws IOException {
+            Bitmap atlas02) throws Exception {
         if (atlas01Plist == null || atlas01 == null ||
                 atlas02Plist == null || atlas02 == null) {
             return null;
@@ -99,7 +98,7 @@ final class ChooseHeroBackgroundComposer {
     private static TexturePackerAtlasExtractor.ExtractedFrame extract(
             File plist,
             Bitmap atlas,
-            String frameName) throws IOException {
+            String frameName) throws Exception {
         return TexturePackerAtlasExtractor.extract(
                 TexturePackerPlist.readFrame(plist, frameName),
                 atlas);
