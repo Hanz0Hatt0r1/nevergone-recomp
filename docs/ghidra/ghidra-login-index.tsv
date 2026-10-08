@@ -1,0 +1,209 @@
+type	address	value	references
+function	002d70b8	HelloWorld::FuncNEND	Entry Point
+function	002d70c8	HelloWorld::~HelloWorld	Entry Point,002d7118,002d7110
+function	002d710c	HelloWorld::~HelloWorld	Entry Point
+function	002d7114	HelloWorld::~HelloWorld	Entry Point,002d712a
+function	002d7126	HelloWorld::~HelloWorld	Entry Point
+function	002d7130	HelloWorld::FuncNEND7	Entry Point
+function	002d7148	HelloWorld::BBfuncCall	Entry Point
+function	002d72ac	HelloWorld::FuncNEND5	Entry Point
+function	002d73d0	HelloWorld::HelloWorld	Entry Point,002d7428
+function	002d7414	HelloWorld::sharedHelloWorld	Entry Point,002a1430,002a147c,002d7450,003065f4,003072b8,0031d4a4,0040cd22,0040cd9c,004324bc
+function	002d7448	HelloWorld::scene	Entry Point,002a1af0
+function	002d7464	HelloWorld::menuCloseCallback	Entry Point
+function	002d7468	HelloWorld::FuncNENDTest	Entry Point
+function	002d756c	HelloWorld::ShowUI	Entry Point,002d7692
+function	002d7664	HelloWorld::init	Entry Point
+function	002d769c	HelloWorld::FuncNEND6	Entry Point,002d7c90
+function	002d7c8c	HelloWorld::ShowLogo	Entry Point,002d7cb6
+function	002d7c94	HelloWorld::GoShowLogo	Entry Point
+function	002d7cc0	HelloWorld::createUI	Entry Point,002d7d1c,002d7d3c
+function	002d7cf4	HelloWorld::RemoveUI	Entry Point,004324c0
+function	002d7d20	HelloWorld::FuncNEND2	Entry Point
+function	002eecfc	ChooseHeroBackground::createUI	Entry Point,002ef56e
+function	002f4262	LoginScreen::update	Entry Point
+function	002f4264	LoginScreen::editBoxEditingDidBegin	Entry Point,002f426a
+function	002f4266	LoginScreen::editBoxEditingDidBegin	Entry Point
+function	002f426e	LoginScreen::editBoxEditingDidEnd	Entry Point,002f4274
+function	002f4270	LoginScreen::editBoxEditingDidEnd	Entry Point
+function	002f4278	LoginScreen::editBoxReturn	Entry Point,002f427e
+function	002f427a	LoginScreen::editBoxReturn	Entry Point
+function	002f42a0	LoginScreen::onExit	Entry Point
+function	002f42fc	LoginScreen::~LoginScreen	Entry Point,002f4354,002f4344,002f434c
+function	002f4340	LoginScreen::~LoginScreen	Entry Point
+function	002f4348	LoginScreen::~LoginScreen	Entry Point
+function	002f4350	LoginScreen::~LoginScreen	Entry Point,002f4366,002f436c,00305cc2
+function	002f4362	LoginScreen::~LoginScreen	Entry Point
+function	002f4368	LoginScreen::~LoginScreen	Entry Point
+function	002f4370	LoginScreen::regist	Entry Point,002f4e3e
+function	002f4db8	LoginScreen::menuCloseCallback	Entry Point
+function	002f5530	LoginScreen::editBoxTextChanged	Entry Point,002f55e4
+function	002f55e0	LoginScreen::editBoxTextChanged	Entry Point
+function	002f6180	LoginScreen::init	Entry Point,00305cb6
+function	00305c60	LoginScreen::create	Entry Point,003064da
+function	00305ed0	SingleLoginLayer::create	Entry Point,00306404,00306c6e,003074cc
+function	003064d0	ManagementLayer::GoToLoginScreen	Entry Point,0030c484
+function	00377a68	MyGameScence::createUI	Entry Point,00372096,00377c78,00377c5e,00377b32
+function	003b8aa4	EMBackground::createUI	Entry Point,003b9600
+function	003f610c	GateBackground::createUI	Entry Point,003f6b0a
+function	00409a50	MercenaryAttribute::createUI	Entry Point,0040acc4
+function	0042c2fc	PvpBackground::createUI	Entry Point,0042cb6e
+function	004353c6	SingleLoginLayer::FuncNHideSound	Entry Point
+function	004353d6	SingleLoginLayer::FuncLayerBegin	Entry Point
+function	004353d8	SingleLoginLayer::~SingleLoginLayer	Entry Point,00435460,00435458
+function	00435454	SingleLoginLayer::~SingleLoginLayer	Entry Point
+function	0043545c	SingleLoginLayer::~SingleLoginLayer	Entry Point,00435472
+function	0043546e	SingleLoginLayer::~SingleLoginLayer	Entry Point
+function	00435476	SingleLoginLayer::updata	Entry Point
+function	00435484	SingleLoginLayer::FuncBegin	Entry Point
+function	00435540	SingleLoginLayer::Func02	Entry Point
+function	004355d8	SingleLoginLayer::Func01	Entry Point
+function	004357c8	SingleLoginLayer::SingleLoginLayer	Entry Point,00305edc
+function	00435818	SingleLoginLayer::Loading	Entry Point,00435866
+function	00435830	SingleLoginLayer::init	Entry Point
+function	00435a40	SingleLoginLayer::InitUI	Entry Point,00436c98
+function	00436c98	SingleLoginLayer::FuncLayerEnd	Entry Point
+function	00436c9c	SingleLoginLayer::onExit	Entry Point
+function	00471c4c	HeroInfomation::createUI	Entry Point,00473810
+string	00098dd9	_ZN10HelloWorld16sharedHelloWorldEv	-
+string	00099108	_ZN10HelloWorld5sceneEv	-
+string	000b1231	_ZN10HelloWorld8FuncNENDEPN7cocos2d6CCNodeEPv	-
+string	000b125f	_ZN10HelloWorldD2Ev	-
+string	000b1273	_ZTV10HelloWorld	-
+string	000b1284	_ZN10HelloWorldD1Ev	-
+string	000b1298	_ZThn224_N10HelloWorldD1Ev	-
+string	000b12b3	_ZN10HelloWorldD0Ev	-
+string	000b12c7	_ZThn224_N10HelloWorldD0Ev	-
+string	000b12e2	_ZN10HelloWorld9FuncNEND7EPN7cocos2d6CCNodeEPv	-
+string	000b1311	_ZN10HelloWorld10BBfuncCallEPN7cocos2d6CCNodeEPv	-
+string	000b1342	_ZN10HelloWorld9FuncNEND5EPN7cocos2d6CCNodeEPv	-
+string	000b13b5	_ZN10HelloWorldC2Ev	-
+string	000b13c9	_ZN10HelloWorldC1Ev	-
+string	000b13dd	_ZN10HelloWorld17menuCloseCallbackEPN7cocos2d8CCObjectE	-
+string	000b1415	_ZN10HelloWorld12FuncNENDTestEPN7cocos2d6CCNodeEPv	-
+string	000b1448	_ZN10HelloWorld6ShowUIEv	-
+string	000b1461	_ZN10HelloWorld10GoShowLogoEf	-
+string	000b147f	_ZN10HelloWorld4initEv	-
+string	000b1496	_ZN10HelloWorld9FuncNEND6EPN7cocos2d6CCNodeEPv	-
+string	000b14c5	_ZN10HelloWorld9FuncNEND2EPN7cocos2d6CCNodeEPv	-
+string	000b1520	_ZN10HelloWorld8ShowLogoEv	-
+string	000b153b	_ZN10HelloWorld8createUIEv	-
+string	000b157d	_ZN10HelloWorld8RemoveUIEv	-
+string	000b1598	_ZTS10HelloWorld	-
+string	000b15a9	_ZTI10HelloWorld	-
+string	000b79c0	_ZN20ChooseHeroBackground8createUIEv	-
+string	000b952e	_ZN11LoginScreen6updateEf	-
+string	000b9548	_ZN11LoginScreen22editBoxEditingDidBeginEPN7cocos2d9extension9CCEditBoxE	-
+string	000b9591	_ZThn260_N11LoginScreen22editBoxEditingDidBeginEPN7cocos2d9extension9CCEditBoxE	-
+string	000b95e1	_ZN11LoginScreen20editBoxEditingDidEndEPN7cocos2d9extension9CCEditBoxE	-
+string	000b9628	_ZThn260_N11LoginScreen20editBoxEditingDidEndEPN7cocos2d9extension9CCEditBoxE	-
+string	000b9676	_ZN11LoginScreen13editBoxReturnEPN7cocos2d9extension9CCEditBoxE	-
+string	000b96b6	_ZThn260_N11LoginScreen13editBoxReturnEPN7cocos2d9extension9CCEditBoxE	-
+string	000b972a	_ZN11LoginScreen6onExitEv	-
+string	000b9744	_ZN11LoginScreenD2Ev	-
+string	000b9759	_ZTV11LoginScreen	-
+string	000b976b	_ZN11LoginScreenD1Ev	-
+string	000b9780	_ZThn260_N11LoginScreenD1Ev	-
+string	000b979c	_ZThn224_N11LoginScreenD1Ev	-
+string	000b97b8	_ZN11LoginScreenD0Ev	-
+string	000b97cd	_ZThn260_N11LoginScreenD0Ev	-
+string	000b97e9	_ZThn224_N11LoginScreenD0Ev	-
+string	000b9805	_ZN11LoginScreen6registEPN7cocos2d8CCObjectE	-
+string	000b9832	_ZN11LoginScreen17menuCloseCallbackEPN7cocos2d8CCObjectE	-
+string	000b99ef	_ZN11LoginScreen18editBoxTextChangedEPN7cocos2d9extension9CCEditBoxERKSs	-
+string	000b9a38	_ZThn260_N11LoginScreen18editBoxTextChangedEPN7cocos2d9extension9CCEditBoxERKSs	-
+string	000b9abc	_ZN11LoginScreen4initEv	-
+string	000b9b2c	_ZTS11LoginScreen	-
+string	000b9b3e	_ZTI11LoginScreen	-
+string	000c2d6b	_ZN11LoginScreen6createEv	-
+string	000c2ee7	_ZN16SingleLoginLayer6createEv	-
+string	000c2f06	_ZN16SingleLoginLayerC1Ev	-
+string	000c3214	_ZN15ManagementLayer15GoToLoginScreenEv	-
+string	000ea8d0	_ZN12MyGameScence8createUIEv	-
+string	000f4b8d	_ZN12EMBackground8createUIEv	-
+string	000fe5e7	_ZN14GateBackground8createUIEv	-
+string	00101472	_ZN18MercenaryAttribute8createUIEi	-
+string	001070fa	_ZN13PvpBackground8createUIEv	-
+string	00109201	_ZN16SingleLoginLayer14FuncNHideSoundEPN7cocos2d6CCNodeEPv	-
+string	0010923c	_ZN16SingleLoginLayer14FuncLayerBeginEPN7cocos2d6CCNodeEPv	-
+string	00109277	_ZN16SingleLoginLayerD2Ev	-
+string	00109291	_ZTV16SingleLoginLayer	-
+string	001092a8	_ZN16SingleLoginLayerD1Ev	-
+string	001092c2	_ZThn224_N16SingleLoginLayerD1Ev	-
+string	001092e3	_ZN16SingleLoginLayerD0Ev	-
+string	001092fd	_ZThn224_N16SingleLoginLayerD0Ev	-
+string	0010931e	_ZN16SingleLoginLayer6updataEf	-
+string	0010933d	_ZN16SingleLoginLayer9FuncBeginEPN7cocos2d6CCNodeEPv	-
+string	00109372	_ZN16SingleLoginLayer6Func02EPN7cocos2d6CCNodeEPv	-
+string	001093a4	_ZN16SingleLoginLayer6Func01EPN7cocos2d6CCNodeEPv	-
+string	001093d6	_ZN16SingleLoginLayerC2Ev	-
+string	001093f0	_ZN16SingleLoginLayer7LoadingEv	-
+string	00109410	_ZN16SingleLoginLayer4initEv	-
+string	0010942d	_ZN16SingleLoginLayer12FuncLayerEndEPN7cocos2d6CCNodeEPv	-
+string	00109466	_ZN16SingleLoginLayer6InitUIEv	-
+string	00109485	_ZN16SingleLoginLayer6onExitEv	-
+string	001094a4	_ZTS16SingleLoginLayer	-
+string	001094bb	_ZTI16SingleLoginLayer	-
+string	00111f0a	_ZN14HeroInfomation8createUIEi	-
+string	007793f7	Login/LoginScreenUI	002a17f0,002a18c6
+string	007794f2	gamescene_ui/SingleLogin_UI/actions	002a1894,002a19fa
+string	0077c136	LoginScreen_bj.png	0039b90e,002e10ba,002e4dc4
+string	0077c7d1	SingleLogin_UI/L_thunder08-r.mp3	0042b230,0040b554,002edc30,002f1f56,003b7b70,0035767e,003f50ac,00435494,00475668
+string	0077c7f2	SingleLogin_UI/L_Thunder09.mp3	0042b25c,0040b56e,002edc5c,002f1f70,003b7b9c,0035768c,003f50d8,004354b4,00475694
+string	0077c811	SingleLogin_UI/L_Thunder10.mp3	0042b266,0040b590,002edc66,002f1f92,003b7ba6,003f50e2,004354be,0047569e
+string	0077c830	SingleLogin_UI/M_thunder_norm_2.mp3	0042b270,002edc70,003b7bb0,0035769a,003f50ec,004354c8,004756a8
+string	0077c854	SingleLogin_UI/M_thunder_norm_5.mp3	0042b27a,002edc7a,003b7bba,003f50f6,004354d2,004756b2
+string	0077c878	SingleLogin_UI/M_Thunder04.mp3	0042b284,0040b5b2,002edc84,002f1fb4,003b7bc4,003f5100,004354dc,004756bc
+string	0077c897	SingleLogin_UI/S_thunder_norm_1.mp3	0042b28e,002edc8e,003b7bce,003576a8,003f510a,004354e6,004756c6
+string	0077cf06	LoginScreen_box_a.png	002f5726,002f5956,002f45be,002f45c2,002f45bc,002f4914,002f4b24
+string	0077cfa6	LoginScreen_check_a.png	00431b9c,00431bac,002f5ec4
+string	0077cfbe	LoginScreen_check_b.png	00431b9a,00431baa,002f5ec6
+string	0077cfd6	LoginScreen_check_c.png	00431ba4,00431bb8,002f5ed6
+string	0077cfee	LoginScreen_check_d.png	00431ba2,00431bb6,002f5ece
+string	0078c562	gamescene_ui/SingleLogin_UI/SingleLogin_default.plist	00435824
+string	0078c598	sound/SingleLogin_Bgm.mp3	00435872
+string	0078c5d5	zjmyun01.png	00435b00
+string	0078c5e2	zjmyun02.png	00435b0a
+string	0078c5fe	zjmdengguang01.png	00436384
+string	0078c611	zjmdengguang02.png	0043638e
+string	0078c624	zjmdengguang03.png	00436398
+string	0078c637	zjmdengguang04.png	004363a2
+string	0078c78f	zjmshandian01.png	004368d2
+string	0078c7a1	zjmshandian02.png	004368e8
+string	0078c7b3	zjmshandian03.png	004368f2
+string	0078c7c5	zjmshandian04.png	004368fc
+string	0078c7d7	zjmshandian05.png	00436906
+string	0078c7e9	zjmshandian06.png	00436910
+string	0078c7fb	zjmshandian07.png	0043691a
+string	0078c80d	zjmjianzhuzhaoliang01.png	00436998
+string	0078c827	zjmjianzhuzhaoliang02.png	004369a2
+string	0078c841	zjmjianzhuzhaoliang03.png	004369ac
+string	0078c85b	zjmjianzhuzhaoliang04.png	004369b6
+string	0078c875	SingleLogin_UI/SingleLogin_default.plist	00436cf8
+string	0078c89e	SingleLogin_UI/SingleSelectHero/SmallSpiderWebPNG.plist	00438436,00436ffc
+string	0078c8d6	SingleLogin_UI/SingleSelectHero/Singleselechero.plist	00439bec,00437008
+string	0078c939	SingleLogin_UI/SingleSelectHero/audio/Heart_Siow.wav	004373d6
+string	0078ca0c	SingleLogin_UI/SingleSelectHero/PBug_W/PBug_W_%02d.png	0043768c
+string	0078ca43	SingleLogin_UI/SingleSelectHero/PBug_I/PBug_I_%02d.png	004378c8
+string	0078ca7a	SingleLogin_UI/SingleSelectHero/xrzhezhao01.png	00437992,004379f2
+string	0078caaa	SingleLogin_UI/SingleSelectHero/xrzhezhao02.png	00437a54,00437ab0
+string	0078cada	SingleLogin_UI/SingleSelectHero/xrshuzhi01.png	00437bdc,00437be2
+string	0078cb09	SingleLogin_UI/SingleSelectHero/xrshuzhi05.png	00437bf4,00437c1e
+string	0078cb38	SingleLogin_UI/SingleSelectHero/xrshuzhi02.png	00437c00
+string	0078cb67	SingleLogin_UI/SingleSelectHero/xrshuzhi03.png	00437c0c
+string	0078cb96	SingleLogin_UI/SingleSelectHero/xrshuzhi04.png	00437c18
+string	0078cbc5	SingleLogin_UI/SingleSelectHero/xrshuzhi06.png	00437c2e
+string	0078cbf4	SingleLogin_UI/SingleSelectHero/PBug_I/PBug_I_01.png	00437da0
+string	0078cc29	SingleLogin_UI/SingleSelectHero/audio/OpenTheDoor.mp3	00437f68
+string	0078cc5f	SingleLogin_UI/SingleSelectHero/audio/CloseTheDoor.mp3	004381be
+string	0078cce2	SingleLogin_UI/SingleSelectHero/audio/StoneMoving.mp3	00438a20
+string	0078ce07	SingleLogin_UI/SingleSelectHero/btn_back_bg.png	0043928c
+string	0078ce37	SingleLogin_UI/SingleSelectHero/btn_back_a.png	00439300
+string	0078ce66	SingleLogin_UI/SingleSelectHero/btn_back_b.png	00439302
+string	0078cf56	SingleLogin_UI/actions/Se04_bron01_a.actData	00439c1c,00439c94
+string	0078cf83	SingleLogin_UI/actions/Se04_bron01_b.actData	00439c34,00439c64,00439cac
+string	0078cfb0	SingleLogin_UI/actions/Se04_bron01_c.actData	00439c4c,00439c7c
+string	0078d043	SingleLogin_UI/SingleSelectHero/YTX.png	00439ebe
+string	007a135c	10HelloWorld	Entry Point,008f7e34
+string	007a154b	11LoginScreen	Entry Point,008fa80c
+string	007a33f0	16SingleLoginLayer	Entry Point,009183fc
