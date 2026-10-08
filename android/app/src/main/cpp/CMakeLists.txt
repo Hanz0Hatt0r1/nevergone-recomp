@@ -10,6 +10,7 @@ add_library(nevergone_recomp SHARED
     game_levels_asset_probe.cpp
     game_levels_scene_prefix.cpp
     hp_data_reader.cpp
+    initial_ui_transition.cpp
     lua_compat.cpp
     lua_runtime.cpp
     lua_startup_bindings.cpp

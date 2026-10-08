@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "game_clock.h"
+#include "initial_ui_transition.h"
 #include "splash_sequence_state.h"
 #include "splash_timeline.h"
 
@@ -25,6 +26,7 @@ int main() {
     using namespace nevergone;
 
     splash_sequence_state::reset();
+    initial_ui_transition::reset(splash_sequence_state::generation());
     if (splash_sequence_state::started() ||
         splash_sequence_state::complete(1000) ||
         splash_sequence_state::elapsed_tick(1000) != 0 ||
@@ -36,6 +38,7 @@ int main() {
     const std::uint64_t generation0 = splash_sequence_state::generation();
     constexpr std::uint64_t kStartA = 1000;
     splash_sequence_state::begin(kStartA);
+    initial_ui_transition::reset(splash_sequence_state::generation());
     if (!splash_sequence_state::started() ||
         splash_sequence_state::generation() != generation0 + 1 ||
         splash_sequence_state::elapsed_tick(kStartA) != 0 ||
@@ -61,6 +64,12 @@ int main() {
         std::cerr << "sequence did not complete at recovered boundary\n";
         return 1;
     }
+    if (splash_sequence_state::single_login_seconds(kStartA + complete_tick) >= 0.0) {
+        std::cerr << "SingleLogin started before ManagementLayer init boundary\n";
+        return 1;
+    }
+
+    initial_ui_transition::sync(true, splash_sequence_state::generation());
     if (!nearly(
             splash_sequence_state::single_login_seconds(kStartA + complete_tick),
             static_cast<double>(complete_tick) * game_clock::kFixedStepSeconds -
@@ -70,10 +79,12 @@ int main() {
         return 1;
     }
 
-    // Hot re-import must create a fresh local origin even if global uptime is high.
+    // Hot re-import must create a fresh local origin and revoke the previous
+    // generation's login initialization until the new UI boundary is reached.
     splash_sequence_state::reset();
     constexpr std::uint64_t kStartB = 250000;
     splash_sequence_state::begin(kStartB);
+    initial_ui_transition::reset(splash_sequence_state::generation());
     if (splash_sequence_state::generation() != generation0 + 2 ||
         splash_sequence_state::elapsed_tick(kStartB) != 0 ||
         splash_sequence_state::complete(kStartB + sound_tick)) {
@@ -81,8 +92,15 @@ int main() {
         return 1;
     }
 
-    if (!splash_sequence_state::complete(kStartB + complete_tick)) {
-        std::cerr << "hot-restart completion mismatch\n";
+    if (!splash_sequence_state::complete(kStartB + complete_tick) ||
+        splash_sequence_state::single_login_seconds(kStartB + complete_tick) >= 0.0) {
+        std::cerr << "hot-restart completion/gate mismatch\n";
+        return 1;
+    }
+
+    initial_ui_transition::sync(true, splash_sequence_state::generation());
+    if (splash_sequence_state::single_login_seconds(kStartB + complete_tick) < 0.0) {
+        std::cerr << "hot-restart login activation mismatch\n";
         return 1;
     }
 
