@@ -50,6 +50,7 @@ bool touch_ended(int pointer_id, float y, int hit_index);
 void touch_cancelled(int pointer_id);
 
 EnterRequest confirm_selection();
+EnterRequest peek_pending_enter_request();
 EnterRequest take_pending_enter_request();
 Snapshot snapshot();
 std::string status_report();

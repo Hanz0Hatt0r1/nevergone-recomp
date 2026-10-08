@@ -168,6 +168,11 @@ EnterRequest confirm_selection() {
     return request;
 }
 
+EnterRequest peek_pending_enter_request() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_pending_request;
+}
+
 EnterRequest take_pending_enter_request() {
     std::lock_guard<std::mutex> lock(g_mutex);
     EnterRequest request = g_pending_request;

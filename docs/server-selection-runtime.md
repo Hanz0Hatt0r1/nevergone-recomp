@@ -45,7 +45,7 @@ The recovered record stride is `0x38` bytes. The fields consumed by this path ar
 
 The structured callback parser also preserves optional `BattleIP` because it is part of the recovered Lua/server JSON contract, but `NewServerList` does not use `BattleIP` when confirming a server. The confirmed call uses only `ip` and `id`.
 
-## Project-owned state
+## Project-owned state and Lua dispatch
 
 `server_selection_state.{h,cpp}` models only the proven behavior:
 
@@ -54,9 +54,11 @@ The structured callback parser also preserves optional `BattleIP` because it is 
 - no match leaves selection unset rather than silently selecting the first row;
 - a row selection is accepted only after a touch with vertical movement `<= 10.0` pixels;
 - confirmation produces an `EnterRequest { ip, server_id, server_name }` corresponding to `g_UILogin.EnterGameLogicServer(ip, id)`;
-- pending enter requests are consumable once and are invalidated by a newer server-list payload.
+- pending enter requests are invalidated by a newer server-list payload.
 
-The callback bridge synchronizes this state whenever `cpp_OnGetServerList` is captured. The current runtime intentionally does **not** execute the resulting request yet: startup Lua execution still uses a temporary Lua state, so pretending to dispatch into a persistent `g_UILogin` table would be incorrect. Persistent/incremental Lua execution is a separate reconstruction step.
+The callback bridge synchronizes this state whenever `cpp_OnGetServerList` is captured. `login_lua_session` now keeps the reconstructed `Game.StartLua` state alive, and the server-selection touch bridge attempts `g_UILogin.EnterGameLogicServer(ip,id)` after confirm. The request is peeked non-destructively and consumed only after a successful Lua call. Missing tables/functions, startup failures and Lua exceptions leave it pending and are reported in runtime diagnostics.
+
+This does not imply that retired online services are available: `ProtoRPC` remains a clean-room boot-safe service boundary unless an offline-compatible replacement becomes necessary for the preservation path.
 
 ## Recovered row layout and hit rectangles
 
@@ -83,7 +85,7 @@ bottomY = centerY - rowHeight / 2
 
 `server_selection_view.{h,cpp}` maps Android top-left surface coordinates into the verified `1136x640` design canvas using aspect-fit letterboxing. The same mapping is used for drawing and input, so recovered row hit rectangles stay aligned on non-16:9 devices.
 
-`server_selection_compositor.{h,cpp}` is now wired into the normal `GameSurfaceView` GL lifecycle. It is active only while the reconstructed `ManagementLayer` route is `server-selection` and a valid server payload is present. It draws after the recovered SingleLogin/splash layers, so it behaves as an overlay rather than replacing the recovered background.
+`server_selection_compositor.{h,cpp}` is wired into the normal `GameSurfaceView` GL lifecycle. It is active only while the reconstructed `ManagementLayer` route is `server-selection` and a valid server payload is present. It draws after the recovered SingleLogin/splash layers, so it behaves as an overlay rather than replacing the recovered background.
 
 Because the original server-list artwork is unavailable, the current visible rows and confirm control are explicitly **project-owned fallback visuals**:
 
@@ -91,7 +93,7 @@ Because the original server-list artwork is unavailable, the current visible row
 - row placement/hit testing still uses the recovered `NewServerList` geometry;
 - selected rows receive a distinct fallback highlight;
 - fallback confirm uses the recovered logical tag `10002` but a project-owned rectangle;
-- a confirmed selection changes the fallback confirm color while the `EnterRequest` is pending.
+- a confirmed selection remains visibly pending if Lua startup/dispatch fails.
 
 `GameSurfaceView.onTouchEvent` offers each pointer event to the server-selection compositor first. If the server route is inactive, the compositor returns `false` and the existing `nativeOnTouch`/TapToStart path remains unchanged. While active, row taps use the recovered `<=10` design-pixel vertical movement rule before updating selection.
 
