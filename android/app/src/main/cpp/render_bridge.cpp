@@ -31,6 +31,9 @@ std::atomic<bool> g_app_resumed{false};
 std::atomic<std::uint64_t> g_pause_count{0};
 std::atomic<std::uint64_t> g_resume_count{0};
 std::atomic<std::uint64_t> g_surface_generation{0};
+std::atomic<GLuint> g_login_texture{0};
+std::atomic<int> g_login_texture_width{0};
+std::atomic<int> g_login_texture_height{0};
 std::mutex g_touch_mutex;
 int g_last_touch_action = -1;
 int g_last_touch_pointer = -1;
@@ -44,6 +47,8 @@ std::string g_gl_version;
 std::string g_shader_status = "not initialized";
 GLuint g_program = 0;
 GLint g_color_uniform = -1;
+GLint g_texture_uniform = -1;
+GLint g_use_texture_uniform = -1;
 
 RenderPhase current_render_phase() {
     const auto state = nevergone::lua_runtime::snapshot_client_ui_state();
@@ -92,16 +97,28 @@ GLuint compile_shader(GLenum type, const char* source, std::string* error) {
 GLuint build_smoke_program(std::string* error) {
     static constexpr const char* kVertexShader = R"GLSL(
 attribute vec2 aPosition;
+attribute vec2 aTexCoord;
+varying vec2 vTexCoord;
 void main() {
     gl_Position = vec4(aPosition, 0.0, 1.0);
+    vTexCoord = aTexCoord;
 }
 )GLSL";
 
     static constexpr const char* kFragmentShader = R"GLSL(
 precision mediump float;
 uniform vec3 uColor;
+uniform sampler2D uTexture;
+uniform float uUseTexture;
+varying vec2 vTexCoord;
 void main() {
-    gl_FragColor = vec4(uColor, 1.0);
+    if (uUseTexture > 0.5) {
+        vec4 pixel = texture2D(uTexture, vTexCoord);
+        vec3 tint = mix(vec3(1.0), uColor, 0.08);
+        gl_FragColor = vec4(pixel.rgb * tint, pixel.a);
+    } else {
+        gl_FragColor = vec4(uColor, 1.0);
+    }
 }
 )GLSL";
 
@@ -131,6 +148,7 @@ void main() {
     glAttachShader(program, vertex);
     glAttachShader(program, fragment);
     glBindAttribLocation(program, 0, "aPosition");
+    glBindAttribLocation(program, 1, "aTexCoord");
     glLinkProgram(program);
     glDeleteShader(vertex);
     glDeleteShader(fragment);
@@ -153,6 +171,9 @@ void main() {
 void on_surface_created() {
     g_frame_count.store(0, std::memory_order_relaxed);
     g_surface_generation.fetch_add(1, std::memory_order_relaxed);
+    g_login_texture.store(0, std::memory_order_relaxed);
+    g_login_texture_width.store(0, std::memory_order_relaxed);
+    g_login_texture_height.store(0, std::memory_order_relaxed);
     nevergone::game_clock::reset();
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -162,8 +183,10 @@ void on_surface_created() {
     g_program = build_smoke_program(&shader_error);
     if (g_program != 0) {
         g_color_uniform = glGetUniformLocation(g_program, "uColor");
-        if (g_color_uniform < 0) {
-            shader_error = "uColor uniform unavailable";
+        g_texture_uniform = glGetUniformLocation(g_program, "uTexture");
+        g_use_texture_uniform = glGetUniformLocation(g_program, "uUseTexture");
+        if (g_color_uniform < 0 || g_texture_uniform < 0 || g_use_texture_uniform < 0) {
+            shader_error = "required render uniforms unavailable";
             glDeleteProgram(g_program);
             g_program = 0;
         }
@@ -182,27 +205,68 @@ void on_surface_changed(int width, int height) {
     glViewport(0, 0, width, height);
 }
 
-void on_draw_frame() {
-    // Preserve the original update cadence independently of physical display
-    // refresh. The returned tick budget becomes scheduler/Lua work once that
-    // path is reconstructed.
-    (void)nevergone::game_clock::advance();
+void on_login_texture(GLuint texture_id, int width, int height) {
+    const GLuint previous = g_login_texture.exchange(texture_id, std::memory_order_relaxed);
+    if (previous != 0 && previous != texture_id) {
+        glDeleteTextures(1, &previous);
+    }
+    g_login_texture_width.store(texture_id != 0 ? width : 0, std::memory_order_relaxed);
+    g_login_texture_height.store(texture_id != 0 ? height : 0, std::memory_order_relaxed);
+}
 
+void on_draw_frame() {
+    (void)nevergone::game_clock::advance();
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (g_program != 0) {
-        static constexpr GLfloat kVertices[] = {
-            0.0f, 0.55f,
-            -0.48f, -0.45f,
-            0.48f, -0.45f,
-        };
         const RenderPhase phase = current_render_phase();
+        const GLuint texture = g_login_texture.load(std::memory_order_relaxed);
+
         glUseProgram(g_program);
         glUniform3f(g_color_uniform, phase.red, phase.green, phase.blue);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, kVertices);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        glDisableVertexAttribArray(0);
+
+        if (texture != 0) {
+            static constexpr GLfloat kQuadVertices[] = {
+                -1.0f, -1.0f,
+                 1.0f, -1.0f,
+                -1.0f,  1.0f,
+                 1.0f,  1.0f,
+            };
+            // Bitmap row 0 is the top row; flip V so the Android-decoded image
+            // appears upright in OpenGL texture coordinates.
+            static constexpr GLfloat kQuadTexCoords[] = {
+                0.0f, 1.0f,
+                1.0f, 1.0f,
+                0.0f, 0.0f,
+                1.0f, 0.0f,
+            };
+
+            glUniform1f(g_use_texture_uniform, 1.0f);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glUniform1i(g_texture_uniform, 0);
+            glEnableVertexAttribArray(0);
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, kQuadVertices);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, kQuadTexCoords);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glDisableVertexAttribArray(1);
+            glDisableVertexAttribArray(0);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        } else {
+            static constexpr GLfloat kTriangleVertices[] = {
+                0.0f, 0.55f,
+                -0.48f, -0.45f,
+                0.48f, -0.45f,
+            };
+            glUniform1f(g_use_texture_uniform, 0.0f);
+            glDisableVertexAttribArray(1);
+            glVertexAttrib2f(1, 0.0f, 0.0f);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, kTriangleVertices);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+            glDisableVertexAttribArray(0);
+        }
     }
 
     g_frame_count.fetch_add(1, std::memory_order_relaxed);
@@ -243,6 +307,14 @@ std::string status_report() {
     out << "render frames: " << g_frame_count.load(std::memory_order_relaxed) << "\n";
     out << nevergone::game_clock::status_report();
     out << "client render phase: " << current_render_phase().name << "\n";
+    const GLuint texture = g_login_texture.load(std::memory_order_relaxed);
+    if (texture != 0) {
+        out << "login texture: loaded "
+            << g_login_texture_width.load(std::memory_order_relaxed) << "x"
+            << g_login_texture_height.load(std::memory_order_relaxed) << "\n";
+    } else {
+        out << "login texture: not loaded\n";
+    }
     {
         std::lock_guard<std::mutex> lock(g_gl_status_mutex);
         out << "GL vendor: " << (g_gl_vendor.empty() ? "pending" : g_gl_vendor) << "\n";
@@ -289,6 +361,13 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnTouch(
         static_cast<int>(pointer_id),
         static_cast<float>(x),
         static_cast<float>(y));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeOnLoginTexture(
+    JNIEnv*, jclass, jint texture_id, jint width, jint height) {
+    nevergone::render::on_login_texture(
+        static_cast<GLuint>(texture_id), static_cast<int>(width), static_cast<int>(height));
 }
 
 extern "C" JNIEXPORT void JNICALL
