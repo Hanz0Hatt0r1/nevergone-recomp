@@ -5,7 +5,7 @@ Experimental clean-room reverse-engineering and recompilation project for the An
 The goal is to reconstruct the original game runtime as maintainable source code for modern Android, including `arm64-v8a`, without depending on the obsolete original Android toolchain and without redistributing proprietary game binaries or assets.
 
 > [!IMPORTANT]
-> The project is **not yet a playable recompilation**. It is, however, well beyond the research-only stage: the repository contains a modern Android/NDK shell, project-owned native runtime code, embedded Lua 5.2.3, user-owned resource import/decoding workflows, reconstructed startup/lifecycle state, callback-driven `ManagementLayer` routing, structured login/server/role models, reconstructed server-selection state, `ChooseHero` staging work and bounded clean-room parsers for verified portions of the original scene-data format.
+> The project is **not yet a playable recompilation**. It is well beyond the research-only stage: the repository now contains a modern Android/NDK shell, project-owned native runtime code, embedded Lua 5.2.3, user-owned resource import/decoding workflows, reconstructed startup/lifecycle and login state, bounded binary-scene parsers, and an increasingly evidence-driven reconstruction of the original `ChooseHero` character-selection presentation.
 
 ## Current state
 
@@ -19,20 +19,24 @@ The current `main` branch includes:
 - Android import flows for user-owned original APK and OBB data;
 - reconstructed Android → JNI → startup state and lifecycle forwarding;
 - reconstructed `AppDelegate` startup-state semantics;
-- recovered splash/initial-scene sequencing and generation handling;
+- recovered splash/initial-scene sequencing and scene-generation handling;
 - an explicit clean-room transition for the verified `HelloWorld::createUI()` → `ManagementLayer::initLoginLayer()` boundary;
 - callback-driven `ManagementLayer` routes for announcement, server selection, role selection, role creation and enter-game state;
 - structured parsing of recovered server-list and role-list callback payloads into project-owned C++ models;
 - reconstructed `NewServerList` selection semantics, including `LastLoginServer` preselection, the recovered tap-vs-drag threshold and one-shot enter requests;
 - reconstructed Lua/native startup bindings and filesystem/search-path behavior;
-- host-side startup, login-state and binary-parser probes for fast compatibility iteration;
+- host-side startup, login-state, ChooseHero and binary-parser probes for fast compatibility iteration;
 - clean-room replacements for several early Lua/native services;
-- recovered offline startup routing and early `ChooseHero` reconstruction/staging work;
+- recovered offline startup routing and a visible-data path into `ChooseHero` reconstruction;
+- recovered/staged TexturePacker metadata for the original ChooseHero background atlases;
+- a reconstructed six-second `bejingwuyun.png` fade-in from the effective shipped `PartThree()` path;
+- reconstructed `BalckCloud()` foreground-cloud composition and repeated motion, including recovered integer `CCPoint` coordinate conversion behavior;
+- a clean-room `ChooseHero` thunder scheduler contract covering the recovered `lrand48()` transforms, delays, fade durations, lightning-index selection and optional thunder-sound selection;
 - a bounds-checked `HPData` reader/cursor with recovered `HPRange` semantics;
 - verified parsing of the `GameLevels::LoadGL_Scene()` top-level prefix, first scene header, first layer header and first object-record prefix;
-- CI coverage for Python tooling, Lua compatibility, startup/lifecycle state, login callback routing, structured login payloads, server-selection state, scene-data parser regressions, Android/NDK compilation and page-size validation.
+- CI coverage for Python tooling, Lua compatibility, startup/lifecycle state, login routing, structured login payloads, server selection, ChooseHero background/cloud/thunder contracts, scene-data parser regressions, Android/NDK compilation and page-size validation.
 
-The current critical path is no longer bootstrap discovery. Work is focused on turning the recovered login state into visible renderer/UI behavior, completing the server/role presentation path, extending the verified `GameLevels` object boundary and reaching a visible offline character-selection flow without loading the original `libcocos2dcpp.so`.
+The critical path is no longer bootstrap discovery. Work is focused on completing the visible offline path: connect reconstructed server/role state to rendering and input, integrate the recovered ChooseHero thunder/lightning effects with staged user-owned resources, continue role-selection presentation, extend the verified `GameLevels` object boundary and reach character selection/scene entry without loading the original `libcocos2dcpp.so`.
 
 ## Goals
 
@@ -67,13 +71,16 @@ The reconstruction work has established that:
 - startup reaches `assets/Script/Game/StartLua.lua`, `Game.ClientRequire`, `ShareLogic.require`, `HelloWorld` and `ManagementLayer` through known native/script paths;
 - `AppDelegate::AddAllSearchPath()` and its 59 child search directories have been recovered;
 - the original startup sequence contains a verified synchronous `HelloWorld::createUI()` → `ManagementLayer::initLoginLayer()` boundary;
-- the modern runtime models that boundary explicitly and keys it to the reconstructed scene generation so stale readiness cannot leak across reloads;
 - recovered client callbacks route `cpp_OnGameAnnoucement`, `cpp_OnGetServerList`, `cpp_OnGetRoleList`, `cpp_OnCreateTheRole` and `cpp_OnEnterGame` into distinct reconstructed `ManagementLayer` states;
-- server and role callback JSON is decoded into bounded project-owned models while retaining the raw callback payload for diagnostics;
+- server and role callback JSON is decoded into bounded project-owned models while retaining raw callback payloads for diagnostics;
 - original `NewServerList` behavior preselects only an exact `LastLoginServer` id match, rejects row selection when vertical movement exceeds 10 pixels and confirms by calling the equivalent of `g_UILogin.EnterGameLogicServer(ip, id)`;
+- the shipped `ChooseHeroBackground::createUI()` effectively dispatches the `PartThree()` path rather than the previously assumed full `PartOne → PartTow → CreateSun → PartThree` chain;
+- `PartThree()` creates the dark-cloud background, six lightning sprites, six thunder sprites and ground-light effect nodes, with the background fading in over six seconds;
+- `BalckCloud()` creates six foreground clouds with recovered anchors, opacity, positions and repeat periods, now represented by the project-owned compositor/timeline code;
+- the original ChooseHero thunder path uses the process-global libc `lrand48()` stream and recovered transforms for 3–8 second delays, 0–0.7 second thunder fades, `[A,B,C,C,C,C]` lightning selection, lightning/ground-light fade durations and optional 7-way thunder-sound selection;
 - the original 32-bit `HPRange` used by `HPData::getBytes(...)` is `{byte_offset, byte_length}`;
 - `GameLevels::LoadGameLevels()` loads scene, action, global and port-node sections in a recovered fixed order;
-- the verified `LoadGL_Scene()` boundary now reaches the first `GameSceneLayerData` header and the immediately sequential first-object `int32`/`uint32` prefix, then stops before an unresolved-width `char*` read;
+- the verified `LoadGL_Scene()` boundary reaches the first `GameSceneLayerData` header and the immediately sequential first-object `int32`/`uint32` prefix, then stops before an unresolved-width `char*` read;
 - imported `gamescene/gs_list/pvp_scene.glData` data can be probed through the reconstructed reader without exposing proprietary parsed values in diagnostics;
 - major classes visible by symbol include `GameScene`, `GameSceneUI`, `MEPlayer`, `EnemyObject`, `BattleManager`, `DataManager`, `GameSaveData`, `ManagementLayer`, `ChooseHero`, `NewServerList` and others.
 
@@ -106,7 +113,12 @@ The reconstruction work has established that:
 | Reconstructed `NewServerList` selection state | Implemented and host-tested |
 | Visible server/role UI compositor | In progress / not yet end-to-end |
 | Offline login/startup route reconstruction | In progress |
-| `ChooseHero` asset/background staging | In progress |
+| `ChooseHero` atlas staging / TexturePacker restoration | Implemented for current recovered background subset |
+| `ChooseHero` `PartThree()` background fade | Implemented |
+| `ChooseHero` `BalckCloud()` compositor/timeline | Implemented and host-tested |
+| `ChooseHero` thunder RNG/scheduling contract | Implemented and host-tested |
+| `ChooseHero` lightning/thunder rendering + audio integration | In progress |
+| Role-selection UI / character interaction | Not yet complete |
 | `HPData` / `HPRange` reconstruction | Reader foundation done; range semantics verified |
 | `GameLevels` binary format reconstruction | In progress; first layer + first object prefix verified |
 | Imported `pvp_scene.glData` readiness probe | Implemented through current verified parser boundary |
@@ -130,10 +142,11 @@ The current strategy is dependency-driven and evidence-driven:
 4. reconstruct startup/lifecycle and UI state machines at verified semantic boundaries instead of copying the original ABI;
 5. convert recovered callback payloads into bounded project-owned models before attaching them to renderer/UI state;
 6. use missing globals, tracebacks, binary call ordering and behavior differences to identify the next required compatibility surface;
-7. reconstruct binary resource readers only to verified field boundaries, assigning semantic names only when original control flow makes them unambiguous;
-8. recreate only the native/game behavior required by the reachable offline runtime path;
-9. reconstruct rendering, scene flow and gameplay systems incrementally;
-10. preserve offline behavior while replacing or stubbing obsolete service integrations where necessary.
+7. reconstruct animation/timeline behavior from verified call order, action parameters and random transforms rather than visual guesswork;
+8. reconstruct binary resource readers only to verified field boundaries, assigning semantic names only when original control flow makes them unambiguous;
+9. recreate only the native/game behavior required by the reachable offline runtime path;
+10. reconstruct rendering, scene flow and gameplay systems incrementally;
+11. preserve offline behavior while replacing or stubbing obsolete service integrations where necessary.
 
 See **[`docs/roadmap.md`](docs/roadmap.md)** for the detailed development plan.
 
@@ -149,6 +162,7 @@ nevergone-recomp/
 │   ├── android-bootstrap.md
 │   ├── apk-analysis.md
 │   ├── choose-hero-background.md
+│   ├── choose-hero-thunder-scheduler.md
 │   ├── filesystem-bindings.md
 │   ├── hpdata-gamelevels.md
 │   ├── initial-ui-transition.md
@@ -190,7 +204,10 @@ The clean-room Android shell under [`android/`](android/) can already:
 - defer login callback routes until the recovered ManagementLayer boundary is active;
 - retain route-scoped structured server/role models;
 - maintain reconstructed server selection state and produce a one-shot enter request from the selected record;
-- stage selected recovered resources for reconstructed routes such as `choose-role`;
+- stage recovered user-owned resources for reconstructed routes such as `choose-role`;
+- restore TexturePacker source-canvas placement for the recovered ChooseHero background subset;
+- compose the current recovered `PartThree()` background fade and foreground cloud motion from imported assets;
+- expose a verified scheduler contract for later ChooseHero lightning/thunder integration;
 - locate imported `gamescene/gs_list/pvp_scene.glData` data and validate it through the currently verified `LoadGL_Scene` parser boundary.
 
 It does **not** link against the original `libcocos2dcpp.so`.
@@ -224,7 +241,7 @@ The implementation is generation-aware: importing/reloading assets or starting a
 
 ### Structured login payloads
 
-Recovered callbacks are now decoded into project-owned models:
+Recovered callbacks are decoded into project-owned models:
 
 - `cpp_OnGetServerList(...)` preserves server `id`, `name`, `ip`, optional battle endpoint data and the separate `LastLoginServer` argument;
 - `cpp_OnGetRoleList(...)` preserves recovered role identity/selection fields from nested character records;
@@ -232,7 +249,7 @@ Recovered callbacks are now decoded into project-owned models:
 
 ### Reconstructed server selection
 
-The project also has a host-tested semantic replacement for the recovered `NewServerList` selection state:
+The project has a host-tested semantic replacement for the recovered `NewServerList` selection state:
 
 - preselection occurs only when `LastLoginServer` exactly matches a decoded server id;
 - row taps are rejected when absolute vertical movement is greater than 10 pixels;
@@ -343,27 +360,45 @@ Current regressions cover, among other things:
 - structured server/role callback payload decoding;
 - reconstructed `NewServerList` selection and confirmation semantics;
 - splash/local-login timing gates;
+- ChooseHero background composition and source-canvas restoration;
+- `BalckCloud()` repeated foreground-cloud motion and coordinate conversion;
+- recovered ChooseHero thunder RNG transforms and scheduling primitives;
 - bounded `HPData`/`GameLevels` parsing with truncated and hostile-length inputs.
 
 These probes intentionally use clean-room state and synthetic data where possible so proprietary game resources do not need to live in the repository.
 
 ## Character-selection reconstruction
 
-The project has begun reconstructing the offline `choose-role` / `ChooseHero` path.
+The project is actively reconstructing the offline `choose-role` / `ChooseHero` path.
 
-Current work includes:
+Current verified work includes:
 
 - recovered `ChooseHeroBackground` function/symbol evidence;
 - recovered background TexturePacker atlas names and frame metadata;
 - verified OBB paths for required user-supplied atlas pairs;
 - app-private staging and validation of those atlas resources;
 - restoration of TexturePacker source-canvas placement metadata;
-- native scene-owned backing state for the staged background layers;
+- native scene-owned backing state for staged background layers;
+- recovery of the effective shipped `createUI()` dispatch into `PartThree()`;
+- rendering of the six-second dark-cloud background fade from `bejingwuyun.png`;
+- recovery and rendering of six `BalckCloud()` foreground-cloud sprites with original z-order, anchors, opacity and repeated motion periods;
+- exact project-owned handling of the integer coordinate conversion observed in the shipped cloud path;
+- recovery of the ChooseHero random thunder scheduler's `lrand48()` draw/transform contract;
+- host-tested planning helpers for thunder delay/fade, lightning selection, thunder sound selection and lightning/ground-light fade durations;
 - recovery of the `ChooseHeroReadyUIScene::initLevelMap()` path into `GameScene::LoadGameLevelsWithFile()` for `gamescene/gs_list/pvp_scene.glData`.
 
-The project intentionally does **not** guess unresolved animation/phase behavior or scene-data field semantics. Rendering and deeper scene parsing are connected only when sufficient binary evidence has been recovered.
+Still remaining in this area:
 
-See **[`docs/choose-hero-background.md`](docs/choose-hero-background.md)**.
+- own/integrate runtime random-state progression without changing the recovered draw-order contract;
+- stage and render the recovered `shandian%02d.png`, `menlei%02d.png` and `diguang.png` effect nodes;
+- connect the seven recovered thunder audio choices to imported user-owned sound assets;
+- reproduce the synchronized `ChooseHeroReadyUIScene::RandomShowwshandianEff(...)` behavior;
+- complete role-selection UI and interaction;
+- connect verified scene-data parsing far enough to enter the next offline scene.
+
+The project intentionally does **not** guess unresolved animation, UI or scene-data semantics. Rendering and deeper scene parsing are connected only when sufficient binary evidence has been recovered.
+
+See **[`docs/choose-hero-background.md`](docs/choose-hero-background.md)** and **[`docs/choose-hero-thunder-scheduler.md`](docs/choose-hero-thunder-scheduler.md)**.
 
 ## HPData / GameLevels reconstruction
 
@@ -460,7 +495,7 @@ Android application
 - [x] verified `GameLevels::LoadGL_Scene()` parser through first object prefix implemented
 - [ ] complete remaining real startup/runtime compatibility blockers
 
-### M4 — Boot to original UI
+### M4 — Boot to original UI / character selection
 
 - [x] reconstruct recovered splash/initial-scene sequencing
 - [x] model verified `HelloWorld::createUI()` → `ManagementLayer::initLoginLayer()` semantic boundary
@@ -468,15 +503,18 @@ Android application
 - [x] route recovered login callbacks through project-owned Management state
 - [x] decode structured server/role callback payloads
 - [x] reconstruct server selection/confirm state from `NewServerList`
+- [x] reconstruct and render current verified ChooseHero `PartThree()` background subset
+- [x] reconstruct `BalckCloud()` foreground-cloud motion
+- [x] recover and model the ChooseHero thunder RNG/scheduler contract
 - [ ] render server selection using the recovered state contract
 - [ ] render role selection / role creation state
-- [ ] complete rendering and input required for visible original login UI
-- [ ] render the recovered `ChooseHero` path
+- [ ] integrate ChooseHero lightning/thunder/ground-light effects and audio
+- [ ] complete rendering and input required for the visible original login/role flow
 - [ ] extend verified `GameLevels` parsing beyond the first object prefix
 
 ### M5 — Offline gameplay
 
-- [ ] character selection
+- [ ] character selection completion
 - [ ] scene loading
 - [ ] player/enemy control
 - [ ] combat
@@ -496,11 +534,11 @@ Android application
 
 ## Immediate priorities
 
-1. Connect the structured server-list model and reconstructed server-selection state to the renderer/compositor, including touch hit-testing and confirm dispatch.
-2. Extend the same project-owned visible flow through role selection, role creation and the enter-game transition.
-3. Complete the rendering/input path required to display the recovered login flow and then `ChooseHero`.
-4. Recover the width/semantics of the next `GameSceneLayerObjectData` field after the verified `int32`/`uint32` prefix, then extend `LoadGL_Scene()` only to the next proven boundary.
-5. Continue `ChooseHero` reconstruction and connect staged user-owned resources/scene data only where semantics are verified.
+1. Integrate the recovered ChooseHero thunder scheduler with staged `shandian`, `menlei` and `diguang` sprites while preserving the verified RNG draw order and action timings.
+2. Connect the recovered seven-way thunder sound selection to user-imported audio and reproduce the synchronized `RandomShowwshandianEff(...)` path.
+3. Connect the structured server-list model and reconstructed server-selection state to the renderer/compositor, including touch hit-testing and confirm dispatch.
+4. Extend the same project-owned visible flow through role selection, role creation and the enter-game/ChooseHero transition.
+5. Recover the width/semantics of the next `GameSceneLayerObjectData` field after the verified `int32`/`uint32` prefix, then extend `LoadGL_Scene()` only to the next proven boundary.
 6. Close remaining startup/runtime compatibility blockers discovered by host and Android probes.
 7. Validate `arm64-v8a`, Android 15/16 and 16 KiB runtime behavior on real/emulated devices.
 8. Expand native subsystem reconstruction only as the reachable offline path requires it.
@@ -519,7 +557,8 @@ Key documents include:
 - **[`docs/lua-dependency-map.md`](docs/lua-dependency-map.md)** — script dependency graph
 - **[`docs/lua-native-api-map.md`](docs/lua-native-api-map.md)** — script/native compatibility surface
 - **[`docs/filesystem-bindings.md`](docs/filesystem-bindings.md)** — reconstructed filesystem APIs
-- **[`docs/choose-hero-background.md`](docs/choose-hero-background.md)** — character-selection background evidence/staging
+- **[`docs/choose-hero-background.md`](docs/choose-hero-background.md)** — ChooseHero background, `PartThree()` and `BalckCloud()` evidence/runtime boundary
+- **[`docs/choose-hero-thunder-scheduler.md`](docs/choose-hero-thunder-scheduler.md)** — recovered random-thunder RNG, timing and selection contract
 - **[`docs/hpdata-gamelevels.md`](docs/hpdata-gamelevels.md)** — recovered `HPRange` semantics and verified `GameLevels` scene-data parsing boundary
 
 ## Contributing
