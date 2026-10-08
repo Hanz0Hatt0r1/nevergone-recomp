@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "offline_startup_flow.h"
+
 namespace nevergone::choose_hero_background {
 namespace {
 
@@ -87,6 +89,10 @@ bool ready() {
     return true;
 }
 
+bool route_active() {
+    return offline_startup_flow::snapshot().route == offline_startup_flow::Route::kChooseRole;
+}
+
 }  // namespace
 }  // namespace nevergone::choose_hero_background
 
@@ -134,4 +140,10 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeChooseHeroBackgroundAssetsReady(
         JNIEnv*, jclass) {
     return nevergone::choose_hero_background::ready() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeIsChooseHeroRouteActive(
+        JNIEnv*, jclass) {
+    return nevergone::choose_hero_background::route_active() ? JNI_TRUE : JNI_FALSE;
 }
