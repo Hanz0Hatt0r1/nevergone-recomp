@@ -22,6 +22,7 @@ add_library(nevergone_recomp SHARED
     protorpc_bindings.cpp
     render_bridge.cpp
     server_selection_compositor.cpp
+    server_selection_jni.cpp
     server_selection_layout.cpp
     server_selection_state.cpp
     server_selection_view.cpp
