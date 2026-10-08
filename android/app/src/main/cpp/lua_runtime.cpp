@@ -91,6 +91,9 @@ std::string smoke_test() {
         "local cjson_ok = decoded.name == 'Never Gone' and decoded.count == 3 and "
         "decoded.flags[1] == true and decoded.flags[2] == false and decoded.quote == [[a\"b]] and "
         "with_null.value == cjson.null; "
+        "local nickname_ok = Lua_CheckNickName('Hero7') and Lua_CheckNickName('勇者7') and "
+        "not Lua_CheckNickName('bad_name') and not Lua_CheckNickName('hero!') and "
+        "not Lua_CheckNickName('🙂') and not Lua_CheckNickName(''); "
         "local module_ok = false; "
         "do local registered_xml = xml; registered_xml.native = true; "
         "local function chunk() module('xml'); value = 7 end; chunk(); "
@@ -103,15 +106,16 @@ std::string smoke_test() {
         "loaded ~= nil and loaded[0] == 'root' and loaded.a == '1' and "
         "loaded[1] ~= nil and loaded[1][0] == 'child' and loaded[1][1] == 'text & more' and "
         "loaded[2] ~= nil and loaded[2][0] == 'empty'; "
-        "return uuid_ok, imported == true and connected == false, unpack_ok, bit_ok, cjson_ok, module_ok, xml_ok");
+        "return uuid_ok, imported == true and connected == false, unpack_ok, bit_ok, cjson_ok, nickname_ok, module_ok, xml_ok");
     if (status == 0) {
-        status = lua_pcall(state, 0, 7, 0);
+        status = lua_pcall(state, 0, 8, 0);
     }
-    const bool uuid_alias_ok = status == 0 && lua_toboolean(state, -7) != 0;
-    const bool protorpc_ok = status == 0 && lua_toboolean(state, -6) != 0;
-    const bool unpack_ok = status == 0 && lua_toboolean(state, -5) != 0;
-    const bool bit_ok = status == 0 && lua_toboolean(state, -4) != 0;
-    const bool cjson_ok = status == 0 && lua_toboolean(state, -3) != 0;
+    const bool uuid_alias_ok = status == 0 && lua_toboolean(state, -8) != 0;
+    const bool protorpc_ok = status == 0 && lua_toboolean(state, -7) != 0;
+    const bool unpack_ok = status == 0 && lua_toboolean(state, -6) != 0;
+    const bool bit_ok = status == 0 && lua_toboolean(state, -5) != 0;
+    const bool cjson_ok = status == 0 && lua_toboolean(state, -4) != 0;
+    const bool nickname_ok = status == 0 && lua_toboolean(state, -3) != 0;
     const bool module_ok = status == 0 && lua_toboolean(state, -2) != 0;
     const bool xml_ok = status == 0 && lua_toboolean(state, -1) != 0;
 
@@ -138,7 +142,7 @@ std::string smoke_test() {
 
     out << "lua smoke test: "
         << ((basic_ok && uuid_alias_ok && protorpc_ok && unpack_ok && bit_ok && cjson_ok &&
-             module_ok && xml_ok && probe_ok)
+             nickname_ok && module_ok && xml_ok && probe_ok)
                 ? "ok"
                 : "failed")
         << "\n";
@@ -148,6 +152,7 @@ std::string smoke_test() {
     out << "global unpack compat: " << (unpack_ok ? "ok" : "failed") << "\n";
     out << "legacy bit compat: " << (bit_ok ? "ok" : "failed") << "\n";
     out << "cjson compat: " << (cjson_ok ? "ok" : "failed") << "\n";
+    out << "nickname validation: " << (nickname_ok ? "ok" : "failed") << "\n";
     out << "module() compat: " << (module_ok ? "ok" : "failed") << "\n";
     out << "LuaXML compat: " << (xml_ok ? "ok" : "failed") << "\n";
     out << "missing-global probe: " << (probe_ok ? "ok" : "failed") << "\n";
