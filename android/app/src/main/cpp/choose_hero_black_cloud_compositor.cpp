@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cstdint>
 #include <sstream>
+#include <utility>
 #include <vector>
 
 #include "choose_hero_background_assets.h"
