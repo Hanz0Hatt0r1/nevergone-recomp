@@ -80,6 +80,16 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             int sourceWidth,
             int sourceHeight,
             int[] argbPixels);
+    private static native void nativeClearSingleLoginSways();
+    private static native boolean nativeUploadSingleLoginSway(
+            int swayIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
     private static native void nativeDrawSingleLoginLayer();
     private static native boolean nativeIsSingleLoginActive();
 
@@ -190,6 +200,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         nativeClearSingleLoginClouds();
         nativeClearSingleLoginBuildings();
         nativeClearSingleLoginLights();
+        nativeClearSingleLoginSways();
     }
 
     private void loadSingleLoginSceneOnGlThread() {
@@ -205,7 +216,8 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             SingleLoginAtlasComposer.SceneAssets scene =
                     SingleLoginAtlasComposer.composeScene(plist, atlasFile);
             if (scene == null || scene.backgrounds == null || scene.backgrounds.length != 3 ||
-                    scene.clouds == null || scene.clouds.length != 2) {
+                    scene.clouds == null || scene.clouds.length != 2 ||
+                    scene.sways == null || scene.sways.length != 9) {
                 return;
             }
 
@@ -261,6 +273,22 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
                         light.sourceWidth,
                         light.sourceHeight,
                         light.pixels)) {
+                    clearSingleLoginSceneOnGlThread();
+                    return;
+                }
+            }
+
+            for (int index = 0; index < scene.sways.length; index++) {
+                SingleLoginAtlasComposer.AtlasLayer sway = scene.sways[index];
+                if (sway == null || !nativeUploadSingleLoginSway(
+                        index,
+                        sway.width,
+                        sway.height,
+                        sway.left,
+                        sway.top,
+                        sway.sourceWidth,
+                        sway.sourceHeight,
+                        sway.pixels)) {
                     clearSingleLoginSceneOnGlThread();
                     return;
                 }
