@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22.1)
 project(nevergone_recomp LANGUAGES C CXX)
 
 add_library(nevergone_recomp SHARED
+    client_callback_bridge.cpp
     filesystem_bindings.cpp
     lua_compat.cpp
     lua_runtime.cpp
