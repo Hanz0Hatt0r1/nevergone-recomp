@@ -13,6 +13,7 @@ add_library(nevergone_recomp SHARED
     native_bootstrap.cpp
     protorpc_bindings.cpp
     render_bridge.cpp
+    splash_timeline.cpp
     startup_contract.cpp
     string_validation_bindings.cpp
     xml_validation_binding.cpp
