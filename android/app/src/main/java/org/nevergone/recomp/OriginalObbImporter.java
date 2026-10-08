@@ -51,13 +51,18 @@ final class OriginalObbImporter {
             throw new IOException("cannot create OBB staging directory");
         }
 
-        copyTree(target, staging);
+        try {
+            copyTree(target, staging);
+        } catch (IOException | RuntimeException error) {
+            deleteTree(staging);
+            throw error;
+        }
+
         final String stagingRoot = staging.getCanonicalPath() + File.separator;
         int importedFiles = 0;
         int decodedFiles = 0;
         long importedBytes = 0;
         boolean foundAtlas = false;
-        boolean foundLevel = false;
         byte[] buffer = new byte[64 * 1024];
 
         try (InputStream raw = resolver.openInputStream(obbUri)) {
@@ -111,7 +116,6 @@ final class OriginalObbImporter {
                     }
 
                     if (REQUIRED_ATLAS.equals(relative)) foundAtlas = fileBytes > 0;
-                    if (REQUIRED_LEVEL.equals(relative)) foundLevel = fileBytes > 0;
                     zip.closeEntry();
                 }
             }
@@ -128,9 +132,9 @@ final class OriginalObbImporter {
             deleteTree(staging);
             throw new IOException("selected OBB is missing Never Gone background resources");
         }
-        if (!foundLevel || !new File(staging, REQUIRED_LEVEL).isFile()) {
+        if (!new File(staging, REQUIRED_LEVEL).isFile()) {
             deleteTree(staging);
-            throw new IOException("selected OBB is missing gamescene/gs_list/pvp_scene.glData");
+            throw new IOException("combined assets are missing gamescene/gs_list/pvp_scene.glData");
         }
 
         if (!target.renameTo(backup)) {
