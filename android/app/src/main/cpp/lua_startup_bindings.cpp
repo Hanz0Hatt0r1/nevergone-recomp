@@ -142,6 +142,11 @@ void register_startup_bindings(lua_State* state) {
     set_global(state, "CAddDoString", l_CAddDoString);
     set_global(state, "Lua_GetPlatformString", l_Lua_GetPlatformString);
     set_global(state, "Lua_GetDeviceUUID", l_Lua_GetDeviceUUID);
+    // Reachable login Lua also calls LGG_Device_UUID(), but no Lua definition or
+    // standalone ELF symbol exists in the known Android build. Preserve the
+    // observed guest-identifier semantics by exposing it as an alias to the
+    // confirmed Lua_GetDeviceUUID bridge.
+    set_global(state, "LGG_Device_UUID", l_Lua_GetDeviceUUID);
     set_global(state, "Lua_GetBundleVersion", l_Lua_GetBundleVersion);
     set_global(state, "Lua_SetConsoleColor", l_Lua_SetConsoleColor);
     set_global(state, "cpp_ShowLoadingUI", l_cpp_ShowLoadingUI);
