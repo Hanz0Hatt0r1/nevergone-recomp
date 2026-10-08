@@ -199,7 +199,7 @@ void reset_scene_state() {
 void update_scene_start(const offline_startup_flow::Snapshot& route_state, std::uint64_t tick) {
     const std::uint64_t prior_generation = g_scene_generation.load(std::memory_order_relaxed);
     const std::uint64_t prior_start = g_start_tick.load(std::memory_order_relaxed);
-    if (route_state.scene_generation != prior_generation || prior_start == 0 || tick < prior_start) {
+    if (route_state.scene_generation != prior_generation || tick < prior_start) {
         g_scene_generation.store(route_state.scene_generation, std::memory_order_relaxed);
         g_start_tick.store(tick, std::memory_order_relaxed);
         g_last_alpha.store(0.0f, std::memory_order_relaxed);
