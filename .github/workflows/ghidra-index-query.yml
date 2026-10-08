@@ -28,8 +28,15 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query checked-in SingleLogin metadata
+      - name: Query offline role-route evidence
         run: |
-          python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
-          python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
-          python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
+          echo '=== FUNCTIONS ==='
+          python tools/ghidra/query_full_index.py functions OnSelectCharacter --limit 30 || true
+          python tools/ghidra/query_full_index.py functions ReadIcloud --limit 30 || true
+          python tools/ghidra/query_full_index.py functions GoToChooseRole --limit 30 || true
+          python tools/ghidra/query_full_index.py functions showChooseHeroPane --limit 30 || true
+          python tools/ghidra/query_full_index.py functions LoadStandaloneHeroDataList --limit 30 || true
+          python tools/ghidra/query_full_index.py functions Opening --limit 80 || true
+          echo '=== OnSelectCharacter call graph ==='
+          python tools/ghidra/query_full_index.py callers 00307154 --limit 50 || true
+          python tools/ghidra/query_full_index.py callees 00307154 --limit 100 || true
