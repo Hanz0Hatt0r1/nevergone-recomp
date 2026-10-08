@@ -8,6 +8,7 @@
 #include "lua_startup_bindings.h"
 #include "luaxml_compat.h"
 #include "protorpc_bindings.h"
+#include "string_validation_bindings.h"
 #include "xml_validation_binding.h"
 
 #if defined(NEVERGONE_HAS_LUA)
@@ -63,6 +64,7 @@ void register_native_bindings(lua_State* state) {
     register_filesystem_bindings(state);
     register_luaxml_compat(state);
     register_xml_validation_binding(state);
+    register_string_validation_bindings(state);
     register_protorpc_bindings(state);
 #else
     (void)state;
