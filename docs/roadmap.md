@@ -40,7 +40,7 @@ Exit condition: startup from Android process creation to `JNI_OnLoad` and the fi
 
 Priority: **critical path — major blockers resolved**
 
-The APK contains 107 files with a `.lua` extension. They are ordinary Lua source passed through the same reversible file transform used for `.png`, `.hpc`, and `.csv` game assets.
+The APK contains 107 files with a `.lua` extension. They are ordinary Lua source passed through the same reversible file transform used for `.png`, `.hpc`, and `.csv` game assets. The original native library also contains the exact runtime banner for **Lua 5.2.3**.
 
 - [x] Count and fingerprint all Lua-like payloads.
 - [x] Confirm that the archived files are transformed rather than standard Lua source/bytecode.
@@ -51,7 +51,7 @@ The APK contains 107 files with a `.lua` extension. They are ordinary Lua source
 - [x] Implement a standalone local asset decoder/import tool.
 - [x] Validate all 107 decoded Lua payloads as text (99 UTF-8-compatible, 8 GB18030-compatible).
 - [x] Validate all transformed PNG/HPC/CSV assets handled by the same decoder (237 total transformed assets, 0 format-validation failures).
-- [ ] Syntax-check all recovered scripts with a matching Lua 5.2 parser/runtime.
+- [ ] Syntax-check all recovered scripts with Lua 5.2.3.
 - [x] Build a static module dependency graph beginning with `Game.StartLua`.
 - [x] Map the Lua-to-C++ binding/API surface used by reachable client scripts.
 - [ ] Determine schemas/consumers for decoded `.hpc` configuration files.
@@ -137,9 +137,10 @@ Exit condition: a clean source checkout can build and launch a stub application 
 
 Priority: **current implementation target**
 
-- [ ] Integrate a Lua 5.2-compatible runtime into the modern native module.
-- [ ] Implement the seven native-facing calls used directly by `Game.StartLua`.
-- [ ] Recreate `CAddDoString` module loading against locally imported assets.
+- [ ] Integrate Lua 5.2.3 into the modern native module.
+- [x] Define clean-room semantic implementations for the seven native-facing calls used directly by `Game.StartLua`.
+- [ ] Add exact Lua 5.2.3 registration wrappers after recovering/confirming their signatures.
+- [ ] Recreate `CAddDoString` module loading against locally imported assets (current implementation records module requests for smoke testing).
 - [ ] Recreate application initialization / `AppDelegate` behavior required before script startup.
 - [ ] Initialize rendering and input.
 - [ ] Recreate filesystem/search-path behavior.
@@ -147,6 +148,8 @@ Priority: **current implementation target**
 - [ ] Recreate additional native bindings on demand from the reachable startup graph.
 - [ ] Reach Lua `Game.StartLua` execution without the original native library.
 - [ ] Reach the original initial UI flow (`HelloWorld` → `ManagementLayer`).
+
+The modern shell now configures an app-local files root, persists a privacy-safe app-local UUID, and runs a startup-contract smoke test through JNI. The API layer is intentionally separated from the future Lua wrappers so the project does not freeze an unverified ABI.
 
 Exit condition: recompilation reaches the title/login/menu flow without original native code.
 
@@ -181,9 +184,10 @@ Exit condition: the project produces a maintainable modern Android build without
 
 ## Immediate next tasks
 
-1. Reconstruct the seven native-facing calls required directly by `Game.StartLua`, starting with `CAddDoString` and the platform/filesystem helpers.
-2. Integrate a Lua 5.2-compatible runtime into the clean Android/NDK shell and execute a non-proprietary smoke-test script.
-3. Finish the Java/Android bootstrap map from `TJ_P_01` through library loading and lifecycle forwarding.
-4. Trace the registration path for the nine native-shaped Lua names not confirmed by dynamic symbols/string evidence.
-5. Integrate the local user-owned asset import/decoder workflow with the modern runtime without committing decoded assets.
-6. Expand the native subsystem map around `ManagementLayer`, `DataManager`, `LogicManager`, and `GameSaveData`.
+1. Integrate Lua 5.2.3 into the clean Android/NDK shell and execute a non-proprietary smoke-test script.
+2. Recover/confirm the Lua registration signatures for the seven startup functions and bind them to the new semantic compatibility layer.
+3. Turn `CAddDoString` from a recorder into a module loader over locally imported decoded assets.
+4. Finish the Java/Android bootstrap map from `TJ_P_01` through library loading and lifecycle forwarding.
+5. Trace the registration path for the nine native-shaped Lua names not confirmed by dynamic symbols/string evidence.
+6. Integrate the local user-owned asset import/decoder workflow with the modern runtime without committing decoded assets.
+7. Expand the native subsystem map around `ManagementLayer`, `DataManager`, `LogicManager`, and `GameSaveData`.
