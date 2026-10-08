@@ -63,6 +63,22 @@ std::string smoke_test() {
         runtime_version != nullptr ? runtime_version : "unknown";
 
     lua_settop(state, 0);
+    register_native_bindings(state);
+    status = luaL_loadstring(
+        state,
+        "local p = ProtoRPC:new(); "
+        "p:SetID('smoke'); "
+        "p:SetProtoFileRootDir('conf'); "
+        "local imported = p:ImportProtoFile('kClientCommon.proto'); "
+        "local connected = p:CheckConnection(false); "
+        "p:Close(); p:release(); "
+        "return imported == true and connected == false");
+    if (status == 0) {
+        status = lua_pcall(state, 0, 1, 0);
+    }
+    const bool protorpc_ok = status == 0 && lua_toboolean(state, -1) != 0;
+
+    lua_settop(state, 0);
     install_missing_global_probe(state);
     status = luaL_loadstring(state, "return NeverGoneMissingProbe == nil");
     if (status == 0) {
@@ -80,8 +96,9 @@ std::string smoke_test() {
         take_missing_globals();
     }
 
-    out << "lua smoke test: " << ((basic_ok && probe_ok) ? "ok" : "failed") << "\n";
+    out << "lua smoke test: " << ((basic_ok && protorpc_ok && probe_ok) ? "ok" : "failed") << "\n";
     out << "lua runtime: " << runtime_version_copy << "\n";
+    out << "ProtoRPC shell: " << (protorpc_ok ? "ok" : "failed") << "\n";
     out << "missing-global probe: " << (probe_ok ? "ok" : "failed") << "\n";
     lua_close(state);
     return out.str();
