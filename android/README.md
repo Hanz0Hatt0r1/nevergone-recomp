@@ -11,7 +11,8 @@ The shell now proves that a new package can:
 - build for `arm64-v8a` and `armeabi-v7a`;
 - report pointer width and runtime page size;
 - configure an app-local runtime root and stable app-local device ID;
-- exercise the reconstructed semantic contract used directly by `Game.StartLua`.
+- exercise the reconstructed semantic contract used directly by `Game.StartLua`;
+- optionally compile and smoke-test the exact **Lua 5.2.3** runtime identified in the original binary.
 
 It is intentionally not a playable game build yet.
 
@@ -29,7 +30,7 @@ cpp_ShowErrorDialogUI
 cpp_ShowMessageBoxUI
 ```
 
-These are deliberately **not** exported yet as guessed Lua C ABI functions. The Lua VM/version and exact registration signatures must be confirmed first. Keeping the semantic implementation separate lets the project test behavior without baking an incorrect ABI into the runtime.
+These are deliberately **not** exported yet as guessed Lua C ABI functions. The exact registration signatures still need to be recovered. Keeping the semantic implementation separate lets the project test behavior without baking an incorrect ABI into the runtime.
 
 Current behavior:
 
@@ -40,6 +41,35 @@ Current behavior:
 
 At launch the JNI bootstrap runs a smoke test against this contract. A successful shell displays `startup contract: ok`.
 
+## Lua 5.2.3
+
+The original `libcocos2dcpp.so` contains the Lua 5.2.3 release banner. The repository does not copy third-party Lua sources directly; instead a helper downloads the official release and verifies the published SHA-256 before extraction:
+
+```bash
+python3 tools/fetch_lua_5_2_3.py
+```
+
+This creates the ignored local directory:
+
+```text
+third_party/_local/lua-5.2.3/
+```
+
+CMake detects that directory automatically and builds the Lua runtime into the recompilation library. If the directory is absent, the shell still builds but reports that the Lua smoke test was skipped.
+
+A Lua-enabled launch should additionally report:
+
+```text
+lua smoke test: ok
+lua runtime: Lua 5.2
+```
+
+The source archive is pinned to the official Lua 5.2.3 SHA-256:
+
+```text
+13c2fb97961381f7d06d5b5cea55b743c163800896fd5c5e2356201d3619002d
+```
+
 ## Requirements
 
 - JDK 17+
@@ -47,10 +77,17 @@ At launch the JNI bootstrap runs a smoke test against this contract. A successfu
 - Android NDK installed through the SDK manager
 - CMake 3.22.1 or newer
 - Gradle compatible with Android Gradle Plugin 9.4
+- Python 3 for the optional verified Lua bootstrap helper
 
 ## Build
 
-The repository does not commit the Gradle wrapper JAR yet. With a compatible local Gradle installation:
+From the repository root, optionally prepare Lua first:
+
+```bash
+python3 tools/fetch_lua_5_2_3.py
+```
+
+Then build Android:
 
 ```bash
 cd android
@@ -81,14 +118,16 @@ platform: android
 device id configured: yes
 module requests: 2
 UI events: 4
+lua smoke test: ok
+lua runtime: Lua 5.2
 ```
 
 On a 16 KiB-page device the page-size line should report `16384 bytes`.
 
 ## Next implementation step
 
-1. confirm and integrate the Lua runtime compatible with the shipped scripts;
-2. add thin Lua wrappers around the seven startup-contract functions;
+1. recover the exact Lua registration signatures for the seven startup-contract functions;
+2. bind those wrappers to the new Lua 5.2.3 runtime;
 3. make `CAddDoString` execute modules from locally imported/decoded user assets;
 4. reconstruct `AppDelegate` startup behavior and resource search paths;
 5. replace diagnostic UI events with the real Android/game UI bridge;
