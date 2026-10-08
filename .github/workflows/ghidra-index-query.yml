@@ -28,51 +28,35 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query ChooseHero background frame metadata
+      - name: Recover ChooseHero background callback order
         run: |
+          echo '=== callback xrefs ==='
+          python tools/ghidra/query_full_index.py xrefs 002ef230 --limit 100 || true
+          python tools/ghidra/query_full_index.py xrefs 002ee720 --limit 100 || true
+          python tools/ghidra/query_full_index.py xrefs 002eea00 --limit 100 || true
+          python tools/ghidra/query_full_index.py xrefs 002ee7f4 --limit 100 || true
+          python tools/ghidra/query_full_index.py xrefs 002edb38 --limit 100 || true
+          python tools/ghidra/query_full_index.py xrefs 002edc20 --limit 100 || true
+          python tools/ghidra/query_full_index.py xrefs 002edcf0 --limit 100 || true
+          echo '=== createUI range refs ==='
           python - <<'PY'
-          import base64, csv, gzip
+          import csv,gzip
           from pathlib import Path
           root=Path('docs/ghidra/full-index')
           def rows(name):
-              with gzip.open(root/name,'rt',encoding='utf-8',newline='') as f:
-                  yield from csv.DictReader(f,delimiter='\t')
+              with gzip.open(root/name,'rt',encoding='utf-8',newline='') as f: yield from csv.DictReader(f,delimiter='\t')
           def hx(v):
               try:return int(v,16)
               except:return None
-          funcs=[]; names={}
+          names={}
           for r in rows('libcocos2dcpp.functions.tsv.gz'):
               e=hx(r.get('entry',''))
-              if e is not None: funcs.append(e); names[e]=r.get('name','')
-          funcs.sort()
-          strings={}
-          for r in rows('libcocos2dcpp.strings.tsv.gz'):
-              a=hx(r.get('address',''))
-              if a is None: continue
-              try: strings[a]=base64.b64decode(r['utf8_base64']).decode('utf-8','replace')
-              except: pass
-          wanted={
-              'ChooseHeroBackground::BalckCloud','ChooseHeroBackground::PartOne',
-              'ChooseHeroBackground::PartTow','ChooseHeroBackground::PartThree',
-              'ChooseHeroBackground::CreateSun','ChooseHeroBackground::CreateStar',
-              'ChooseHeroBackground::CreateMeteor','ChooseHeroBackground::CreateEagle',
-              'ChooseHero::initBG','ChooseHero::initSaveDataUI'}
-          xrefs=list(rows('libcocos2dcpp.xrefs.tsv.gz')); calls=list(rows('libcocos2dcpp.calls.tsv.gz'))
-          for start in sorted(e for e,n in names.items() if n in wanted):
-              end=min((e for e in funcs if e>start),default=start+0x3000)
-              print(f'--- {start:08x} {names[start]} [{end:08x}) ---')
-              for xr in xrefs:
-                  frm=hx(xr.get('from','')); to=hx(xr.get('to',''))
-                  if frm is not None and start<=frm<end and to in strings:
-                      print(f'STR\t{frm:08x}\t{strings[to]}')
-              for c in calls:
-                  ce=hx(c.get('caller_entry','')); site=hx(c.get('call_site','')); callee=hx(c.get('callee_entry',''))
-                  if ce==start and site is not None:
-                      print(f'CALL\t{site:08x}\t{callee:08x}\t{names.get(callee,"<unknown>")}')
+              if e is not None: names[e]=r.get('name','')
+          start,end=0x002eecfc,0x002eedb8
+          refs=[]
+          for r in rows('libcocos2dcpp.xrefs.tsv.gz'):
+              frm=hx(r.get('from','')); to=hx(r.get('to',''))
+              if frm is not None and to is not None and start<=frm<end and to in names:
+                  refs.append((frm,to,r.get('type',''),names[to]))
+          for row in sorted(refs): print('%08x\t%08x\t%s\t%s'%row)
           PY
-          echo '=== archive entries around Gate_Background ==='
-          python tools/ghidra/query_full_index.py archives 'Gate_Background' --limit 200 || true
-          echo '=== atlas frame searches ==='
-          python tools/ghidra/query_full_index.py atlases 'wj' --limit 200 || true
-          python tools/ghidra/query_full_index.py atlases 'beijing' --limit 200 || true
-          python tools/ghidra/query_full_index.py atlases 'background' --limit 200 || true
