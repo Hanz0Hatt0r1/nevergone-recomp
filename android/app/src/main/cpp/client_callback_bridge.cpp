@@ -35,8 +35,14 @@ void apply_event_to_ui_state(const ClientCallbackEvent& event) {
 
     if (event.name == "cpp_OnGetServerList") {
         g_client_ui_state.server_list = payload;
+        login_callback_payload::parse_server_list_callback(
+            event.arguments,
+            &g_client_ui_state.server_list_model);
     } else if (event.name == "cpp_OnGetRoleList") {
         g_client_ui_state.role_list = payload;
+        login_callback_payload::parse_role_list_callback(
+            event.arguments,
+            &g_client_ui_state.role_list_model);
     } else if (event.name == "cpp_OnCreateTheRole") {
         g_client_ui_state.created_role = payload;
     } else if (event.name == "cpp_OnGameAnnoucement") {
@@ -60,8 +66,14 @@ void filter_login_payloads_for_management_route(ClientUiSnapshot* state) {
     using nevergone::initial_ui_transition::ManagementRoute;
 
     if (route != ManagementRoute::kAnnouncement) state->announcement.clear();
-    if (route != ManagementRoute::kServerSelection) state->server_list.clear();
-    if (route != ManagementRoute::kRoleSelection) state->role_list.clear();
+    if (route != ManagementRoute::kServerSelection) {
+        state->server_list.clear();
+        state->server_list_model = login_callback_payload::ServerListPayload{};
+    }
+    if (route != ManagementRoute::kRoleSelection) {
+        state->role_list.clear();
+        state->role_list_model = login_callback_payload::RoleListPayload{};
+    }
     if (route != ManagementRoute::kRoleCreated) state->created_role.clear();
     if (route != ManagementRoute::kEnteringGame) state->enter_game.clear();
 }
@@ -162,7 +174,18 @@ std::string client_ui_state_report() {
     out << "management UI route: "
         << nevergone::initial_ui_transition::management_route_name(transition.management_route) << "\n";
     if (!snapshot.server_list.empty()) out << "server list: " << snapshot.server_list << "\n";
+    if (snapshot.server_list_model.valid) {
+        out << "structured servers: " << snapshot.server_list_model.servers.size() << "\n";
+        out << "last login server: "
+            << (snapshot.server_list_model.last_login_server.empty()
+                    ? "none"
+                    : snapshot.server_list_model.last_login_server)
+            << "\n";
+    }
     if (!snapshot.role_list.empty()) out << "role list: " << snapshot.role_list << "\n";
+    if (snapshot.role_list_model.valid) {
+        out << "structured roles: " << snapshot.role_list_model.roles.size() << "\n";
+    }
     if (!snapshot.created_role.empty()) out << "created role: " << snapshot.created_role << "\n";
     if (!snapshot.announcement.empty()) out << "announcement: " << snapshot.announcement << "\n";
     if (!snapshot.enter_game.empty()) out << "enter game: " << snapshot.enter_game << "\n";
