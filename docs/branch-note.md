@@ -1,0 +1,1 @@
+This branch was created before newer analysis landed on `main`. Its documentation should not be merged wholesale over newer resource-decoding and Lua dependency work. The Android shell and other non-conflicting implementation pieces are being replayed on a fresh branch from current `main`.
