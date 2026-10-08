@@ -14,8 +14,10 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 final class OriginalApkImporter {
-    static final String APK_ASSET_PREFIX = "assets/assets/";
+    private static final String APK_ASSET_ROOT = "assets/";
+    private static final String LEGACY_SCRIPT_ROOT = "assets/assets/";
     private static final String REQUIRED_START_LUA = "Script/Game/StartLua.lua";
+    private static final String REQUIRED_CONFIG = "config/share/GameChapterConfig.hpc";
     private static final int MAX_FILES = 20_000;
     private static final long MAX_SINGLE_FILE_BYTES = 256L * 1024L * 1024L;
     private static final long MAX_TOTAL_BYTES = 2L * 1024L * 1024L * 1024L;
@@ -50,6 +52,7 @@ final class OriginalApkImporter {
         byte[] buffer = new byte[64 * 1024];
         String stagingRoot = staging.getCanonicalPath() + File.separator;
         boolean foundStartLua = false;
+        boolean foundConfig = false;
 
         try (InputStream raw = resolver.openInputStream(apkUri)) {
             if (raw == null) {
@@ -59,13 +62,8 @@ final class OriginalApkImporter {
                 ZipEntry entry;
                 while ((entry = zip.getNextEntry()) != null) {
                     String name = entry.getName();
-                    if (!name.startsWith(APK_ASSET_PREFIX) || entry.isDirectory()) {
-                        zip.closeEntry();
-                        continue;
-                    }
-
-                    String relative = name.substring(APK_ASSET_PREFIX.length());
-                    if (relative.isEmpty()) {
+                    String relative = mapAssetPath(name);
+                    if (relative == null || relative.isEmpty() || entry.isDirectory()) {
                         zip.closeEntry();
                         continue;
                     }
@@ -118,6 +116,8 @@ final class OriginalApkImporter {
 
                     if (REQUIRED_START_LUA.equals(relative)) {
                         foundStartLua = fileBytes > 0;
+                    } else if (REQUIRED_CONFIG.equals(relative)) {
+                        foundConfig = fileBytes > 0;
                     }
                     zip.closeEntry();
                 }
@@ -129,11 +129,15 @@ final class OriginalApkImporter {
 
         if (importedFiles == 0) {
             deleteTree(staging);
-            throw new IOException("selected file does not contain Never Gone assets/assets tree");
+            throw new IOException("selected file does not contain an Android assets tree");
         }
         if (!foundStartLua || !new File(staging, REQUIRED_START_LUA).isFile()) {
             deleteTree(staging);
             throw new IOException("selected APK is missing Script/Game/StartLua.lua");
+        }
+        if (!foundConfig || !new File(staging, REQUIRED_CONFIG).isFile()) {
+            deleteTree(staging);
+            throw new IOException("selected APK is missing Never Gone config resources");
         }
         validateDecodedStartLua(new File(staging, REQUIRED_START_LUA));
 
@@ -152,6 +156,20 @@ final class OriginalApkImporter {
 
         deleteTree(backup);
         return new Result(importedFiles, decodedFiles, importedBytes);
+    }
+
+    private static String mapAssetPath(String name) {
+        if (name == null || !name.startsWith(APK_ASSET_ROOT)) {
+            return null;
+        }
+        // The shipped APK has an extra nested assets/assets directory for its
+        // Lua tree. The original Cocos2d-x search paths treat that nested tree
+        // as the runtime asset root, while ordinary resources such as config,
+        // Login, gamescene_ui and sound live directly below APK assets/.
+        if (name.startsWith(LEGACY_SCRIPT_ROOT)) {
+            return name.substring(LEGACY_SCRIPT_ROOT.length());
+        }
+        return name.substring(APK_ASSET_ROOT.length());
     }
 
     private static boolean shouldDecode(String relative) {
