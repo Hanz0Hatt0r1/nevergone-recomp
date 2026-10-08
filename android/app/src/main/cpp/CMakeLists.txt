@@ -11,6 +11,7 @@ add_library(nevergone_recomp SHARED
     native_bootstrap.cpp
     protorpc_bindings.cpp
     startup_contract.cpp
+    xml_validation_binding.cpp
 )
 
 target_compile_features(nevergone_recomp PRIVATE cxx_std_17)
