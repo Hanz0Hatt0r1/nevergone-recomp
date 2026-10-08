@@ -22,6 +22,7 @@ struct PositionedTexture {
 GLuint g_program = 0;
 GLint g_sampler = -1;
 PositionedTexture g_background{};
+std::vector<std::uint32_t> g_background_pixels;
 int g_surface_width = 0;
 int g_surface_height = 0;
 
@@ -89,8 +90,15 @@ void main() {
 void delete_texture() {
     if (g_background.texture != 0) {
         glDeleteTextures(1, &g_background.texture);
+        g_background.texture = 0;
     }
+}
+
+void clear_background_asset() {
+    delete_texture();
     g_background = {};
+    g_background_pixels.clear();
+    g_background_pixels.shrink_to_fit();
 }
 
 GLuint create_texture(const std::uint32_t* argb, size_t count, int width, int height) {
@@ -130,8 +138,26 @@ GLuint create_texture(const std::uint32_t* argb, size_t count, int width, int he
     return texture;
 }
 
+bool ensure_background_texture() {
+    if (g_background.texture != 0) return true;
+    if (g_background.width <= 0 || g_background.height <= 0 ||
+            g_background_pixels.size() !=
+                    static_cast<size_t>(g_background.width) * static_cast<size_t>(g_background.height)) {
+        return false;
+    }
+
+    g_background.texture = create_texture(
+            g_background_pixels.data(),
+            g_background_pixels.size(),
+            g_background.width,
+            g_background.height);
+    return g_background.texture != 0;
+}
+
 void on_surface_created() {
-    g_background = {};
+    // A recreated GL context invalidates the old texture name, but keep the
+    // imported CPU backing until Java refreshes the user-owned atlas frames.
+    g_background.texture = 0;
     if (g_program != 0) glDeleteProgram(g_program);
     g_program = build_program();
     g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
@@ -153,27 +179,38 @@ bool upload_background(
         size_t count) {
     if (g_program == 0 || width <= 0 || height <= 0 ||
             source_width <= 0 || source_height <= 0 || left < 0 || top < 0 ||
-            left + width > source_width || top + height > source_height) {
+            left + width > source_width || top + height > source_height || argb == nullptr ||
+            count != static_cast<size_t>(width) * static_cast<size_t>(height) ||
+            count > 16777216u) {
         return false;
     }
 
-    const GLuint texture = create_texture(argb, count, width, height);
-    if (texture == 0) return false;
-    delete_texture();
-    g_background.texture = texture;
+    clear_background_asset();
     g_background.width = width;
     g_background.height = height;
     g_background.left = left;
     g_background.top = top;
     g_background.source_width = source_width;
     g_background.source_height = source_height;
-    return true;
+    g_background_pixels.assign(argb, argb + count);
+
+    // Match the recovered onExit resource lifecycle: keep imported pixels as
+    // reloadable backing, but do not retain a scene-owned GLES texture while
+    // SingleSelectHero is not the active offline route.
+    if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue) {
+        return true;
+    }
+    return ensure_background_texture();
 }
 
 void draw() {
-    if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue ||
-            g_program == 0 || g_sampler < 0 || g_background.texture == 0 ||
-            g_surface_width <= 0 || g_surface_height <= 0) {
+    if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue) {
+        delete_texture();
+        return;
+    }
+    if (g_program == 0 || g_sampler < 0 ||
+            g_surface_width <= 0 || g_surface_height <= 0 ||
+            !ensure_background_texture()) {
         return;
     }
 
@@ -238,7 +275,7 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnSingleSelectHeroSurfaceChanged
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleSelectHeroBackground(JNIEnv*, jclass) {
-    nevergone::single_select_hero::delete_texture();
+    nevergone::single_select_hero::clear_background_asset();
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
