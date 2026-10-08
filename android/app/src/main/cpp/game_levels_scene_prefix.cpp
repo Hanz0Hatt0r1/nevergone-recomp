@@ -9,6 +9,7 @@ bool parse(const hp_data::Reader& reader, Prefix* out) {
     Prefix parsed;
     if (!cursor.read_i32_le(&parsed.first_i32)) return false;
     if (!cursor.read_u32_le(&parsed.second_u32)) return false;
+    if (!cursor.read_u32_le(&parsed.third_u32)) return false;
     parsed.bytes_consumed = cursor.offset();
 
     *out = parsed;
