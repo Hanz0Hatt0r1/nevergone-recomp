@@ -15,6 +15,40 @@ namespace {
 
 std::mutex g_callback_mutex;
 std::vector<ClientCallbackEvent> g_callback_events;
+ClientUiSnapshot g_client_ui_state;
+
+std::string join_arguments(const std::vector<std::string>& arguments) {
+    std::ostringstream out;
+    for (size_t index = 0; index < arguments.size(); ++index) {
+        if (index != 0) out << " | ";
+        out << arguments[index];
+    }
+    return out.str();
+}
+
+void apply_event_to_ui_state(const ClientCallbackEvent& event) {
+    ++g_client_ui_state.event_count;
+    g_client_ui_state.last_event = event.name;
+    const std::string payload = join_arguments(event.arguments);
+
+    if (event.name == "cpp_OnGetServerList") {
+        g_client_ui_state.server_list = payload;
+    } else if (event.name == "cpp_OnGetRoleList") {
+        g_client_ui_state.role_list = payload;
+    } else if (event.name == "cpp_OnCreateTheRole") {
+        g_client_ui_state.created_role = payload;
+    } else if (event.name == "cpp_OnGameAnnoucement") {
+        g_client_ui_state.announcement = payload;
+    } else if (event.name == "cpp_OnEnterGame") {
+        g_client_ui_state.enter_game = payload;
+    } else if (event.name == "cpp_OnReceivedChatMessages") {
+        g_client_ui_state.chat_messages = payload;
+    } else if (event.name == "cpp_OnUpdateData") {
+        g_client_ui_state.update_data = payload;
+    } else if (event.name == "cpp_connect_pve") {
+        g_client_ui_state.pve_connect = payload;
+    }
+}
 
 #if defined(NEVERGONE_HAS_LUA)
 std::string argument_to_string(lua_State* state, int index) {
@@ -50,6 +84,7 @@ int l_capture_callback(lua_State* state) {
     }
 
     std::lock_guard<std::mutex> lock(g_callback_mutex);
+    apply_event_to_ui_state(event);
     g_callback_events.push_back(std::move(event));
     return 0;
 }
@@ -68,17 +103,13 @@ void register_login_callback_bindings(lua_State* state) {
     {
         std::lock_guard<std::mutex> lock(g_callback_mutex);
         g_callback_events.clear();
+        g_client_ui_state = ClientUiSnapshot{};
     }
     register_callback(state, "cpp_OnGetServerList");
     register_callback(state, "cpp_OnGetRoleList");
     register_callback(state, "cpp_OnCreateTheRole");
     register_callback(state, "cpp_OnGameAnnoucement");
     register_callback(state, "cpp_OnEnterGame");
-
-    // These reachable callbacks are also backed by exported native symbols in
-    // the original ARMv7 client. Keep them on the same typed event bridge so
-    // Lua can advance without pretending that chat/data/PVE UI consumers have
-    // already been reconstructed.
     register_callback(state, "cpp_OnReceivedChatMessages");
     register_callback(state, "cpp_OnUpdateData");
     register_callback(state, "cpp_connect_pve");
@@ -92,6 +123,27 @@ std::vector<ClientCallbackEvent> take_client_callback_events() {
     std::vector<ClientCallbackEvent> result;
     result.swap(g_callback_events);
     return result;
+}
+
+ClientUiSnapshot snapshot_client_ui_state() {
+    std::lock_guard<std::mutex> lock(g_callback_mutex);
+    return g_client_ui_state;
+}
+
+std::string client_ui_state_report() {
+    const ClientUiSnapshot snapshot = snapshot_client_ui_state();
+    std::ostringstream out;
+    out << "events captured: " << snapshot.event_count << "\n";
+    out << "last callback: " << (snapshot.last_event.empty() ? "none" : snapshot.last_event) << "\n";
+    if (!snapshot.server_list.empty()) out << "server list: " << snapshot.server_list << "\n";
+    if (!snapshot.role_list.empty()) out << "role list: " << snapshot.role_list << "\n";
+    if (!snapshot.created_role.empty()) out << "created role: " << snapshot.created_role << "\n";
+    if (!snapshot.announcement.empty()) out << "announcement: " << snapshot.announcement << "\n";
+    if (!snapshot.enter_game.empty()) out << "enter game: " << snapshot.enter_game << "\n";
+    if (!snapshot.chat_messages.empty()) out << "chat: " << snapshot.chat_messages << "\n";
+    if (!snapshot.update_data.empty()) out << "data update: " << snapshot.update_data << "\n";
+    if (!snapshot.pve_connect.empty()) out << "PVE connect: " << snapshot.pve_connect << "\n";
+    return out.str();
 }
 
 }  // namespace nevergone::lua_runtime
