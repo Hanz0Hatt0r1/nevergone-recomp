@@ -22,6 +22,7 @@ Relevant recovered function addresses in the original ARM32 binary:
 | --- | ---: |
 | `LUA_LOGIN::lua_CallGameRPC(CCString,int)` | `0x002e8a34` |
 | `JsonDataManage::GetServerList()` | `0x002f3eec` |
+| `NewServerList::GetDrawRectSp(CCSprite*)` | `0x002f8ce8` |
 | `NewServerList::GetTouchIDRect(CCPoint)` | `0x002f8dd4` |
 | `NewServerList::UpDataServerSelet(int)` | `0x002f8e24` |
 | `NewServerList::ccTouchEnded(...)` | `0x002f8f68` |
@@ -57,6 +58,29 @@ The structured callback parser also preserves optional `BattleIP` because it is 
 
 The callback bridge synchronizes this state whenever `cpp_OnGetServerList` is captured. The current runtime intentionally does **not** execute the resulting request yet: startup Lua execution still uses a temporary Lua state, so pretending to dispatch into a persistent `g_UILogin` table would be incorrect. Persistent/incremental Lua execution is a separate reconstruction step.
 
+## Recovered row layout and hit rectangles
+
+`NewServerList::init` reveals the row placement independently of the missing artwork. The row sprite uses anchor `(0.0, 0.5)` and tags rows from `1` in creation order. Rows are arranged in two columns:
+
+- first-column left X: `56`;
+- second-column left X: `rowWidth + 96`, which leaves a 40-pixel horizontal gap after a first-column row of width `rowWidth`;
+- first row-pair center Y: `320`;
+- each subsequent row pair moves down by `90` pixels (`320`, `230`, `140`, `50`, ...).
+
+For zero-based project index `i` this becomes:
+
+```text
+column  = i % 2
+row     = i / 2
+leftX   = column == 0 ? 56 : rowWidth + 96
+centerY = 320 - 90 * row + scrollOffsetY
+bottomY = centerY - rowHeight / 2
+```
+
+`GetDrawRectSp` confirms that normal server-row hit rectangles use the sprite's full content width/height and add the scrolling content layer's Y position before `containsPoint`. This is represented by `server_selection_layout.{h,cpp}`. The row width and height are deliberately caller-supplied because the original `border1.png` is absent from the baseline APK; no guessed dimensions are embedded in the runtime.
+
+The broader reconstructed UI uses the verified 1136x640 design-canvas contract. `server_selection_layout` records that contract but keeps surface-to-design conversion out of the row module so a later compositor can share the same viewport policy as the rest of the reconstructed UI.
+
 ## Visual-resource boundary
 
 The original binary references server-list resources such as:
@@ -67,4 +91,4 @@ The original binary references server-list resources such as:
 - `ServerList/RANDOM.png`
 - `ServerList/RANDOMName.png`
 
-Those files are not present in the baseline APK archive used by this project. They may belong to downloaded/update/expansion content. The recompilation therefore does not present project-created graphics as original server-list assets. A later compositor may use user-imported copies if those resources are available, with an explicitly project-owned fallback otherwise.
+Those files are not present in the baseline APK archive used by this project. A direct filename search on the connected project Drive also did not expose standalone copies. They may belong to downloaded/update/expansion content. The recompilation therefore does not present project-created graphics as original server-list assets. A later compositor may use user-imported copies if those resources are available, with an explicitly project-owned fallback otherwise.
