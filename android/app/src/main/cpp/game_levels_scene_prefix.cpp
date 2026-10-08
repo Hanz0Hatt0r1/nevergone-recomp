@@ -1,6 +1,6 @@
 #include "game_levels_scene_prefix.h"
 
-#include <limits>
+#include <utility>
 
 namespace nevergone::game_levels_scene_prefix {
 
@@ -28,7 +28,11 @@ bool parse_first_record_header(const hp_data::Reader& reader, FirstRecordHeader*
     if (!cursor.skip(1)) return false;
 
     const std::size_t string_length = static_cast<std::size_t>(prefix.third_u32);
-    if (string_length > cursor.remaining()) return false;
+    constexpr std::size_t kPointBytes = sizeof(float) * 2u;
+    if (string_length > cursor.remaining() ||
+            kPointBytes > cursor.remaining() - string_length) {
+        return false;
+    }
 
     FirstRecordHeader parsed;
     parsed.prefix = prefix;
