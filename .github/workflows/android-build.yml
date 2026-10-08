@@ -48,6 +48,12 @@ jobs:
       - name: Prepare verified Lua 5.2.3
         run: python3 tools/fetch_lua_5_2_3.py
 
+      - name: Validate embedded Lua compatibility layer
+        shell: bash
+        run: |
+          make -C third_party/_local/lua-5.2.3 generic
+          python3 tools/run_lua_compat_smoke.py third_party/_local/lua-5.2.3/src/lua
+
       - name: Build debug APK
         working-directory: android
         env:
