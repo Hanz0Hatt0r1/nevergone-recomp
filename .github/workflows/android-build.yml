@@ -55,6 +55,17 @@ jobs:
             -o /tmp/single_login_light_timeline_smoke
           /tmp/single_login_light_timeline_smoke
 
+      - name: Validate splash sequence-local timing
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/splash_sequence_state_smoke.cpp \
+            android/app/src/main/cpp/splash_sequence_state.cpp \
+            android/app/src/main/cpp/splash_timeline.cpp \
+            -o /tmp/splash_sequence_state_smoke
+          /tmp/splash_sequence_state_smoke
+
       - name: Prepare verified Lua 5.2.3
         run: python3 tools/fetch_lua_5_2_3.py
 
