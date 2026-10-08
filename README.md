@@ -5,7 +5,7 @@ Experimental clean-room reverse-engineering and recompilation project for the An
 The project aims to reconstruct the original game runtime as maintainable source code for modern Android, including `arm64-v8a`, without depending on the original obsolete Android toolchain or redistributing proprietary game binaries/assets.
 
 > [!IMPORTANT]
-> The project is **not yet a playable recompilation**, but it has moved well beyond the initial research-only stage. A modern Android/NDK shell now builds project-owned native code, embeds the identified Lua runtime, imports user-owned original resources, executes reconstructed startup behavior, and exposes the next missing runtime dependencies through diagnostics.
+> The project is **not yet a playable recompilation**, but it has moved well beyond the initial research-only stage. A modern Android/NDK shell now builds project-owned native code, embeds the identified Lua runtime, imports user-owned original resources, executes reconstructed startup behavior, stages recovered character-selection resources, and probes verified portions of the original binary scene-data format through clean-room parsers.
 
 ## Current state
 
@@ -21,9 +21,11 @@ The current `main` branch includes:
 - host-side startup probing for fast compatibility iteration;
 - clean-room replacements for several early Lua/native services;
 - recovered offline startup routing and early `ChooseHero` reconstruction/staging work;
-- CI covering Python tooling, Lua compatibility and Android/NDK compilation.
+- a bounds-checked clean-room `HPData` reader/cursor and recovered `HPRange` semantics;
+- verified parsing/probing of the `GameLevels::LoadGL_Scene()` top-level prefix and first scene header from imported user-owned data;
+- CI covering Python tooling, Lua compatibility, scene-data parser regressions and Android/NDK compilation.
 
-The current implementation target is the original initial UI/runtime flow and character-selection path without loading the original `libcocos2dcpp.so`.
+The current implementation target is the original initial UI/runtime flow, character-selection path and the minimum scene-data/runtime substrate needed to reach offline gameplay without loading the original `libcocos2dcpp.so`.
 
 ## Goals
 
@@ -56,6 +58,10 @@ The reconstruction work has established that:
 - 22 static JNI exports have been identified and additional DEX native declarations have been mapped;
 - startup reaches `assets/Script/Game/StartLua.lua`, `Game.ClientRequire`, `ShareLogic.require`, `HelloWorld` and `ManagementLayer` through known native/script paths;
 - `AppDelegate::AddAllSearchPath()` and its 59 child search directories have been recovered;
+- the original 32-bit `HPRange` used by `HPData::getBytes(...)` is `{byte_offset, byte_length}`;
+- `GameLevels::LoadGameLevels()` loads scene, action, global and port-node sections in a recovered fixed order;
+- the beginning of `GameLevels::LoadGL_Scene()` has a verified top-level scene count and a verified first-scene header containing a bounded string payload, two floats used as a point and a layer count;
+- the imported `gamescene/gs_list/pvp_scene.glData` resource can be probed through the reconstructed reader without exposing proprietary parsed values in diagnostics;
 - major classes visible by symbol include `GameScene`, `GameSceneUI`, `MEPlayer`, `EnemyObject`, `BattleManager`, `DataManager`, `GameSaveData`, `ManagementLayer`, `ChooseHero` and others.
 
 ## Project status
@@ -79,6 +85,9 @@ The reconstruction work has established that:
 | Filesystem/search-path reconstruction | In progress, early startup covered |
 | Offline login/startup route reconstruction | In progress |
 | `ChooseHero` asset/background staging | In progress |
+| `HPData` / `HPRange` reconstruction | Reader foundation done; range semantics verified |
+| `GameLevels` binary format reconstruction | In progress; top-level prefix and first scene header verified |
+| Imported `pvp_scene.glData` readiness probe | Done for the currently verified scene header boundary |
 | Rendering/input reconstruction | In progress / next critical path |
 | Original title/menu visual flow | Not yet reached end-to-end |
 | Offline gameplay | Not yet functional |
@@ -91,15 +100,16 @@ The reconstruction work has established that:
 
 The project does **not** attempt a blind line-by-line rewrite of the original `libcocos2dcpp.so`.
 
-The current strategy is dependency-driven:
+The current strategy is dependency-driven and evidence-driven:
 
 1. recover static metadata, symbols, DEX/JNI relationships and script dependencies;
 2. decode user-owned resources locally with reproducible tooling;
 3. execute the real recovered startup scripts against a clean modern runtime;
-4. use missing globals, tracebacks and behavior differences to identify the next required compatibility surface;
-5. recreate only the native/game behavior required by the reachable runtime path;
-6. reconstruct rendering, scene flow and gameplay systems incrementally;
-7. preserve offline behavior while replacing or stubbing obsolete service integrations where necessary.
+4. use missing globals, tracebacks, binary call ordering and behavior differences to identify the next required compatibility surface;
+5. reconstruct binary resource readers only to verified field boundaries, assigning semantic names only when original control flow makes them unambiguous;
+6. recreate only the native/game behavior required by the reachable runtime path;
+7. reconstruct rendering, scene flow and gameplay systems incrementally;
+8. preserve offline behavior while replacing or stubbing obsolete service integrations where necessary.
 
 See **[`docs/roadmap.md`](docs/roadmap.md)** for the detailed development plan.
 
@@ -116,6 +126,7 @@ nevergone-recomp/
 │   ├── apk-analysis.md
 │   ├── choose-hero-background.md
 │   ├── filesystem-bindings.md
+│   ├── hpdata-gamelevels.md
 │   ├── jni-map.md
 │   ├── lua-binding-call-shapes.md
 │   ├── lua-dependency-map.md
@@ -146,7 +157,8 @@ The clean-room Android shell under [`android/`](android/) can already:
 - load decoded/imported Lua modules from app-private storage;
 - expose Lua/native startup errors as diagnostics;
 - import original resources supplied by the user through Android storage flows;
-- stage selected recovered resources for reconstructed routes such as `choose-role`.
+- stage selected recovered resources for reconstructed routes such as `choose-role`;
+- locate imported `gamescene/gs_list/pvp_scene.glData` data and validate its currently verified `LoadGL_Scene` prefix/first-scene header through the project-owned bounded reader.
 
 It does **not** link against the original `libcocos2dcpp.so`.
 
@@ -193,7 +205,7 @@ python3 tools/asset_decoder.py /path/to/com.hippiegame.nevergone.apk \
 
 Recovered proprietary output should remain local and must not be committed.
 
-The modern Android app also supports user-owned original resource import into app-private runtime storage. Recent work extends this to OBB content needed by later reconstructed UI paths.
+The modern Android app also supports user-owned original resource import into app-private runtime storage. Recent work extends this to OBB content and binary scene data needed by later reconstructed UI/gameplay paths.
 
 ## Lua 5.2.3
 
@@ -238,11 +250,13 @@ The debug APK is normally produced under:
 android/app/build/outputs/apk/debug/
 ```
 
-## Host-side startup probing
+## Host-side probing
 
-A host-side startup probe is used to shorten the reconstruction loop: the recovered script chain can be run against clean-room bindings on Linux without repeatedly installing an APK.
+Host-side probes shorten the reconstruction loop without repeatedly installing an APK.
 
-The probe is intentionally useful when it fails: the first missing global, incompatible call shape or resource lookup becomes the next concrete reconstruction target.
+The Lua startup probe executes the recovered script chain against clean-room bindings and turns the first missing global, incompatible call shape or resource lookup into the next concrete compatibility target.
+
+Scene-data host regressions exercise the project-owned `HPData`/`GameLevels` parsers against synthetic bounded inputs, including truncated and hostile-length cases, without requiring proprietary game data in the repository.
 
 See the tooling documentation under [`tools/`](tools/) and the roadmap for the current probe workflow.
 
@@ -257,11 +271,33 @@ Current work includes:
 - verified OBB paths for required user-supplied atlas pairs;
 - app-private staging and validation of those atlas resources;
 - restoration of TexturePacker source-canvas placement metadata;
-- native scene-owned backing state for the staged background layers.
+- native scene-owned backing state for the staged background layers;
+- recovery of the `ChooseHeroReadyUIScene::initLevelMap()` path into `GameScene::LoadGameLevelsWithFile()` for `gamescene/gs_list/pvp_scene.glData`.
 
-The project intentionally does **not** guess unresolved animation/phase behavior. Rendering is connected only when sufficient binary evidence has been recovered.
+The project intentionally does **not** guess unresolved animation/phase behavior or scene-data field semantics. Rendering and deeper scene parsing are connected only when sufficient binary evidence has been recovered.
 
 See **[`docs/choose-hero-background.md`](docs/choose-hero-background.md)**.
+
+## HPData / GameLevels reconstruction
+
+The project now has a clean-room foundation for the binary scene format used by `GameLevels`.
+
+Recovered evidence establishes that the original `HPRange` passed by value into `HPData::getBytes(...)` consists of a byte offset followed by a byte length. The replacement implementation does not mirror the old ABI directly; it uses explicit bounds-checked offsets, lengths and a transactional sequential cursor.
+
+For `GameLevels::LoadGL_Scene()` the currently verified parse boundary includes:
+
+1. one unresolved signed 32-bit top-level value;
+2. the scene count;
+3. for the first scene, a byte-length field followed by one still-unresolved skipped byte;
+4. the bounded string payload;
+5. two floats assigned as a point;
+6. the scene layer count.
+
+The parser updates output only after the entire verified boundary is available. Imported asset diagnostics report readiness and verified byte counts, not proprietary parsed field values.
+
+The next known binary boundary begins inside each `GameSceneLayerData` record: a float is followed by a `uint32` used as the object-loop bound. Reconstruction will continue from that point before deeper object/action/global/port-node semantics are assigned.
+
+See **[`docs/hpdata-gamelevels.md`](docs/hpdata-gamelevels.md)** for the current evidence and parser boundary.
 
 ## Original architecture
 
@@ -291,6 +327,7 @@ Android application
     ├── transformed Lua scripts
     ├── PNG / plist UI and graphics data
     ├── HPC / CSV configuration data
+    ├── binary scene/level data
     └── audio / video
 ```
 
@@ -327,6 +364,9 @@ Android application
 - [x] early filesystem/search-path compatibility recreated
 - [x] multiple reachable Lua/native services recreated
 - [x] host-side startup probe available
+- [x] project-owned bounded `HPData` reader/cursor implemented
+- [x] original `HPRange` offset/length semantics recovered
+- [x] first verified `GameLevels::LoadGL_Scene()` scene header parser/probe implemented
 - [ ] complete real startup chain without unresolved runtime blockers
 - [ ] complete AppDelegate/lifecycle reconstruction
 
@@ -336,6 +376,7 @@ Android application
 - [ ] reproduce `HelloWorld` → `ManagementLayer`
 - [ ] connect reconstructed login/startup callbacks to UI
 - [ ] render the recovered `ChooseHero` path
+- [ ] extend verified `GameLevels` parsing through the scene/layer records needed by character selection
 
 ### M5 — Offline gameplay
 
@@ -358,13 +399,14 @@ Android application
 
 ## Immediate priorities
 
-1. Complete the remaining startup/runtime compatibility blockers using the host and Android probes.
-2. Reconstruct the minimum `AppDelegate`, lifecycle, rendering and input path required for visible original UI.
-3. Connect captured offline login/server/role callbacks to the reconstructed UI layer.
-4. Continue evidence-driven `ChooseHero` reconstruction and render the verified staged background resources.
-5. Finish the Java/Android bootstrap/lifecycle map.
-6. Validate `arm64-v8a`, Android 15/16 and 16 KiB page-size behavior on real/emulated devices.
-7. Expand native subsystem reconstruction only as the reachable offline path requires it.
+1. Extend evidence-driven `GameLevels::LoadGL_Scene()` reconstruction into the first layer/object records, starting from the verified layer float and object-loop count boundary.
+2. Complete the remaining startup/runtime compatibility blockers using the host and Android probes.
+3. Reconstruct the minimum `AppDelegate`, lifecycle, rendering and input path required for visible original UI.
+4. Connect captured offline login/server/role callbacks to the reconstructed UI layer.
+5. Continue evidence-driven `ChooseHero` reconstruction and connect the verified staged resources/scene data to rendering only when their semantics are established.
+6. Finish the Java/Android bootstrap/lifecycle map.
+7. Validate `arm64-v8a`, Android 15/16 and 16 KiB page-size behavior on real/emulated devices.
+8. Expand native subsystem reconstruction only as the reachable offline path requires it.
 
 ## Documentation
 
@@ -379,6 +421,7 @@ Key documents include:
 - **[`docs/lua-native-api-map.md`](docs/lua-native-api-map.md)** — script/native compatibility surface
 - **[`docs/filesystem-bindings.md`](docs/filesystem-bindings.md)** — reconstructed filesystem APIs
 - **[`docs/choose-hero-background.md`](docs/choose-hero-background.md)** — character-selection background evidence/staging
+- **[`docs/hpdata-gamelevels.md`](docs/hpdata-gamelevels.md)** — recovered `HPRange` semantics and verified `GameLevels` scene-data parsing boundary
 
 ## Contributing
 
