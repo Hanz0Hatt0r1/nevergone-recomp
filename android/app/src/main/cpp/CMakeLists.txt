@@ -14,6 +14,7 @@ add_library(nevergone_recomp SHARED
     protorpc_bindings.cpp
     render_bridge.cpp
     single_login_compositor.cpp
+    single_login_scene_bridge.cpp
     splash_layer_renderer.cpp
     splash_timeline.cpp
     startup_contract.cpp

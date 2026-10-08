@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.opengl.GLSurfaceView;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.MotionEvent;
 
 import java.io.File;
@@ -47,12 +49,17 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static native void nativeClearSingleLoginTexture();
     private static native boolean nativeUploadSingleLoginTexture(int width, int height, int[] argbPixels);
     private static native void nativeDrawSingleLoginLayer();
+    private static native boolean nativeIsSingleLoginActive();
 
     private final File assetRoot;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final SingleLoginAudio singleLoginAudio;
+    private boolean lastSingleLoginActive;
 
     public GameSurfaceView(Context context) {
         super(context);
         assetRoot = new File(context.getFilesDir(), "assets");
+        singleLoginAudio = new SingleLoginAudio(assetRoot);
         setEGLContextClientVersion(2);
         setRenderer(this);
         setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
@@ -65,6 +72,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         nativeOnSingleLoginSurfaceCreated();
         nativeOnSplashSurfaceCreated();
         reloadImportedVisualsOnGlThread();
+        updateSingleLoginAudioStateOnGlThread();
     }
 
     @Override
@@ -78,10 +86,39 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         nativeOnDrawFrame();
         nativeDrawSingleLoginLayer();
         nativeDrawSplashLayers();
+        updateSingleLoginAudioStateOnGlThread();
     }
 
     public void reloadImportedSplash() {
-        queueEvent(this::reloadImportedVisualsOnGlThread);
+        queueEvent(() -> {
+            reloadImportedVisualsOnGlThread();
+            mainHandler.post(singleLoginAudio::onAssetsReloaded);
+        });
+    }
+
+    public void pauseImportedAudio() {
+        mainHandler.post(singleLoginAudio::onPause);
+    }
+
+    public void resumeImportedAudio() {
+        mainHandler.post(singleLoginAudio::onResume);
+    }
+
+    public void releaseImportedAudio() {
+        mainHandler.post(singleLoginAudio::release);
+    }
+
+    public String importedAudioStatus() {
+        return singleLoginAudio.status();
+    }
+
+    private void updateSingleLoginAudioStateOnGlThread() {
+        boolean active = nativeIsSingleLoginActive();
+        if (active == lastSingleLoginActive) {
+            return;
+        }
+        lastSingleLoginActive = active;
+        mainHandler.post(() -> singleLoginAudio.setSceneActive(active));
     }
 
     private void reloadImportedVisualsOnGlThread() {
