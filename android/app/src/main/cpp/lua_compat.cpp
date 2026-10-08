@@ -11,13 +11,16 @@ namespace nevergone::lua_runtime {
 
 void install_lua51_compat(lua_State* state) {
 #if defined(NEVERGONE_HAS_LUA)
-    // Never Gone ships Lua 5.2.3 but one recovered module still uses the old
-    // Lua 5.1-style global module() helper, and several scripts call the old
-    // global unpack(). Install only those compatibility shims actually used
-    // by the recovered client scripts.
+    // Never Gone ships Lua 5.2.3 but recovered scripts still use a few legacy
+    // Lua 5.1-era globals plus the old `bit` module name. Install only the
+    // compatibility shims actually referenced by the client scripts.
     constexpr const char* kCompatScript = R"LUA(
 if unpack == nil and table ~= nil then
     unpack = table.unpack
+end
+
+if bit == nil and bit32 ~= nil then
+    bit = bit32
 end
 
 if module == nil then
