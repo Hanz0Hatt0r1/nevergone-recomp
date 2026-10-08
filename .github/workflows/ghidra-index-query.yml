@@ -28,15 +28,23 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query choose-role pane metadata
+      - name: Query ChooseHero scene metadata
         run: |
-          echo '=== functions ==='
-          python tools/ghidra/query_full_index.py functions showChooseHeroPane --limit 20 || true
-          python tools/ghidra/query_full_index.py functions GoToChooseRole --limit 20 || true
-          echo '=== showChooseHeroPane call graph ==='
-          python tools/ghidra/query_full_index.py callers 003e6a20 --limit 100 || true
-          python tools/ghidra/query_full_index.py callees 003e6a20 --limit 250 || true
-          echo '=== direct strings in showChooseHeroPane ==='
+          echo '=== ChooseHero functions ==='
+          python tools/ghidra/query_full_index.py functions 'ChooseHero::' --limit 80 || true
+          python tools/ghidra/query_full_index.py functions 'ChooseHeroBackground::' --limit 80 || true
+          echo '=== likely scene entry functions ==='
+          python tools/ghidra/query_full_index.py functions 'ChooseHero::create' --limit 20 || true
+          python tools/ghidra/query_full_index.py functions 'ChooseHero::init' --limit 20 || true
+          python tools/ghidra/query_full_index.py functions 'ChooseHeroBackground::init' --limit 20 || true
+          python tools/ghidra/query_full_index.py functions 'ChooseHeroBackground::createUI' --limit 20 || true
+          python tools/ghidra/query_full_index.py functions 'ChooseHeroBackground::LoadingTexture' --limit 20 || true
+          echo '=== choose hero assets/archives ==='
+          python tools/ghidra/query_full_index.py strings 'ChooseHero' --limit 150 || true
+          python tools/ghidra/query_full_index.py strings 'choosehero' --limit 150 || true
+          python tools/ghidra/query_full_index.py strings 'xuanz' --limit 150 || true
+          python tools/ghidra/query_full_index.py strings 'wj' --limit 150 || true
+          echo '=== function-local strings and calls ==='
           python - <<'PY'
           import base64, csv, gzip
           from pathlib import Path
@@ -47,25 +55,31 @@ jobs:
           def hx(v):
               try:return int(v,16)
               except:return None
-          entries=[]
+          funcs=[]; funcnames={}
           for r in rows('libcocos2dcpp.functions.tsv.gz'):
               e=hx(r.get('entry',''))
-              if e is not None: entries.append(e)
-          entries.sort()
+              if e is not None:
+                  funcs.append(e); funcnames[e]=r.get('name','')
+          funcs.sort()
           strings={}
           for r in rows('libcocos2dcpp.strings.tsv.gz'):
               a=hx(r.get('address',''))
               if a is None: continue
               try: strings[a]=base64.b64decode(r['utf8_base64']).decode('utf-8','replace')
               except: pass
-          start=0x003e6a20
-          end=min((e for e in entries if e>start),default=start+0x1000)
-          print(f'function range {start:08x}-{end:08x}')
-          for xr in rows('libcocos2dcpp.xrefs.tsv.gz'):
-              frm=hx(xr.get('from','')); to=hx(xr.get('to',''))
-              if frm is not None and start<=frm<end and to in strings:
-                  print(f'{frm:08x}\t{to:08x}\t{xr.get("type","")}\t{strings[to]}')
+          targets=[e for e,n in funcnames.items() if n in {
+              'ChooseHero::init','ChooseHero::create','ChooseHeroBackground::init',
+              'ChooseHeroBackground::createUI','ChooseHeroBackground::LoadingTexture'}]
+          xrefs=list(rows('libcocos2dcpp.xrefs.tsv.gz')); calls=list(rows('libcocos2dcpp.calls.tsv.gz'))
+          for start in sorted(targets):
+              name=funcnames[start]; end=min((e for e in funcs if e>start),default=start+0x3000)
+              print(f'--- {start:08x} {name} [{end:08x}) ---')
+              for xr in xrefs:
+                  frm=hx(xr.get('from','')); to=hx(xr.get('to',''))
+                  if frm is not None and start<=frm<end and to in strings:
+                      print(f'STR\t{frm:08x}\t{strings[to]}')
+              for c in calls:
+                  ce=hx(c.get('caller_entry','')); site=hx(c.get('call_site','')); callee=hx(c.get('callee_entry',''))
+                  if ce==start and site is not None:
+                      print(f'CALL\t{site:08x}\t{callee:08x}\t{funcnames.get(callee,"<unknown>")}')
           PY
-          echo '=== choose-related strings ==='
-          python tools/ghidra/query_full_index.py strings Choose --limit 100 || true
-          python tools/ghidra/query_full_index.py strings Hero --limit 100 || true
