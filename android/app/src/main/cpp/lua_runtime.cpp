@@ -109,6 +109,7 @@ std::string smoke_test() {
         "loaded[2] ~= nil and loaded[2][0] == 'empty'; "
         "cpp_OnGetServerList([[{\"id\":1}]], 3); "
         "cpp_OnEnterGame([[{\"cid\":9}]]); "
+        "cpp_OnUpdateData('inventory', 12, true); "
         "return uuid_ok, imported == true and connected == false, unpack_ok, bit_ok, cjson_ok, nickname_ok, module_ok, xml_ok");
     if (status == 0) {
         status = lua_pcall(state, 0, 8, 0);
@@ -123,14 +124,19 @@ std::string smoke_test() {
     const bool xml_ok = status == 0 && lua_toboolean(state, -1) != 0;
 
     const auto callback_events = take_client_callback_events();
-    const bool callback_bridge_ok = callback_events.size() == 2 &&
+    const bool callback_bridge_ok = callback_events.size() == 3 &&
         callback_events[0].name == "cpp_OnGetServerList" &&
         callback_events[0].arguments.size() == 2 &&
         callback_events[0].arguments[0] == "{\"id\":1}" &&
         callback_events[0].arguments[1] == "3" &&
         callback_events[1].name == "cpp_OnEnterGame" &&
         callback_events[1].arguments.size() == 1 &&
-        callback_events[1].arguments[0] == "{\"cid\":9}";
+        callback_events[1].arguments[0] == "{\"cid\":9}" &&
+        callback_events[2].name == "cpp_OnUpdateData" &&
+        callback_events[2].arguments.size() == 3 &&
+        callback_events[2].arguments[0] == "inventory" &&
+        callback_events[2].arguments[1] == "12" &&
+        callback_events[2].arguments[2] == "true";
 
     std::error_code cleanup_error;
     std::filesystem::remove(xml_smoke_path, cleanup_error);
@@ -168,7 +174,7 @@ std::string smoke_test() {
     out << "nickname validation: " << (nickname_ok ? "ok" : "failed") << "\n";
     out << "module() compat: " << (module_ok ? "ok" : "failed") << "\n";
     out << "LuaXML compat: " << (xml_ok ? "ok" : "failed") << "\n";
-    out << "login callback bridge: " << (callback_bridge_ok ? "ok" : "failed") << "\n";
+    out << "client callback bridge: " << (callback_bridge_ok ? "ok" : "failed") << "\n";
     out << "missing-global probe: " << (probe_ok ? "ok" : "failed") << "\n";
     lua_close(state);
     return out.str();

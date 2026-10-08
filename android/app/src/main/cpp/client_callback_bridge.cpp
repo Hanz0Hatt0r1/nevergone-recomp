@@ -74,6 +74,14 @@ void register_login_callback_bindings(lua_State* state) {
     register_callback(state, "cpp_OnCreateTheRole");
     register_callback(state, "cpp_OnGameAnnoucement");
     register_callback(state, "cpp_OnEnterGame");
+
+    // These reachable callbacks are also backed by exported native symbols in
+    // the original ARMv7 client. Keep them on the same typed event bridge so
+    // Lua can advance without pretending that chat/data/PVE UI consumers have
+    // already been reconstructed.
+    register_callback(state, "cpp_OnReceivedChatMessages");
+    register_callback(state, "cpp_OnUpdateData");
+    register_callback(state, "cpp_connect_pve");
 #else
     (void)state;
 #endif
