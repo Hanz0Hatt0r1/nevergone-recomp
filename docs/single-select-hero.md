@@ -37,4 +37,4 @@ The recomp currently restores only the confirmed base scene:
 
 No original image or audio bytes are stored in the repository.
 
-The vine stack is intentionally deferred. `xrtengman01.png` is a rotated TexturePacker frame, while the current clean-room atlas extractor intentionally accepts only non-rotated frames. Rotated-frame support should be added and regression-tested before restoring the vine layers, rather than silently rendering them with incorrect orientation.
+The vine stack is intentionally deferred to the next visual increment. `xrtengman01.png` is a rotated TexturePacker frame; the runtime now has a separately regression-tested rotated-frame transform, so the next step can restore all four vines while preserving the recovered insertion order and validating their exact placement independently from this base-scene change.
