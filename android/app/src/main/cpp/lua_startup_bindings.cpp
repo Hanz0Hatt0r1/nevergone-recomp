@@ -22,24 +22,18 @@ namespace {
 
 bool module_to_path(const std::string& module_name, std::string* output, std::string* error) {
     if (module_name.empty()) {
-        if (error != nullptr) {
-            *error = "empty module name";
-        }
+        if (error != nullptr) *error = "empty module name";
         return false;
     }
     if (module_name.front() == '/' || module_name.front() == '\\' ||
         module_name.find("..") != std::string::npos) {
-        if (error != nullptr) {
-            *error = "unsafe module path";
-        }
+        if (error != nullptr) *error = "unsafe module path";
         return false;
     }
 
     std::string relative = module_name;
     std::replace(relative.begin(), relative.end(), '\\', '/');
-
-    const bool has_lua_suffix =
-        relative.size() >= 4 && relative.substr(relative.size() - 4) == ".lua";
+    const bool has_lua_suffix = relative.size() >= 4 && relative.substr(relative.size() - 4) == ".lua";
     if (!has_lua_suffix) {
         std::replace(relative.begin(), relative.end(), '.', '/');
         relative += ".lua";
@@ -48,19 +42,32 @@ bool module_to_path(const std::string& module_name, std::string* output, std::st
     const std::filesystem::path root =
         std::filesystem::path(startup::config().files_dir) / "assets" / "Script";
     const std::filesystem::path candidate = (root / relative).lexically_normal();
-    const std::filesystem::path normalized_root = root.lexically_normal();
-
-    const std::string root_string = normalized_root.string();
+    const std::string root_string = root.lexically_normal().string();
     const std::string candidate_string = candidate.string();
     if (candidate_string.compare(0, root_string.size(), root_string) != 0) {
-        if (error != nullptr) {
-            *error = "module path escapes script root";
-        }
+        if (error != nullptr) *error = "module path escapes script root";
         return false;
     }
-
     *output = candidate_string;
     return true;
+}
+
+int traceback(lua_State* state) {
+    const char* message = lua_tostring(state, 1);
+    if (message == nullptr) {
+        message = "(non-string Lua error)";
+    }
+    luaL_traceback(state, state, message, 1);
+    return 1;
+}
+
+int protected_call(lua_State* state, int nargs, int nresults) {
+    const int function_index = lua_gettop(state) - nargs;
+    lua_pushcfunction(state, traceback);
+    lua_insert(state, function_index);
+    const int status = lua_pcall(state, nargs, nresults, function_index);
+    lua_remove(state, function_index);
+    return status;
 }
 
 int l_Lua_GetPlatformString(lua_State* state) {
@@ -94,9 +101,7 @@ int l_cpp_ShowErrorDialogUI(lua_State* state) {
 int l_cpp_ShowMessageBoxUI(lua_State* state) {
     const char* title = luaL_optstring(state, 1, "");
     const char* message = luaL_optstring(state, 2, "");
-    startup::cpp_ShowMessageBoxUI(
-        title != nullptr ? title : "",
-        message != nullptr ? message : "");
+    startup::cpp_ShowMessageBoxUI(title != nullptr ? title : "", message != nullptr ? message : "");
     return 0;
 }
 
@@ -139,7 +144,7 @@ bool execute_module(lua_State* state, const std::string& module_name, std::strin
 
     int status = luaL_loadfilex(state, path.c_str(), nullptr);
     if (status == 0) {
-        status = lua_pcall(state, 0, 0, 0);
+        status = protected_call(state, 0, 0);
     }
     if (status == 0) {
         return true;
@@ -175,10 +180,18 @@ std::string startup_execution_report() {
     const bool ok = execute_module(state, "Game.StartLua", &error);
     lua_close(state);
 
+    const auto modules = startup::take_requested_modules();
+    const auto ui_events = startup::take_ui_events();
+
     std::ostringstream out;
     out << "startup script: " << (ok ? "executed" : "failed") << "\n";
+    out << "startup modules requested: " << modules.size() << "\n";
+    for (const auto& module : modules) {
+        out << "  - " << module << "\n";
+    }
+    out << "startup UI events: " << ui_events.size() << "\n";
     if (!ok) {
-        out << "startup error: " << error << "\n";
+        out << "startup traceback:\n" << error << "\n";
     }
     return out.str();
 #else
