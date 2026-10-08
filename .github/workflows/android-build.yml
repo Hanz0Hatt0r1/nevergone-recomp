@@ -30,11 +30,12 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: Install Android build dependencies
         shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
           sdkmanager \
             'platforms;android-36' \
             'build-tools;36.0.0' \
@@ -42,7 +43,9 @@ jobs:
             'ndk;28.2.13676358'
 
       - name: Validate Python tools
-        run: python3 -m compileall -q tools
+        run: |
+          python3 -m compileall -q tools
+          python3 -m unittest discover -s tools -p 'test_*.py'
 
       - name: Prepare verified Lua 5.2.3
         run: python3 tools/fetch_lua_5_2_3.py
