@@ -40,6 +40,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             int frameIndex, int width, int height, int[] argbPixels);
     private static native boolean nativeBeginSplashSequence();
     private static native void nativeDrawSplashLayers();
+    private static native boolean nativeIsSplashSoundDue();
 
     private static native void nativeResetRecoveredSceneSequence();
     private static native void nativeBeginRecoveredSceneSequence();
@@ -73,12 +74,15 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
 
     private final File assetRoot;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final StartupLogoAudio startupLogoAudio;
     private final SingleLoginAudio singleLoginAudio;
+    private boolean lastSplashSoundDue;
     private boolean lastSingleLoginActive;
 
     public GameSurfaceView(Context context) {
         super(context);
         assetRoot = new File(context.getFilesDir(), "assets");
+        startupLogoAudio = new StartupLogoAudio(assetRoot);
         singleLoginAudio = new SingleLoginAudio(assetRoot);
         setEGLContextClientVersion(2);
         setRenderer(this);
@@ -92,7 +96,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         nativeOnSingleLoginSurfaceCreated();
         nativeOnSplashSurfaceCreated();
         reloadImportedVisualsOnGlThread();
-        updateSingleLoginAudioStateOnGlThread();
+        updateImportedAudioStateOnGlThread();
     }
 
     @Override
@@ -106,44 +110,63 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         nativeOnDrawFrame();
         nativeDrawSingleLoginLayer();
         nativeDrawSplashLayers();
-        updateSingleLoginAudioStateOnGlThread();
+        updateImportedAudioStateOnGlThread();
     }
 
     public void reloadImportedSplash() {
         queueEvent(() -> {
+            lastSplashSoundDue = false;
+            lastSingleLoginActive = false;
+            mainHandler.post(() -> {
+                startupLogoAudio.resetSequence();
+                singleLoginAudio.setSceneActive(false);
+            });
             reloadImportedVisualsOnGlThread();
             mainHandler.post(() -> {
-                // A hot re-import restarts the recovered startup sequence, so
-                // do not allow the previous SingleLogin BGM to leak under it.
-                singleLoginAudio.setSceneActive(false);
+                startupLogoAudio.onAssetsReloaded();
                 singleLoginAudio.onAssetsReloaded();
             });
         });
     }
 
     public void pauseImportedAudio() {
-        mainHandler.post(singleLoginAudio::onPause);
+        mainHandler.post(() -> {
+            startupLogoAudio.onPause();
+            singleLoginAudio.onPause();
+        });
     }
 
     public void resumeImportedAudio() {
-        mainHandler.post(singleLoginAudio::onResume);
+        mainHandler.post(() -> {
+            startupLogoAudio.onResume();
+            singleLoginAudio.onResume();
+        });
     }
 
     public void releaseImportedAudio() {
-        mainHandler.post(singleLoginAudio::release);
+        mainHandler.post(() -> {
+            startupLogoAudio.release();
+            singleLoginAudio.release();
+        });
     }
 
     public String importedAudioStatus() {
-        return singleLoginAudio.status();
+        return "Splash SFX: " + startupLogoAudio.status() +
+                "\nSingleLogin BGM: " + singleLoginAudio.status();
     }
 
-    private void updateSingleLoginAudioStateOnGlThread() {
-        boolean active = nativeIsSingleLoginActive();
-        if (active == lastSingleLoginActive) {
-            return;
+    private void updateImportedAudioStateOnGlThread() {
+        boolean splashSoundDue = nativeIsSplashSoundDue();
+        if (splashSoundDue != lastSplashSoundDue) {
+            lastSplashSoundDue = splashSoundDue;
+            mainHandler.post(() -> startupLogoAudio.setDue(splashSoundDue));
         }
-        lastSingleLoginActive = active;
-        mainHandler.post(() -> singleLoginAudio.setSceneActive(active));
+
+        boolean singleLoginActive = nativeIsSingleLoginActive();
+        if (singleLoginActive != lastSingleLoginActive) {
+            lastSingleLoginActive = singleLoginActive;
+            mainHandler.post(() -> singleLoginAudio.setSceneActive(singleLoginActive));
+        }
     }
 
     private void reloadImportedVisualsOnGlThread() {
@@ -258,8 +281,6 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         }
 
         if (loadedFrames == SPLASH_FILES.length && nativeBeginSplashSequence()) {
-            // Keep the gameplay/UI and audio boundary on the same fixed-clock
-            // tick as the actual GLES splash sequence start.
             nativeBeginRecoveredSceneSequence();
             nativeClearSplashTexture();
         }
