@@ -44,7 +44,9 @@ The full metadata index contains the five `HPData::getBytes(..., HPRange)` signa
 
 It also exposes a bounded fixed-width string-field reader. That helper accepts an explicit offset and field width, rejects out-of-range slices, and stops the returned string at the first NUL byte. This maps only the verified raw-char-field behavior needed before `CCString::create`; it does not claim an encoding conversion or an `HPRange` ABI.
 
-The reader is compiled into the Android native module and has a host regression for valid primitive/string reads and out-of-range rejection.
+A project-owned `hp_data::Cursor` layers sequential parsing on top of those explicit reader primitives. The cursor tracks only a current byte offset, advances after successful reads, and leaves its position unchanged on failed reads, seeks or skips. This gives future `LoadGL_*` reconstruction a safe stream-style API without claiming that the cursor mirrors the original `HPRange` structure or calling convention.
+
+The reader/cursor are compiled into the Android native module and have host regression coverage for valid primitive/string reads, sequential advancement, seeking/skipping, and out-of-range rejection.
 
 ## Imported GameLevels asset probe
 
