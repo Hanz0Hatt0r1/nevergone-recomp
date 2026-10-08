@@ -1,6 +1,6 @@
 # TapToStart reconstruction evidence
 
-This note records the clean-room evidence used by the reconstructed TapToStart input gate.
+This note records the clean-room evidence used by the reconstructed TapToStart input gate and the offline startup route that follows it.
 
 ## Recovered control flow
 
@@ -27,6 +27,23 @@ The original TapToStart implementation also owns legacy Android OBB extraction/u
 
 Those stages use internal states `1..3` before the layer reaches interactable state `4`. The recomp already imports/decodes the user-owned original resources before the recovered splash sequence starts, so it does not reproduce the obsolete OBB extraction thread. When SingleLogin becomes active, the modern resource path enters the recovered interactable state `4` directly.
 
-## Current compatibility boundary
+## Offline role route
 
-The runtime currently stops at the recovered `platformAutoLogin` request boundary. It does not invent credentials, network responses, or the obsolete third-party Android login SDK. A later offline-compatibility step can consume that one-shot request and reproduce the verified callback-0 local path into `OnSelectCharacter()`.
+The obsolete Android login SDK is not reproduced. The clean-room compatibility path consumes the one-shot recovered `platformAutoLogin` request and applies the verified success callback (`androidSdkCallBack(0)`), which reaches `OnLogin()` and then `OnSelectCharacter()`.
+
+The local character branch is recovered separately from the network/Lua role-list callbacks:
+
+- `ManagementLayer::OnSelectCharacter()` is at `0x00307154` and calls `GameSaveData::LoadStandaloneHeroDataList()`.
+- `ManagementLayer::ReadIcloud()` is at `0x00307028`.
+- With no standalone hero, `ReadIcloud()` calls `ManagementLayer::initOpeningDalogue()` at `0x003062a0`.
+- With an existing standalone hero, it calls `ManagementLayer::GoToChooseRole()` at `0x00306454` and `GameSceneUI::showChooseHeroPane()` at `0x003e6a20`.
+- `initOpeningDalogue()` creates the opening/create-character stack including `OpeningDalogue` and `SingleSelectHero`.
+
+`GameSaveData::LoadStandaloneHeroDataList()` is at `0x0034ba90`. Its recovered string reference formats standalone saves as `DMG_%02d.sData` under the Cocos writable path. The recomp therefore probes its app-private files root for regular files matching `DMG_` + at least two decimal digits + `.sData`, without assuming a fixed number of slots.
+
+The resulting runtime routes are intentionally semantic rather than a port of GameCenter/iCloud code:
+
+- no matching standalone save -> `opening-dialogue`
+- matching standalone save present -> `choose-role`
+
+The visual `OpeningDalogue`/`SingleSelectHero` and choose-role panes are subsequent reconstruction milestones; until those layers are implemented, the route is exposed through bootstrap diagnostics while the recovered SingleLogin renderer remains intact.
