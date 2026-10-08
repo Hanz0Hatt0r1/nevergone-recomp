@@ -1,0 +1,25 @@
+# Android/Gradle
+.gradle/
+**/build/
+android/local.properties
+android/.cxx/
+
+# IDE
+.idea/
+*.iml
+
+# Local original-game material (never commit proprietary inputs/extractions)
+original/
+original-apk/
+extracted/
+work/
+analysis-output/
+*.apk
+*.so
+*.dex
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
