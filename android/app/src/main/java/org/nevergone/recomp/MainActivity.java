@@ -93,6 +93,9 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        if (gameSurface != null) {
+            gameSurface.pauseImportedAudio();
+        }
         nativeOnAppPause();
         if (gameSurface != null) {
             gameSurface.onPause();
@@ -107,6 +110,17 @@ public final class MainActivity extends Activity {
             gameSurface.onResume();
         }
         nativeOnAppResume();
+        if (gameSurface != null) {
+            gameSurface.resumeImportedAudio();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (gameSurface != null) {
+            gameSurface.releaseImportedAudio();
+        }
+        super.onDestroy();
     }
 
     @Override
@@ -175,7 +189,13 @@ public final class MainActivity extends Activity {
         File startLua = new File(getFilesDir(), "assets/Script/Game/StartLua.lua");
         text.append("Original assets: ")
                 .append(startLua.isFile() ? "present" : "not imported")
-                .append("\n\n")
+                .append("\n");
+        if (gameSurface != null) {
+            text.append("SingleLogin BGM: ")
+                    .append(gameSurface.importedAudioStatus())
+                    .append("\n");
+        }
+        text.append("\n")
                 .append(nativeBootstrapInfo())
                 .append("\n\nClient UI state\n")
                 .append(nativeClientUiState());
