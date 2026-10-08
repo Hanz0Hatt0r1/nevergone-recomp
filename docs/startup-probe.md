@@ -4,7 +4,26 @@
 
 The probe accepts a user's own original Never Gone APK and a Lua 5.2 executable. It decodes only `.lua` entries from `assets/assets/Script/` into a temporary directory, loads the same embedded compatibility script used by the Android runtime, installs boot-safe offline shims for already reconstructed platform/filesystem/UI/ProtoRPC/XML surfaces, and executes `Game.StartLua` through `CAddDoString`.
 
-Example after preparing the pinned Lua 5.2.3 source:
+## One-command mode
+
+On a normal Linux development host (including Manjaro), use the wrapper:
+
+```bash
+python3 tools/run_startup_probe_auto.py /path/to/com.hippiegame.nevergone.apk
+```
+
+The wrapper:
+
+- reuses the repository's pinned Lua 5.2.3 downloader;
+- verifies the official archive SHA-256 before extraction;
+- builds the host Lua interpreter with `make` when it is not already present;
+- invokes `run_startup_probe.py` with the repository compatibility layer.
+
+The fetched Lua source stays under ignored `third_party/_local/` and is never committed.
+
+## Manual mode
+
+If a known Lua 5.2 executable is already available:
 
 ```bash
 python3 tools/fetch_lua_5_2_3.py
