@@ -33,3 +33,19 @@ jobs:
           python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
           python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
           python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
+      - name: Query TapToStart reconstruction metadata
+        run: |
+          echo '=== FUNCTIONS TapToStart ==='
+          python tools/ghidra/query_full_index.py functions TapToStart --limit 50 || true
+          echo '=== SYMBOLS TapToStart ==='
+          python tools/ghidra/query_full_index.py symbols TapToStart --limit 100 || true
+          echo '=== STRINGS TapToStart ==='
+          python tools/ghidra/query_full_index.py strings TapToStart --limit 100 || true
+          echo '=== STRINGS tap ==='
+          python tools/ghidra/query_full_index.py strings tap --limit 100 || true
+          echo '=== ASSETS TapToStart ==='
+          python tools/ghidra/query_full_index.py assets TapToStart --limit 100 || true
+          echo '=== ATLASES TapToStart ==='
+          python tools/ghidra/query_full_index.py atlases TapToStart --limit 100 || true
+          echo '=== ATLASES tap ==='
+          python tools/ghidra/query_full_index.py atlases tap --limit 100 || true
