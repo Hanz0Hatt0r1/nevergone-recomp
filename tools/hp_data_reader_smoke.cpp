@@ -47,8 +47,9 @@ int main() {
     assert(reader.read_fixed_string(bytes.size(), 0, &text));
     assert(text.empty());
 
-    assert(!reader.read_u32_le(8, &u32));
-    assert(!reader.read_f32_le(8, &f32));
+    const std::size_t short_tail = bytes.size() - 3;
+    assert(!reader.read_u32_le(short_tail, &u32));
+    assert(!reader.read_f32_le(short_tail, &f32));
     assert(!reader.read_bool8(bytes.size(), &flag));
     assert(!reader.read_bytes(bytes.size() - 1, 2, copy));
     assert(!reader.read_bytes(0, 1, nullptr));
