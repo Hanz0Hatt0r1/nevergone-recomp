@@ -37,6 +37,8 @@ public final class MainActivity extends Activity {
     private static native String nativeClientUiState();
     private static native void nativeOnAppPause();
     private static native void nativeOnAppResume();
+    private static native void nativeAppDelegateOnPause();
+    private static native void nativeAppDelegateOnResume();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,6 +107,7 @@ public final class MainActivity extends Activity {
         if (gameSurface != null) {
             gameSurface.pauseImportedAudio();
         }
+        nativeAppDelegateOnPause();
         nativeOnAppPause();
         if (gameSurface != null) {
             gameSurface.onPause();
@@ -119,6 +122,7 @@ public final class MainActivity extends Activity {
             gameSurface.onResume();
         }
         nativeOnAppResume();
+        nativeAppDelegateOnResume();
         if (gameSurface != null) {
             gameSurface.resumeImportedAudio();
         }
