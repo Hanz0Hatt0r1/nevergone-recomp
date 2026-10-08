@@ -34,11 +34,15 @@ Recovered functions:
 
 The constructor allocates its own buffer and copies the source bytes with `malloc` + `memcpy`. `createWithContentsOfFile()` obtains file data through Cocos file utilities, constructs `HPData` from that data, then releases the temporary source buffer. The typed `getBytes` overloads are tiny leaf functions with no resolved callees, consistent with direct buffer extraction rather than a text decoder or higher-level serialization library.
 
+A focused checked-in metadata probe also confirms the read ordering inside the binary sections. `LoadGL_Scene()` starts with integer/unsigned reads, creates `GameSceneData`, then performs a `char*` read followed by float reads before the resulting char buffer reaches `CCString::create`. The same `char* -> CCString::create` pattern appears again in layer/object parsing. `LoadGL_PortNode()` similarly mixes unsigned, char and bool reads before creating `GameScenePortNodeData`. This establishes fixed-width/raw character fields as a required primitive without exposing or guessing the internal `HPRange` layout.
+
 ## Current reader foundation
 
 `hp_data_reader.{h,cpp}` provides an independent, bounds-checked byte-buffer foundation for future clean-room parsers. It deliberately accepts explicit offsets rather than claiming the unresolved in-memory `HPRange` field layout. It exposes raw byte copying plus explicit little-endian 32-bit integer/float and one-byte boolean helpers, matching the primitive types observed throughout `LoadGL_*` on the original little-endian ARM Android target.
 
-The reader is compiled into the Android native module and has a host regression for valid reads and out-of-range rejection.
+It also exposes a bounded fixed-width string-field reader. That helper accepts an explicit offset and field width, rejects out-of-range slices, and stops the returned string at the first NUL byte. This maps only the verified raw-char-field behavior needed before `CCString::create`; it does not claim an encoding conversion or an `HPRange` ABI.
+
+The reader is compiled into the Android native module and has a host regression for valid primitive/string reads and out-of-range rejection.
 
 ## Remaining format work
 
