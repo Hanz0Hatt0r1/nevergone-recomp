@@ -41,6 +41,38 @@ bool range_ready_locked(int first, int end) {
     return true;
 }
 
+bool upload_from_java(
+        JNIEnv* env,
+        jint index,
+        jint width,
+        jint height,
+        jint left,
+        jint top,
+        jint source_width,
+        jint source_height,
+        jintArray pixels) {
+    if (pixels == nullptr || width <= 0 || height <= 0) return false;
+    const jsize length = env->GetArrayLength(pixels);
+    const std::size_t expected =
+            static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    if (static_cast<std::size_t>(length) != expected) return false;
+
+    jint* values = env->GetIntArrayElements(pixels, nullptr);
+    if (values == nullptr) return false;
+    const bool uploaded = upload(
+            static_cast<int>(index),
+            static_cast<int>(width),
+            static_cast<int>(height),
+            static_cast<int>(left),
+            static_cast<int>(top),
+            static_cast<int>(source_width),
+            static_cast<int>(source_height),
+            reinterpret_cast<const std::uint32_t*>(values),
+            expected);
+    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
+    return uploaded;
+}
+
 }  // namespace
 
 void clear() {
@@ -138,26 +170,18 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeUploadChooseHeroBackgroundAsset(
         jint source_width,
         jint source_height,
         jintArray pixels) {
-    if (pixels == nullptr || width <= 0 || height <= 0) return JNI_FALSE;
-    const jsize length = env->GetArrayLength(pixels);
-    const std::size_t expected =
-            static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
-    if (static_cast<std::size_t>(length) != expected) return JNI_FALSE;
-
-    jint* values = env->GetIntArrayElements(pixels, nullptr);
-    if (values == nullptr) return JNI_FALSE;
-    const bool uploaded = nevergone::choose_hero_background::upload(
-            static_cast<int>(index),
-            static_cast<int>(width),
-            static_cast<int>(height),
-            static_cast<int>(left),
-            static_cast<int>(top),
-            static_cast<int>(source_width),
-            static_cast<int>(source_height),
-            reinterpret_cast<const std::uint32_t*>(values),
-            expected);
-    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
-    return uploaded ? JNI_TRUE : JNI_FALSE;
+    return nevergone::choose_hero_background::upload_from_java(
+            env,
+            index,
+            width,
+            height,
+            left,
+            top,
+            source_width,
+            source_height,
+            pixels)
+        ? JNI_TRUE
+        : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -167,7 +191,37 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeChooseHeroBackgroundAssetsReady(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeChooseHeroEffectAssetsReady(
+Java_org_nevergone_recomp_ChooseHeroEffectStager_nativeUploadEffectAsset(
+        JNIEnv* env,
+        jclass,
+        jint index,
+        jint width,
+        jint height,
+        jint left,
+        jint top,
+        jint source_width,
+        jint source_height,
+        jintArray pixels) {
+    if (index < nevergone::choose_hero_background::kLightningFirstIndex ||
+            index >= nevergone::choose_hero_background::kFrameCount) {
+        return JNI_FALSE;
+    }
+    return nevergone::choose_hero_background::upload_from_java(
+            env,
+            index,
+            width,
+            height,
+            left,
+            top,
+            source_width,
+            source_height,
+            pixels)
+        ? JNI_TRUE
+        : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_ChooseHeroEffectStager_nativeEffectAssetsReady(
         JNIEnv*, jclass) {
     return nevergone::choose_hero_background::effects_ready() ? JNI_TRUE : JNI_FALSE;
 }
