@@ -2,6 +2,8 @@
 
 #include <sstream>
 
+#include "native_binding_registry.h"
+
 #if defined(NEVERGONE_HAS_LUA)
 extern "C" {
 #include <lauxlib.h>
@@ -56,10 +58,31 @@ std::string smoke_test() {
 
     const char* runtime_version = lua_tostring(state, -2);
     const lua_Number answer = lua_tonumber(state, -1);
-    const bool ok = runtime_version != nullptr && answer == 42;
+    const bool basic_ok = runtime_version != nullptr && answer == 42;
+    const std::string runtime_version_copy =
+        runtime_version != nullptr ? runtime_version : "unknown";
 
-    out << "lua smoke test: " << (ok ? "ok" : "failed") << "\n";
-    out << "lua runtime: " << (runtime_version != nullptr ? runtime_version : "unknown") << "\n";
+    lua_settop(state, 0);
+    install_missing_global_probe(state);
+    status = luaL_loadstring(state, "return NeverGoneMissingProbe == nil");
+    if (status == 0) {
+        status = lua_pcall(state, 0, 1, 0);
+    }
+
+    bool probe_ok = false;
+    if (status == 0) {
+        const bool returned_nil_semantics = lua_toboolean(state, -1) != 0;
+        const auto missing = take_missing_globals();
+        probe_ok = returned_nil_semantics && missing.size() == 1 &&
+                   missing.front().name == "NeverGoneMissingProbe" &&
+                   missing.front().hits == 1;
+    } else {
+        take_missing_globals();
+    }
+
+    out << "lua smoke test: " << ((basic_ok && probe_ok) ? "ok" : "failed") << "\n";
+    out << "lua runtime: " << runtime_version_copy << "\n";
+    out << "missing-global probe: " << (probe_ok ? "ok" : "failed") << "\n";
     lua_close(state);
     return out.str();
 #else
