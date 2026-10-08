@@ -2,9 +2,11 @@
 
 #include "game_clock.h"
 #include "splash_sequence_state.h"
+#include "tap_to_start_state.h"
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeResetRecoveredSceneSequence(JNIEnv*, jclass) {
+    nevergone::tap_to_start_state::reset();
     nevergone::splash_sequence_state::reset();
 }
 
