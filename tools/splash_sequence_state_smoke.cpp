@@ -8,12 +8,15 @@
 
 namespace {
 
-bool nearly(double actual, double expected, double tolerance = 1.0e-9) {
+constexpr double kEpsilon = 1.0e-9;
+
+bool nearly(double actual, double expected, double tolerance = kEpsilon) {
     return std::fabs(actual - expected) <= tolerance;
 }
 
 std::uint64_t ticks_for(double seconds) {
-    return static_cast<std::uint64_t>(seconds / nevergone::game_clock::kFixedStepSeconds + 0.5);
+    return static_cast<std::uint64_t>(
+        std::ceil(seconds / nevergone::game_clock::kFixedStepSeconds - kEpsilon));
 }
 
 }  // namespace
@@ -43,7 +46,7 @@ int main() {
 
     const std::uint64_t sound_tick = ticks_for(splash_timeline::kStartupSoundSeconds);
     const double sound_seconds = static_cast<double>(sound_tick) * game_clock::kFixedStepSeconds;
-    if (sound_seconds < splash_timeline::kStartupSoundSeconds ||
+    if (sound_seconds + kEpsilon < splash_timeline::kStartupSoundSeconds ||
         splash_sequence_state::complete(kStartA + sound_tick)) {
         std::cerr << "startup sound cue window mismatch\n";
         return 1;
