@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 
+#include "client_callback_bridge.h"
 #include "lua_runtime.h"
 #include "lua_startup_bindings.h"
 #include "startup_contract.h"
@@ -60,7 +61,7 @@ std::string bootstrap_info() {
     out << nevergone::startup::smoke_test_report();
     out << nevergone::lua_runtime::smoke_test();
     out << nevergone::lua_runtime::startup_execution_report();
-    out << "\nNext milestone: satisfy the next native bindings requested by Game.StartLua.";
+    out << "\nNext milestone: connect client state to the reconstructed title/login UI.";
     return out.str();
 }
 
@@ -85,4 +86,10 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_org_nevergone_recomp_MainActivity_nativeBootstrapInfo(JNIEnv* env, jclass) {
     const std::string info = bootstrap_info();
     return env->NewStringUTF(info.c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeClientUiState(JNIEnv* env, jclass) {
+    const std::string report = nevergone::lua_runtime::client_ui_state_report();
+    return env->NewStringUTF(report.c_str());
 }
