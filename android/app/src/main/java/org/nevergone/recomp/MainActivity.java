@@ -147,6 +147,9 @@ public final class MainActivity extends Activity {
                         result.decodedFiles);
                 runOnUiThread(() -> {
                     importButton.setEnabled(true);
+                    if (gameSurface != null) {
+                        gameSurface.reloadImportedSplash();
+                    }
                     status.setText(buildStatusText(summary));
                 });
             } catch (Exception error) {
