@@ -67,6 +67,16 @@ jobs:
       - name: Validate ChooseHero background atlas contract
         run: python3 tools/verify_choose_hero_background_contract.py
 
+      - name: Validate AppDelegate startup state
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/app_delegate_state_smoke.cpp \
+            android/app/src/main/cpp/app_delegate_state.cpp \
+            -o /tmp/app_delegate_state_smoke
+          /tmp/app_delegate_state_smoke
+
       - name: Validate HPData reader foundation
         shell: bash
         run: |
