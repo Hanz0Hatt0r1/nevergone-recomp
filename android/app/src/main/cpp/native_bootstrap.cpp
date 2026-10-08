@@ -10,8 +10,8 @@
 #include "client_callback_bridge.h"
 #include "game_levels_asset_probe.h"
 #include "initial_ui_transition.h"
+#include "login_lua_session.h"
 #include "lua_runtime.h"
-#include "lua_startup_bindings.h"
 #include "offline_startup_flow.h"
 #include "render_bridge.h"
 #include "server_selection_compositor.h"
@@ -35,13 +35,9 @@ const char* abi_name() {
 }
 
 std::string jstring_to_utf8(JNIEnv* env, jstring value) {
-    if (value == nullptr) {
-        return {};
-    }
+    if (value == nullptr) return {};
     const char* chars = env->GetStringUTFChars(value, nullptr);
-    if (chars == nullptr) {
-        return {};
-    }
+    if (chars == nullptr) return {};
     std::string result(chars);
     env->ReleaseStringUTFChars(value, chars);
     return result;
@@ -51,6 +47,10 @@ std::string bootstrap_info() {
     utsname system_info{};
     const bool have_uname = uname(&system_info) == 0;
     const long page_size = sysconf(_SC_PAGESIZE);
+
+    // Start or retry the long-lived reconstructed Lua state. A failed start is
+    // retained in diagnostics; importing assets and refreshing can retry it.
+    (void)nevergone::login_lua_session::ensure_started();
 
     std::ostringstream out;
     out << "native bootstrap loaded\n";
@@ -65,17 +65,18 @@ std::string bootstrap_info() {
     const auto& runtime = nevergone::startup::config();
     out << "files dir configured: " << (!runtime.files_dir.empty() ? "yes" : "no") << "\n";
     out << "app version: " << (runtime.app_version.empty() ? "unknown" : runtime.app_version) << "\n";
+    out << "lua runtime: " << nevergone::lua_runtime::version() << "\n";
     out << nevergone::app_delegate_state::status_report();
     out << nevergone::initial_ui_transition::status_report();
     out << nevergone::render::status_report();
     out << nevergone::server_selection_state::status_report();
     out << nevergone::server_selection_compositor::status_report();
+    out << nevergone::login_lua_session::status_report();
     out << nevergone::offline_startup_flow::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
-    out << nevergone::lua_runtime::smoke_test();
-    out << nevergone::lua_runtime::startup_execution_report();
-    out << "\nNext milestone: persist the reconstructed Lua login runtime so confirmed server requests can dispatch to g_UILogin.EnterGameLogicServer(ip, id).";
+    out << nevergone::login_lua_session::startup_report();
+    out << "\nNext milestone: drive role selection and scene entry from the persistent reconstructed Lua/login state.";
     return out.str();
 }
 
@@ -88,6 +89,7 @@ Java_org_nevergone_recomp_MainActivity_nativeConfigureRuntime(
     jstring files_dir,
     jstring device_id,
     jstring app_version) {
+    nevergone::login_lua_session::shutdown();
     nevergone::startup::RuntimeConfig config;
     config.files_dir = jstring_to_utf8(env, files_dir);
     config.device_id = jstring_to_utf8(env, device_id);
