@@ -12,6 +12,8 @@ add_library(nevergone_recomp SHARED
     hp_data_reader.cpp
     initial_ui_transition.cpp
     login_callback_payload.cpp
+    login_lua_dispatch.cpp
+    login_lua_session.cpp
     lua_compat.cpp
     lua_runtime.cpp
     lua_startup_bindings.cpp
