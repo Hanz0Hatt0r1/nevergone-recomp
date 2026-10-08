@@ -21,6 +21,7 @@ add_library(nevergone_recomp SHARED
     offline_startup_flow.cpp
     protorpc_bindings.cpp
     render_bridge.cpp
+    server_selection_state.cpp
     single_login_cloud_timeline.cpp
     single_login_compositor.cpp
     single_login_light_timeline.cpp
