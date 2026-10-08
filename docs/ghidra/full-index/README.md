@@ -16,7 +16,7 @@ For each of `libcocos2dcpp` and `libffmpeg`, [ExportProgramIndex.java](../../../
 
 Addresses use the Ghidra program's address space. For `libcocos2dcpp.so`, Ghidra loaded the program at `ELF virtual address + 0x10000`. Call and reference coverage is limited to what the analyzed project recognizes; indirect calls and unresolved references do not appear as resolved edges.
 
-`native_manifest.json` records the SHA-256 of each original `.so` member and row counts. The `libffmpeg.so` export was made after 600 seconds of additional analysis in a temporary project copy. That analysis timed out before completion; its 44,146 resolved call edges are useful but should not be treated as a complete call graph. The original project was not modified.
+`native_manifest.json` records the SHA-256 of each original `.so` member and each exported table, plus row counts. The `libffmpeg.so` export now comes from a completed Ghidra auto-analysis in a temporary project copy. The first pass hit a 600-second limit and saved its progress; a second pass finished successfully in 307 seconds. A separate read-only export of the saved project produced byte-identical metadata files. The original user project was not modified. The completed analysis records 65,958 resolved call edges, while indirect and unresolved calls remain outside that graph.
 
 ## Archives and atlases
 

@@ -5,6 +5,7 @@ import argparse
 import base64
 import csv
 import gzip
+import hashlib
 import json
 from pathlib import Path
 
@@ -53,8 +54,11 @@ def main() -> None:
             for row in rows(directory / f"{program}.{schema}.tsv.gz", schema):
                 if schema == "strings":
                     base64.b64decode(row["utf8_base64"], validate=True).decode("utf-8")
-                elif schema == "calls" and row["caller_entry"] not in function_entries:
-                    raise ValueError(f"{program}: call from unknown function {row['caller_entry']}")
+                elif schema == "calls":
+                    if row["caller_entry"] not in function_entries:
+                        raise ValueError(f"{program}: call from unknown function {row['caller_entry']}")
+                    if row["callee_entry"] not in function_entries:
+                        raise ValueError(f"{program}: call to unknown function {row['callee_entry']}")
                 count += 1
             counts[f"{program}.{schema}"] = count
 
@@ -81,6 +85,10 @@ def main() -> None:
         for schema, expected in program["counts"].items():
             if counts[f"{stem}.{schema}"] != expected:
                 raise ValueError(f"{stem}.{schema} count does not match manifest")
+            table = directory / f"{stem}.{schema}.tsv.gz"
+            actual_sha256 = hashlib.sha256(table.read_bytes()).hexdigest()
+            if actual_sha256 != program["table_sha256"][schema]:
+                raise ValueError(f"{table} SHA-256 does not match manifest")
     print(json.dumps(counts, sort_keys=True, indent=2))
 
 

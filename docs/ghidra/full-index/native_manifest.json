@@ -14,19 +14,34 @@
         "strings": 47009,
         "xrefs": 654177,
         "calls": 179859
+      },
+      "table_sha256": {
+        "functions": "81b0333031d3d795a2ba12a3115848e80c72571f5cf7d8e8c6b8985294c586a5",
+        "symbols": "322b1df59abc0ba38ab46e1bbe8406bb1edebfe4a675fc6fcd9f48e33d21f104",
+        "strings": "a485c0ab800a65b92b108cb6a7d96d4ea65f3dd0c8f2cb29a46befb94ac0fc73",
+        "xrefs": "d8aa6af630731c015968e75e443581cbf628e9cb81b0b9bd70be007e05adb843",
+        "calls": "c6d3b04d71c211ca8ef5916e80098bd05042183a96002adb97c6afa825fc8c87"
       }
     },
     {
       "program": "libffmpeg.so",
       "apk_member": "lib/armeabi-v7a/libffmpeg.so",
       "sha256": "f5e8392d27b182671be5070bc7aa5772a8b19711af222833651faf8516eacdde",
-      "analysis_status": "temporary Ghidra reanalysis; 600-second analysis timeout",
+      "analysis_status": "complete: Ghidra reported Analysis succeeded after incremental second pass",
       "counts": {
-        "functions": 6223,
-        "symbols": 217369,
-        "strings": 12433,
-        "xrefs": 402158,
-        "calls": 44146
+        "functions": 7995,
+        "symbols": 229646,
+        "strings": 19570,
+        "xrefs": 840829,
+        "calls": 65958
+      },
+      "completion_pass_seconds": 307,
+      "table_sha256": {
+        "functions": "d98414228463921fbc4a0a73263b0298a40831a6c1d15c76fe659a670bc5746f",
+        "symbols": "48900ee076e96827019cfaf93d14bcc8e93acab649d57790b8575aac003dbae3",
+        "strings": "492da8be1ff7cca3b4b13b2e66c96a3bc9224dd5fd7ece7646821419ed611a56",
+        "xrefs": "c61398c45cdfb16f74d47a3cf732255c9659a580f218aa3aed80e499485f1638",
+        "calls": "118dcdab816a598a43a87d26985d8db599d9a715d618480bfda1b5f9f6ec344e"
       }
     }
   ]
