@@ -78,16 +78,20 @@ When `scene_count > 0`, the original first scene iteration performs this verifie
 
 The third value is therefore the first scene's string byte length, and the later uint32 is the scene's layer count. The intervening single byte is confirmed as skipped but is intentionally left semantically unnamed.
 
-`game_levels_scene_prefix::parse_first_scene_header()` implements exactly that evidence. It returns:
+`game_levels_scene_prefix::parse_first_scene_header()` implements exactly that evidence. It returns the top-level prefix, string length/string, two point floats, layer count, and verified byte count. Parsing is transactional. A zero scene count, truncated string, missing float/layer-count field, or impossible string length causes failure without exposing a partially updated output. For a string length `N`, the verified first-scene header ends at byte offset `25 + N`.
 
-- the top-level prefix;
-- `first_string_length`;
-- `first_string` using the same eventual NUL-terminated semantics;
-- `first_point_x` / `first_point_y`;
-- `layer_count`;
-- the number of verified bytes consumed.
+## Verified first-layer header
 
-Parsing is transactional. A zero scene count, truncated string, missing float/layer-count field, or impossible string length causes failure without exposing a partially updated output. For a string length `N`, the verified first-scene header ends at byte offset `25 + N` from the start of `LoadGL_Scene` parsing.
+When the first scene's `layer_count > 0`, the first layer begins immediately after the scene header. The original ordered call/control flow shows:
+
+1. `HPData::getBytes(float*, ...)` at `0x002d293e`;
+2. the stream offset advances by 4 bytes;
+3. `HPData::getBytes(unsigned int*, ...)` at `0x002d2960`;
+4. a zero-based loop index is compared directly against that uint32 before `GameSceneLayerObjectData::create()` at `0x002d297e`.
+
+The uint32 is therefore the layer's object count. The float's semantic purpose is not yet proven and remains deliberately named `first_float`.
+
+`game_levels_scene_prefix::parse_first_layer_header()` extends the first-scene header by exactly 8 verified bytes and returns `{first_float, object_count}` plus the total consumed byte count. It fails cleanly when `layer_count == 0`, when either primitive is truncated, or when an earlier scene-header boundary is invalid.
 
 ## Imported GameLevels asset probe
 
@@ -95,12 +99,12 @@ The reconstructed runtime resolves the user-owned app-private resource:
 
 `<files>/assets/gamescene/gs_list/pvp_scene.glData`
 
-The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It now validates both the 8-byte top-level prefix and, when a first scene exists, the verified first-scene header.
+The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It validates the 8-byte top-level prefix, the first-scene header when a scene exists, and now the first-layer header when a layer exists.
 
-Bootstrap diagnostics report only readiness and verified byte counts. They do **not** print the imported scene's string, coordinates, counts, or other proprietary field values. Synthetic host regressions cover missing/readable/oversized/non-regular paths, zero scenes, valid first-scene parsing, truncated fields, and hostile string lengths without requiring game data.
+Bootstrap diagnostics report only readiness and verified byte counts. They do **not** print the imported scene's strings, coordinates, counts, floats, or other proprietary field values. Synthetic host regressions cover missing/readable/oversized/non-regular paths, zero scenes, zero layers, valid nested headers, truncated fields, and hostile string lengths without requiring game data.
 
 ## Remaining format work
 
-The next verified boundary starts inside each `GameSceneLayerData` record. The first layer-local read is a 4-byte float at `0x002d293e`, followed by a `uint32` at `0x002d2960` that is used as the object-loop bound before `GameSceneLayerObjectData::create()`.
+The next boundary starts inside `GameSceneLayerObjectData`. The object records contain a larger sequence of mixed integer, character, float and boolean reads. Continue reconstructing that record in small verified chunks before attempting to skip multiple objects or layers; without the object record size/schema, parsing a second layer would be speculative.
 
-Continue reconstructing these nested records from ordered call/control-flow evidence rather than guessed field names. Semantic names should be assigned only when the value's use in the original code makes them unambiguous.
+Semantic names should be assigned only when the value's use in the original code makes them unambiguous.
