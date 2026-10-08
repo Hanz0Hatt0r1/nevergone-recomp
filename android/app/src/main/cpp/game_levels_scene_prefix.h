@@ -8,37 +8,36 @@
 
 namespace nevergone::game_levels_scene_prefix {
 
-// The checked-in call metadata establishes the primitive order at the start of
-// GameLevels::LoadGL_Scene: int32, uint32, GameSceneData::create, then uint32.
-// Object creation does not consume HPData bytes, so the first three fields are
-// sequentially readable. Their semantic identities are not yet recovered.
+// The original LoadGL_Scene stream begins with one unresolved signed int32
+// stored on GameLevels, followed by a uint32 used directly as the scene-loop
+// bound. No scene-local bytes are consumed when scene_count is zero.
 struct Prefix {
     std::int32_t first_i32 = 0;
-    std::uint32_t second_u32 = 0;
-    std::uint32_t third_u32 = 0;
+    std::uint32_t scene_count = 0;
     std::size_t bytes_consumed = 0;
 };
 
-// Focused ARMv7 disassembly establishes that the third uint32 is then used as
-// the byte length for the first char payload. The original parser skips one
-// still-unidentified byte, copies exactly that many bytes, appends a NUL, and
-// reads two 32-bit floats that are assigned as a CCPoint.
-struct FirstRecordHeader {
+// Within each scene, focused ARMv7 evidence shows a uint32 byte length, one
+// skipped byte of still-unknown meaning, a char payload of exactly that length,
+// two floats assigned as a CCPoint, then a uint32 used as the layer-loop bound.
+struct FirstSceneHeader {
     Prefix prefix;
+    std::uint32_t first_string_length = 0;
     std::string first_string;
     float first_point_x = 0.0f;
     float first_point_y = 0.0f;
+    std::uint32_t layer_count = 0;
     std::size_t bytes_consumed = 0;
 };
 
-// Parse only the verified three-field LoadGL_Scene prefix. The output is
-// updated atomically on success; truncated input leaves it unchanged.
+// Parse only the verified top-level LoadGL_Scene prefix. The output is updated
+// atomically on success; truncated input leaves it unchanged.
 bool parse(const hp_data::Reader& reader, Prefix* out);
 
-// Extend the verified prefix through the first string and point. The one byte
-// between the string length and payload is skipped but deliberately not given
-// a semantic meaning. Output is updated only after the whole verified header
-// is present.
-bool parse_first_record_header(const hp_data::Reader& reader, FirstRecordHeader* out);
+// Parse the verified beginning of the first scene. This fails when scene_count
+// is zero because no first scene exists. The skipped byte is deliberately not
+// exposed as a semantic field. Output is updated only after the complete
+// verified header, including layer_count, is present.
+bool parse_first_scene_header(const hp_data::Reader& reader, FirstSceneHeader* out);
 
 }  // namespace nevergone::game_levels_scene_prefix
