@@ -41,7 +41,9 @@ Repeated polling after initialization is idempotent and does not replay `createU
 
 `single_login_scene_bridge.cpp` updates `AppDelegateState`, synchronizes `initial_ui_transition`, and only reports the reconstructed SingleLogin/SingleSelectHero route active after the phase reaches `management-login-initialized`.
 
-This replaces the earlier shortcut where completion of the splash timeline itself was sufficient to expose the login layer.
+The same boundary also gates `splash_sequence_state::single_login_seconds()`. This keeps native SingleLogin rendering, thunder/audio timing and Java-visible route state aligned: completion of the logo timeline alone is no longer enough to advance SingleLogin local time.
+
+On the first frame where the splash completes, the compositor remains inactive until the bridge records the recovered HelloWorld/ManagementLayer transition. Subsequent frames then use the same scene generation and local login time. A hot asset reload revokes this gate for the new generation.
 
 The existing `offline_startup_flow` remains responsible for post-login local routing such as the recovered standalone-role branch. This change only establishes the verified UI initialization boundary before those routes are allowed to render.
 
@@ -49,4 +51,4 @@ The existing `offline_startup_flow` remains responsible for post-login local rou
 
 This does **not** claim that all behavior inside `HelloWorld::createUI()` or `ManagementLayer::initLoginLayer()` has been reconstructed. It provides a stable, testable boundary for incrementally adding the recovered login widgets, callbacks and state in the correct startup order.
 
-Host regression coverage lives in `tools/initial_ui_transition_smoke.cpp`.
+Host regression coverage lives in `tools/initial_ui_transition_smoke.cpp` and `tools/splash_sequence_state_smoke.cpp`.
