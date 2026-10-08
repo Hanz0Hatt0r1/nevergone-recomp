@@ -29,6 +29,7 @@ struct ClientUiSnapshot {
 void register_login_callback_bindings(lua_State* state);
 std::vector<ClientCallbackEvent> take_client_callback_events();
 ClientUiSnapshot snapshot_client_ui_state();
+void reset_client_ui_state();
 std::string client_ui_state_report();
 
 }  // namespace nevergone::lua_runtime
