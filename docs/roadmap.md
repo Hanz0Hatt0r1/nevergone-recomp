@@ -51,7 +51,7 @@ The APK contains 107 files with a `.lua` extension. They are ordinary Lua source
 - [x] Implement a standalone local asset decoder/import tool.
 - [x] Validate all 107 decoded Lua payloads as text (99 UTF-8-compatible, 8 GB18030-compatible).
 - [x] Validate all transformed PNG/HPC/CSV assets handled by the same decoder (237 total transformed assets, 0 format-validation failures).
-- [ ] Syntax-check all recovered scripts with a matching Lua 5.2 parser/runtime.
+- [ ] Syntax-check all recovered scripts with the matching Lua 5.2.3 runtime.
 - [x] Build a static module dependency graph beginning with `Game.StartLua`.
 - [x] Map the Lua-to-C++ binding/API surface used by reachable client scripts.
 - [ ] Determine schemas/consumers for decoded `.hpc` configuration files.
@@ -124,6 +124,7 @@ Status: **initial shell implemented**
 - [x] Configure `armeabi-v7a` as a behavior-comparison target.
 - [x] Configure `arm64-v8a` as the primary modern target.
 - [x] Add runtime ABI/pointer-width/page-size diagnostics.
+- [x] Add a pinned Lua 5.2.3 CMake dependency with an offline source override.
 - [ ] Validate a full build/install of the clean shell on both ABI classes.
 - [ ] Add explicit 16 KiB page-size build validation.
 - [ ] Integrate the user-owned asset import/preparation workflow with the recovered decoder.
@@ -137,16 +138,19 @@ Exit condition: a clean source checkout can build and launch a stub application 
 
 Priority: **current implementation target**
 
-- [ ] Integrate a Lua 5.2-compatible runtime into the modern native module.
-- [ ] Implement the seven native-facing calls used directly by `Game.StartLua`.
-- [ ] Recreate `CAddDoString` module loading against locally imported assets.
+- [x] Integrate the matching Lua 5.2.3 runtime into the modern native module.
+- [x] Register initial implementations/stubs for the seven native-facing calls used directly by `Game.StartLua`.
+- [x] Recreate `CAddDoString` module-to-file loading for a locally imported decoded script tree.
+- [x] Add a non-proprietary Lua smoke test to the Android bootstrap.
 - [ ] Recreate application initialization / `AppDelegate` behavior required before script startup.
 - [ ] Initialize rendering and input.
-- [ ] Recreate filesystem/search-path behavior.
-- [ ] Import/load decoded script/config resources supplied by the user.
+- [ ] Recreate filesystem/search-path behavior beyond the initial script root.
+- [ ] Import/load decoded script/config resources supplied by the user on-device.
+- [ ] Execute the real `Game.StartLua` without the original native library.
 - [ ] Recreate additional native bindings on demand from the reachable startup graph.
-- [ ] Reach Lua `Game.StartLua` execution without the original native library.
 - [ ] Reach the original initial UI flow (`HelloWorld` → `ManagementLayer`).
+
+The four UI-facing startup functions currently log and return success. Their original argument/dispatch behavior has been identified from Thumb disassembly so the stubs can be replaced without changing the Lua API.
 
 Exit condition: recompilation reaches the title/login/menu flow without original native code.
 
@@ -181,9 +185,9 @@ Exit condition: the project produces a maintainable modern Android build without
 
 ## Immediate next tasks
 
-1. Reconstruct the seven native-facing calls required directly by `Game.StartLua`, starting with `CAddDoString` and the platform/filesystem helpers.
-2. Integrate a Lua 5.2-compatible runtime into the clean Android/NDK shell and execute a non-proprietary smoke-test script.
-3. Finish the Java/Android bootstrap map from `TJ_P_01` through library loading and lifecycle forwarding.
-4. Trace the registration path for the nine native-shaped Lua names not confirmed by dynamic symbols/string evidence.
-5. Integrate the local user-owned asset import/decoder workflow with the modern runtime without committing decoded assets.
+1. Integrate the local user-owned asset decoder/import workflow with the Android app-private files tree.
+2. Execute the real `Game.StartLua` under the reconstructed Lua 5.2.3 runtime and capture the first missing binding/class.
+3. Implement the missing bindings iteratively using `docs/lua-native-api-map.md` as the priority list.
+4. Finish the Java/Android bootstrap map from `TJ_P_01` through library loading and lifecycle forwarding.
+5. Trace the registration path for the nine native-shaped Lua names not confirmed by dynamic symbols/string evidence.
 6. Expand the native subsystem map around `ManagementLayer`, `DataManager`, `LogicManager`, and `GameSaveData`.
