@@ -77,4 +77,63 @@ bool Reader::read_fixed_string(
     return true;
 }
 
+Cursor::Cursor(const Reader& reader, std::size_t offset)
+        : reader_(&reader), offset_(offset <= reader.size() ? offset : reader.size()) {}
+
+std::size_t Cursor::offset() const {
+    return offset_;
+}
+
+std::size_t Cursor::remaining() const {
+    return reader_ != nullptr && offset_ <= reader_->size() ? reader_->size() - offset_ : 0;
+}
+
+bool Cursor::seek(std::size_t offset) {
+    if (reader_ == nullptr || offset > reader_->size()) return false;
+    offset_ = offset;
+    return true;
+}
+
+bool Cursor::skip(std::size_t length) {
+    if (length > remaining()) return false;
+    offset_ += length;
+    return true;
+}
+
+bool Cursor::read_bytes(std::size_t length, void* out) {
+    if (reader_ == nullptr || !reader_->read_bytes(offset_, length, out)) return false;
+    offset_ += length;
+    return true;
+}
+
+bool Cursor::read_i32_le(std::int32_t* out) {
+    if (reader_ == nullptr || !reader_->read_i32_le(offset_, out)) return false;
+    offset_ += sizeof(std::int32_t);
+    return true;
+}
+
+bool Cursor::read_u32_le(std::uint32_t* out) {
+    if (reader_ == nullptr || !reader_->read_u32_le(offset_, out)) return false;
+    offset_ += sizeof(std::uint32_t);
+    return true;
+}
+
+bool Cursor::read_f32_le(float* out) {
+    if (reader_ == nullptr || !reader_->read_f32_le(offset_, out)) return false;
+    offset_ += sizeof(float);
+    return true;
+}
+
+bool Cursor::read_bool8(bool* out) {
+    if (reader_ == nullptr || !reader_->read_bool8(offset_, out)) return false;
+    ++offset_;
+    return true;
+}
+
+bool Cursor::read_fixed_string(std::size_t field_length, std::string* out) {
+    if (reader_ == nullptr || !reader_->read_fixed_string(offset_, field_length, out)) return false;
+    offset_ += field_length;
+    return true;
+}
+
 }  // namespace nevergone::hp_data
