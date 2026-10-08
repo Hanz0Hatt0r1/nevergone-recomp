@@ -25,6 +25,9 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static final String SINGLE_LOGIN_DIR = "gamescene_ui/SingleLogin_UI";
     private static final String SINGLE_LOGIN_PLIST = "SingleLogin_default.plist";
     private static final String SINGLE_LOGIN_ATLAS = "SingleLogin_default.png";
+    private static final String SINGLE_SELECT_HERO_DIR = SINGLE_LOGIN_DIR + "/SingleSelectHero";
+    private static final String SINGLE_SELECT_HERO_PLIST = "Singleselechero.plist";
+    private static final String SINGLE_SELECT_HERO_ATLAS = "Singleselechero.png";
 
     private static native void nativeOnSurfaceCreated();
     private static native void nativeOnSurfaceChanged(int width, int height);
@@ -114,13 +117,29 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static native boolean nativeIsSingleLoginActive();
     private static native int nativePollSingleLoginThunderSound();
 
+    private static native void nativeOnSingleSelectHeroSurfaceCreated();
+    private static native void nativeOnSingleSelectHeroSurfaceChanged(int width, int height);
+    private static native void nativeClearSingleSelectHeroBackground();
+    private static native boolean nativeUploadSingleSelectHeroBackground(
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
+    private static native void nativeDrawSingleSelectHeroLayer();
+    private static native boolean nativeIsSingleSelectHeroActive();
+
     private final File assetRoot;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final StartupLogoAudio startupLogoAudio;
     private final SingleLoginAudio singleLoginAudio;
     private final SingleLoginThunderAudio singleLoginThunderAudio;
+    private final SingleSelectHeroAudio singleSelectHeroAudio;
     private boolean lastSplashSoundDue;
     private boolean lastSingleLoginActive;
+    private boolean lastSingleSelectHeroActive;
 
     public GameSurfaceView(Context context) {
         super(context);
@@ -128,6 +147,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         startupLogoAudio = new StartupLogoAudio(assetRoot);
         singleLoginAudio = new SingleLoginAudio(assetRoot);
         singleLoginThunderAudio = new SingleLoginThunderAudio(assetRoot);
+        singleSelectHeroAudio = new SingleSelectHeroAudio(assetRoot);
         setEGLContextClientVersion(2);
         setRenderer(this);
         setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
@@ -138,6 +158,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         nativeOnSurfaceCreated();
         nativeOnSingleLoginSurfaceCreated();
+        nativeOnSingleSelectHeroSurfaceCreated();
         nativeOnSplashSurfaceCreated();
         reloadImportedVisualsOnGlThread();
         updateImportedAudioStateOnGlThread();
@@ -147,12 +168,14 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     public void onSurfaceChanged(GL10 gl, int width, int height) {
         nativeOnSurfaceChanged(width, height);
         nativeOnSingleLoginSurfaceChanged(width, height);
+        nativeOnSingleSelectHeroSurfaceChanged(width, height);
     }
 
     @Override
     public void onDrawFrame(GL10 gl) {
         nativeOnDrawFrame();
         nativeDrawSingleLoginLayer();
+        nativeDrawSingleSelectHeroLayer();
         nativeDrawSplashLayers();
         updateImportedAudioStateOnGlThread();
     }
@@ -161,16 +184,19 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         queueEvent(() -> {
             lastSplashSoundDue = false;
             lastSingleLoginActive = false;
+            lastSingleSelectHeroActive = false;
             mainHandler.post(() -> {
                 startupLogoAudio.resetSequence();
                 singleLoginAudio.setSceneActive(false);
                 singleLoginThunderAudio.setSceneActive(false);
+                singleSelectHeroAudio.setSceneActive(false);
             });
             reloadImportedVisualsOnGlThread();
             mainHandler.post(() -> {
                 startupLogoAudio.onAssetsReloaded();
                 singleLoginAudio.onAssetsReloaded();
                 singleLoginThunderAudio.onAssetsReloaded();
+                singleSelectHeroAudio.onAssetsReloaded();
             });
         });
     }
@@ -180,6 +206,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             startupLogoAudio.onPause();
             singleLoginAudio.onPause();
             singleLoginThunderAudio.onPause();
+            singleSelectHeroAudio.onPause();
         });
     }
 
@@ -188,6 +215,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             startupLogoAudio.onResume();
             singleLoginAudio.onResume();
             singleLoginThunderAudio.onResume();
+            singleSelectHeroAudio.onResume();
         });
     }
 
@@ -196,13 +224,15 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             startupLogoAudio.release();
             singleLoginAudio.release();
             singleLoginThunderAudio.release();
+            singleSelectHeroAudio.release();
         });
     }
 
     public String importedAudioStatus() {
         return "Splash SFX: " + startupLogoAudio.status() +
                 "\nSingleLogin BGM: " + singleLoginAudio.status() +
-                "\nSingleLogin thunder: " + singleLoginThunderAudio.status();
+                "\nSingleLogin thunder: " + singleLoginThunderAudio.status() +
+                "\nSingleSelectHero BGM: " + singleSelectHeroAudio.status();
     }
 
     private void updateImportedAudioStateOnGlThread() {
@@ -221,6 +251,12 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             });
         }
 
+        boolean singleSelectHeroActive = nativeIsSingleSelectHeroActive();
+        if (singleSelectHeroActive != lastSingleSelectHeroActive) {
+            lastSingleSelectHeroActive = singleSelectHeroActive;
+            mainHandler.post(() -> singleSelectHeroAudio.setSceneActive(singleSelectHeroActive));
+        }
+
         for (int soundIndex = nativePollSingleLoginThunderSound();
                 soundIndex >= 0;
                 soundIndex = nativePollSingleLoginThunderSound()) {
@@ -231,6 +267,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
 
     private void reloadImportedVisualsOnGlThread() {
         loadSingleLoginSceneOnGlThread();
+        loadSingleSelectHeroBaseOnGlThread();
         loadImportedSplashOnGlThread();
     }
 
@@ -370,6 +407,31 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             }
         } catch (Exception ignored) {
             clearSingleLoginSceneOnGlThread();
+        }
+    }
+
+    private void loadSingleSelectHeroBaseOnGlThread() {
+        nativeClearSingleSelectHeroBackground();
+        File directory = new File(assetRoot, SINGLE_SELECT_HERO_DIR);
+        File plist = new File(directory, SINGLE_SELECT_HERO_PLIST);
+        File atlasFile = new File(directory, SINGLE_SELECT_HERO_ATLAS);
+        if (!plist.isFile() || !atlasFile.isFile()) return;
+
+        try {
+            SingleLoginAtlasComposer.AtlasLayer background =
+                    SingleSelectHeroBaseComposer.composeBackground(plist, atlasFile);
+            if (background == null || !nativeUploadSingleSelectHeroBackground(
+                    background.width,
+                    background.height,
+                    background.left,
+                    background.top,
+                    background.sourceWidth,
+                    background.sourceHeight,
+                    background.pixels)) {
+                nativeClearSingleSelectHeroBackground();
+            }
+        } catch (Exception ignored) {
+            nativeClearSingleSelectHeroBackground();
         }
     }
 
