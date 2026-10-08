@@ -3,6 +3,7 @@ project(nevergone_recomp LANGUAGES C CXX)
 
 add_library(nevergone_recomp SHARED
     filesystem_bindings.cpp
+    lua_compat.cpp
     lua_runtime.cpp
     lua_startup_bindings.cpp
     native_binding_registry.cpp
