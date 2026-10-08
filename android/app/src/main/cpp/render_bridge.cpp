@@ -12,6 +12,8 @@
 
 #include "client_callback_bridge.h"
 #include "game_clock.h"
+#include "splash_sequence_state.h"
+#include "tap_to_start_state.h"
 
 namespace nevergone::render {
 namespace {
@@ -322,10 +324,18 @@ void draw_fallback_phase() {
     glDisableVertexAttribArray(0);
 }
 
+void sync_tap_to_start() {
+    const std::uint64_t tick = nevergone::game_clock::tick_count();
+    nevergone::tap_to_start_state::sync_scene(
+        nevergone::splash_sequence_state::generation(),
+        nevergone::splash_sequence_state::complete(tick));
+}
+
 void on_surface_created() {
     g_frame_count.store(0, std::memory_order_relaxed);
     g_surface_generation.fetch_add(1, std::memory_order_relaxed);
     nevergone::game_clock::reset();
+    nevergone::tap_to_start_state::reset();
     g_splash_texture = 0;
     g_splash_width = 0;
     g_splash_height = 0;
@@ -373,6 +383,7 @@ void on_surface_changed(int width, int height) {
 
 void on_draw_frame() {
     (void)nevergone::game_clock::advance();
+    sync_tap_to_start();
     glClear(GL_COLOR_BUFFER_BIT);
     if (g_splash_texture != 0) {
         draw_splash();
@@ -384,6 +395,14 @@ void on_draw_frame() {
 
 void on_touch(int action, int pointer_id, float x, float y) {
     g_touch_count.fetch_add(1, std::memory_order_relaxed);
+
+    // Android MotionEvent.ACTION_DOWN == 0. The recovered Cocos listener calls
+    // TapToStart::OnTapScreen from ccTouchBegan, before any touch-end callback.
+    if (action == 0) {
+        sync_tap_to_start();
+        (void)nevergone::tap_to_start_state::touch_began();
+    }
+
     std::lock_guard<std::mutex> lock(g_touch_mutex);
     g_last_touch_action = action;
     g_last_touch_pointer = pointer_id;
@@ -425,6 +444,11 @@ std::string status_report() {
         out << "shader pipeline: " << g_shader_status << "\n";
         out << "imported splash: " << g_splash_status << "\n";
     }
+    const auto tap_state = nevergone::tap_to_start_state::snapshot();
+    out << "TapToStart state: " << static_cast<int>(tap_state.phase)
+        << " generation=" << tap_state.scene_generation
+        << " auto-login=" << (tap_state.auto_login_request_pending ? "pending" : "idle")
+        << " accepted=" << tap_state.accepted_touches << "\n";
     out << "touch events: " << g_touch_count.load(std::memory_order_relaxed) << "\n";
     {
         std::lock_guard<std::mutex> lock(g_touch_mutex);

@@ -26,6 +26,7 @@ add_library(nevergone_recomp SHARED
     startup_audio_bridge.cpp
     startup_contract.cpp
     string_validation_bindings.cpp
+    tap_to_start_state.cpp
     xml_validation_binding.cpp
 )
 
