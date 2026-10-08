@@ -28,6 +28,16 @@ def main() -> int:
     args = parser.parse_args()
 
     script = extract_compat_script(args.source.read_text(encoding="utf-8"))
+    prelude = r'''
+-- The host `generic` Lua build enables LUA_COMPAT_ALL. Clear legacy globals so
+-- this smoke test exercises Never Gone's reconstructed compatibility layer,
+-- matching the Android runtime build which does not enable LUA_COMPAT_ALL.
+module = nil
+unpack = nil
+bit = nil
+cjson = nil
+package.loaded.cjson = nil
+'''
     smoke = r'''
 assert(type(unpack) == "function")
 assert(unpack({4, 5}) == 4)
@@ -60,6 +70,8 @@ print("lua compatibility smoke: ok")
 '''
 
     with tempfile.NamedTemporaryFile("w", suffix=".lua", encoding="utf-8", delete=False) as handle:
+        handle.write(prelude)
+        handle.write("\n")
         handle.write(script)
         handle.write("\n")
         handle.write(smoke)
