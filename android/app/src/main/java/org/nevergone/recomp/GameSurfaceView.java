@@ -47,8 +47,16 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
 
     private static native void nativeOnSingleLoginSurfaceCreated();
     private static native void nativeOnSingleLoginSurfaceChanged(int width, int height);
-    private static native void nativeClearSingleLoginTexture();
-    private static native boolean nativeUploadSingleLoginTexture(int width, int height, int[] argbPixels);
+    private static native void nativeClearSingleLoginBackgrounds();
+    private static native boolean nativeUploadSingleLoginBackground(
+            int backgroundIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
     private static native void nativeClearSingleLoginBuildings();
     private static native boolean nativeUploadSingleLoginBuilding(
             int buildingIndex,
@@ -174,10 +182,14 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         loadImportedSplashOnGlThread();
     }
 
-    private void loadSingleLoginSceneOnGlThread() {
-        nativeClearSingleLoginTexture();
+    private void clearSingleLoginSceneOnGlThread() {
+        nativeClearSingleLoginBackgrounds();
         nativeClearSingleLoginBuildings();
         nativeClearSingleLoginLights();
+    }
+
+    private void loadSingleLoginSceneOnGlThread() {
+        clearSingleLoginSceneOnGlThread();
         File directory = new File(assetRoot, SINGLE_LOGIN_DIR);
         File plist = new File(directory, SINGLE_LOGIN_PLIST);
         File atlasFile = new File(directory, SINGLE_LOGIN_ATLAS);
@@ -188,20 +200,24 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         try {
             SingleLoginAtlasComposer.SceneAssets scene =
                     SingleLoginAtlasComposer.composeScene(plist, atlasFile);
-            if (scene == null || scene.base == null) {
+            if (scene == null || scene.backgrounds == null || scene.backgrounds.length != 3) {
                 return;
             }
 
-            Bitmap composite = scene.base;
-            int width = composite.getWidth();
-            int height = composite.getHeight();
-            int[] pixels = new int[width * height];
-            composite.getPixels(pixels, 0, width, 0, 0, width, height);
-            composite.recycle();
-            if (!nativeUploadSingleLoginTexture(width, height, pixels)) {
-                nativeClearSingleLoginBuildings();
-                nativeClearSingleLoginLights();
-                return;
+            for (int index = 0; index < scene.backgrounds.length; index++) {
+                SingleLoginAtlasComposer.AtlasLayer background = scene.backgrounds[index];
+                if (background == null || !nativeUploadSingleLoginBackground(
+                        index,
+                        background.width,
+                        background.height,
+                        background.left,
+                        background.top,
+                        background.sourceWidth,
+                        background.sourceHeight,
+                        background.pixels)) {
+                    clearSingleLoginSceneOnGlThread();
+                    return;
+                }
             }
 
             for (int index = 0; index < scene.buildings.length; index++) {
@@ -215,8 +231,8 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
                         building.sourceWidth,
                         building.sourceHeight,
                         building.pixels)) {
-                    nativeClearSingleLoginBuildings();
-                    break;
+                    clearSingleLoginSceneOnGlThread();
+                    return;
                 }
             }
 
@@ -231,14 +247,12 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
                         light.sourceWidth,
                         light.sourceHeight,
                         light.pixels)) {
-                    nativeClearSingleLoginLights();
-                    break;
+                    clearSingleLoginSceneOnGlThread();
+                    return;
                 }
             }
         } catch (Exception ignored) {
-            nativeClearSingleLoginTexture();
-            nativeClearSingleLoginBuildings();
-            nativeClearSingleLoginLights();
+            clearSingleLoginSceneOnGlThread();
         }
     }
 
