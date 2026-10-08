@@ -11,6 +11,7 @@ add_library(nevergone_recomp SHARED
     luaxml_compat.cpp
     native_binding_registry.cpp
     native_bootstrap.cpp
+    offline_startup_flow.cpp
     protorpc_bindings.cpp
     render_bridge.cpp
     single_login_cloud_timeline.cpp
@@ -23,6 +24,7 @@ add_library(nevergone_recomp SHARED
     splash_layer_renderer.cpp
     splash_sequence_state.cpp
     splash_timeline.cpp
+    standalone_hero_save_probe.cpp
     startup_audio_bridge.cpp
     startup_contract.cpp
     string_validation_bindings.cpp

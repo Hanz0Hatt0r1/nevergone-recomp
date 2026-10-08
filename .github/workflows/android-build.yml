@@ -98,6 +98,17 @@ jobs:
             -o /tmp/tap_to_start_state_smoke
           /tmp/tap_to_start_state_smoke
 
+      - name: Validate offline startup role flow
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/offline_startup_flow_smoke.cpp \
+            android/app/src/main/cpp/offline_startup_flow.cpp \
+            android/app/src/main/cpp/standalone_hero_save_probe.cpp \
+            -o /tmp/offline_startup_flow_smoke
+          /tmp/offline_startup_flow_smoke
+
       - name: Validate splash sequence-local timing
         shell: bash
         run: |
