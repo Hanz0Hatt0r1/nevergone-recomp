@@ -28,8 +28,48 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query checked-in SingleLogin metadata
+      - name: Trace first GameSceneLayerObjectData record
         run: |
-          python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
-          python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
-          python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
+          python - <<'PY'
+          import csv, gzip
+          from pathlib import Path
+
+          root = Path('docs/ghidra/full-index')
+          load_scene = 0x002d27b8
+          object_create_site = 0x002d297e
+
+          def rows(name):
+              with gzip.open(root / name, 'rt', encoding='utf-8', newline='') as f:
+                  yield from csv.DictReader(f, delimiter='\t')
+
+          def hx(value):
+              try:
+                  return int(value, 16)
+              except Exception:
+                  return None
+
+          funcs = {}
+          for row in rows('libcocos2dcpp.functions.tsv.gz'):
+              entry = hx(row.get('entry', ''))
+              if entry is not None:
+                  funcs[entry] = row.get('name', '')
+
+          events = []
+          for row in rows('libcocos2dcpp.calls.tsv.gz'):
+              caller = hx(row.get('caller_entry', ''))
+              site = hx(row.get('call_site', ''))
+              callee = hx(row.get('callee_entry', ''))
+              if caller != load_scene or site is None or callee is None or site < object_create_site:
+                  continue
+              name = funcs.get(callee, '<unknown>')
+              if ('HPData::getBytes' in name or
+                      'GameSceneLayerObjectData' in name or
+                      'CCString::create' in name or
+                      'CCPoint' in name or
+                      'CCArray' in name or
+                      'GameSceneLayerData' in name):
+                  events.append((site, callee, name))
+
+          for site, callee, name in sorted(events):
+              print(f'{site:08x}\t{callee:08x}\t{name}')
+          PY
