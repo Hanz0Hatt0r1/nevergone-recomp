@@ -45,6 +45,9 @@ jobs:
       - name: Validate Python tools
         run: python3 -m compileall -q tools
 
+      - name: Validate Android manifest summary parser
+        run: python3 tools/apk_manifest_summary_smoke.py
+
       - name: Validate TexturePacker rotated-frame transform
         shell: bash
         run: |
