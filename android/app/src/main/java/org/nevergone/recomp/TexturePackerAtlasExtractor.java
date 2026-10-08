@@ -54,37 +54,31 @@ final class TexturePackerAtlasExtractor {
                 frame.textureWidth,
                 frame.textureHeight);
 
-        TexturePackerPixelTransform.PixelBuffer upright;
         try {
-            upright = TexturePackerPixelTransform.restoreUpright(
-                    storedPixels,
-                    frame.textureWidth,
-                    frame.textureHeight,
-                    frame.rotated);
+            TexturePackerPixelTransform.PixelBuffer upright =
+                    TexturePackerPixelTransform.restoreUpright(
+                            storedPixels,
+                            frame.textureWidth,
+                            frame.textureHeight,
+                            frame.rotated);
+            TexturePackerPixelTransform.Placement placement =
+                    TexturePackerPixelTransform.placement(
+                            frame.sourceWidth,
+                            frame.sourceHeight,
+                            upright.width,
+                            upright.height,
+                            frame.offsetX,
+                            frame.offsetY);
+            return new ExtractedFrame(
+                    upright.width,
+                    upright.height,
+                    placement.left,
+                    placement.top,
+                    frame.sourceWidth,
+                    frame.sourceHeight,
+                    upright.pixels);
         } catch (IllegalArgumentException ignored) {
             return null;
         }
-
-        if (upright.width <= 0 || upright.height <= 0 ||
-                upright.width > frame.sourceWidth || upright.height > frame.sourceHeight) {
-            return null;
-        }
-
-        int left = (frame.sourceWidth - upright.width) / 2 + frame.offsetX;
-        int top = (frame.sourceHeight - upright.height) / 2 - frame.offsetY;
-        if (left < 0 || top < 0 ||
-                left + upright.width > frame.sourceWidth ||
-                top + upright.height > frame.sourceHeight) {
-            return null;
-        }
-
-        return new ExtractedFrame(
-                upright.width,
-                upright.height,
-                left,
-                top,
-                frame.sourceWidth,
-                frame.sourceHeight,
-                upright.pixels);
     }
 }
