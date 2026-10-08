@@ -393,7 +393,15 @@ if module == nil then
                     break
                 end
                 if upvalue == "_ENV" then
-                    debug.setupvalue(caller.func, index, target)
+                    -- Lua 5.2 closures can share the same _ENV upvalue cell.
+                    -- A plain setupvalue() would therefore also mutate the
+                    -- caller's siblings/parent chunk. Detach this function's
+                    -- environment first to emulate Lua 5.1 setfenv(module).
+                    local isolated_environment = target
+                    local function environment_holder()
+                        return isolated_environment
+                    end
+                    debug.upvaluejoin(caller.func, index, environment_holder, 1)
                     break
                 end
                 index = index + 1
