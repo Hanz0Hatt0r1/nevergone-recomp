@@ -1,8 +1,10 @@
 #include "lua_runtime.h"
 
+#include <filesystem>
 #include <sstream>
 
 #include "native_binding_registry.h"
+#include "startup_contract.h"
 
 #if defined(NEVERGONE_HAS_LUA)
 extern "C" {
@@ -64,6 +66,13 @@ std::string smoke_test() {
 
     lua_settop(state, 0);
     register_native_bindings(state);
+
+    const std::filesystem::path xml_smoke_path =
+        std::filesystem::path(startup::config().files_dir) / "xml-smoke.xml";
+    const std::string xml_smoke_path_string = xml_smoke_path.string();
+    lua_pushlstring(state, xml_smoke_path_string.data(), xml_smoke_path_string.size());
+    lua_setglobal(state, "NeverGoneXmlSmokePath");
+
     status = luaL_loadstring(
         state,
         "local uuid_ok = Lua_GetDeviceUUID() == LGG_Device_UUID(); "
@@ -83,19 +92,31 @@ std::string smoke_test() {
         "decoded.flags[1] == true and decoded.flags[2] == false and decoded.quote == [[a\"b]] and "
         "with_null.value == cjson.null; "
         "local module_ok = false; "
-        "do local xml = { native = true }; _G.xml = xml; "
+        "do local registered_xml = xml; registered_xml.native = true; "
         "local function chunk() module('xml'); value = 7 end; chunk(); "
-        "module_ok = package.loaded.xml == xml and xml.value == 7 and xml.native == true end; "
-        "return uuid_ok, imported == true and connected == false, unpack_ok, bit_ok, cjson_ok, module_ok");
+        "module_ok = package.loaded.xml == registered_xml and xml == registered_xml and "
+        "registered_xml.value == 7 and registered_xml.native == true end; "
+        "local escaped = xml.encode([[<tag a=\"b\">&]]); "
+        "local saved = xml._save([[<?xml version=\"1.0\"?><root a=\"1\"><child>text &amp; more</child><empty /></root>]], NeverGoneXmlSmokePath); "
+        "local loaded = xml.load(NeverGoneXmlSmokePath); "
+        "local xml_ok = saved == true and escaped == [[&lt;tag a=&quot;b&quot;&gt;&amp;]] and "
+        "loaded ~= nil and loaded[0] == 'root' and loaded.a == '1' and "
+        "loaded[1] ~= nil and loaded[1][0] == 'child' and loaded[1][1] == 'text & more' and "
+        "loaded[2] ~= nil and loaded[2][0] == 'empty'; "
+        "return uuid_ok, imported == true and connected == false, unpack_ok, bit_ok, cjson_ok, module_ok, xml_ok");
     if (status == 0) {
-        status = lua_pcall(state, 0, 6, 0);
+        status = lua_pcall(state, 0, 7, 0);
     }
-    const bool uuid_alias_ok = status == 0 && lua_toboolean(state, -6) != 0;
-    const bool protorpc_ok = status == 0 && lua_toboolean(state, -5) != 0;
-    const bool unpack_ok = status == 0 && lua_toboolean(state, -4) != 0;
-    const bool bit_ok = status == 0 && lua_toboolean(state, -3) != 0;
-    const bool cjson_ok = status == 0 && lua_toboolean(state, -2) != 0;
-    const bool module_ok = status == 0 && lua_toboolean(state, -1) != 0;
+    const bool uuid_alias_ok = status == 0 && lua_toboolean(state, -7) != 0;
+    const bool protorpc_ok = status == 0 && lua_toboolean(state, -6) != 0;
+    const bool unpack_ok = status == 0 && lua_toboolean(state, -5) != 0;
+    const bool bit_ok = status == 0 && lua_toboolean(state, -4) != 0;
+    const bool cjson_ok = status == 0 && lua_toboolean(state, -3) != 0;
+    const bool module_ok = status == 0 && lua_toboolean(state, -2) != 0;
+    const bool xml_ok = status == 0 && lua_toboolean(state, -1) != 0;
+
+    std::error_code cleanup_error;
+    std::filesystem::remove(xml_smoke_path, cleanup_error);
 
     lua_settop(state, 0);
     install_missing_global_probe(state);
@@ -117,7 +138,7 @@ std::string smoke_test() {
 
     out << "lua smoke test: "
         << ((basic_ok && uuid_alias_ok && protorpc_ok && unpack_ok && bit_ok && cjson_ok &&
-             module_ok && probe_ok)
+             module_ok && xml_ok && probe_ok)
                 ? "ok"
                 : "failed")
         << "\n";
@@ -128,6 +149,7 @@ std::string smoke_test() {
     out << "legacy bit compat: " << (bit_ok ? "ok" : "failed") << "\n";
     out << "cjson compat: " << (cjson_ok ? "ok" : "failed") << "\n";
     out << "module() compat: " << (module_ok ? "ok" : "failed") << "\n";
+    out << "LuaXML compat: " << (xml_ok ? "ok" : "failed") << "\n";
     out << "missing-global probe: " << (probe_ok ? "ok" : "failed") << "\n";
     lua_close(state);
     return out.str();
