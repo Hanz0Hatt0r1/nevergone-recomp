@@ -3,6 +3,7 @@
 #include <atomic>
 
 #include "game_clock.h"
+#include "initial_ui_transition.h"
 #include "splash_timeline.h"
 
 namespace nevergone::splash_sequence_state {
@@ -45,6 +46,11 @@ bool complete(std::uint64_t now_tick) {
 
 double single_login_seconds(std::uint64_t now_tick) {
     if (!complete(now_tick)) return -1.0;
+    const auto ui_state = initial_ui_transition::snapshot();
+    if (ui_state.phase != initial_ui_transition::Phase::kManagementLoginInitialized ||
+        ui_state.scene_generation != generation()) {
+        return -1.0;
+    }
     return static_cast<double>(elapsed_tick(now_tick)) * game_clock::kFixedStepSeconds -
         splash_timeline::kTimelineCompleteSeconds;
 }
