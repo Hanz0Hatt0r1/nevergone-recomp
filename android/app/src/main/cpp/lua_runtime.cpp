@@ -73,12 +73,19 @@ std::string smoke_test() {
         "local imported = p:ImportProtoFile('kClientCommon.proto'); "
         "local connected = p:CheckConnection(false); "
         "p:Close(); p:release(); "
-        "return uuid_ok, imported == true and connected == false");
+        "local unpack_ok = unpack ~= nil and unpack({4, 5}) == 4; "
+        "local module_ok = false; "
+        "do local xml = { native = true }; _G.xml = xml; "
+        "local function chunk() module('xml'); value = 7 end; chunk(); "
+        "module_ok = package.loaded.xml == xml and xml.value == 7 and xml.native == true end; "
+        "return uuid_ok, imported == true and connected == false, unpack_ok, module_ok");
     if (status == 0) {
-        status = lua_pcall(state, 0, 2, 0);
+        status = lua_pcall(state, 0, 4, 0);
     }
-    const bool uuid_alias_ok = status == 0 && lua_toboolean(state, -2) != 0;
-    const bool protorpc_ok = status == 0 && lua_toboolean(state, -1) != 0;
+    const bool uuid_alias_ok = status == 0 && lua_toboolean(state, -4) != 0;
+    const bool protorpc_ok = status == 0 && lua_toboolean(state, -3) != 0;
+    const bool unpack_ok = status == 0 && lua_toboolean(state, -2) != 0;
+    const bool module_ok = status == 0 && lua_toboolean(state, -1) != 0;
 
     lua_settop(state, 0);
     install_missing_global_probe(state);
@@ -99,11 +106,15 @@ std::string smoke_test() {
     }
 
     out << "lua smoke test: "
-        << ((basic_ok && uuid_alias_ok && protorpc_ok && probe_ok) ? "ok" : "failed")
+        << ((basic_ok && uuid_alias_ok && protorpc_ok && unpack_ok && module_ok && probe_ok)
+                ? "ok"
+                : "failed")
         << "\n";
     out << "lua runtime: " << runtime_version_copy << "\n";
     out << "device UUID alias: " << (uuid_alias_ok ? "ok" : "failed") << "\n";
     out << "ProtoRPC shell: " << (protorpc_ok ? "ok" : "failed") << "\n";
+    out << "global unpack compat: " << (unpack_ok ? "ok" : "failed") << "\n";
+    out << "module() compat: " << (module_ok ? "ok" : "failed") << "\n";
     out << "missing-global probe: " << (probe_ok ? "ok" : "failed") << "\n";
     lua_close(state);
     return out.str();

@@ -4,6 +4,7 @@
 #include <mutex>
 
 #include "filesystem_bindings.h"
+#include "lua_compat.h"
 #include "lua_startup_bindings.h"
 #include "protorpc_bindings.h"
 
@@ -55,6 +56,7 @@ std::vector<MissingGlobal> take_missing_globals() {
 
 void register_native_bindings(lua_State* state) {
 #if defined(NEVERGONE_HAS_LUA)
+    install_lua51_compat(state);
     register_startup_bindings(state);
     register_filesystem_bindings(state);
     register_protorpc_bindings(state);
