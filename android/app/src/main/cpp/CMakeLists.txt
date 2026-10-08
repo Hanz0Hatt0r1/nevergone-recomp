@@ -6,10 +6,12 @@ add_library(nevergone_recomp SHARED
     lua_compat.cpp
     lua_runtime.cpp
     lua_startup_bindings.cpp
+    luaxml_compat.cpp
     native_binding_registry.cpp
     native_bootstrap.cpp
     protorpc_bindings.cpp
     startup_contract.cpp
+    xml_validation_binding.cpp
 )
 
 target_compile_features(nevergone_recomp PRIVATE cxx_std_17)

@@ -6,7 +6,9 @@
 #include "filesystem_bindings.h"
 #include "lua_compat.h"
 #include "lua_startup_bindings.h"
+#include "luaxml_compat.h"
 #include "protorpc_bindings.h"
+#include "xml_validation_binding.h"
 
 #if defined(NEVERGONE_HAS_LUA)
 extern "C" {
@@ -59,6 +61,8 @@ void register_native_bindings(lua_State* state) {
     install_lua51_compat(state);
     register_startup_bindings(state);
     register_filesystem_bindings(state);
+    register_luaxml_compat(state);
+    register_xml_validation_binding(state);
     register_protorpc_bindings(state);
 #else
     (void)state;
