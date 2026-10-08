@@ -38,7 +38,7 @@ Exit condition: startup from Android process creation to `JNI_OnLoad` and the fi
 
 ## Phase 2 — Lua/resource recovery
 
-Priority: **critical path — major blocker resolved**
+Priority: **critical path — major blockers resolved**
 
 The APK contains 107 files with a `.lua` extension. They are ordinary Lua source passed through the same reversible file transform used for `.png`, `.hpc`, and `.csv` game assets.
 
@@ -53,10 +53,12 @@ The APK contains 107 files with a `.lua` extension. They are ordinary Lua source
 - [x] Validate all transformed PNG/HPC/CSV assets handled by the same decoder (237 total transformed assets, 0 format-validation failures).
 - [ ] Syntax-check all recovered scripts with a matching Lua 5.2 parser/runtime.
 - [x] Build a static module dependency graph beginning with `Game.StartLua`.
-- [ ] Map the Lua-to-C++ binding/API surface used by reachable client scripts.
+- [x] Map the Lua-to-C++ binding/API surface used by reachable client scripts.
 - [ ] Determine schemas/consumers for decoded `.hpc` configuration files.
 
-The static Lua graph currently contains 107 modules and 104 resolved edges. `Game.StartLua` directly loads `Game.ClientRequire` and `ShareLogic.require`; 101 modules are reachable from that startup graph. Four absent shared/server-style module roots are referenced only from an isolated `Game.Logic.HpGame` subgraph and are not currently considered a normal client-startup blocker.
+The static Lua graph contains 107 modules and 104 resolved edges. `Game.StartLua` directly loads `Game.ClientRequire` and `ShareLogic.require`; 101 modules are reachable from that startup graph. Four absent shared/server-style module roots are referenced only from an isolated `Game.Logic.HpGame` subgraph and are not currently considered a normal client-startup blocker.
+
+The Lua/native cross-check identifies 117 native-shaped or ELF-evidenced API candidates in the 101 reachable modules. 108 have direct native evidence: 106 dynamic-symbol matches, one exact native string match (`Lua_GetDeviceUUID`), and one native-class match (`ProtoRPC:new`). Only seven native-facing calls are used directly by `Game.StartLua`, giving the recompilation a small first bootstrap contract.
 
 The earlier native functions named `IsEncryptFile`, `EncryptMemory`, and `DecryptMemory` are not the Lua asset decoder. The actual transformation is the `cocos2d::Decode` call in `CCFileUtilsAndroid::getFileData()`.
 
@@ -79,7 +81,7 @@ The main native library retains a very large dynamic symbol table, which changes
 - [ ] Map constructors/destructors/vtables for top-priority game classes.
 - [ ] Map global singleton accessors and startup ordering beyond the initial scene.
 - [ ] Produce subsystem graphs for scene, player, combat, save data, networking and UI.
-- [ ] Map native Lua registration/binding functions and connect them to the reachable Lua graph.
+- [ ] Map the registration/bootstrap implementation behind the Lua-facing API names and resolve the nine unmatched native-shaped calls.
 
 Initial high-value classes include:
 
@@ -99,7 +101,7 @@ Exit condition: native game code is partitioned into understandable subsystems a
 
 ## Phase 4 — Engine reconstruction baseline
 
-Priority: **medium/high**
+Priority: **high — needed for first real boot**
 
 A native string identifies the engine as `cocos2d-2.1rc0-x-2.1.2`. Use that revision/version family as the first comparison target.
 
@@ -113,28 +115,37 @@ Exit condition: upstream engine code can be distinguished from Never Gone-specif
 
 ## Phase 5 — Modern build skeleton
 
-Priority: **after the startup and Lua/native interfaces are sufficiently stable**
+Status: **initial shell implemented**
 
-- [ ] Create Gradle project.
-- [ ] Create CMake native build.
-- [ ] Add Android lifecycle/JNI bootstrap.
-- [ ] Add an empty native game module that can be loaded successfully.
-- [ ] Support `armeabi-v7a` as a behavior-comparison target.
-- [ ] Add `arm64-v8a` as the primary modern target.
-- [ ] Add 16 KiB page-size-compatible linking/build settings.
-- [ ] Add a user-owned asset import/preparation step using the recovered decoder.
+- [x] Create Gradle project.
+- [x] Create CMake native build.
+- [x] Add a Java/JNI bootstrap that loads project-owned native code.
+- [x] Add an empty native game module that can be loaded successfully.
+- [x] Configure `armeabi-v7a` as a behavior-comparison target.
+- [x] Configure `arm64-v8a` as the primary modern target.
+- [x] Add runtime ABI/pointer-width/page-size diagnostics.
+- [ ] Validate a full build/install of the clean shell on both ABI classes.
+- [ ] Add explicit 16 KiB page-size build validation.
+- [ ] Integrate the user-owned asset import/preparation workflow with the recovered decoder.
 - [ ] Set up CI for host-side tools and Android compilation.
+
+The clean shell lives under `android/`. It targets current Android, uses project-owned C++ code, and does not link the original `libcocos2dcpp.so` or redistribute original assets.
 
 Exit condition: a clean source checkout can build and launch a stub application on modern Android.
 
 ## Phase 6 — Boot path reconstruction
 
-- [ ] Recreate application initialization.
+Priority: **current implementation target**
+
+- [ ] Integrate a Lua 5.2-compatible runtime into the modern native module.
+- [ ] Implement the seven native-facing calls used directly by `Game.StartLua`.
+- [ ] Recreate `CAddDoString` module loading against locally imported assets.
+- [ ] Recreate application initialization / `AppDelegate` behavior required before script startup.
 - [ ] Initialize rendering and input.
 - [ ] Recreate filesystem/search-path behavior.
 - [ ] Import/load decoded script/config resources supplied by the user.
-- [ ] Recreate the native bindings required by the startup Lua graph.
-- [ ] Reach Lua `Game.StartLua` execution.
+- [ ] Recreate additional native bindings on demand from the reachable startup graph.
+- [ ] Reach Lua `Game.StartLua` execution without the original native library.
 - [ ] Reach the original initial UI flow (`HelloWorld` → `ManagementLayer`).
 
 Exit condition: recompilation reaches the title/login/menu flow without original native code.
@@ -170,8 +181,9 @@ Exit condition: the project produces a maintainable modern Android build without
 
 ## Immediate next tasks
 
-1. Map the native Lua registration/binding surface and compare it with identifiers used by the 101 modules reachable from `Game.StartLua`.
-2. Finish the Java/Android bootstrap map from `TJ_P_01` through library loading and lifecycle forwarding.
-3. Trace first-run asset extraction into the writable `<files>/assets` tree and determine whether `CCFileUtilsAndroid::uncompressAssets()` is the active path.
-4. Expand the Ghidra/native subsystem map around `ManagementLayer`, `DataManager`, `LogicManager`, and `GameSaveData`.
-5. Once the startup/native-binding contract is stable, create the Gradle/CMake modern build skeleton rather than guessing at interfaces.
+1. Reconstruct the seven native-facing calls required directly by `Game.StartLua`, starting with `CAddDoString` and the platform/filesystem helpers.
+2. Integrate a Lua 5.2-compatible runtime into the clean Android/NDK shell and execute a non-proprietary smoke-test script.
+3. Finish the Java/Android bootstrap map from `TJ_P_01` through library loading and lifecycle forwarding.
+4. Trace the registration path for the nine native-shaped Lua names not confirmed by dynamic symbols/string evidence.
+5. Integrate the local user-owned asset import/decoder workflow with the modern runtime without committing decoded assets.
+6. Expand the native subsystem map around `ManagementLayer`, `DataManager`, `LogicManager`, and `GameSaveData`.
