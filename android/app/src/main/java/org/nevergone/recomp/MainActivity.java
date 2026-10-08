@@ -24,6 +24,7 @@ public final class MainActivity extends Activity {
 
     private TextView status;
     private Button importButton;
+    private GameSurfaceView gameSurface;
 
     static {
         System.loadLibrary("nevergone_recomp");
@@ -42,9 +43,18 @@ public final class MainActivity extends Activity {
                 getOrCreateDeviceId(),
                 getAppVersion());
 
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+
+        gameSurface = new GameSurfaceView(this);
+        root.addView(gameSurface, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                3.0f));
+
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(32, 32, 32, 32);
+        content.setPadding(32, 16, 32, 32);
 
         importButton = new Button(this);
         importButton.setText("Import original Never Gone APK");
@@ -53,10 +63,17 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        Button refreshButton = new Button(this);
+        refreshButton.setText("Refresh runtime diagnostics");
+        refreshButton.setOnClickListener(view -> status.setText(buildStatusText(null)));
+        content.addView(refreshButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
         status = new TextView(this);
         status.setGravity(Gravity.START);
-        status.setTextSize(16.0f);
-        status.setPadding(0, 24, 0, 24);
+        status.setTextSize(14.0f);
+        status.setPadding(0, 16, 0, 24);
         status.setText(buildStatusText(null));
         content.addView(status, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -64,7 +81,28 @@ public final class MainActivity extends Activity {
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(content);
-        setContentView(scroll);
+        root.addView(scroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                2.0f));
+
+        setContentView(root);
+    }
+
+    @Override
+    protected void onPause() {
+        if (gameSurface != null) {
+            gameSurface.onPause();
+        }
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (gameSurface != null) {
+            gameSurface.onResume();
+        }
     }
 
     @Override
