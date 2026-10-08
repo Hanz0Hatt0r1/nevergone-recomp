@@ -65,6 +65,16 @@ jobs:
             -o /tmp/single_login_cloud_timeline_smoke
           /tmp/single_login_cloud_timeline_smoke
 
+      - name: Validate SingleLogin sway timeline
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/single_login_sway_timeline_smoke.cpp \
+            android/app/src/main/cpp/single_login_sway_timeline.cpp \
+            -o /tmp/single_login_sway_timeline_smoke
+          /tmp/single_login_sway_timeline_smoke
+
       - name: Validate splash sequence-local timing
         shell: bash
         run: |
