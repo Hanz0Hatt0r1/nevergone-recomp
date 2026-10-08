@@ -13,12 +13,23 @@ final class TexturePackerPixelTransform {
         }
     }
 
+    static final class Placement {
+        final int left;
+        final int top;
+
+        Placement(int left, int top) {
+            this.left = left;
+            this.top = top;
+        }
+    }
+
     private TexturePackerPixelTransform() {}
 
     static PixelBuffer restoreUpright(
             int[] storedPixels, int storedWidth, int storedHeight, boolean rotated) {
+        long expected = (long) storedWidth * (long) storedHeight;
         if (storedPixels == null || storedWidth <= 0 || storedHeight <= 0 ||
-                storedPixels.length != storedWidth * storedHeight) {
+                expected != storedPixels.length) {
             throw new IllegalArgumentException("invalid TexturePacker pixel buffer");
         }
 
@@ -40,5 +51,25 @@ final class TexturePackerPixelTransform {
             }
         }
         return new PixelBuffer(outputWidth, outputHeight, output);
+    }
+
+    static Placement placement(
+            int sourceWidth,
+            int sourceHeight,
+            int uprightWidth,
+            int uprightHeight,
+            int offsetX,
+            int offsetY) {
+        if (sourceWidth <= 0 || sourceHeight <= 0 || uprightWidth <= 0 || uprightHeight <= 0 ||
+                uprightWidth > sourceWidth || uprightHeight > sourceHeight) {
+            throw new IllegalArgumentException("invalid TexturePacker frame geometry");
+        }
+        int left = (sourceWidth - uprightWidth) / 2 + offsetX;
+        int top = (sourceHeight - uprightHeight) / 2 - offsetY;
+        if (left < 0 || top < 0 || left + uprightWidth > sourceWidth ||
+                top + uprightHeight > sourceHeight) {
+            throw new IllegalArgumentException("TexturePacker trim placement outside source bounds");
+        }
+        return new Placement(left, top);
     }
 }
