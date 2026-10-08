@@ -33,4 +33,29 @@ private:
     std::vector<std::uint8_t> bytes_;
 };
 
+// Project-owned sequential parsing helper. This is intentionally not named or
+// laid out like the unresolved original HPRange type. It only advances after a
+// successful bounded read, so future GameLevels parsers can fail without
+// silently desynchronizing the stream position.
+class Cursor {
+public:
+    explicit Cursor(const Reader& reader, std::size_t offset = 0);
+
+    std::size_t offset() const;
+    std::size_t remaining() const;
+    bool seek(std::size_t offset);
+    bool skip(std::size_t length);
+
+    bool read_bytes(std::size_t length, void* out);
+    bool read_i32_le(std::int32_t* out);
+    bool read_u32_le(std::uint32_t* out);
+    bool read_f32_le(float* out);
+    bool read_bool8(bool* out);
+    bool read_fixed_string(std::size_t field_length, std::string* out);
+
+private:
+    const Reader* reader_ = nullptr;
+    std::size_t offset_ = 0;
+};
+
 }  // namespace nevergone::hp_data
