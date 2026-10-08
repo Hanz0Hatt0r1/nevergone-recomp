@@ -13,6 +13,7 @@ add_library(nevergone_recomp SHARED
     native_bootstrap.cpp
     protorpc_bindings.cpp
     render_bridge.cpp
+    single_login_cloud_timeline.cpp
     single_login_compositor.cpp
     single_login_light_timeline.cpp
     single_login_scene_bridge.cpp
