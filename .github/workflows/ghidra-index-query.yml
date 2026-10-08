@@ -28,8 +28,59 @@ jobs:
         run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
       - name: Run query smoke test
         run: python tools/ghidra/test_query_full_index.py
-      - name: Query checked-in SingleLogin metadata
+      - name: Query opening/create-character evidence
         run: |
-          python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
-          python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
-          python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
+          echo '=== OpeningDalogue / SingleSelectHero functions ==='
+          python tools/ghidra/query_full_index.py functions OpeningDalogue --limit 100 || true
+          python tools/ghidra/query_full_index.py functions SingleSelectHero --limit 150 || true
+          echo '=== OpeningDalogue call graph ==='
+          python tools/ghidra/query_full_index.py callees 004352d8 --limit 120 || true
+          python tools/ghidra/query_full_index.py callees 00435334 --limit 120 || true
+          python tools/ghidra/query_full_index.py callees 00435394 --limit 120 || true
+          echo '=== SingleSelectHero create and nearby call graph ==='
+          python tools/ghidra/query_full_index.py callers 00437614 --limit 80 || true
+          python tools/ghidra/query_full_index.py callees 00437614 --limit 100 || true
+          echo '=== candidate strings/assets ==='
+          python tools/ghidra/query_full_index.py strings Opening --limit 100 || true
+          python tools/ghidra/query_full_index.py strings SelectHero --limit 100 || true
+          python tools/ghidra/query_full_index.py strings selecthero --limit 100 || true
+          python tools/ghidra/query_full_index.py assets Opening --limit 100 || true
+          python tools/ghidra/query_full_index.py assets SelectHero --limit 100 || true
+          python tools/ghidra/query_full_index.py atlases SelectHero --limit 100 || true
+          echo '=== direct strings from target bodies ==='
+          python - <<'PY'
+          import base64, csv, gzip
+          from pathlib import Path
+          root=Path('docs/ghidra/full-index')
+          def rows(name):
+              with gzip.open(root/name,'rt',encoding='utf-8',newline='') as f:
+                  yield from csv.DictReader(f,delimiter='\t')
+          def hx(v):
+              try:return int(v,16)
+              except:return None
+          funcs=[]
+          for r in rows('libcocos2dcpp.functions.tsv.gz'):
+              e=hx(r.get('entry',''))
+              if e is not None: funcs.append(e)
+          funcs.sort()
+          strings={}
+          for r in rows('libcocos2dcpp.strings.tsv.gz'):
+              a=hx(r.get('address',''))
+              if a is None: continue
+              try: strings[a]=base64.b64decode(r['utf8_base64']).decode('utf-8','replace')
+              except: pass
+          xrefs=list(rows('libcocos2dcpp.xrefs.tsv.gz'))
+          targets={
+              0x004352d8:'OpeningDalogue::FuncLayerBegin',
+              0x00435334:'OpeningDalogue::initUI',
+              0x00435394:'OpeningDalogue::init',
+              0x00437614:'SingleSelectHero::create',
+          }
+          for start,name in targets.items():
+              end=min((e for e in funcs if e>start),default=start+0x2000)
+              print(f'--- {name} [{start:08x},{end:08x}) ---')
+              for xr in xrefs:
+                  frm=hx(xr.get('from','')); to=hx(xr.get('to',''))
+                  if frm is not None and to in strings and start<=frm<end:
+                      print(f'{frm:08x} -> {to:08x} [{xr.get("type","")}] {strings[to]}')
+          PY
