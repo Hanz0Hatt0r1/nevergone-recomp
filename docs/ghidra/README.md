@@ -1,5 +1,7 @@
 # Nevergone Ghidra source index
 
+For the cross-program function, symbol, string, reference, and asset catalog, see the [full metadata index](full-index/README.md).
+
 Source inspected: the user-provided local Ghidra folder on 2026-10-08. It contains a Ghidra project (`nevergone.gpr` and `nevergone.rep`), a Ghidra program archive (`nev.gzf`), the original APK, and an XAPK with OBB. The Ghidra project has an analyzed ARMv7 `libcocos2dcpp.so` and `libffmpeg.so`. It does not contain a prebuilt JSON or CSV export.
 
 [ghidra-login-index.tsv](ghidra-login-index.tsv) records matching Ghidra function names and defined strings with their addresses and reference addresses. It was generated with [NevergoneIndex.java](../../tools/ghidra/NevergoneIndex.java) from a temporary copy of the Ghidra project opened read-only. No original image, audio, binary, or decompiled code is stored here. Ghidra's loaded program addresses are 0x10000 above the ELF virtual addresses in the APK.

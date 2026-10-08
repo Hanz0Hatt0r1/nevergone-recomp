@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "ghidra_version": "12.1.2_DEV",
+  "source_apk_sha256": "c8aaabfe28893998aaf891716147328245e16a043d95b7abdeac43ef6adc9cab",
+  "programs": [
+    {
+      "program": "libcocos2dcpp.so",
+      "apk_member": "lib/armeabi-v7a/libcocos2dcpp.so",
+      "sha256": "94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e",
+      "analysis_status": "existing analyzed Ghidra state",
+      "counts": {
+        "functions": 29553,
+        "symbols": 247099,
+        "strings": 47009,
+        "xrefs": 654177,
+        "calls": 179859
+      }
+    },
+    {
+      "program": "libffmpeg.so",
+      "apk_member": "lib/armeabi-v7a/libffmpeg.so",
+      "sha256": "f5e8392d27b182671be5070bc7aa5772a8b19711af222833651faf8516eacdde",
+      "analysis_status": "temporary Ghidra reanalysis; 600-second analysis timeout",
+      "counts": {
+        "functions": 6223,
+        "symbols": 217369,
+        "strings": 12433,
+        "xrefs": 402158,
+        "calls": 44146
+      }
+    }
+  ]
+}

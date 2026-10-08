@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "archives": [
+    {
+      "archive": "com.hippiegame.nevergone.apk",
+      "sha256": "c8aaabfe28893998aaf891716147328245e16a043d95b7abdeac43ef6adc9cab",
+      "entries": 580,
+      "texturepacker_atlases": 8,
+      "texturepacker_frames": 453,
+      "unreadable_plists": 0
+    },
+    {
+      "archive": "main.9.com.hippiegame.nevergone.obb",
+      "sha256": "a86eec2e851922ecd8b75021a1e09a9d3dbc027afdb07bf6350cb4f87163e614",
+      "entries": 8141,
+      "texturepacker_atlases": 484,
+      "texturepacker_frames": 48862,
+      "unreadable_plists": 41
+    }
+  ]
+}
