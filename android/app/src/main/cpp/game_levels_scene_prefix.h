@@ -30,6 +30,16 @@ struct FirstSceneHeader {
     std::size_t bytes_consumed = 0;
 };
 
+// At the beginning of each layer, ordered call/control-flow evidence shows one
+// float followed by a uint32 used directly as the layer's object-loop bound.
+// The float's semantic field name is not yet recovered.
+struct FirstLayerHeader {
+    FirstSceneHeader scene_header;
+    float first_float = 0.0f;
+    std::uint32_t object_count = 0;
+    std::size_t bytes_consumed = 0;
+};
+
 // Parse only the verified top-level LoadGL_Scene prefix. The output is updated
 // atomically on success; truncated input leaves it unchanged.
 bool parse(const hp_data::Reader& reader, Prefix* out);
@@ -39,5 +49,10 @@ bool parse(const hp_data::Reader& reader, Prefix* out);
 // exposed as a semantic field. Output is updated only after the complete
 // verified header, including layer_count, is present.
 bool parse_first_scene_header(const hp_data::Reader& reader, FirstSceneHeader* out);
+
+// Parse the verified beginning of the first layer in the first scene. This
+// fails when the first scene has no layers. The output is updated only after
+// both the opaque float and proven object_count are available.
+bool parse_first_layer_header(const hp_data::Reader& reader, FirstLayerHeader* out);
 
 }  // namespace nevergone::game_levels_scene_prefix
