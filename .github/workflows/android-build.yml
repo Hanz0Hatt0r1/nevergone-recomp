@@ -10,9 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,8 +28,6 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
 
       - name: Install Android build dependencies
         shell: bash
@@ -70,6 +66,17 @@ jobs:
             android/app/src/main/cpp/hp_data_reader.cpp \
             -o /tmp/hp_data_reader_smoke
           /tmp/hp_data_reader_smoke
+
+      - name: Validate GameLevels asset probe
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/game_levels_asset_probe_smoke.cpp \
+            android/app/src/main/cpp/game_levels_asset_probe.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/game_levels_asset_probe_smoke
+          /tmp/game_levels_asset_probe_smoke
 
       - name: Validate SingleLogin light timeline
         shell: bash
@@ -149,26 +156,28 @@ jobs:
       - name: Validate embedded Lua compatibility layer
         shell: bash
         run: |
-          make -C third_party/_local/lua-5.2.3 generic
-          python3 tools/run_lua_compat_smoke.py third_party/_local/lua-5.2.3/src/lua
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            -I third_party/_local/lua-5.2.3/src \
+            tools/lua_compat_smoke.cpp \
+            android/app/src/main/cpp/lua_compat.cpp \
+            third_party/_local/lua-5.2.3/src/liblua.a \
+            -ldl -lm \
+            -o /tmp/lua_compat_smoke
+          /tmp/lua_compat_smoke
 
       - name: Build debug APK
         working-directory: android
         env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
-        run: gradle --no-daemon --stacktrace assembleDebug
+          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/28.2.13676358
+        run: gradle --no-daemon assembleDebug
 
       - name: Validate 16 KiB page compatibility
-        shell: bash
-        run: |
-          APK="$(find android/app/build/outputs/apk/debug -name '*.apk' -print -quit)"
-          test -n "$APK"
-          python3 tools/check_android_16k_alignment.py "$APK"
-          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
+        run: python3 tools/validate_android_16k.py android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Archive debug APK
         uses: actions/upload-artifact@v4
         with:
           name: nevergone-recomp-debug
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
