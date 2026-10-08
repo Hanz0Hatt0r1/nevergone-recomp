@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "client_callback_bridge.h"
+#include "game_clock.h"
 
 namespace nevergone::render {
 namespace {
@@ -152,6 +153,7 @@ void main() {
 void on_surface_created() {
     g_frame_count.store(0, std::memory_order_relaxed);
     g_surface_generation.fetch_add(1, std::memory_order_relaxed);
+    nevergone::game_clock::reset();
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -181,6 +183,11 @@ void on_surface_changed(int width, int height) {
 }
 
 void on_draw_frame() {
+    // Preserve the original update cadence independently of physical display
+    // refresh. The returned tick budget becomes scheduler/Lua work once that
+    // path is reconstructed.
+    (void)nevergone::game_clock::advance();
+
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (g_program != 0) {
@@ -215,9 +222,11 @@ void on_touch(int action, int pointer_id, float x, float y) {
 void on_app_pause() {
     g_app_resumed.store(false, std::memory_order_relaxed);
     g_pause_count.fetch_add(1, std::memory_order_relaxed);
+    nevergone::game_clock::pause();
 }
 
 void on_app_resume() {
+    nevergone::game_clock::resume();
     g_app_resumed.store(true, std::memory_order_relaxed);
     g_resume_count.fetch_add(1, std::memory_order_relaxed);
 }
@@ -232,6 +241,7 @@ std::string status_report() {
     out << "render surface: " << g_width.load(std::memory_order_relaxed)
         << "x" << g_height.load(std::memory_order_relaxed) << "\n";
     out << "render frames: " << g_frame_count.load(std::memory_order_relaxed) << "\n";
+    out << nevergone::game_clock::status_report();
     out << "client render phase: " << current_render_phase().name << "\n";
     {
         std::lock_guard<std::mutex> lock(g_gl_status_mutex);
