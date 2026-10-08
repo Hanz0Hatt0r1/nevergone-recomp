@@ -32,6 +32,11 @@ EXPECTED = {
     "qianjingyun03.png": ATLAS_02,
 }
 
+EFFECT_FRAMES = tuple(
+    [f"shandian{index:02d}.png" for index in range(1, 7)]
+    + [f"menlei{index:02d}.png" for index in range(1, 7)]
+)
+
 DESIGN_CANVAS_FRAMES = {
     "yueliang.png",
     "yueliangzhezhao.png",
@@ -63,21 +68,33 @@ def is_false(value: str) -> bool:
     return (value or "").strip().casefold() in {"false", "0", "no"}
 
 
+def gate_atlas_suffix(plist: str) -> str | None:
+    normalized = (plist or "").replace("\\", "/")
+    for atlas in (ATLAS_01, ATLAS_02):
+        if normalized.endswith(atlas):
+            return atlas
+    return None
+
+
 def main() -> int:
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_INDEX
     if not path.is_file():
         raise SystemExit(f"missing atlas metadata: {path}")
 
     matches: dict[str, list[dict[str, str]]] = {name: [] for name in EXPECTED}
+    effect_matches: dict[str, list[dict[str, str]]] = {
+        name: [] for name in EFFECT_FRAMES
+    }
     with gzip.open(path, "rt", encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle, delimiter="\t"):
             name = row.get("frame", "")
             expected_plist = EXPECTED.get(name)
-            if expected_plist is None:
-                continue
-            plist = row.get("plist", "").replace("\\", "/")
-            if plist.endswith(expected_plist):
-                matches[name].append(row)
+            if expected_plist is not None:
+                plist = row.get("plist", "").replace("\\", "/")
+                if plist.endswith(expected_plist):
+                    matches[name].append(row)
+            if name in effect_matches and gate_atlas_suffix(row.get("plist", "")) is not None:
+                effect_matches[name].append(row)
 
     errors: list[str] = []
     for name, expected_plist in EXPECTED.items():
@@ -106,6 +123,23 @@ def main() -> int:
             if not is_false(row.get("rotated", "")):
                 errors.append(f"{name}: expected non-rotated full-canvas frame")
 
+    for name in EFFECT_FRAMES:
+        rows = effect_matches[name]
+        if len(rows) != 1:
+            errors.append(
+                f"{name}: expected exactly one row across Gate_Background atlases, found {len(rows)}"
+            )
+            continue
+        row = rows[0]
+        print(
+            "ChooseHero effect metadata: "
+            f"{name} atlas={gate_atlas_suffix(row.get('plist', ''))} "
+            f"sprite_size={row.get('sprite_size', '')} "
+            f"source_size={row.get('source_size', '')} "
+            f"rotated={row.get('rotated', '')} "
+            f"texture_rect={row.get('texture_rect', '')}"
+        )
+
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
@@ -113,7 +147,8 @@ def main() -> int:
 
     print(
         "ChooseHero background atlas contract OK: "
-        f"{len(EXPECTED)} frames, design canvas {DESIGN_SIZE[0]}x{DESIGN_SIZE[1]}"
+        f"{len(EXPECTED)} staged frames + {len(EFFECT_FRAMES)} effect frames, "
+        f"design canvas {DESIGN_SIZE[0]}x{DESIGN_SIZE[1]}"
     )
     return 0
 
