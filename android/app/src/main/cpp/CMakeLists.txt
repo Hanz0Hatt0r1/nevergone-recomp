@@ -6,6 +6,8 @@ add_library(nevergone_recomp SHARED
     choose_hero_background_assets.cpp
     choose_hero_background_compositor.cpp
     choose_hero_background_timeline.cpp
+    choose_hero_foreground_cloud_compositor.cpp
+    choose_hero_foreground_cloud_timeline.cpp
     client_callback_bridge.cpp
     filesystem_bindings.cpp
     game_clock.cpp
