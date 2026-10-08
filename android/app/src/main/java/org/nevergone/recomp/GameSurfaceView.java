@@ -28,6 +28,12 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static final String SINGLE_SELECT_HERO_DIR = SINGLE_LOGIN_DIR + "/SingleSelectHero";
     private static final String SINGLE_SELECT_HERO_PLIST = "Singleselechero.plist";
     private static final String SINGLE_SELECT_HERO_ATLAS = "Singleselechero.png";
+    private static final String CHOOSE_HERO_BACKGROUND_DIR =
+            "gamescene_ui/LevelUI/Gate_Background_UI";
+    private static final String CHOOSE_HERO_PLIST_01 = "Gate_BackgroundPNG_01.plist";
+    private static final String CHOOSE_HERO_ATLAS_01 = "Gate_BackgroundPNG_01.png";
+    private static final String CHOOSE_HERO_PLIST_02 = "Gate_BackgroundPNG_02.plist";
+    private static final String CHOOSE_HERO_ATLAS_02 = "Gate_BackgroundPNG_02.png";
 
     private static native void nativeOnSurfaceCreated();
     private static native void nativeOnSurfaceChanged(int width, int height);
@@ -131,6 +137,19 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static native void nativeDrawSingleSelectHeroLayer();
     private static native boolean nativeIsSingleSelectHeroActive();
 
+    private static native void nativeClearChooseHeroBackgroundAssets();
+    private static native boolean nativeUploadChooseHeroBackgroundAsset(
+            int frameIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
+    private static native boolean nativeChooseHeroBackgroundAssetsReady();
+    private static native boolean nativeIsChooseHeroRouteActive();
+
     private final File assetRoot;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final StartupLogoAudio startupLogoAudio;
@@ -140,6 +159,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private boolean lastSplashSoundDue;
     private boolean lastSingleLoginActive;
     private boolean lastSingleSelectHeroActive;
+    private boolean chooseHeroBackgroundAssetsLoaded;
 
     public GameSurfaceView(Context context) {
         super(context);
@@ -162,6 +182,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         nativeOnSplashSurfaceCreated();
         reloadImportedVisualsOnGlThread();
         updateImportedAudioStateOnGlThread();
+        updateChooseHeroBackgroundAssetsOnGlThread();
     }
 
     @Override
@@ -178,6 +199,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         nativeDrawSingleSelectHeroLayer();
         nativeDrawSplashLayers();
         updateImportedAudioStateOnGlThread();
+        updateChooseHeroBackgroundAssetsOnGlThread();
     }
 
     public void reloadImportedSplash() {
@@ -185,6 +207,8 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             lastSplashSoundDue = false;
             lastSingleLoginActive = false;
             lastSingleSelectHeroActive = false;
+            chooseHeroBackgroundAssetsLoaded = false;
+            nativeClearChooseHeroBackgroundAssets();
             mainHandler.post(() -> {
                 startupLogoAudio.resetSequence();
                 singleLoginAudio.setSceneActive(false);
@@ -265,7 +289,22 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         }
     }
 
+    private void updateChooseHeroBackgroundAssetsOnGlThread() {
+        boolean routeActive = nativeIsChooseHeroRouteActive();
+        if (!routeActive) {
+            if (chooseHeroBackgroundAssetsLoaded) {
+                nativeClearChooseHeroBackgroundAssets();
+                chooseHeroBackgroundAssetsLoaded = false;
+            }
+            return;
+        }
+        if (chooseHeroBackgroundAssetsLoaded) return;
+        loadChooseHeroBackgroundAssetsOnGlThread();
+    }
+
     private void reloadImportedVisualsOnGlThread() {
+        nativeClearChooseHeroBackgroundAssets();
+        chooseHeroBackgroundAssetsLoaded = false;
         loadSingleLoginSceneOnGlThread();
         loadSingleSelectHeroBaseOnGlThread();
         loadImportedSplashOnGlThread();
@@ -433,6 +472,80 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         } catch (Exception ignored) {
             nativeClearSingleSelectHeroBackground();
         }
+    }
+
+    private void loadChooseHeroBackgroundAssetsOnGlThread() {
+        nativeClearChooseHeroBackgroundAssets();
+        File directory = new File(assetRoot, CHOOSE_HERO_BACKGROUND_DIR);
+        File plist01 = new File(directory, CHOOSE_HERO_PLIST_01);
+        File atlasFile01 = new File(directory, CHOOSE_HERO_ATLAS_01);
+        File plist02 = new File(directory, CHOOSE_HERO_PLIST_02);
+        File atlasFile02 = new File(directory, CHOOSE_HERO_ATLAS_02);
+        if (!plist01.isFile() || !atlasFile01.isFile() ||
+                !plist02.isFile() || !atlasFile02.isFile()) {
+            return;
+        }
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        Bitmap atlas01 = BitmapFactory.decodeFile(atlasFile01.getAbsolutePath(), options);
+        Bitmap atlas02 = BitmapFactory.decodeFile(atlasFile02.getAbsolutePath(), options);
+        if (atlas01 == null || atlas02 == null) {
+            if (atlas01 != null) atlas01.recycle();
+            if (atlas02 != null) atlas02.recycle();
+            return;
+        }
+
+        try {
+            ChooseHeroBackgroundComposer.SceneAssets scene =
+                    ChooseHeroBackgroundComposer.compose(plist01, atlas01, plist02, atlas02);
+            if (scene == null || scene.foregroundClouds == null ||
+                    scene.foregroundClouds.length != 3) {
+                return;
+            }
+
+            TexturePackerAtlasExtractor.ExtractedFrame[] frames = {
+                    scene.moon,
+                    scene.moonMask,
+                    scene.starField,
+                    scene.moonBackground,
+                    scene.moonGlow,
+                    scene.stormBackground,
+                    scene.groundLight,
+                    scene.foregroundClouds[0],
+                    scene.foregroundClouds[1],
+                    scene.foregroundClouds[2],
+            };
+            for (int index = 0; index < frames.length; index++) {
+                if (!uploadChooseHeroBackgroundFrame(index, frames[index])) {
+                    nativeClearChooseHeroBackgroundAssets();
+                    return;
+                }
+            }
+            chooseHeroBackgroundAssetsLoaded = nativeChooseHeroBackgroundAssetsReady();
+            if (!chooseHeroBackgroundAssetsLoaded) {
+                nativeClearChooseHeroBackgroundAssets();
+            }
+        } catch (Exception ignored) {
+            nativeClearChooseHeroBackgroundAssets();
+        } finally {
+            atlas01.recycle();
+            atlas02.recycle();
+        }
+    }
+
+    private static boolean uploadChooseHeroBackgroundFrame(
+            int index,
+            TexturePackerAtlasExtractor.ExtractedFrame frame) {
+        return frame != null && nativeUploadChooseHeroBackgroundAsset(
+                index,
+                frame.width,
+                frame.height,
+                frame.left,
+                frame.top,
+                frame.sourceWidth,
+                frame.sourceHeight,
+                frame.pixels);
     }
 
     private void loadImportedSplashOnGlThread() {
