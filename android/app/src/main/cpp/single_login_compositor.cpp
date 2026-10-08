@@ -10,6 +10,7 @@
 #include "game_clock.h"
 #include "single_login_cloud_timeline.h"
 #include "single_login_light_timeline.h"
+#include "single_login_lightning_timeline.h"
 #include "single_login_sway_timeline.h"
 #include "splash_sequence_state.h"
 
@@ -52,6 +53,8 @@ std::array<SpriteTexture, kCloudFrameCount> g_cloud_frames{};
 std::array<PositionedTexture, kBuildingCount> g_buildings{};
 std::array<PositionedTexture, single_login_light_timeline::kLightCount> g_lights{};
 std::array<PositionedTexture, single_login_sway_timeline::kNodeCount> g_sways{};
+std::array<PositionedTexture, single_login_lightning_timeline::kLightningCount> g_lightning{};
+std::array<PositionedTexture, single_login_lightning_timeline::kIlluminationCount> g_illumination{};
 int g_surface_width = 0;
 int g_surface_height = 0;
 std::uint64_t g_scene_generation = 0;
@@ -134,9 +137,7 @@ void clear_layers(std::array<PositionedTexture, N>* layers) {
     }
 }
 
-void clear_backgrounds() {
-    clear_layers(&g_backgrounds);
-}
+void clear_backgrounds() { clear_layers(&g_backgrounds); }
 
 void clear_clouds() {
     for (auto& frame : g_cloud_frames) {
@@ -145,17 +146,11 @@ void clear_clouds() {
     }
 }
 
-void clear_buildings() {
-    clear_layers(&g_buildings);
-}
-
-void clear_lights() {
-    clear_layers(&g_lights);
-}
-
-void clear_sways() {
-    clear_layers(&g_sways);
-}
+void clear_buildings() { clear_layers(&g_buildings); }
+void clear_lights() { clear_layers(&g_lights); }
+void clear_sways() { clear_layers(&g_sways); }
+void clear_lightning() { clear_layers(&g_lightning); }
+void clear_illumination() { clear_layers(&g_illumination); }
 
 GLuint create_texture(const std::uint32_t* argb, size_t count, int width, int height) {
     if (width <= 0 || height <= 0 || argb == nullptr ||
@@ -198,6 +193,8 @@ void on_surface_created() {
     g_buildings = {};
     g_lights = {};
     g_sways = {};
+    g_lightning = {};
+    g_illumination = {};
     g_scene_generation = 0;
     if (g_program != 0) glDeleteProgram(g_program);
     g_program = build_program();
@@ -237,18 +234,9 @@ bool upload_positioned(
     return true;
 }
 
-bool upload_background(
-    int index,
-    int width,
-    int height,
-    int left,
-    int top,
-    int source_width,
-    int source_height,
-    const std::uint32_t* argb,
-    size_t count) {
-    return upload_positioned(
-        &g_backgrounds, index, width, height, left, top, source_width, source_height, argb, count);
+bool upload_background(int index, int width, int height, int left, int top, int source_width, int source_height,
+                       const std::uint32_t* argb, size_t count) {
+    return upload_positioned(&g_backgrounds, index, width, height, left, top, source_width, source_height, argb, count);
 }
 
 bool upload_cloud(int index, int width, int height, const std::uint32_t* argb, size_t count) {
@@ -263,50 +251,34 @@ bool upload_cloud(int index, int width, int height, const std::uint32_t* argb, s
     return true;
 }
 
-bool upload_building(
-    int index,
-    int width,
-    int height,
-    int left,
-    int top,
-    int source_width,
-    int source_height,
-    const std::uint32_t* argb,
-    size_t count) {
-    return upload_positioned(
-        &g_buildings, index, width, height, left, top, source_width, source_height, argb, count);
+bool upload_building(int index, int width, int height, int left, int top, int source_width, int source_height,
+                     const std::uint32_t* argb, size_t count) {
+    return upload_positioned(&g_buildings, index, width, height, left, top, source_width, source_height, argb, count);
 }
 
-bool upload_light(
-    int index,
-    int width,
-    int height,
-    int left,
-    int top,
-    int source_width,
-    int source_height,
-    const std::uint32_t* argb,
-    size_t count) {
-    return upload_positioned(
-        &g_lights, index, width, height, left, top, source_width, source_height, argb, count);
+bool upload_light(int index, int width, int height, int left, int top, int source_width, int source_height,
+                  const std::uint32_t* argb, size_t count) {
+    return upload_positioned(&g_lights, index, width, height, left, top, source_width, source_height, argb, count);
 }
 
-bool upload_sway(
-    int index,
-    int width,
-    int height,
-    int left,
-    int top,
-    int source_width,
-    int source_height,
-    const std::uint32_t* argb,
-    size_t count) {
-    return upload_positioned(
-        &g_sways, index, width, height, left, top, source_width, source_height, argb, count);
+bool upload_sway(int index, int width, int height, int left, int top, int source_width, int source_height,
+                 const std::uint32_t* argb, size_t count) {
+    return upload_positioned(&g_sways, index, width, height, left, top, source_width, source_height, argb, count);
 }
 
-bool backgrounds_ready() {
-    for (const auto& layer : g_backgrounds) {
+bool upload_lightning(int index, int width, int height, int left, int top, int source_width, int source_height,
+                      const std::uint32_t* argb, size_t count) {
+    return upload_positioned(&g_lightning, index, width, height, left, top, source_width, source_height, argb, count);
+}
+
+bool upload_illumination(int index, int width, int height, int left, int top, int source_width, int source_height,
+                         const std::uint32_t* argb, size_t count) {
+    return upload_positioned(&g_illumination, index, width, height, left, top, source_width, source_height, argb, count);
+}
+
+template <size_t N>
+bool layers_ready(const std::array<PositionedTexture, N>& layers) {
+    for (const auto& layer : layers) {
         if (layer.texture == 0) return false;
     }
     return true;
@@ -315,13 +287,6 @@ bool backgrounds_ready() {
 bool clouds_ready() {
     for (const auto& frame : g_cloud_frames) {
         if (frame.texture == 0) return false;
-    }
-    return true;
-}
-
-bool sways_ready() {
-    for (const auto& layer : g_sways) {
-        if (layer.texture == 0) return false;
     }
     return true;
 }
@@ -358,80 +323,45 @@ void scene_half_extents(int source_width, int source_height, float* half_width, 
     }
 }
 
-void scene_to_gl(
-    float x,
-    float y,
-    int source_width,
-    int source_height,
-    float scene_half_width,
-    float scene_half_height,
-    GLfloat* out_x,
-    GLfloat* out_y) {
-    *out_x = -scene_half_width +
-        2.0f * scene_half_width * x / static_cast<float>(source_width);
-    *out_y = -scene_half_height +
-        2.0f * scene_half_height * y / static_cast<float>(source_height);
+void scene_to_gl(float x, float y, int source_width, int source_height,
+                 float scene_half_width, float scene_half_height, GLfloat* out_x, GLfloat* out_y) {
+    *out_x = -scene_half_width + 2.0f * scene_half_width * x / static_cast<float>(source_width);
+    *out_y = -scene_half_height + 2.0f * scene_half_height * y / static_cast<float>(source_height);
 }
 
 void draw_positioned(const PositionedTexture& layer, float alpha) {
-    if (layer.texture == 0 || alpha <= 0.0f || layer.source_width <= 0 || layer.source_height <= 0) {
-        return;
-    }
-
+    if (layer.texture == 0 || alpha <= 0.0f || layer.source_width <= 0 || layer.source_height <= 0) return;
     float half_width = 1.0f;
     float half_height = 1.0f;
     scene_half_extents(layer.source_width, layer.source_height, &half_width, &half_height);
-    const float x0 = -half_width +
-        2.0f * half_width * static_cast<float>(layer.left) / static_cast<float>(layer.source_width);
-    const float x1 = -half_width +
-        2.0f * half_width * static_cast<float>(layer.left + layer.width) /
-            static_cast<float>(layer.source_width);
-    const float y0 = half_height -
-        2.0f * half_height * static_cast<float>(layer.top) / static_cast<float>(layer.source_height);
-    const float y1 = half_height -
-        2.0f * half_height * static_cast<float>(layer.top + layer.height) /
-            static_cast<float>(layer.source_height);
-    const GLfloat vertices[] = {
-        x0, y0,
-        x0, y1,
-        x1, y0,
-        x1, y1,
-    };
+    const float x0 = -half_width + 2.0f * half_width * static_cast<float>(layer.left) / static_cast<float>(layer.source_width);
+    const float x1 = -half_width + 2.0f * half_width * static_cast<float>(layer.left + layer.width) / static_cast<float>(layer.source_width);
+    const float y0 = half_height - 2.0f * half_height * static_cast<float>(layer.top) / static_cast<float>(layer.source_height);
+    const float y1 = half_height - 2.0f * half_height * static_cast<float>(layer.top + layer.height) / static_cast<float>(layer.source_height);
+    const GLfloat vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
     draw_quad(layer.texture, vertices, alpha);
 }
 
-void draw_cloud(
-    const single_login_cloud_timeline::CloudPose& pose,
-    int source_width,
-    int source_height) {
-    if (pose.alpha <= 0.0f || pose.frame_index < 0 ||
-        pose.frame_index >= static_cast<int>(g_cloud_frames.size())) {
-        return;
-    }
+void draw_cloud(const single_login_cloud_timeline::CloudPose& pose, int source_width, int source_height) {
+    if (pose.alpha <= 0.0f || pose.frame_index < 0 || pose.frame_index >= static_cast<int>(g_cloud_frames.size())) return;
     const auto& frame = g_cloud_frames[static_cast<size_t>(pose.frame_index)];
     if (frame.texture == 0 || frame.width <= 0 || frame.height <= 0) return;
 
     float scene_half_width = 1.0f;
     float scene_half_height = 1.0f;
     scene_half_extents(source_width, source_height, &scene_half_width, &scene_half_height);
-
-    const float center_x = -scene_half_width +
-        2.0f * scene_half_width * pose.x / static_cast<float>(source_width);
-    const float center_y = -scene_half_height +
-        2.0f * scene_half_height * pose.y / static_cast<float>(source_height);
-    const float sprite_half_width = scene_half_width *
-        static_cast<float>(frame.width) / static_cast<float>(source_width);
-    const float sprite_half_height = scene_half_height *
-        static_cast<float>(frame.height) / static_cast<float>(source_height);
-
+    const float center_x = -scene_half_width + 2.0f * scene_half_width * pose.x / static_cast<float>(source_width);
+    const float center_y = -scene_half_height + 2.0f * scene_half_height * pose.y / static_cast<float>(source_height);
+    const float sprite_half_width = scene_half_width * static_cast<float>(frame.width) / static_cast<float>(source_width);
+    const float sprite_half_height = scene_half_height * static_cast<float>(frame.height) / static_cast<float>(source_height);
     const float radians = -pose.rotation_degrees * kPi / 180.0f;
     const float c = std::cos(radians);
     const float s = std::sin(radians);
     const std::array<std::array<float, 2>, 4> corners{{
-        {{-sprite_half_width,  sprite_half_height}},
+        {{-sprite_half_width, sprite_half_height}},
         {{-sprite_half_width, -sprite_half_height}},
-        {{ sprite_half_width,  sprite_half_height}},
-        {{ sprite_half_width, -sprite_half_height}},
+        {{sprite_half_width, sprite_half_height}},
+        {{sprite_half_width, -sprite_half_height}},
     }};
     GLfloat vertices[8]{};
     for (size_t index = 0; index < corners.size(); ++index) {
@@ -443,12 +373,8 @@ void draw_cloud(
     draw_quad(frame.texture, vertices, pose.alpha);
 }
 
-void draw_cloud_z(
-    const single_login_cloud_timeline::Sample& cloud_sample,
-    int z,
-    int source_width,
-    int source_height) {
-    for (const auto& cloud : cloud_sample.clouds) {
+void draw_cloud_z(const single_login_cloud_timeline::Sample& sample, int z, int source_width, int source_height) {
+    for (const auto& cloud : sample.clouds) {
         if (cloud.z == z) draw_cloud(cloud, source_width, source_height);
     }
 }
@@ -468,26 +394,18 @@ SwayPlacement sway_placement(std::size_t index, int source_width, int source_hei
     }
 }
 
-void draw_sway(
-    std::size_t index,
-    const single_login_sway_timeline::NodeSample& pose,
-    int scene_width,
-    int scene_height) {
+void draw_sway(std::size_t index, const single_login_sway_timeline::NodeSample& pose,
+               int scene_width, int scene_height) {
     if (index >= g_sways.size()) return;
     const auto& sprite = g_sways[index];
     if (sprite.texture == 0 || sprite.source_width <= 0 || sprite.source_height <= 0) return;
 
     const SwayPlacement placement = sway_placement(index, scene_width, scene_height);
     const float bottom = static_cast<float>(sprite.source_height - sprite.top - sprite.height);
-    const float local_left = static_cast<float>(sprite.left) -
-        placement.anchor_x * static_cast<float>(sprite.source_width);
-    const float local_right = static_cast<float>(sprite.left + sprite.width) -
-        placement.anchor_x * static_cast<float>(sprite.source_width);
-    const float local_bottom = bottom -
-        placement.anchor_y * static_cast<float>(sprite.source_height);
-    const float local_top = bottom + static_cast<float>(sprite.height) -
-        placement.anchor_y * static_cast<float>(sprite.source_height);
-
+    const float local_left = static_cast<float>(sprite.left) - placement.anchor_x * static_cast<float>(sprite.source_width);
+    const float local_right = static_cast<float>(sprite.left + sprite.width) - placement.anchor_x * static_cast<float>(sprite.source_width);
+    const float local_bottom = bottom - placement.anchor_y * static_cast<float>(sprite.source_height);
+    const float local_top = bottom + static_cast<float>(sprite.height) - placement.anchor_y * static_cast<float>(sprite.source_height);
     const float skew_x = std::tan(pose.skew_x_degrees * kPi / 180.0f);
     const float skew_y = std::tan(pose.skew_y_degrees * kPi / 180.0f);
     const std::array<std::array<float, 2>, 4> local{{
@@ -504,36 +422,45 @@ void draw_sway(
     for (size_t corner = 0; corner < local.size(); ++corner) {
         const float x = local[corner][0];
         const float y = local[corner][1];
-        const float transformed_x = x + skew_x * y;
-        const float transformed_y = skew_y * x + y;
-        scene_to_gl(
-            placement.x + transformed_x,
-            placement.y + transformed_y,
-            scene_width,
-            scene_height,
-            scene_half_width,
-            scene_half_height,
-            &vertices[corner * 2],
-            &vertices[corner * 2 + 1]);
+        scene_to_gl(placement.x + x + skew_x * y, placement.y + skew_y * x + y,
+                    scene_width, scene_height, scene_half_width, scene_half_height,
+                    &vertices[corner * 2], &vertices[corner * 2 + 1]);
     }
     draw_quad(sprite.texture, vertices, 1.0f);
 }
 
 void draw_sway_z(
-    const single_login_sway_timeline::Sample& sway_sample,
+    const single_login_sway_timeline::Sample& sample,
     const std::array<single_login_sway_timeline::NodeConfig, single_login_sway_timeline::kNodeCount>& configs,
     int z,
     int scene_width,
     int scene_height) {
     for (size_t index = 0; index < g_sways.size(); ++index) {
-        if (configs[index].z_order == z) {
-            draw_sway(index, sway_sample.nodes[index], scene_width, scene_height);
+        if (configs[index].z_order == z) draw_sway(index, sample.nodes[index], scene_width, scene_height);
+    }
+}
+
+void draw_lightning_z(const single_login_lightning_timeline::Sample& sample, int z) {
+    for (size_t index = 0; index < g_lightning.size(); ++index) {
+        const int strike_z = index == 6 ? 0 : 3;
+        if (strike_z == z) draw_positioned(g_lightning[index], sample.strikes[index].alpha);
+    }
+}
+
+void draw_illumination(const single_login_lightning_timeline::Sample& sample) {
+    for (const auto& strike : sample.strikes) {
+        if (strike.alpha <= 0.0f) continue;
+        for (int frame_index : strike.config.illumination_indices) {
+            if (frame_index >= 0 && frame_index < static_cast<int>(g_illumination.size())) {
+                draw_positioned(g_illumination[static_cast<size_t>(frame_index)], strike.alpha);
+            }
         }
     }
 }
 
 void draw() {
-    if (!backgrounds_ready() || !clouds_ready() || !sways_ready() ||
+    if (!layers_ready(g_backgrounds) || !clouds_ready() || !layers_ready(g_sways) ||
+        !layers_ready(g_lightning) || !layers_ready(g_illumination) ||
         g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
         g_surface_width <= 0 || g_surface_height <= 0) {
         return;
@@ -549,6 +476,7 @@ void draw() {
         const std::uint64_t seed = now > 0 ? static_cast<std::uint64_t>(now) : 0ULL;
         single_login_light_timeline::reset(seed);
         single_login_sway_timeline::reset(seed);
+        single_login_lightning_timeline::reset(seed);
         g_scene_generation = generation;
     }
 
@@ -561,42 +489,36 @@ void draw() {
         static_cast<float>(g_cloud_frames[0].width),
         static_cast<float>(g_cloud_frames[0].height));
     const auto sway_sample = single_login_sway_timeline::sample(scene_seconds);
+    const auto lightning_sample = single_login_lightning_timeline::sample(scene_seconds);
     const auto& sway_configs = single_login_sway_timeline::configs();
 
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(g_program);
 
-    draw_positioned(g_backgrounds[0], 1.0f);  // z=0
+    draw_positioned(g_backgrounds[0], 1.0f);  // early z=0 background
+    draw_lightning_z(lightning_sample, 0);     // late z=0 shandian07
     draw_cloud_z(cloud_sample, 1, source_width, source_height);
     draw_positioned(g_backgrounds[1], 1.0f);  // z=2, inserted before later z=2 clouds
     draw_cloud_z(cloud_sample, 2, source_width, source_height);
     draw_positioned(g_backgrounds[2], 1.0f);  // z=3, inserted before later z=3 clouds
     draw_cloud_z(cloud_sample, 3, source_width, source_height);
-    draw_sway_z(sway_sample, sway_configs, 3, source_width, source_height);  // later z=3 trees
+    draw_sway_z(sway_sample, sway_configs, 3, source_width, source_height);  // trees created earlier
+    draw_lightning_z(lightning_sample, 3);     // late z=3 shandian01..06
 
-    for (const auto& building : g_buildings) {
-        draw_positioned(building, 1.0f);       // z=4
-    }
+    for (const auto& building : g_buildings) draw_positioned(building, 1.0f);  // early z=4 buildings
+    draw_illumination(lightning_sample);       // late z=4 illumination nodes
 
     const auto light_sample = single_login_light_timeline::sample(scene_seconds);
     for (size_t index = 0; index < g_lights.size(); ++index) {
-        draw_positioned(g_lights[index], light_sample.alpha[index]);  // earlier z=5 lights
+        draw_positioned(g_lights[index], light_sample.alpha[index]);
     }
-    draw_sway_z(sway_sample, sway_configs, 5, source_width, source_height);  // later z=5 foreground
-
+    draw_sway_z(sway_sample, sway_configs, 5, source_width, source_height);
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 bool upload_jni_layer(
-    JNIEnv* env,
-    jint index,
-    jint width,
-    jint height,
-    jint left,
-    jint top,
-    jint source_width,
-    jint source_height,
-    jintArray pixels,
+    JNIEnv* env, jint index, jint width, jint height, jint left, jint top,
+    jint source_width, jint source_height, jintArray pixels,
     bool (*uploader)(int, int, int, int, int, int, int, const std::uint32_t*, size_t)) {
     if (pixels == nullptr || width <= 0 || height <= 0 || uploader == nullptr) return false;
     const jsize length = env->GetArrayLength(pixels);
@@ -605,37 +527,22 @@ bool upload_jni_layer(
     jint* values = env->GetIntArrayElements(pixels, nullptr);
     if (values == nullptr) return false;
     const bool ok = uploader(
-        static_cast<int>(index),
-        static_cast<int>(width),
-        static_cast<int>(height),
-        static_cast<int>(left),
-        static_cast<int>(top),
-        static_cast<int>(source_width),
-        static_cast<int>(source_height),
-        reinterpret_cast<const std::uint32_t*>(values),
-        expected);
+        static_cast<int>(index), static_cast<int>(width), static_cast<int>(height),
+        static_cast<int>(left), static_cast<int>(top), static_cast<int>(source_width),
+        static_cast<int>(source_height), reinterpret_cast<const std::uint32_t*>(values), expected);
     env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
     return ok;
 }
 
-bool upload_jni_cloud(
-    JNIEnv* env,
-    jint index,
-    jint width,
-    jint height,
-    jintArray pixels) {
+bool upload_jni_cloud(JNIEnv* env, jint index, jint width, jint height, jintArray pixels) {
     if (pixels == nullptr || width <= 0 || height <= 0) return false;
     const jsize length = env->GetArrayLength(pixels);
     const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
     if (static_cast<size_t>(length) != expected) return false;
     jint* values = env->GetIntArrayElements(pixels, nullptr);
     if (values == nullptr) return false;
-    const bool ok = upload_cloud(
-        static_cast<int>(index),
-        static_cast<int>(width),
-        static_cast<int>(height),
-        reinterpret_cast<const std::uint32_t*>(values),
-        expected);
+    const bool ok = upload_cloud(static_cast<int>(index), static_cast<int>(width), static_cast<int>(height),
+                                 reinterpret_cast<const std::uint32_t*>(values), expected);
     env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
     return ok;
 }
@@ -649,115 +556,48 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnSingleLoginSurfaceCreated(JNIE
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeOnSingleLoginSurfaceChanged(
-    JNIEnv*, jclass, jint width, jint height) {
+Java_org_nevergone_recomp_GameSurfaceView_nativeOnSingleLoginSurfaceChanged(JNIEnv*, jclass, jint width, jint height) {
     nevergone::single_login::g_surface_width = static_cast<int>(width);
     nevergone::single_login::g_surface_height = static_cast<int>(height);
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginBackgrounds(JNIEnv*, jclass) {
-    nevergone::single_login::clear_backgrounds();
-}
-
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginBackgrounds(JNIEnv*, jclass) { nevergone::single_login::clear_backgrounds(); }
 extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginClouds(JNIEnv*, jclass) {
-    nevergone::single_login::clear_clouds();
-}
-
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginClouds(JNIEnv*, jclass) { nevergone::single_login::clear_clouds(); }
 extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginBuildings(JNIEnv*, jclass) {
-    nevergone::single_login::clear_buildings();
-}
-
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginBuildings(JNIEnv*, jclass) { nevergone::single_login::clear_buildings(); }
 extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginLights(JNIEnv*, jclass) {
-    nevergone::single_login::clear_lights();
-}
-
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginLights(JNIEnv*, jclass) { nevergone::single_login::clear_lights(); }
 extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginSways(JNIEnv*, jclass) {
-    nevergone::single_login::clear_sways();
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginSways(JNIEnv*, jclass) { nevergone::single_login::clear_sways(); }
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginLightning(JNIEnv*, jclass) { nevergone::single_login::clear_lightning(); }
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginIllumination(JNIEnv*, jclass) { nevergone::single_login::clear_illumination(); }
+
+#define NEVERGONE_UPLOAD_JNI(name, uploader) \
+extern "C" JNIEXPORT jboolean JNICALL name( \
+    JNIEnv* env, jclass, jint index, jint width, jint height, jint left, jint top, \
+    jint source_width, jint source_height, jintArray pixels) { \
+    return nevergone::single_login::upload_jni_layer( \
+        env, index, width, height, left, top, source_width, source_height, pixels, \
+        nevergone::single_login::uploader) ? JNI_TRUE : JNI_FALSE; \
 }
 
-extern "C" JNIEXPORT jboolean JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginBackground(
-    JNIEnv* env,
-    jclass,
-    jint background_index,
-    jint width,
-    jint height,
-    jint left,
-    jint top,
-    jint source_width,
-    jint source_height,
-    jintArray pixels) {
-    return nevergone::single_login::upload_jni_layer(
-        env, background_index, width, height, left, top, source_width, source_height, pixels,
-        nevergone::single_login::upload_background) ? JNI_TRUE : JNI_FALSE;
-}
+NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginBackground, upload_background)
+NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginBuilding, upload_building)
+NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginLight, upload_light)
+NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginSway, upload_sway)
+NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginLightning, upload_lightning)
+NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginIllumination, upload_illumination)
+
+#undef NEVERGONE_UPLOAD_JNI
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginCloud(
-    JNIEnv* env,
-    jclass,
-    jint cloud_frame_index,
-    jint width,
-    jint height,
-    jintArray pixels) {
-    return nevergone::single_login::upload_jni_cloud(
-        env, cloud_frame_index, width, height, pixels) ? JNI_TRUE : JNI_FALSE;
-}
-
-extern "C" JNIEXPORT jboolean JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginBuilding(
-    JNIEnv* env,
-    jclass,
-    jint building_index,
-    jint width,
-    jint height,
-    jint left,
-    jint top,
-    jint source_width,
-    jint source_height,
-    jintArray pixels) {
-    return nevergone::single_login::upload_jni_layer(
-        env, building_index, width, height, left, top, source_width, source_height, pixels,
-        nevergone::single_login::upload_building) ? JNI_TRUE : JNI_FALSE;
-}
-
-extern "C" JNIEXPORT jboolean JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginLight(
-    JNIEnv* env,
-    jclass,
-    jint light_index,
-    jint width,
-    jint height,
-    jint left,
-    jint top,
-    jint source_width,
-    jint source_height,
-    jintArray pixels) {
-    return nevergone::single_login::upload_jni_layer(
-        env, light_index, width, height, left, top, source_width, source_height, pixels,
-        nevergone::single_login::upload_light) ? JNI_TRUE : JNI_FALSE;
-}
-
-extern "C" JNIEXPORT jboolean JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginSway(
-    JNIEnv* env,
-    jclass,
-    jint sway_index,
-    jint width,
-    jint height,
-    jint left,
-    jint top,
-    jint source_width,
-    jint source_height,
-    jintArray pixels) {
-    return nevergone::single_login::upload_jni_layer(
-        env, sway_index, width, height, left, top, source_width, source_height, pixels,
-        nevergone::single_login::upload_sway) ? JNI_TRUE : JNI_FALSE;
+    JNIEnv* env, jclass, jint cloud_frame_index, jint width, jint height, jintArray pixels) {
+    return nevergone::single_login::upload_jni_cloud(env, cloud_frame_index, width, height, pixels) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL
