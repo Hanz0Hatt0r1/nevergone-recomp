@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 
+#include "native_binding_registry.h"
 #include "startup_contract.h"
 
 #if defined(NEVERGONE_HAS_LUA)
@@ -174,7 +175,8 @@ std::string startup_execution_report() {
         return "startup script: failed (luaL_newstate)\n";
     }
     luaL_openlibs(state);
-    register_startup_bindings(state);
+    register_native_bindings(state);
+    install_missing_global_probe(state);
 
     std::string error;
     const bool ok = execute_module(state, "Game.StartLua", &error);
@@ -182,6 +184,7 @@ std::string startup_execution_report() {
 
     const auto modules = startup::take_requested_modules();
     const auto ui_events = startup::take_ui_events();
+    const auto missing_globals = take_missing_globals();
 
     std::ostringstream out;
     out << "startup script: " << (ok ? "executed" : "failed") << "\n";
@@ -190,6 +193,10 @@ std::string startup_execution_report() {
         out << "  - " << module << "\n";
     }
     out << "startup UI events: " << ui_events.size() << "\n";
+    out << "missing globals observed: " << missing_globals.size() << "\n";
+    for (const auto& item : missing_globals) {
+        out << "  - " << item.name << " (" << item.hits << ")\n";
+    }
     if (!ok) {
         out << "startup traceback:\n" << error << "\n";
     }
