@@ -45,6 +45,16 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static native void nativeOnSingleLoginSurfaceChanged(int width, int height);
     private static native void nativeClearSingleLoginTexture();
     private static native boolean nativeUploadSingleLoginTexture(int width, int height, int[] argbPixels);
+    private static native void nativeClearSingleLoginLights();
+    private static native boolean nativeUploadSingleLoginLight(
+            int lightIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
     private static native void nativeDrawSingleLoginLayer();
     private static native boolean nativeIsSingleLoginActive();
 
@@ -119,12 +129,13 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     }
 
     private void reloadImportedVisualsOnGlThread() {
-        loadSingleLoginBaseOnGlThread();
+        loadSingleLoginSceneOnGlThread();
         loadImportedSplashOnGlThread();
     }
 
-    private void loadSingleLoginBaseOnGlThread() {
+    private void loadSingleLoginSceneOnGlThread() {
         nativeClearSingleLoginTexture();
+        nativeClearSingleLoginLights();
         File directory = new File(assetRoot, SINGLE_LOGIN_DIR);
         File plist = new File(directory, SINGLE_LOGIN_PLIST);
         File atlasFile = new File(directory, SINGLE_LOGIN_ATLAS);
@@ -133,18 +144,41 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         }
 
         try {
-            Bitmap composite = SingleLoginAtlasComposer.compose(plist, atlasFile);
-            if (composite == null) {
+            SingleLoginAtlasComposer.SceneAssets scene =
+                    SingleLoginAtlasComposer.composeScene(plist, atlasFile);
+            if (scene == null || scene.base == null) {
                 return;
             }
+
+            Bitmap composite = scene.base;
             int width = composite.getWidth();
             int height = composite.getHeight();
             int[] pixels = new int[width * height];
             composite.getPixels(pixels, 0, width, 0, 0, width, height);
             composite.recycle();
-            nativeUploadSingleLoginTexture(width, height, pixels);
+            if (!nativeUploadSingleLoginTexture(width, height, pixels)) {
+                nativeClearSingleLoginLights();
+                return;
+            }
+
+            for (int index = 0; index < scene.lights.length; index++) {
+                SingleLoginAtlasComposer.LightLayer light = scene.lights[index];
+                if (light == null || !nativeUploadSingleLoginLight(
+                        index,
+                        light.width,
+                        light.height,
+                        light.left,
+                        light.top,
+                        light.sourceWidth,
+                        light.sourceHeight,
+                        light.pixels)) {
+                    nativeClearSingleLoginLights();
+                    break;
+                }
+            }
         } catch (Exception ignored) {
             nativeClearSingleLoginTexture();
+            nativeClearSingleLoginLights();
         }
     }
 
