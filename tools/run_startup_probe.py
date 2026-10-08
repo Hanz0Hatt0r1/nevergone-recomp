@@ -93,6 +93,9 @@ function cpp_OnGetRoleList(...) capture_callback("cpp_OnGetRoleList", ...) end
 function cpp_OnCreateTheRole(...) capture_callback("cpp_OnCreateTheRole", ...) end
 function cpp_OnGameAnnoucement(...) capture_callback("cpp_OnGameAnnoucement", ...) end
 function cpp_OnEnterGame(...) capture_callback("cpp_OnEnterGame", ...) end
+function cpp_OnReceivedChatMessages(...) capture_callback("cpp_OnReceivedChatMessages", ...) end
+function cpp_OnUpdateData(...) capture_callback("cpp_OnUpdateData", ...) end
+function cpp_connect_pve(...) capture_callback("cpp_connect_pve", ...) end
 
 xml = {
     load = function() return nil end,
