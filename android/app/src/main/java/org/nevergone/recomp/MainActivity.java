@@ -2,6 +2,7 @@ package org.nevergone.recomp;
 
 import android.app.Activity;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.widget.TextView;
@@ -16,14 +17,17 @@ public final class MainActivity extends Activity {
         System.loadLibrary("nevergone_recomp");
     }
 
-    private static native void nativeConfigureRuntime(String filesDir, String deviceId);
+    private static native void nativeConfigureRuntime(String filesDir, String deviceId, String appVersion);
     private static native String nativeBootstrapInfo();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        nativeConfigureRuntime(getFilesDir().getAbsolutePath(), getOrCreateDeviceId());
+        nativeConfigureRuntime(
+                getFilesDir().getAbsolutePath(),
+                getOrCreateDeviceId(),
+                getAppVersion());
 
         TextView status = new TextView(this);
         status.setGravity(Gravity.CENTER);
@@ -43,5 +47,14 @@ public final class MainActivity extends Activity {
         value = UUID.randomUUID().toString();
         prefs.edit().putString(DEVICE_ID, value).apply();
         return value;
+    }
+
+    private String getAppVersion() {
+        try {
+            String value = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            return value != null ? value : "";
+        } catch (PackageManager.NameNotFoundException ignored) {
+            return "";
+        }
     }
 }

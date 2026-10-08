@@ -33,6 +33,18 @@ std::string Lua_GetDeviceUUID() {
     return g_config.device_id;
 }
 
+std::string Lua_GetBundleVersion() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_config.app_version;
+}
+
+void Lua_SetConsoleColor(int level) {
+    // The original helper controls console presentation. Android logcat has no
+    // equivalent per-line console color contract, so preserve the call as a
+    // deliberate no-op rather than inventing behavior.
+    (void)level;
+}
+
 bool CAddDoString(const std::string& module_name) {
     if (module_name.empty()) {
         return false;
@@ -79,6 +91,8 @@ std::vector<UiEvent> take_ui_events() {
 std::string smoke_test_report() {
     const std::string platform = Lua_GetPlatformString();
     const std::string device_id = Lua_GetDeviceUUID();
+    const std::string app_version = Lua_GetBundleVersion();
+    Lua_SetConsoleColor(0);
 
     const bool client_require = CAddDoString("Game.ClientRequire");
     const bool share_require = CAddDoString("ShareLogic.require");
@@ -98,6 +112,7 @@ std::string smoke_test_report() {
         << "\n";
     out << "platform: " << platform << "\n";
     out << "device id configured: " << (!device_id.empty() ? "yes" : "no") << "\n";
+    out << "app version configured: " << (!app_version.empty() ? "yes" : "no") << "\n";
     out << "module requests: " << modules.size() << "\n";
     out << "UI events: " << events.size() << "\n";
     return out.str();

@@ -8,6 +8,7 @@ namespace nevergone::startup {
 struct RuntimeConfig {
     std::string files_dir;
     std::string device_id;
+    std::string app_version;
     std::string platform = "android";
 };
 
@@ -27,11 +28,13 @@ struct UiEvent {
 void configure(RuntimeConfig config);
 const RuntimeConfig& config();
 
-// Clean-room semantic equivalents of the seven Lua-facing calls used directly
-// by Game.StartLua. Their eventual lua_CFunction wrappers live separately so
-// this contract can be tested before a Lua VM is integrated.
+// Clean-room semantic equivalents of Lua-facing calls used by the recovered
+// startup/runtime scripts. Their lua_CFunction wrappers live separately so
+// this contract can be tested before a full renderer is integrated.
 std::string Lua_GetPlatformString();
 std::string Lua_GetDeviceUUID();
+std::string Lua_GetBundleVersion();
+void Lua_SetConsoleColor(int level);
 
 bool CAddDoString(const std::string& module_name);
 void cpp_ShowLoadingUI();

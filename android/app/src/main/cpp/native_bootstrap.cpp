@@ -56,6 +56,7 @@ std::string bootstrap_info() {
 
     const auto& runtime = nevergone::startup::config();
     out << "files dir configured: " << (!runtime.files_dir.empty() ? "yes" : "no") << "\n";
+    out << "app version: " << (runtime.app_version.empty() ? "unknown" : runtime.app_version) << "\n";
     out << nevergone::startup::smoke_test_report();
     out << nevergone::lua_runtime::smoke_test();
     out << nevergone::lua_runtime::startup_execution_report();
@@ -70,10 +71,12 @@ Java_org_nevergone_recomp_MainActivity_nativeConfigureRuntime(
     JNIEnv* env,
     jclass,
     jstring files_dir,
-    jstring device_id) {
+    jstring device_id,
+    jstring app_version) {
     nevergone::startup::RuntimeConfig config;
     config.files_dir = jstring_to_utf8(env, files_dir);
     config.device_id = jstring_to_utf8(env, device_id);
+    config.app_version = jstring_to_utf8(env, app_version);
     config.platform = "android";
     nevergone::startup::configure(std::move(config));
 }
