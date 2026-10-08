@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "choose_hero_background_assets.h"
+#include "choose_hero_background_compositor.h"
 #include "offline_startup_flow.h"
 
 namespace nevergone::choose_hero_background {
@@ -161,5 +162,9 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeChooseHeroBackgroundAssetsReady(
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeIsChooseHeroRouteActive(
         JNIEnv*, jclass) {
+    // GameSurfaceView calls this once per GL frame from its existing ChooseHero
+    // asset lifecycle. Tick the recovered visual here so this increment does
+    // not expand the Java renderer ABI merely to add a deterministic overlay.
+    nevergone::choose_hero_background_compositor::draw();
     return nevergone::choose_hero_background::route_active() ? JNI_TRUE : JNI_FALSE;
 }
