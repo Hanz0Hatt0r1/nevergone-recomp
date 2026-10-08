@@ -58,6 +58,9 @@ jobs:
       - name: Validate Ghidra metadata index
         run: python3 tools/ghidra/verify_full_index.py docs/ghidra/full-index
 
+      - name: Validate ChooseHero background atlas contract
+        run: python3 tools/verify_choose_hero_background_contract.py
+
       - name: Validate SingleLogin light timeline
         shell: bash
         run: |
