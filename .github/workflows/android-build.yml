@@ -48,6 +48,9 @@ jobs:
       - name: Validate Android manifest summary parser
         run: python3 tools/apk_manifest_summary_smoke.py
 
+      - name: Validate DEX bootstrap mapper
+        run: python3 tools/dex_bootstrap_map_smoke.py
+
       - name: Validate TexturePacker rotated-frame transform
         shell: bash
         run: |

@@ -1,6 +1,6 @@
 # Android bootstrap map
 
-This document consolidates the reconstructed Android → JNI → native scene bootstrap for the known original Never Gone APK. It intentionally separates confirmed evidence from unresolved Java/vendor behavior so the modern recompilation does not depend on guessed startup details.
+This document consolidates the reconstructed Android → JNI → native scene bootstrap for the known original Never Gone APK. Confirmed Java/Dalvik behavior is now derived directly from `classes.dex` with project-owned metadata tooling rather than inferred from method names.
 
 ## Known original application identity
 
@@ -14,16 +14,46 @@ This document consolidates the reconstructed Android → JNI → native scene bo
 
 The shipped APK has no arm64 native library. The recompilation therefore treats ARMv7 as a behavior-comparison target and arm64-v8a as the primary modern target rather than attempting to load the original binary.
 
+## Verified Java/Dalvik launcher flow
+
+Direct DEX code-item analysis establishes the manifest launcher's hierarchy:
+
+```text
+com.hippiegame.nevergone.TJ_P_01
+    -> org.cocos2dx.lib.Cocos2dxActivity
+    -> android.app.Activity
+```
+
+Its static initializer calls `System.loadLibrary(...)` in the following exact order:
+
+```text
+ffmpeg
+cocos2dcpp
+cocos2dcpp
+```
+
+The second `cocos2dcpp` load is genuinely duplicated in the shipped bytecode. There is no observed try/catch around these three calls.
+
+The launcher `onCreate(Bundle)` calls `Cocos2dxActivity.onCreate`, obtains the decor view, checks Google Play Services and, when that check succeeds, creates `GooglePlayIABPlugin` and calls its `onCreate(Bundle)`.
+
+`Cocos2dxActivity.onCreate()` performs the upstream-style Cocos Android setup:
+
+```text
+Activity.onCreate
+  -> new Cocos2dxHandler(...)
+  -> Cocos2dxActivity.init()
+  -> Cocos2dxHelper.init(context, listener)
+```
+
+`Cocos2dxActivity.init()` creates the frame layout, `Cocos2dxEditText`, `Cocos2dxGLSurfaceView` and `Cocos2dxRenderer`, attaches the renderer/edit-text bridge and installs the resulting frame as the Activity content view.
+
+See `docs/dex-bootstrap-map.md` for the reproducible ordered-call evidence.
+
 ## DEX/native boundary
 
 `classes.dex` declares 27 native methods. Static ELF analysis finds 21 matching `Java_*` JNI exports, all in `libcocos2dcpp.so`; `libffmpeg.so` exposes no Java JNI entry points.
 
-The matched JNI surface consists of:
-
-- standard/upstream-style Cocos2d-x Android helpers (`Cocos2dxRenderer`, `Cocos2dxHelper`, bitmap and accelerometer glue), and
-- four Never Gone Google Play billing callbacks.
-
-Six native declarations in `com.ngds.cocos.GamepadBridge` have no matching static `Java_*` exports. Their implementation/reachability remains unresolved and must not be assumed to exist merely because the Java declarations are present.
+The matched JNI surface consists of standard/upstream-style Cocos2d-x Android helpers plus four Never Gone Google Play billing callbacks. Six native declarations in `com.ngds.cocos.GamepadBridge` have no matching static `Java_*` exports.
 
 See `docs/jni-map.md` for the complete declaration/export cross-check.
 
@@ -38,7 +68,37 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
 }
 ```
 
-No game initialization or `RegisterNatives` call is visible there. This means the first game-owned scene is reached through the ordinary Cocos2d-x application/bootstrap path rather than through custom registration inside `JNI_OnLoad`.
+No game initialization or `RegisterNatives` call is visible there. The first game-owned scene is reached through the ordinary Cocos2d-x application/bootstrap path rather than custom registration inside `JNI_OnLoad`.
+
+## Verified pause/resume forwarding
+
+Pause reaches native code through the GLSurfaceView event queue:
+
+```text
+TJ_P_01.onPause
+  -> Cocos2dxActivity.onPause
+     -> Activity.onPause
+     -> Cocos2dxHelper.onPause
+     -> Cocos2dxGLSurfaceView.onPause
+        -> queueEvent(Cocos2dxGLSurfaceView$4)
+           -> Cocos2dxRenderer.handleOnPause
+              -> Cocos2dxRenderer.nativeOnPause
+```
+
+Resume is symmetric:
+
+```text
+TJ_P_01.onResume
+  -> Cocos2dxActivity.onResume
+     -> Activity.onResume
+     -> Cocos2dxHelper.onResume
+     -> Cocos2dxGLSurfaceView.onResume
+        -> queueEvent(Cocos2dxGLSurfaceView$3)
+           -> Cocos2dxRenderer.handleOnResume
+              -> Cocos2dxRenderer.nativeOnResume
+```
+
+This confirms that native renderer lifecycle callbacks are dispatched on the GL event queue rather than directly from the Activity callback.
 
 ## Original renderer-facing JNI
 
@@ -59,19 +119,14 @@ nativeTouchesEnd
 nativeTouchesMove
 ```
 
-These names establish the original Java/native responsibilities at a high level: surface initialization/rendering, Activity/surface pause-resume forwarding, text input, key input and touch forwarding.
-
-The exact Java call graph from `TJ_P_01` through the Cocos activity/view classes still requires a JADX metadata pass. In particular, this document does **not** claim a verified order for `System.loadLibrary(...)` calls until that DEX call graph is preserved explicitly.
+Additional DEX call-flow evidence verifies that `Cocos2dxRenderer.onSurfaceCreated(...)` calls `nativeInit(width, height)`, while `onDrawFrame(...)` calls `nativeRender()` around Java-side timing logic. `Cocos2dxGLSurfaceView.onSizeChanged(...)` forwards dimensions to the renderer, and touch work is queued from the GL view to renderer action handlers before reaching the mapped native touch JNI surface.
 
 ## First confirmed game-owned native scene
 
-The recovered native flow after Cocos initialization is:
+After the renderer/native bootstrap, recovered native flow is:
 
 ```text
-Android launcher activity (TJ_P_01)
-        |
-        v
-Cocos2d-x Android view/renderer JNI
+Cocos2dxRenderer.nativeInit(...)
         |
         v
 AppDelegate::applicationDidFinishLaunching()
@@ -100,60 +155,15 @@ ManagementLayer::initLoginLayer()
 
 `AppDelegate::applicationDidFinishLaunching()` loads approximately `1 / 35` second immediately before director timing configuration. The recompilation records this as original game/update timing evidence but does not force the modern display presentation loop to 35 Hz.
 
-See `docs/startup-flow.md` for addresses, symbols and the splash/login transition evidence.
+See `docs/startup-flow.md` for native addresses, symbols and splash/login transition evidence.
 
-## Modern recompilation mapping
+## Google Play / IAP boundary
 
-The recompilation replaces the old Java/Cocos native boundary with project-owned equivalents while preserving responsibilities rather than ABI compatibility:
+The original launcher performs a direct Play Services availability check. Recoverable failures can show the standard Google Play error dialog. After a successful check, the launcher constructs `GooglePlayIABPlugin` and calls its `onCreate(Bundle)`.
 
-| Original responsibility | Recomp implementation |
-| --- | --- |
-| Load original ARMv7 game library | Load project-owned `libnevergone_recomp.so` |
-| Cocos renderer surface callbacks | `GameSurfaceView` + `render_bridge` GLES2 callbacks |
-| Touch JNI | `GameSurfaceView.nativeOnTouch` → project-owned render/input bridge |
-| Renderer pause/resume | Activity/GLSurfaceView lifecycle + project-owned native lifecycle state |
-| Original asset APK access | User-selected original APK imported through SAF into app-private storage |
-| Custom resource decode | Recovered clean-room `cocos2d::Decode` transform in importer/tooling |
-| Lua 5.2.3 runtime | Verified source-fetched Lua 5.2.3 built into project-owned native runtime |
-| Original startup Lua/native globals | Clean-room binding registry and compatibility implementations |
-| Native login/client callbacks | Typed diagnostic/event bridge + persistent `ClientUiSnapshot` |
-| Original rendering | Project-owned GLES2 substrate; original scene/UI behavior still under reconstruction |
+`TJ_P_01.onActivityResult(...)` first offers the result to `GooglePlayIABPlugin.handleActivityResult(...)`, then forwards to `Cocos2dxActivity.onActivityResult(...)`.
 
-This mapping deliberately avoids loading `libcocos2dcpp.so` from the user APK. The original APK is used only as a user-supplied source for game resources and reverse-engineering evidence.
-
-## Modern lifecycle sequence
-
-The current recomp application performs the following high-level sequence:
-
-```text
-MainActivity class load
-        |
-        +--> System.loadLibrary("nevergone_recomp")
-        |
-MainActivity.onCreate()
-        |
-        +--> configure app-private files root / UUID / version through JNI
-        +--> create GameSurfaceView (GLES2)
-        +--> expose original-APK SAF importer and diagnostics
-        |
-GameSurfaceView renderer
-        |
-        +--> nativeOnSurfaceCreated
-        +--> nativeOnSurfaceChanged
-        +--> nativeOnDrawFrame
-        +--> nativeOnTouch
-        |
-Activity lifecycle
-        |
-        +--> GLSurfaceView pause/resume
-        +--> project-owned native lifecycle state
-```
-
-After user-owned assets are imported, startup diagnostics can execute decoded `Game.StartLua` through the reconstructed Lua runtime and update the persistent client/UI state observed by the GLES diagnostic renderer.
-
-## Google Play billing boundary
-
-The original APK has four Never Gone-specific JNI callbacks on `GooglePlayIABPlugin`:
+The original native library exposes these Never Gone-specific billing callbacks:
 
 ```text
 nativeOnFailed
@@ -162,13 +172,11 @@ nativeOnReceiveItemInfo
 nativeOnRestore
 ```
 
-These should remain isolated from the offline preservation path. The recompilation should expose a platform-service boundary if purchase state is eventually needed, rather than making obsolete Google Play Billing a boot dependency.
+For preservation, this integration remains outside the offline boot dependency chain. If purchase-state compatibility becomes necessary, it should live behind a project-owned platform-service interface instead of restoring obsolete Google Play Billing as a startup requirement.
 
-No replacement billing implementation is currently required for title/login/offline boot reconstruction.
+## GamepadBridge classification
 
-## GamepadBridge discrepancy
-
-DEX declares six native GamepadBridge methods:
+DEX declares six `com.ngds.cocos.GamepadBridge` native methods:
 
 ```text
 onKeyDown
@@ -179,34 +187,83 @@ onRightStick
 onStateEvent
 ```
 
-No static JNI exports exist for them in either bundled native library. The game library does retain an `NGGamepadListener` C++ subsystem, so likely explanations include dynamic registration, dead/incomplete vendor integration or an omitted device-specific component. This remains an evidence-gathering task rather than a modern bootstrap blocker.
+No static JNI exports exist for them in either bundled native library. Direct DEX reachability analysis shows that the manifest launcher does not call `GamepadBridge`. Instead, gamepad calls occur from a second non-launcher activity class named `com.cocos2dx.org.TJ_P_01`, whose pause/resume path registers/removes the gamepad listener and handles state events.
+
+The duplicate `TJ_P_01` has no direct caller from the normal manifest-launcher path in the metadata scan beyond its own inner helper. The six unmatched natives are therefore classified as an isolated legacy/vendor activity path and are not a current boot blocker. Reflection, dynamic registration or external vendor entry remain possible and are not claimed to be disproven.
+
+## Modern recompilation mapping
+
+The recompilation replaces the old Java/Cocos native boundary with project-owned equivalents while preserving responsibilities rather than ABI compatibility:
+
+| Original responsibility | Recomp implementation |
+| --- | --- |
+| Load original ARMv7 game/media libraries | Load project-owned `libnevergone_recomp.so` |
+| Cocos renderer surface callbacks | `GameSurfaceView` + `render_bridge` GLES2 callbacks |
+| Touch JNI | `GameSurfaceView.nativeOnTouch` → project-owned render/input bridge |
+| Renderer pause/resume | Activity/GLSurfaceView lifecycle + project-owned native lifecycle state |
+| Original asset APK access | User-selected original APK imported through SAF into app-private storage |
+| Custom resource decode | Recovered clean-room `cocos2d::Decode` transform in importer/tooling |
+| Lua 5.2.3 runtime | Verified source-fetched Lua 5.2.3 built into project-owned native runtime |
+| Original startup Lua/native globals | Clean-room binding registry and compatibility implementations |
+| Native login/client callbacks | Typed diagnostic/event bridge + persistent `ClientUiSnapshot` |
+| Original rendering | Project-owned GLES2 substrate; original scene/UI behavior still under reconstruction |
+
+The original APK is used only as a user-supplied source for game resources and reverse-engineering evidence; the modern runtime does not load its native game library.
+
+## Modern lifecycle sequence
+
+The current recomp application performs this high-level sequence:
+
+```text
+MainActivity class load
+  -> System.loadLibrary("nevergone_recomp")
+MainActivity.onCreate
+  -> configure app-private files root / UUID / version through JNI
+  -> create GameSurfaceView (GLES2)
+  -> expose original-APK SAF importer and diagnostics
+GameSurfaceView renderer
+  -> nativeOnSurfaceCreated
+  -> nativeOnSurfaceChanged
+  -> nativeOnDrawFrame
+  -> nativeOnTouch
+Activity lifecycle
+  -> GLSurfaceView pause/resume
+  -> project-owned native lifecycle state
+```
+
+After user-owned assets are imported, startup diagnostics can execute decoded `Game.StartLua` through the reconstructed Lua runtime and update persistent client/UI state observed by the GLES diagnostic renderer.
 
 ## Remaining Android bootstrap questions
 
-The following items are intentionally still open:
+The critical launcher/library/render/lifecycle path is now mapped directly from DEX. Remaining Java-side work is narrower:
 
-1. Preserve a JADX-derived class/lifecycle map for `TJ_P_01` and the Cocos Java glue.
-2. Record the exact original `System.loadLibrary(...)` call sites and order from DEX, including whether `libffmpeg.so` is loaded explicitly or through another path.
-3. Determine whether the six GamepadBridge declarations are reachable and whether any dynamic native registration table exists outside `JNI_OnLoad`.
-4. Document the original Activity/view pause/resume call graph around `Cocos2dxRenderer.nativeOnPause/nativeOnResume` rather than inferring it from method names alone.
-5. Classify original Google Play/IAP Java entry points by reachability and isolate any local game-state dependency from obsolete service calls.
-6. Validate the reconstructed lifecycle/render path on physical/emulated Android targets, including 16 KiB-page arm64 devices.
+1. Preserve a broader JADX-derived class map for non-critical/vendor integrations and use it as a readability cross-check against the direct DEX evidence.
+2. Rule in/out reflective or external reachability of the duplicate `com.cocos2dx.org.TJ_P_01` and `GamepadBridge` path if gamepad restoration becomes relevant.
+3. Classify any purchase-state data that offline progression may actually depend on before implementing a modern billing/platform-service boundary.
+4. Validate the reconstructed lifecycle/render path on physical/emulated Android targets, including 16 KiB-page arm64 devices.
 
 ## Reproduction inputs
 
-The metadata in this map can be regenerated from a legally obtained original APK using the existing repository tools. The key machine-generated checks are:
+The metadata can be regenerated from a legally obtained original APK:
 
 ```bash
-python3 tools/dex_native_map.py classes.dex --markdown build/dex-native.md
+unzip -p /path/to/original.apk classes.dex > build/classes.dex
 
-python3 tools/jni_crosscheck.py classes.dex \
+python3 tools/dex_bootstrap_map.py build/classes.dex \
+  --json build/dex-bootstrap.json \
+  --markdown build/dex-bootstrap.md
+
+python3 tools/dex_native_map.py build/classes.dex \
+  --markdown build/dex-native.md
+
+python3 tools/jni_crosscheck.py build/classes.dex \
   lib/armeabi-v7a/libcocos2dcpp.so \
   lib/armeabi-v7a/libffmpeg.so \
   --json build/jni-crosscheck.json \
   --markdown build/jni-crosscheck.md
 ```
 
-Known baseline:
+Known JNI baseline:
 
 ```text
 DEX native declarations: 27
@@ -215,4 +272,4 @@ Matched declarations:   21
 Missing static exports:  6
 ```
 
-The six missing static exports are the GamepadBridge methods above. Missing static exports alone do not prove the methods are unimplemented; dynamic registration and Java reachability still need to be ruled out.
+The six missing static exports are the isolated `GamepadBridge` declarations discussed above.
