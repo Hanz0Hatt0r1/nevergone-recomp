@@ -20,16 +20,47 @@ namespace nevergone::lua_runtime {
 #if defined(NEVERGONE_HAS_LUA)
 namespace {
 
-std::string module_to_path(const std::string& module_name) {
+bool module_to_path(const std::string& module_name, std::string* output, std::string* error) {
+    if (module_name.empty()) {
+        if (error != nullptr) {
+            *error = "empty module name";
+        }
+        return false;
+    }
+    if (module_name.front() == '/' || module_name.front() == '\\' ||
+        module_name.find("..") != std::string::npos) {
+        if (error != nullptr) {
+            *error = "unsafe module path";
+        }
+        return false;
+    }
+
     std::string relative = module_name;
-    std::replace(relative.begin(), relative.end(), '.', '/');
-    if (relative.size() < 4 || relative.substr(relative.size() - 4) != ".lua") {
+    std::replace(relative.begin(), relative.end(), '\\', '/');
+
+    const bool has_lua_suffix =
+        relative.size() >= 4 && relative.substr(relative.size() - 4) == ".lua";
+    if (!has_lua_suffix) {
+        std::replace(relative.begin(), relative.end(), '.', '/');
         relative += ".lua";
     }
 
     const std::filesystem::path root =
         std::filesystem::path(startup::config().files_dir) / "assets" / "Script";
-    return (root / relative).string();
+    const std::filesystem::path candidate = (root / relative).lexically_normal();
+    const std::filesystem::path normalized_root = root.lexically_normal();
+
+    const std::string root_string = normalized_root.string();
+    const std::string candidate_string = candidate.string();
+    if (candidate_string.compare(0, root_string.size(), root_string) != 0) {
+        if (error != nullptr) {
+            *error = "module path escapes script root";
+        }
+        return false;
+    }
+
+    *output = candidate_string;
+    return true;
 }
 
 int l_Lua_GetPlatformString(lua_State* state) {
@@ -101,7 +132,11 @@ void register_startup_bindings(lua_State* state) {
 }
 
 bool execute_module(lua_State* state, const std::string& module_name, std::string* error) {
-    const std::string path = module_to_path(module_name);
+    std::string path;
+    if (!module_to_path(module_name, &path, error)) {
+        return false;
+    }
+
     int status = luaL_loadfilex(state, path.c_str(), nullptr);
     if (status == LUA_OK) {
         status = lua_pcall(state, 0, 0, 0);
