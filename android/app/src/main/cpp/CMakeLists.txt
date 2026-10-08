@@ -11,6 +11,7 @@ add_library(nevergone_recomp SHARED
     native_binding_registry.cpp
     native_bootstrap.cpp
     protorpc_bindings.cpp
+    render_bridge.cpp
     startup_contract.cpp
     string_validation_bindings.cpp
     xml_validation_binding.cpp
@@ -72,5 +73,6 @@ endif()
 
 target_link_libraries(nevergone_recomp PRIVATE
     android
+    GLESv2
     log
 )
