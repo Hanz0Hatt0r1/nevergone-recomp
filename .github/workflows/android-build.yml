@@ -87,6 +87,16 @@ jobs:
             -o /tmp/initial_ui_transition_smoke
           /tmp/initial_ui_transition_smoke
 
+      - name: Validate structured login callback payloads
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/login_callback_payload_smoke.cpp \
+            android/app/src/main/cpp/login_callback_payload.cpp \
+            -o /tmp/login_callback_payload_smoke
+          /tmp/login_callback_payload_smoke
+
       - name: Validate HPData reader foundation
         shell: bash
         run: |
