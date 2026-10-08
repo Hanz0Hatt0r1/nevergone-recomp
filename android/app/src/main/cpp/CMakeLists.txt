@@ -3,6 +3,7 @@ project(nevergone_recomp LANGUAGES C CXX)
 
 add_library(nevergone_recomp SHARED
     lua_runtime.cpp
+    lua_startup_bindings.cpp
     native_bootstrap.cpp
     startup_contract.cpp
 )

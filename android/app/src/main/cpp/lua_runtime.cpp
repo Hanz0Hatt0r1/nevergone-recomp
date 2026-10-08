@@ -38,12 +38,12 @@ std::string smoke_test() {
     luaL_openlibs(state);
     constexpr const char* script = "return _VERSION, 6 * 7";
     int status = luaL_loadstring(state, script);
-    if (status == LUA_OK) {
+    if (status == 0) {
         status = lua_pcall(state, 0, 2, 0);
     }
 
     std::ostringstream out;
-    if (status != LUA_OK) {
+    if (status != 0) {
         const char* error = lua_tostring(state, -1);
         out << "lua smoke test: failed";
         if (error != nullptr) {
