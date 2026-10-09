@@ -31,6 +31,7 @@ struct Snapshot {
     std::string selected_character_name;
     std::uint64_t selection_changes = 0;
     std::uint64_t confirm_count = 0;
+    std::uint64_t direct_enter_request_count = 0;
     std::uint64_t create_request_count = 0;
     bool enter_request_pending = false;
     bool create_request_pending = false;
@@ -46,6 +47,12 @@ bool select_career(std::int64_t career);
 bool select_index(int index);
 
 EnterRoleRequest confirm_selection();
+
+// The shipped CreateTheRoleSuccessful path starts the freshly created role
+// directly from the callback's SaveDataHero/CharacterID rather than requiring
+// it to already exist in the previous role-list payload.
+bool request_enter_role(const login_callback_payload::RoleEntry& role);
+
 EnterRoleRequest peek_pending_enter_request();
 EnterRoleRequest take_pending_enter_request();
 
