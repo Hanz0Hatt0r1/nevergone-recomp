@@ -24,8 +24,9 @@ bool load_csv(const std::string& path, Table* output, std::string* error = nullp
 std::size_t recovered_row_index(std::int32_t random_value, std::size_t row_count);
 
 // The shipped callback independently selects column 0 and column 1 from two
-// random rows, concatenates them as "%s%s", and falls back to the first part
-// alone when the UTF-8 result exceeds the CharacterNameLayer 18-byte limit.
+// random rows and concatenates them as "%s%s". If the result exceeds the
+// CharacterNameLayer 18-byte limit, strcpy(buffer, secondPart) keeps only the
+// independently selected column-1 component.
 bool generate(
     const Table& table,
     std::int32_t first_random,
