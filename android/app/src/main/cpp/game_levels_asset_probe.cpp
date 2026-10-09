@@ -72,6 +72,9 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
     game_levels_layer_tail::FirstLayerRecord layer_record;
     result.first_layer_record_readable = game_levels_layer_tail::parse_first_layer_record(reader, &layer_record);
     if (result.first_layer_record_readable) result.first_layer_record_bytes_consumed = layer_record.bytes_consumed;
+    game_levels_layer_tail::FirstSceneLayerSequence scene_layers;
+    result.first_scene_layers_readable = game_levels_layer_tail::parse_first_scene_layers(reader, &scene_layers);
+    if (result.first_scene_layers_readable) result.first_scene_layers_bytes_consumed = scene_layers.bytes_consumed;
     return result;
 }
 
@@ -93,11 +96,12 @@ std::string status_report(const std::string& files_dir) {
     else if (!state.loaded) out << "read-failed\n";
     else if (!state.scene_prefix_readable) out << "loaded (" << state.reader_size << " bytes; LoadGL_Scene prefix truncated)\n";
     else if (!state.first_scene_header_readable) out << "loaded (" << state.reader_size << " bytes; first scene header unavailable)\n";
-    else if (!state.first_layer_header_readable) out << "loaded (" << state.reader_size << " bytes; first layer header unavailable)\n";
+    else if (state.first_scene_layers_readable) out << "loaded (" << state.reader_size << " bytes; first scene layer loop complete, "
+             << state.first_scene_layers_bytes_consumed << " bytes verified)\n";
+    else if (!state.first_layer_header_readable) out << "loaded (" << state.reader_size << " bytes; first scene header readable, layer loop incomplete)\n";
     else if (!state.first_layer_objects_readable) out << "loaded (" << state.reader_size << " bytes; first layer object loop incomplete)\n";
     else if (!state.first_layer_record_readable) out << "loaded (" << state.reader_size << " bytes; object loop complete, border-point lists incomplete)\n";
-    else out << "loaded (" << state.reader_size << " bytes; first layer record complete, "
-             << state.first_layer_record_bytes_consumed << " bytes verified)\n";
+    else out << "loaded (" << state.reader_size << " bytes; first layer record complete, later layer incomplete)\n";
     return out.str();
 }
 

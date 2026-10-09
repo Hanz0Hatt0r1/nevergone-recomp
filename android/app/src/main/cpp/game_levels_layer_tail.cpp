@@ -6,6 +6,13 @@
 namespace nevergone::game_levels_layer_tail {
 namespace {
 
+constexpr std::size_t kMinimumObjectRecordBytes =
+        sizeof(std::int32_t) + sizeof(std::uint32_t) + 1u +
+        sizeof(float) * 5u + sizeof(std::int32_t) + 2u;
+constexpr std::size_t kMinimumLayerRecordBytes =
+        sizeof(float) + sizeof(std::uint32_t) +
+        sizeof(std::uint32_t) + sizeof(std::uint32_t);
+
 bool read_point_list(
         hp_data::Cursor* cursor,
         std::vector<BorderPoint>* points,
@@ -30,6 +37,22 @@ bool read_point_list(
     return true;
 }
 
+bool read_border_lists(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        std::vector<BorderPoint>* top,
+        std::vector<BorderPoint>* bottom,
+        std::size_t* end_offset) {
+    if (top == nullptr || bottom == nullptr || end_offset == nullptr || start_offset > reader.size()) {
+        return false;
+    }
+    hp_data::Cursor cursor(reader, start_offset);
+    if (!read_point_list(&cursor, top, true)) return false;
+    if (!read_point_list(&cursor, bottom, false)) return false;
+    *end_offset = cursor.offset();
+    return true;
+}
+
 }  // namespace
 
 bool parse_first_layer_record(const hp_data::Reader& reader, FirstLayerRecord* out) {
@@ -40,14 +63,97 @@ bool parse_first_layer_record(const hp_data::Reader& reader, FirstLayerRecord* o
         return false;
     }
 
-    hp_data::Cursor cursor(reader, object_sequence.bytes_consumed);
     FirstLayerRecord parsed;
     parsed.object_sequence = std::move(object_sequence);
+    if (!read_border_lists(
+            reader,
+            parsed.object_sequence.bytes_consumed,
+            &parsed.top_border_points,
+            &parsed.bottom_border_points,
+            &parsed.bytes_consumed)) {
+        return false;
+    }
 
-    if (!read_point_list(&cursor, &parsed.top_border_points, true)) return false;
-    if (!read_point_list(&cursor, &parsed.bottom_border_points, false)) return false;
+    *out = std::move(parsed);
+    return true;
+}
 
-    parsed.bytes_consumed = cursor.offset();
+bool parse_layer_record_at(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        std::int32_t top_level_gate,
+        LayerRecord* out) {
+    if (out == nullptr || start_offset > reader.size()) return false;
+
+    hp_data::Cursor header_cursor(reader, start_offset);
+    LayerRecord parsed;
+    parsed.start_offset = start_offset;
+    if (!header_cursor.read_f32_le(&parsed.first_float) ||
+            !header_cursor.read_u32_le(&parsed.object_count)) {
+        return false;
+    }
+
+    const std::size_t object_count = static_cast<std::size_t>(parsed.object_count);
+    const std::size_t remaining_after_header = header_cursor.remaining();
+    constexpr std::size_t kBorderCountBytes = sizeof(std::uint32_t) * 2u;
+    if (remaining_after_header < kBorderCountBytes) return false;
+    if (object_count >
+            (remaining_after_header - kBorderCountBytes) / kMinimumObjectRecordBytes) {
+        return false;
+    }
+
+    parsed.objects.reserve(object_count);
+    std::size_t offset = header_cursor.offset();
+    for (std::size_t i = 0; i < object_count; ++i) {
+        game_levels_scene_prefix::ObjectRecord object;
+        if (!game_levels_scene_prefix::parse_object_record_at(
+                reader, offset, top_level_gate, &object) || object.end_offset <= offset) {
+            return false;
+        }
+        offset = object.end_offset;
+        parsed.objects.push_back(std::move(object));
+    }
+
+    if (!read_border_lists(
+            reader,
+            offset,
+            &parsed.top_border_points,
+            &parsed.bottom_border_points,
+            &parsed.end_offset)) {
+        return false;
+    }
+    if (parsed.end_offset <= start_offset) return false;
+
+    *out = std::move(parsed);
+    return true;
+}
+
+bool parse_first_scene_layers(const hp_data::Reader& reader, FirstSceneLayerSequence* out) {
+    if (out == nullptr) return false;
+
+    game_levels_scene_prefix::FirstSceneHeader scene_header;
+    if (!game_levels_scene_prefix::parse_first_scene_header(reader, &scene_header)) return false;
+
+    const std::size_t layer_count = static_cast<std::size_t>(scene_header.layer_count);
+    hp_data::Cursor cursor(reader, scene_header.bytes_consumed);
+    if (layer_count > cursor.remaining() / kMinimumLayerRecordBytes) return false;
+
+    FirstSceneLayerSequence parsed;
+    parsed.scene_header = std::move(scene_header);
+    parsed.layers.reserve(layer_count);
+    std::size_t offset = parsed.scene_header.bytes_consumed;
+    const std::int32_t top_level_gate = parsed.scene_header.prefix.first_i32;
+    for (std::size_t i = 0; i < layer_count; ++i) {
+        LayerRecord layer;
+        if (!parse_layer_record_at(reader, offset, top_level_gate, &layer) ||
+                layer.end_offset <= offset) {
+            return false;
+        }
+        offset = layer.end_offset;
+        parsed.layers.push_back(std::move(layer));
+    }
+
+    parsed.bytes_consumed = offset;
     *out = std::move(parsed);
     return true;
 }
