@@ -88,6 +88,15 @@ public final class MainActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(32, 16, 32, 32);
 
+        // Compatibility-only controls for the fresh-account career/name path.
+        // They are GONE outside the recovered semantic states and can be
+        // removed once original SingleSelectHero/CharacterName hit geometry is
+        // reconstructed without changing the native state machines.
+        FreshRoleCompatOverlay freshRoleInput = new FreshRoleCompatOverlay(this);
+        content.addView(freshRoleInput, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
         importButton = new Button(this);
         importButton.setText("Import original Never Gone APK");
         importButton.setOnClickListener(view -> chooseOriginalApk());
