@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace nevergone::single_select_hero_rune_layout {
@@ -38,6 +39,13 @@ struct SurfaceRect {
     float bottom = 0.0f;
 };
 
+// Rendering happens on the GL thread while Android pointer events arrive on
+// the UI thread. Publish only scalar surface/press state atomically so native
+// input can reuse the exact PR #167 geometry without crossing GL ownership.
+inline std::atomic<int> g_runtime_surface_width{0};
+inline std::atomic<int> g_runtime_surface_height{0};
+inline std::atomic<int> g_runtime_pressed_tag{0};
+
 inline bool valid_tag(int tag) {
     return tag >= 1 && tag <= kRuneCount;
 }
@@ -46,9 +54,56 @@ inline bool enabled_tag(int tag) {
     return valid_tag(tag);
 }
 
+// Exact untrimmed normal-sprite content sizes recovered in PR #167. These are
+// the CCMenuItemSprite hit sizes; TexturePacker trims affect only visible quads.
+inline int recovered_source_width(int tag) {
+    switch (tag) {
+        case 1: return 79;
+        case 2: return 87;
+        case 3: return 75;
+        case 4: return 111;
+        case 5: return 137;
+        default: return 0;
+    }
+}
+
+inline int recovered_source_height(int tag) {
+    switch (tag) {
+        case 1: return 99;
+        case 2: return 89;
+        case 3: return 95;
+        case 4: return 110;
+        case 5: return 131;
+        default: return 0;
+    }
+}
+
+inline void set_runtime_pressed_tag(int tag) {
+    g_runtime_pressed_tag.store(valid_tag(tag) ? tag : 0, std::memory_order_relaxed);
+}
+
+inline int runtime_pressed_tag() {
+    return g_runtime_pressed_tag.load(std::memory_order_relaxed);
+}
+
+inline int runtime_surface_width() {
+    return g_runtime_surface_width.load(std::memory_order_relaxed);
+}
+
+inline int runtime_surface_height() {
+    return g_runtime_surface_height.load(std::memory_order_relaxed);
+}
+
+inline void reset_runtime_input_state() {
+    g_runtime_surface_width.store(0, std::memory_order_relaxed);
+    g_runtime_surface_height.store(0, std::memory_order_relaxed);
+    g_runtime_pressed_tag.store(0, std::memory_order_relaxed);
+}
+
 inline int frame_index(int tag, bool pressed) {
     if (!valid_tag(tag)) return -1;
-    return (tag - 1) * 2 + (pressed ? 1 : 0);
+    const bool effective_pressed = pressed || runtime_pressed_tag() == tag;
+    return (tag - 1) * 2 + (effective_pressed ? 1 : 0);
 }
 
 inline float center_y(int tag) {
@@ -130,6 +185,17 @@ inline bool hit_test(
         surface_y >= rect.top && surface_y <= rect.bottom;
 }
 
+inline bool hit_test_runtime(int tag, float surface_x, float surface_y) {
+    return hit_test(
+        recovered_source_width(tag),
+        recovered_source_height(tag),
+        tag,
+        runtime_surface_width(),
+        runtime_surface_height(),
+        surface_x,
+        surface_y);
+}
+
 inline Quad quad_for_surface(
         const FrameGeometry& frame,
         int tag,
@@ -152,6 +218,9 @@ inline Quad quad_for_surface(
             surface_width, surface_height, &scale, &offset_x, &offset_y)) {
         return result;
     }
+
+    g_runtime_surface_width.store(surface_width, std::memory_order_relaxed);
+    g_runtime_surface_height.store(surface_height, std::memory_order_relaxed);
 
     const float center_y_design = center_y(tag);
     const float design_left = kCenterX -
