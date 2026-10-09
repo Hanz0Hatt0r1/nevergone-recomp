@@ -4,81 +4,24 @@ This note records clean-room behavior recovered from the shipped ARMv7 `SingleSe
 
 ## Supported careers
 
-The recovered selector presentation is built around exactly two career values:
+`initUI()` constructs five `menuOpenGC` items, assigns sender tags `1` through `5` unchanged and formats `xrfuwen%02d.png` / `xrfuwenfaguang%02d.png`. The recovered career domain is therefore `1..5`, superseding the earlier partial two-career model.
 
-- career `1`;
-- career `2`.
+The item centers use `x = visibleWidth * 0.5` and `y = visibleHeight - 55 - 90 * career`, producing `(568,495)`, `(568,405)`, `(568,315)`, `(568,225)`, `(568,135)` on the 1136x640 design surface.
 
-`Carousel(int)` has explicit presentation branches for values up to `2`, and the initial-selection logic chooses only `1` or `2`.
+## Existing-career and initial selection
 
-## Existing-career input and default selection
+A valid existing career `1..5` must be preserved because `menuConfirm()` compares it directly with the selected career. `initUI()` still starts with career `1`, except when the existing career is `1`, in which case the initial candidate is `2`.
 
-During `init(bool)`, SingleSelectHero reads the first existing role record from ManagementLayer state when one is present and stores the recovered value later compared against the candidate career.
+## Selection and transition gate
 
-`initUI()` then performs this selection setup:
-
-```text
-selectedCandidate = 1
-if existingCareer == 1:
-    selectedCandidate = 2
-selectedCareer = selectedCandidate
-Carousel(selectedCandidate)
-```
-
-Therefore:
-
-- no existing supported career -> default career `1`;
-- existing career `1` -> default career `2`;
-- existing career `2` -> default career `1`.
-
-This matches the two-career create-role flow without inventing an additional class table.
-
-## `menuOpenGC` selection and transition gate
-
-The class buttons carry their career directly as the sender tag. `menuOpenGC()` checks the recovered interaction byte before accepting a class change. The same byte is written by `OpenTheDoor(bool, ...)`:
-
-- `OpenTheDoor(false, ...)` -> interaction locked while the door/carousel transition is active;
-- `OpenTheDoor(true, ...)` -> interaction enabled again.
-
-After that gate permits interaction, `menuOpenGC()`:
-
-1. reads the sender tag;
-2. ignores the click when the same career is already selected;
-3. starts the changed-career door/carousel transition with interaction locked;
-4. writes the sender tag unchanged into the selected-career fields.
-
-`single_select_hero_state::begin()` mirrors the exact `initUI()` boundary by starting with input locked and a transition pending. The later visual transition executor calls `complete_transition()` at the recovered unlock point. A successful changed-career selection locks input again until the next transition completes.
-
-The recovered `menuOpenGC()` handler itself does not compare the sender tag against the existing-career field, so the semantic state does not invent that rejection there. The proven existing-career equality block remains in `menuConfirm()`.
+`menuOpenGC()` reads the sender tag and stores it unchanged into the selected-career fields. `OpenTheDoor(false, ...)` locks career changes while the transition is active; `OpenTheDoor(true, ...)` restores them. Selecting the already displayed career is a handled no-op. The existing-career equality check belongs to `menuConfirm()`, not `menuOpenGC()`.
 
 ## Online confirm path
 
-`menuConfirm()` compares the current candidate career against the existing role's career. If they are equal, the shipped function returns without entering role creation.
+`menuConfirm()` blocks when the selected career equals the existing role career. Otherwise it creates `CharacterNameLayer` and calls `CretaUI(selectedCareer)`. The same integer is preserved through `LUA_LOGIN::CreateTheRole(name, career)` and `g_UILogin.CreateCharacter(name, career)`; the recovered `createRoleParameter` is therefore the career value itself.
 
-For the online ManagementLayer branch, a valid different career follows this path:
+`single_select_hero_state` now models valid careers `1..5`, preserves existing careers across that range, keeps the exact initial-selection rule and transition gate, and forwards the selected career unchanged to `character_name_state`.
 
-```text
-selectedCareer
-  -> CharacterNameLayer::create()
-  -> CharacterNameLayer::CretaUI(selectedCareer)
-```
+## Current boundary
 
-The same integer later reaches `LUA_LOGIN::CreateTheRole(name, career)` and `g_UILogin.CreateCharacter(name, career)` through the already reconstructed CharacterNameLayer contract.
-
-The recovered `menuConfirm()` path does not test the `menuOpenGC` interaction byte. `single_select_hero_state::confirm_online()` therefore does not add an artificial transition-gate requirement; it opens `character_name_state` with the selected career unchanged and records blocked existing-career confirms separately.
-
-## Current implementation boundary
-
-`single_select_hero_state` now owns the non-visual semantics:
-
-- active scene generation;
-- existing career;
-- exact default selection rule;
-- valid careers `1` and `2`;
-- recovered `OpenTheDoor` input/transition gate for class changes;
-- sender-tag selection behavior;
-- existing-career confirm blocking;
-- online confirm bridge into `character_name_state::begin(career)`;
-- diagnostics counters.
-
-The current `single_select_hero_compositor` still renders only the previously reconstructed background/opening presentation. Rendering the two career choices, completing the gate at the correct animation point, recovering their hit boxes and wiring touch into this state are the next visual/input increment.
+The compositor now has the reconstructed background, HeroTable and five career-rune frames. Remaining interaction work is to derive hit rectangles from imported rune content sizes, represent the transition unlock point, route career DOWN/UP state into `select_career()`, and recover the confirm-control geometry before calling `confirm_online()`.
