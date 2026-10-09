@@ -54,9 +54,6 @@ void advance_single_select_hero_transition(std::uint64_t tick) {
         return;
     }
 
-    // The project-owned compatibility overlay may deliberately collapse the
-    // transition before the native visual timeline completes. Do not leave a
-    // stale callback armed in that case.
     if (!selector.transition_pending) {
         if (nevergone::single_select_hero_transition_timeline::snapshot().phase !=
                 nevergone::single_select_hero_transition_timeline::Phase::kInactive) {
@@ -67,9 +64,6 @@ void advance_single_select_hero_transition(std::uint64_t tick) {
 
     if (nevergone::single_select_hero_transition_timeline::advance(
             tick, selector.generation)) {
-        // FunOpenTheDoor calls OpenTheDoor(true, career); the shipped handler
-        // writes the interaction byte true immediately when this callback
-        // fires, before the opening visuals scheduled by OpenTheDoor finish.
         nevergone::single_select_hero_state::complete_transition();
     }
 }
@@ -124,12 +118,10 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeIsSingleSelectHeroActive(JNIEnv*
     const std::uint64_t tick = nevergone::game_clock::tick_count();
     auto selector = nevergone::single_select_hero_state::snapshot();
     if (active && !selector.active) {
-        // OpeningDialogue is the no-standalone-hero route. initUI selects its
-        // initial career, clears the interaction byte, and starts Carousel.
         nevergone::single_select_hero_state::begin(0);
         selector = nevergone::single_select_hero_state::snapshot();
         nevergone::single_select_hero_transition_timeline::begin_initial(
-            tick, selector.generation);
+            tick, selector.generation, selector.selected_career);
     }
 
     if (active) {
