@@ -12,7 +12,6 @@ constexpr float kFirstCenterY = 495.0f;
 constexpr float kStepY = 90.0f;
 constexpr int kRuneCount = 5;
 constexpr int kFrameCount = kRuneCount * 2;
-constexpr float kDisabledOpacity = 120.0f / 255.0f;
 
 struct FrameGeometry {
     int width = 0;
@@ -36,7 +35,7 @@ inline bool valid_tag(int tag) {
 }
 
 inline bool enabled_tag(int tag) {
-    return tag == 1 || tag == 2;
+    return valid_tag(tag);
 }
 
 inline int frame_index(int tag, bool pressed) {
@@ -49,7 +48,7 @@ inline float center_y(int tag) {
 }
 
 inline float opacity(int tag) {
-    return enabled_tag(tag) ? 1.0f : (valid_tag(tag) ? kDisabledOpacity : 0.0f);
+    return valid_tag(tag) ? 1.0f : 0.0f;
 }
 
 inline Quad quad_for_surface(
