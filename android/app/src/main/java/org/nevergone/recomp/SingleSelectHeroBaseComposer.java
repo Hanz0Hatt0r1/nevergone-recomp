@@ -9,23 +9,23 @@ import java.util.Locale;
 final class SingleSelectHeroBaseComposer {
     private static final String BACKGROUND_FRAME = "xrbeijing.png";
 
-    static final class SceneAssets {
-        final SingleLoginAtlasComposer.AtlasLayer background;
-        // Index: career 1 a/b, career 2 a/b.
-        final SingleLoginAtlasComposer.AtlasLayer[] heroTables;
-
-        SceneAssets(
-                SingleLoginAtlasComposer.AtlasLayer background,
-                SingleLoginAtlasComposer.AtlasLayer[] heroTables) {
-            this.background = background;
-            this.heroTables = heroTables;
-        }
-    }
+    private static native void nativeClearHeroTables();
+    private static native boolean nativeUploadHeroTable(
+            int tableIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
 
     private SingleSelectHeroBaseComposer() {}
 
-    static SceneAssets composeScene(File plistFile, File atlasFile, Locale locale)
+    static SingleLoginAtlasComposer.AtlasLayer composeBackground(File plistFile, File atlasFile)
             throws Exception {
+        nativeClearHeroTables();
+
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
         Bitmap atlas = BitmapFactory.decodeFile(atlasFile.getAbsolutePath(), options);
@@ -36,8 +36,10 @@ final class SingleSelectHeroBaseComposer {
                     extractLayer(plistFile, atlas, BACKGROUND_FRAME);
             if (background == null) return null;
 
-            final String prefix = picturePrefix(locale);
-            SingleLoginAtlasComposer.AtlasLayer[] heroTables = new SingleLoginAtlasComposer.AtlasLayer[4];
+            // HeroTable is part of the same shipped atlas and is loaded on this
+            // GL thread so the native compositor can select frames at runtime
+            // without retaining proprietary bytes in the project.
+            final String prefix = picturePrefix(Locale.getDefault());
             int outputIndex = 0;
             for (int career = 1; career <= 2; career++) {
                 for (char variant : new char[] {'a', 'b'}) {
@@ -47,13 +49,25 @@ final class SingleSelectHeroBaseComposer {
                             prefix,
                             career,
                             variant);
-                    heroTables[outputIndex++] = extractLayer(plistFile, atlas, frameName);
+                    SingleLoginAtlasComposer.AtlasLayer layer =
+                            extractLayer(plistFile, atlas, frameName);
+                    if (layer == null || !nativeUploadHeroTable(
+                            outputIndex,
+                            layer.width,
+                            layer.height,
+                            layer.left,
+                            layer.top,
+                            layer.sourceWidth,
+                            layer.sourceHeight,
+                            layer.pixels)) {
+                        nativeClearHeroTables();
+                        break;
+                    }
+                    outputIndex++;
                 }
+                if (outputIndex != career * 2) break;
             }
-            for (SingleLoginAtlasComposer.AtlasLayer layer : heroTables) {
-                if (layer == null) return null;
-            }
-            return new SceneAssets(background, heroTables);
+            return background;
         } finally {
             atlas.recycle();
         }
@@ -62,8 +76,8 @@ final class SingleSelectHeroBaseComposer {
     static String picturePrefix(Locale locale) {
         if (locale == null) return "EN";
         String language = locale.getLanguage();
-        // ManagementLayer::GetMultilingualPicturesName() maps the shipped
-        // SystemLanguage enum 2 to CN, enum 5 to KR, and every other value to EN.
+        // ManagementLayer::GetMultilingualPicturesName() maps shipped
+        // SystemLanguage enum 2 to CN, enum 5 to KR, all other values to EN.
         if ("zh".equalsIgnoreCase(language)) return "CN";
         if ("ko".equalsIgnoreCase(language)) return "KR";
         return "EN";
