@@ -6,6 +6,7 @@
 #include "management_role_action_control_compositor.h"
 #include "server_selection_compositor.h"
 #include "server_selection_state.h"
+#include "single_select_hero_rune_input.h"
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeOnServerSelectionTouch(
@@ -15,6 +16,17 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnServerSelectionTouch(
     jint pointer_id,
     jfloat x,
     jfloat y) {
+    // SingleSelectHero is a mutually-exclusive fresh-role route. Reuse the
+    // existing native first-refusal router instead of adding another Java touch
+    // path. The rune consumer returns false immediately outside OpeningDialogue.
+    if (nevergone::single_select_hero_rune_input::on_touch(
+            static_cast<int>(action),
+            static_cast<int>(pointer_id),
+            static_cast<float>(x),
+            static_cast<float>(y))) {
+        return JNI_TRUE;
+    }
+
     // The recovered ChooseHero fixed buttons live outside the hero-item pane,
     // but the existing role-item route consumes the whole choose-role screen.
     // Give Play/Delete first refusal so their exact type-1 hit boxes can emit
