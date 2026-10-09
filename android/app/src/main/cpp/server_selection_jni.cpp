@@ -1,5 +1,6 @@
 #include <jni.h>
 
+#include "choose_hero_action_control_compositor.h"
 #include "choose_hero_role_item_compositor.h"
 #include "login_lua_session.h"
 #include "server_selection_compositor.h"
@@ -13,9 +14,20 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnServerSelectionTouch(
     jint pointer_id,
     jfloat x,
     jfloat y) {
-    // GameSurfaceView already sends every touch through this native router
-    // before the generic TapToStart path. Reuse it for the mutually-exclusive
-    // offline choose-role route so Java input plumbing remains unchanged.
+    // The recovered ChooseHero fixed buttons live outside the hero-item pane,
+    // but the existing role-item route consumes the whole choose-role screen.
+    // Give Play/Delete first refusal so their exact type-1 hit boxes can emit
+    // the shipped OnCreateback tags 3/8 before item selection handles input.
+    if (nevergone::choose_hero_action_control_compositor::on_touch(
+            static_cast<int>(action),
+            static_cast<int>(pointer_id),
+            static_cast<float>(x),
+            static_cast<float>(y))) {
+        return JNI_TRUE;
+    }
+
+    // Reuse the existing native router for the mutually-exclusive offline
+    // choose-role route so Java input plumbing remains unchanged.
     if (nevergone::choose_hero_role_item_compositor::on_touch(
             static_cast<int>(action),
             static_cast<int>(pointer_id),
