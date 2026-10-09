@@ -29,6 +29,16 @@ final class SingleSelectHeroBaseComposer {
             int sourceWidth,
             int sourceHeight,
             int[] argbPixels);
+    private static native void nativeClearConfirmControl();
+    private static native boolean nativeUploadConfirmFrame(
+            int frameIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
 
     private SingleSelectHeroBaseComposer() {}
 
@@ -36,6 +46,7 @@ final class SingleSelectHeroBaseComposer {
             throws Exception {
         nativeClearHeroTables();
         nativeClearCareerRunes();
+        nativeClearConfirmControl();
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
@@ -81,8 +92,7 @@ final class SingleSelectHeroBaseComposer {
 
             // initUI() creates five tagged CCMenuItemSprite rune controls.
             // Each item has a normal xrfuwenNN frame and a pressed
-            // xrfuwenfaguangNN frame. Items 3..5 remain visually present but
-            // disabled in native state, matching the shipped menu.
+            // xrfuwenfaguangNN frame; all five recovered career tags are valid.
             int runeIndex = 0;
             for (int tag = 1; tag <= 5; tag++) {
                 String[] frameNames = {
@@ -108,6 +118,31 @@ final class SingleSelectHeroBaseComposer {
                     runeIndex++;
                 }
                 if (runeIndex < 0) break;
+            }
+
+            // Recovered Confirm hierarchy at the shared (836,70) center:
+            // btn_a parent -> btn_b child -> btn_d/btn_e menu item.
+            String[] confirmFrames = {
+                    "btn_a.png",
+                    "btn_b.png",
+                    "btn_d.png",
+                    "btn_e.png",
+            };
+            for (int frameIndex = 0; frameIndex < confirmFrames.length; frameIndex++) {
+                SingleLoginAtlasComposer.AtlasLayer layer =
+                        extractLayer(plistFile, atlas, confirmFrames[frameIndex]);
+                if (layer == null || !nativeUploadConfirmFrame(
+                        frameIndex,
+                        layer.width,
+                        layer.height,
+                        layer.left,
+                        layer.top,
+                        layer.sourceWidth,
+                        layer.sourceHeight,
+                        layer.pixels)) {
+                    nativeClearConfirmControl();
+                    break;
+                }
             }
             return background;
         } finally {
