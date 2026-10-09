@@ -23,11 +23,12 @@ int main() {
     assert(compat.transition_pending);
 
     // The compatibility input deliberately collapses the still-missing door
-    // transition before and after a changed-career tap.
-    assert(!nevergone::fresh_role_compat_state::select_career(3));
-    assert(nevergone::fresh_role_compat_state::select_career(2));
+    // transition before and after a changed-career tap. All five recovered
+    // sender tags pass through unchanged; values outside 1..5 remain invalid.
+    assert(!nevergone::fresh_role_compat_state::select_career(6));
+    assert(nevergone::fresh_role_compat_state::select_career(5));
     compat = nevergone::fresh_role_compat_state::snapshot();
-    assert(compat.selected_career == 2);
+    assert(compat.selected_career == 5);
     assert(compat.input_enabled);
     assert(!compat.transition_pending);
 
@@ -36,7 +37,7 @@ int main() {
     assert(compat.mode == Mode::kCharacterName);
     auto name = nevergone::character_name_state::snapshot();
     assert(name.active);
-    assert(name.career == 2);
+    assert(name.career == 5);
     assert(name.randomize_pending);
 
     assert(nevergone::fresh_role_compat_state::set_role_name("CompatHero"));
@@ -51,9 +52,10 @@ int main() {
     assert(nevergone::fresh_role_compat_state::snapshot().mode == Mode::kHidden);
 
     // Existing-career equality remains owned by recovered menuConfirm(). The
-    // compatibility selector must not bypass that semantic guard.
-    nevergone::single_select_hero_state::begin(1);
-    assert(nevergone::fresh_role_compat_state::select_career(1));
+    // compatibility selector must not bypass that semantic guard, including
+    // the newly recovered careers 3..5.
+    nevergone::single_select_hero_state::begin(5);
+    assert(nevergone::fresh_role_compat_state::select_career(5));
     assert(!nevergone::fresh_role_compat_state::confirm_career());
     assert(!nevergone::character_name_state::snapshot().active);
 
