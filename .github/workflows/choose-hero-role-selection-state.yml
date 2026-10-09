@@ -25,6 +25,16 @@ jobs:
             -o /tmp/choose_hero_role_selection_state_smoke
           /tmp/choose_hero_role_selection_state_smoke
 
+      - name: Validate ChooseHero role item surface mapping
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/choose_hero_role_item_view_smoke.cpp \
+            android/app/src/main/cpp/choose_hero_role_item_view.cpp \
+            -o /tmp/choose_hero_role_item_view_smoke
+          /tmp/choose_hero_role_item_view_smoke
+
       - name: Validate shipped standalone save slots
         shell: bash
         run: |
