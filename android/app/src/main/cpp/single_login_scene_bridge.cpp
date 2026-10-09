@@ -45,6 +45,15 @@ bool management_login_initialized() {
         nevergone::initial_ui_transition::Phase::kManagementLoginInitialized;
 }
 
+bool single_select_hero_active() {
+    if (nevergone::offline_startup_flow::snapshot().route ==
+            nevergone::offline_startup_flow::Route::kOpeningDialogue) {
+        return true;
+    }
+    return nevergone::initial_ui_transition::snapshot().management_route ==
+        nevergone::initial_ui_transition::ManagementRoute::kRoleSelection;
+}
+
 }  // namespace
 
 extern "C" JNIEXPORT void JNICALL
@@ -86,8 +95,5 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeIsSingleSelectHeroActive(JNIEnv*
     advance_offline_startup_flow();
     update_initial_ui_transition();
     if (!management_login_initialized()) return JNI_FALSE;
-    return nevergone::offline_startup_flow::snapshot().route ==
-            nevergone::offline_startup_flow::Route::kOpeningDialogue
-        ? JNI_TRUE
-        : JNI_FALSE;
+    return single_select_hero_active() ? JNI_TRUE : JNI_FALSE;
 }
