@@ -47,6 +47,8 @@ The seven recovered imported effects are:
 
 These are the same user-imported sound files already used by the reconstructed SingleLogin thunder audio path.
 
+The current runtime preserves this callback boundary rather than choosing sounds in Java. The state machine queues only valid recovered indices `0..6`; `MainActivity` polls those one-shot events and forwards them to a dedicated `ChooseHeroThunderAudio` `SoundPool`. Invalid `7..29` selections still consume the original RNG draw but do not enter the audio queue.
+
 ## `FuncThunderEnd()` reschedule
 
 When a thunder sprite completes its fade-out, `FuncThunderEnd()` stops its actions and immediately schedules the next cycle.
@@ -92,13 +94,8 @@ The ground-light action is `Delay(thunderDelay) -> FadeTo(0,255) -> FadeTo(groun
 
 ## Current implementation boundary
 
-`choose_hero_thunder_scheduler.{h,cpp}` now captures the deterministic transforms and draw-order-sensitive planning primitives:
+`choose_hero_thunder_scheduler.{h,cpp}` captures the recovered deterministic transforms, while `choose_hero_thunder_state.{h,cpp}` owns a scene-local POSIX-48-compatible stream and reconstructs the Cocos action callbacks/running-action gates. The renderer now consumes that state to draw the six `shandian`, six `menlei`, and `diguang` layers at recovered z=20 using user-imported atlas pixels.
 
-- 31-bit `lrand48` normalization;
-- initial 3..8 second thunder delay and 0..0.7 second fade;
-- `[A,B,C,C,C,C]` lightning selection;
-- optional 7-way thunder sound selection;
-- 0.5..0.8 second lightning fade;
-- biased 0.5..approximately-0.797 second ground-light fade.
+The Android audio bridge now also consumes the state machine's one-shot `FuncThunderBen` queue. It loads only the seven recovered user-imported files listed above, plays valid slots through `SoundPool`, pauses/resumes with the Activity, reloads after APK/OBB asset import, and releases on Activity destruction. Polling the queue does not consume additional RNG values and therefore does not alter the reconstructed visual schedule.
 
-The host smoke test uses fixed raw RNG values to lock these formulas down. This PR intentionally stops before owning the process-global random state, staging `shandian/menlei` textures, or emitting audio. Those are the next integration steps and can now share one verified scheduler contract.
+The remaining ChooseHero work is no longer the thunder effect/audio boundary. The next major gap is the role-selection UI and the subsequent scene-entry path.
