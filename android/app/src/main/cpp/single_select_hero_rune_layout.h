@@ -51,6 +51,43 @@ inline float opacity(int tag) {
     return valid_tag(tag) ? 1.0f : 0.0f;
 }
 
+inline float surface_scale(int surface_width, int surface_height) {
+    if (surface_width <= 0 || surface_height <= 0) return 0.0f;
+    const float scale = std::min(
+        static_cast<float>(surface_width) / kDesignWidth,
+        static_cast<float>(surface_height) / kDesignHeight);
+    return std::isfinite(scale) && scale > 0.0f ? scale : 0.0f;
+}
+
+inline bool hit_test_source(
+        int source_width,
+        int source_height,
+        int tag,
+        int surface_width,
+        int surface_height,
+        float surface_x,
+        float surface_y) {
+    if (!valid_tag(tag) || source_width <= 0 || source_height <= 0 ||
+            !std::isfinite(surface_x) || !std::isfinite(surface_y)) {
+        return false;
+    }
+    const float scale = surface_scale(surface_width, surface_height);
+    if (scale <= 0.0f) return false;
+
+    const float viewport_width = kDesignWidth * scale;
+    const float viewport_height = kDesignHeight * scale;
+    const float offset_x = (static_cast<float>(surface_width) - viewport_width) * 0.5f;
+    const float offset_y = (static_cast<float>(surface_height) - viewport_height) * 0.5f;
+    const float design_x = (surface_x - offset_x) / scale;
+    const float design_y = kDesignHeight - (surface_y - offset_y) / scale;
+
+    const float half_width = static_cast<float>(source_width) * 0.5f;
+    const float half_height = static_cast<float>(source_height) * 0.5f;
+    const float cy = center_y(tag);
+    return design_x >= kCenterX - half_width && design_x <= kCenterX + half_width &&
+        design_y >= cy - half_height && design_y <= cy + half_height;
+}
+
 inline Quad quad_for_surface(
         const FrameGeometry& frame,
         int tag,
@@ -66,10 +103,8 @@ inline Quad quad_for_surface(
         return result;
     }
 
-    const float scale = std::min(
-        static_cast<float>(surface_width) / kDesignWidth,
-        static_cast<float>(surface_height) / kDesignHeight);
-    if (!std::isfinite(scale) || scale <= 0.0f) return result;
+    const float scale = surface_scale(surface_width, surface_height);
+    if (scale <= 0.0f) return result;
 
     const float viewport_width = kDesignWidth * scale;
     const float viewport_height = kDesignHeight * scale;
