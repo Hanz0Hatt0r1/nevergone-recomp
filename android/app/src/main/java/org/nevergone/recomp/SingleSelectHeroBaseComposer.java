@@ -39,7 +39,7 @@ final class SingleSelectHeroBaseComposer {
             // HeroTable is part of the same shipped atlas and is loaded on this
             // GL thread so the native compositor can select frames at runtime
             // without retaining proprietary bytes in the project.
-            final String prefix = picturePrefix(Locale.getDefault());
+            final String prefix = SingleSelectHeroPictureLanguage.prefix(Locale.getDefault());
             int outputIndex = 0;
             for (int career = 1; career <= 2; career++) {
                 for (char variant : new char[] {'a', 'b'}) {
@@ -71,16 +71,6 @@ final class SingleSelectHeroBaseComposer {
         } finally {
             atlas.recycle();
         }
-    }
-
-    static String picturePrefix(Locale locale) {
-        if (locale == null) return "EN";
-        String language = locale.getLanguage();
-        // ManagementLayer::GetMultilingualPicturesName() maps shipped
-        // SystemLanguage enum 2 to CN, enum 5 to KR, all other values to EN.
-        if ("zh".equalsIgnoreCase(language)) return "CN";
-        if ("ko".equalsIgnoreCase(language)) return "KR";
-        return "EN";
     }
 
     private static SingleLoginAtlasComposer.AtlasLayer extractLayer(
