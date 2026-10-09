@@ -55,6 +55,7 @@ add_library(nevergone_recomp SHARED
     native_binding_registry.cpp
     native_bootstrap.cpp
     offline_startup_flow.cpp
+    post_scene_overlay_jni.cpp
     protorpc_bindings.cpp
     render_bridge.cpp
     role_creation_validation.cpp
