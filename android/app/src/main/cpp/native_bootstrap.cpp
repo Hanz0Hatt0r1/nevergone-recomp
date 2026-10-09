@@ -17,6 +17,7 @@
 #include "choose_hero_thunder_effect_compositor.h"
 #include "client_callback_bridge.h"
 #include "game_levels_asset_probe.h"
+#include "game_levels_enter_transition.h"
 #include "initial_ui_transition.h"
 #include "login_lua_session.h"
 #include "lua_runtime.h"
@@ -135,9 +136,10 @@ std::string bootstrap_info() {
     out << nevergone::login_lua_session::status_report();
     out << nevergone::offline_startup_flow::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
+    out << nevergone::game_levels_enter_transition::status_report();
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
-    out << "\nNext milestone: replace the remaining server-selection fallback visuals with the recovered OBB UI resources.";
+    out << "\nNext milestone: advance the entering-game boundary toward the first reconstructed GameScene without reading beyond verified scene fields.";
     return out.str();
 }
 
