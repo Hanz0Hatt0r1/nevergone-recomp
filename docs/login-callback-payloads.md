@@ -73,6 +73,31 @@ RoleEntry
 
 The parser walks nested arrays/objects and de-duplicates entries by `CharacterID`, which avoids depending on the exact container representation of `CharacterDataMap` while preserving the proven field contract.
 
+## Online role-selection semantics
+
+The project-owned `role_selection_state` consumes a valid parsed role list without introducing presentation assumptions. The recovered online ChooseHero path uses `Career` as the selectable item tag. Starting a selected item scans the role records and resolves the first record carrying that career, then uses that record's `CharacterID`.
+
+The reconstructed state therefore keeps selection and dispatch separate:
+
+```text
+cpp_OnGetRoleList(JSON)
+  -> parse RoleListPayload
+  -> role_selection_state::sync_role_list(...)
+  -> select career/index
+  -> confirm_selection()
+  -> pending CharacterID request
+  -> g_UILogin.EnterGameWithCid(CharacterID)
+```
+
+The recovered create-role call shape is also retained as a pending request before Lua dispatch:
+
+```text
+request_create_role(name, career)
+  -> g_UILogin.CreateCharacter(name, career)
+```
+
+Pending enter/create requests are consumed only after the matching Lua call succeeds. A changed selection or a fresh role-list callback invalidates stale pending requests.
+
 ## ManagementLayer routing
 
 The parsed models live beside the raw callback payloads in `ClientUiSnapshot`. Projection still follows the callback-driven `ManagementRoute` state:
@@ -109,4 +134,8 @@ Those `gamescene_ui/ServerList/*` resource names are not present in the baseline
 - nested role extraction and `CharacterID` de-duplication;
 - empty-but-valid role lists.
 
-The parser is project-owned C++17 and does not depend on the original native library or proprietary decoded files.
+`tools/role_selection_state_smoke.cpp` validates career-tag selection, first-match resolution for duplicate careers, pending enter/create request invalidation and one-shot consumption.
+
+`tools/login_lua_dispatch_smoke.cpp` validates the recovered argument shapes for `EnterGameLogicServer`, `EnterGameWithCid` and `CreateCharacter`, including missing-function and Lua-error handling.
+
+The parser/state/dispatch code is project-owned C++17 and does not depend on the original native library or proprietary decoded files.

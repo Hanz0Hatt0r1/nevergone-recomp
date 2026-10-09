@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "initial_ui_transition.h"
+#include "role_selection_state.h"
 #include "server_selection_state.h"
 
 #if defined(NEVERGONE_HAS_LUA)
@@ -46,6 +47,8 @@ void apply_event_to_ui_state(const ClientCallbackEvent& event) {
         login_callback_payload::parse_role_list_callback(
             event.arguments,
             &g_client_ui_state.role_list_model);
+        nevergone::role_selection_state::sync_role_list(
+            g_client_ui_state.role_list_model);
     } else if (event.name == "cpp_OnCreateTheRole") {
         g_client_ui_state.created_role = payload;
     } else if (event.name == "cpp_OnGameAnnoucement") {
@@ -137,6 +140,7 @@ void register_login_callback_bindings(lua_State* state) {
         g_client_ui_state = ClientUiSnapshot{};
     }
     nevergone::server_selection_state::reset();
+    nevergone::role_selection_state::reset();
     register_callback(state, "cpp_OnGetServerList");
     register_callback(state, "cpp_OnGetRoleList");
     register_callback(state, "cpp_OnCreateTheRole");
@@ -170,6 +174,7 @@ void reset_client_ui_state() {
         g_client_ui_state = ClientUiSnapshot{};
     }
     nevergone::server_selection_state::reset();
+    nevergone::role_selection_state::reset();
 }
 
 std::string client_ui_state_report() {
@@ -201,6 +206,10 @@ std::string client_ui_state_report() {
     if (!snapshot.pve_connect.empty()) out << "PVE connect: " << snapshot.pve_connect << "\n";
     if (transition.management_route == nevergone::initial_ui_transition::ManagementRoute::kServerSelection) {
         out << nevergone::server_selection_state::status_report();
+    }
+    if (transition.management_route == nevergone::initial_ui_transition::ManagementRoute::kRoleSelection ||
+            transition.management_route == nevergone::initial_ui_transition::ManagementRoute::kRoleCreated) {
+        out << nevergone::role_selection_state::status_report();
     }
     return out.str();
 }

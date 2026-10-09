@@ -8,6 +8,7 @@
 #include "login_lua_dispatch.h"
 #include "lua_startup_bindings.h"
 #include "native_binding_registry.h"
+#include "role_selection_state.h"
 #include "server_selection_state.h"
 #include "startup_contract.h"
 
@@ -84,6 +85,13 @@ Snapshot snapshot_locked() {
     return result;
 }
 
+bool require_ready_locked() {
+    if (g_phase == Phase::kReady) return true;
+    g_last_error = "persistent login Lua is not ready";
+    ++g_dispatch_failure_count;
+    return false;
+}
+
 }  // namespace
 
 bool ensure_started() {
@@ -155,11 +163,7 @@ void shutdown() {
 
 bool dispatch_pending_server_request() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_phase != Phase::kReady) {
-        g_last_error = "persistent login Lua is not ready";
-        ++g_dispatch_failure_count;
-        return false;
-    }
+    if (!require_ready_locked()) return false;
 
     const auto request = server_selection_state::peek_pending_enter_request();
     if (!request.valid) {
@@ -179,6 +183,80 @@ bool dispatch_pending_server_request() {
     const auto consumed = server_selection_state::take_pending_enter_request();
     if (!consumed.valid || consumed.server_id != request.server_id || consumed.ip != request.ip) {
         g_last_error = "pending server request changed during dispatch";
+        ++g_dispatch_failure_count;
+        return false;
+    }
+
+    ++g_dispatch_count;
+    g_last_error.clear();
+    return true;
+#else
+    g_last_error = "Lua runtime unavailable";
+    ++g_dispatch_failure_count;
+    return false;
+#endif
+}
+
+bool dispatch_pending_role_enter_request() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!require_ready_locked()) return false;
+
+    const auto request = role_selection_state::peek_pending_enter_request();
+    if (!request.valid) {
+        g_last_error = "no pending role enter request";
+        return false;
+    }
+
+#if defined(NEVERGONE_HAS_LUA)
+    std::string error;
+    if (!login_lua_dispatch::call_enter_game_with_cid(
+            g_state, request.character_id, &error)) {
+        g_last_error = error;
+        ++g_dispatch_failure_count;
+        return false;
+    }
+
+    const auto consumed = role_selection_state::take_pending_enter_request();
+    if (!consumed.valid || consumed.character_id != request.character_id ||
+            consumed.career != request.career || consumed.character_name != request.character_name) {
+        g_last_error = "pending role enter request changed during dispatch";
+        ++g_dispatch_failure_count;
+        return false;
+    }
+
+    ++g_dispatch_count;
+    g_last_error.clear();
+    return true;
+#else
+    g_last_error = "Lua runtime unavailable";
+    ++g_dispatch_failure_count;
+    return false;
+#endif
+}
+
+bool dispatch_pending_role_create_request() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!require_ready_locked()) return false;
+
+    const auto request = role_selection_state::peek_pending_create_request();
+    if (!request.valid) {
+        g_last_error = "no pending role create request";
+        return false;
+    }
+
+#if defined(NEVERGONE_HAS_LUA)
+    std::string error;
+    if (!login_lua_dispatch::call_create_character(
+            g_state, request.character_name, request.career, &error)) {
+        g_last_error = error;
+        ++g_dispatch_failure_count;
+        return false;
+    }
+
+    const auto consumed = role_selection_state::take_pending_create_request();
+    if (!consumed.valid || consumed.career != request.career ||
+            consumed.character_name != request.character_name) {
+        g_last_error = "pending role create request changed during dispatch";
         ++g_dispatch_failure_count;
         return false;
     }
@@ -220,7 +298,7 @@ std::string status_report() {
     out << "persistent login Lua: " << phase_name(state.phase)
         << " generation=" << state.generation
         << " starts=" << state.start_count << "\n";
-    out << "login Lua server dispatches: " << state.dispatch_count
+    out << "login Lua dispatches: " << state.dispatch_count
         << " failures=" << state.dispatch_failure_count << "\n";
     if (!state.last_error.empty()) out << "login Lua last error: " << state.last_error << "\n";
     return out.str();

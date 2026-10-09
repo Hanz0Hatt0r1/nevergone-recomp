@@ -24,9 +24,11 @@ struct Snapshot {
 bool ensure_started();
 void shutdown();
 
-// Dispatch the currently pending server-selection request. The request is only
-// consumed after the Lua call succeeds; failed calls remain pending.
+// Pending requests are consumed only after the matching Lua call succeeds;
+// failed calls remain pending for diagnostics/retry.
 bool dispatch_pending_server_request();
+bool dispatch_pending_role_enter_request();
+bool dispatch_pending_role_create_request();
 
 Snapshot snapshot();
 const char* phase_name(Phase phase);
