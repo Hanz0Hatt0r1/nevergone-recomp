@@ -18,7 +18,9 @@ int main() {
     {
         std::ofstream dictionary(root / "assets" / "newWord.txt", std::ios::binary);
         // Include a UTF-8 BOM to exercise the same imported-file handling as runtime.
-        dictionary << "\xef\xbb\xbfblocked\nforbidden\r\n";
+        // Keep the BOM escape separate so the following 'b' is not consumed by the
+        // variable-length C++ hexadecimal escape.
+        dictionary << "\xef\xbb\xbf" "blocked\nforbidden\r\n";
     }
 
     nevergone::startup::RuntimeConfig config;
