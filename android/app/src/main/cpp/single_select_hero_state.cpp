@@ -13,6 +13,8 @@ bool g_active = false;
 std::uint64_t g_generation = 0;
 std::int64_t g_existing_career = 0;
 std::int64_t g_selected_career = 0;
+bool g_input_enabled = false;
+bool g_transition_pending = false;
 std::uint64_t g_selection_count = 0;
 std::uint64_t g_confirm_count = 0;
 std::uint64_t g_blocked_confirm_count = 0;
@@ -28,6 +30,8 @@ Snapshot snapshot_locked() {
     result.generation = g_generation;
     result.existing_career = g_existing_career;
     result.selected_career = g_selected_career;
+    result.input_enabled = g_input_enabled;
+    result.transition_pending = g_transition_pending;
     result.selection_count = g_selection_count;
     result.confirm_count = g_confirm_count;
     result.blocked_confirm_count = g_blocked_confirm_count;
@@ -44,6 +48,11 @@ void begin(std::int64_t existing_career) {
     g_existing_career = normalize_existing_career(existing_career);
     g_selected_career =
         g_existing_career == kCareerOne ? kCareerTwo : kCareerOne;
+
+    // initUI() writes the interaction byte false before the initial Carousel.
+    // A later visual transition executor restores it through OpenTheDoor(true).
+    g_input_enabled = false;
+    g_transition_pending = true;
     g_selection_count = 0;
     g_confirm_count = 0;
     g_blocked_confirm_count = 0;
@@ -56,6 +65,8 @@ void reset() {
     ++g_generation;
     g_existing_career = 0;
     g_selected_career = 0;
+    g_input_enabled = false;
+    g_transition_pending = false;
     g_selection_count = 0;
     g_confirm_count = 0;
     g_blocked_confirm_count = 0;
@@ -66,14 +77,27 @@ bool is_valid_career(std::int64_t career) {
     return career == kCareerOne || career == kCareerTwo;
 }
 
+void set_input_enabled(bool enabled) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_active) return;
+    g_input_enabled = enabled;
+    if (enabled) g_transition_pending = false;
+}
+
+void complete_transition() {
+    set_input_enabled(true);
+}
+
 bool select_career(std::int64_t career) {
     if (!is_valid_career(career)) return false;
 
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (!g_active) return false;
+    if (!g_active || !g_input_enabled) return false;
     if (g_selected_career == career) return true;
 
     g_selected_career = career;
+    g_input_enabled = false;
+    g_transition_pending = true;
     ++g_selection_count;
     return true;
 }
@@ -95,7 +119,8 @@ bool confirm_online() {
     }
 
     // Avoid holding the selector mutex across the next reconstructed state
-    // boundary. The shipped code passes this exact integer to CretaUI(int).
+    // boundary. The shipped online branch passes this exact integer to
+    // CharacterNameLayer::CretaUI(career).
     character_name_state::begin(selected_career);
     return true;
 }
@@ -112,7 +137,10 @@ std::string status_report() {
     out << "single select hero: " << (state.active ? "active" : "inactive")
         << " generation=" << state.generation
         << " existing-career=" << state.existing_career
-        << " selected-career=" << state.selected_career << "\n";
+        << " selected-career=" << state.selected_career
+        << " input=" << (state.input_enabled ? "enabled" : "locked")
+        << " transition=" << (state.transition_pending ? "pending" : "idle")
+        << "\n";
     out << "single select hero actions: selection=" << state.selection_count
         << " confirm=" << state.confirm_count
         << " blocked-confirm=" << state.blocked_confirm_count
