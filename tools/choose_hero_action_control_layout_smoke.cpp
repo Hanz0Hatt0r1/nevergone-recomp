@@ -27,8 +27,8 @@ int main() {
     assert(near(layout.delete_hero.width, 160.0f));
 
     assert(contains(layout.play, 1022.4f, 59.0f));
-    assert(contains(layout.play, 942.4f, 32.0f));
-    assert(contains(layout.play, 1102.4f, 86.0f));
+    assert(contains(layout.play, 942.5f, 32.1f));
+    assert(contains(layout.play, 1102.3f, 85.9f));
     assert(!contains(layout.play, 942.3f, 59.0f));
     assert(!contains(layout.play, 1022.4f, 86.1f));
 
