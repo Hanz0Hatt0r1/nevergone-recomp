@@ -4,18 +4,29 @@ This note records clean-room behavior recovered from the shipped ARMv7 `SingleSe
 
 ## Supported careers
 
-The recovered selector presentation is built around exactly two career values:
+The shipped selector creates five `menuOpenGC` menu items. The construction loop assigns sender tags `1` through `5` unchanged and formats their normal/highlight resources as:
 
-- career `1`;
-- career `2`.
+```text
+xrfuwen%02d.png
+xrfuwenfaguang%02d.png
+```
 
-`Carousel(int)` has explicit presentation branches for values up to `2`, and the initial-selection logic chooses only `1` or `2`.
+The recovered career domain is therefore exactly `1..5`. This supersedes the earlier partial reconstruction that modeled only careers 1 and 2.
+
+The menu-item centers are built on the common 1136x640 design surface with:
+
+```text
+x = visibleWidth * 0.5
+y = visibleHeight - 55 - 90 * career
+```
+
+which yields centers `(568,495)`, `(568,405)`, `(568,315)`, `(568,225)`, and `(568,135)` for careers 1 through 5. Actual hit rectangles remain dependent on the imported normal-frame content sizes and are intentionally handled by the later input/layout layer rather than guessed here.
 
 ## Existing-career input and default selection
 
-During `init(bool)`, SingleSelectHero reads the first existing role record from ManagementLayer state when one is present and stores the recovered value later compared against the candidate career.
+During `init(bool)`, SingleSelectHero reads the first existing role record from ManagementLayer state when one is present and stores the recovered value later compared against the candidate career. Valid existing careers `1..5` must therefore be preserved; normalizing careers 3, 4, or 5 to zero would break the proven equality block in `menuConfirm()`.
 
-`initUI()` then performs this selection setup:
+`initUI()` performs this initial selection setup:
 
 ```text
 selectedCandidate = 1
@@ -25,13 +36,7 @@ selectedCareer = selectedCandidate
 Carousel(selectedCandidate)
 ```
 
-Therefore:
-
-- no existing supported career -> default career `1`;
-- existing career `1` -> default career `2`;
-- existing career `2` -> default career `1`.
-
-This matches the two-career create-role flow without inventing an additional class table.
+Therefore career 1 is the normal initial candidate, with career 2 used only when career 1 is already present. Existing careers 2 through 5 do not change that initial candidate.
 
 ## `menuOpenGC` selection and transition gate
 
@@ -63,22 +68,22 @@ selectedCareer
   -> CharacterNameLayer::CretaUI(selectedCareer)
 ```
 
-The same integer later reaches `LUA_LOGIN::CreateTheRole(name, career)` and `g_UILogin.CreateCharacter(name, career)` through the already reconstructed CharacterNameLayer contract.
+The ARMv7 ChooseHero submit path and the shipped login Lua both preserve this integer unchanged: it is the same career value later passed to `LUA_LOGIN::CreateTheRole(name, career)` and `g_UILogin.CreateCharacter(name, career)`.
 
 The recovered `menuConfirm()` path does not test the `menuOpenGC` interaction byte. `single_select_hero_state::confirm_online()` therefore does not add an artificial transition-gate requirement; it opens `character_name_state` with the selected career unchanged and records blocked existing-career confirms separately.
 
 ## Current implementation boundary
 
-`single_select_hero_state` now owns the non-visual semantics:
+`single_select_hero_state` owns the non-visual semantics:
 
 - active scene generation;
-- existing career;
+- preserved existing career for values `1..5`;
 - exact default selection rule;
-- valid careers `1` and `2`;
+- valid careers `1..5`;
 - recovered `OpenTheDoor` input/transition gate for class changes;
 - sender-tag selection behavior;
-- existing-career confirm blocking;
+- existing-career confirm blocking for every supported career;
 - online confirm bridge into `character_name_state::begin(career)`;
 - diagnostics counters.
 
-The current `single_select_hero_compositor` still renders only the previously reconstructed background/opening presentation. Rendering the two career choices, completing the gate at the correct animation point, recovering their hit boxes and wiring touch into this state are the next visual/input increment.
+The current compositor already renders the reconstructed background and HeroTable presentation. Remaining presentation/input work includes the five `xrfuwen` career controls, the recovered transition/unlock timing, character/overlay sprites, and the confirm control/hit box.
