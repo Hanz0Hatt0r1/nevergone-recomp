@@ -5,6 +5,7 @@
 
 #include "game_clock.h"
 #include "single_select_hero_input.h"
+#include "single_select_hero_rune_layout.h"
 #include "single_select_hero_state.h"
 #include "single_select_hero_transition_timeline.h"
 #include "startup_contract.h"
@@ -12,6 +13,7 @@
 int main() {
     namespace fs = std::filesystem;
     namespace input = nevergone::single_select_hero_input;
+    namespace runes = nevergone::single_select_hero_rune_layout;
     namespace selector = nevergone::single_select_hero_state;
     namespace timeline = nevergone::single_select_hero_transition_timeline;
 
@@ -27,6 +29,8 @@ int main() {
     timeline::reset();
     selector::reset();
     input::reset();
+    assert(runes::pressed_visual_tag() == 0);
+    assert(runes::frame_index(3, false) == 4);
 
     assert(!input::on_touch_for_surface(0, 0, 568.0f, 145.0f, 1136, 640));
 
@@ -34,17 +38,26 @@ int main() {
     assert(!selector::snapshot().input_enabled);
     assert(input::on_touch_for_surface(0, 1, 568.0f, 145.0f, 1136, 640));
     assert(input::pressed_tag() == 0);
+    assert(runes::pressed_visual_tag() == 0);
 
     selector::complete_transition();
 
     // Career 3 center: design y=315 -> top-origin surface y=325.
     assert(input::on_touch_for_surface(0, 7, 568.0f, 325.0f, 1136, 640));
     assert(input::pressed_tag() == 3);
+    assert(runes::pressed_visual_tag() == 3);
+    assert(runes::frame_index(3, false) == 5);
+    assert(runes::frame_index(2, false) == 2);
     assert(input::on_touch_for_surface(2, 7, 400.0f, 325.0f, 1136, 640));
     assert(input::pressed_tag() == 0);
+    assert(runes::pressed_visual_tag() == 0);
+    assert(runes::frame_index(3, false) == 4);
     assert(input::on_touch_for_surface(2, 7, 568.0f, 325.0f, 1136, 640));
     assert(input::pressed_tag() == 3);
+    assert(runes::frame_index(3, false) == 5);
     assert(input::on_touch_for_surface(1, 7, 568.0f, 325.0f, 1136, 640));
+    assert(runes::pressed_visual_tag() == 0);
+    assert(runes::frame_index(3, false) == 4);
 
     auto state = selector::snapshot();
     assert(state.selected_career == 3);
@@ -61,17 +74,22 @@ int main() {
     assert(transition.unlock_tick ==
         transition.begin_tick + timeline::kNearCareerChangeUnlockTicks);
 
-    // Locked input is consumed and cannot replace the pending selection.
+    // Locked input is consumed and cannot expose a pressed/glow frame.
     assert(input::on_touch_for_surface(0, 8, 568.0f, 505.0f, 1136, 640));
+    assert(input::pressed_tag() == 0);
+    assert(runes::pressed_visual_tag() == 0);
     assert(input::on_touch_for_surface(1, 8, 568.0f, 505.0f, 1136, 640));
     assert(selector::snapshot().selected_career == 3);
 
     selector::complete_transition();
     timeline::reset();
 
-    // Same-career click is a handled no-op and does not arm a new deadline.
+    // Same-career click still shows pressed presentation while held, then
+    // returns to normal without arming a new deadline.
     assert(input::on_touch_for_surface(0, 9, 568.0f, 325.0f, 1136, 640));
+    assert(runes::frame_index(3, false) == 5);
     assert(input::on_touch_for_surface(1, 9, 568.0f, 325.0f, 1136, 640));
+    assert(runes::frame_index(3, false) == 4);
     state = selector::snapshot();
     assert(state.selected_career == 3);
     assert(state.input_enabled);
@@ -80,7 +98,9 @@ int main() {
 
     // Career 5 is a near change from 3 and arms the same 179-tick deadline.
     assert(input::on_touch_for_surface(0, 10, 568.0f, 505.0f, 1136, 640));
+    assert(runes::frame_index(5, false) == 9);
     assert(input::on_touch_for_surface(1, 10, 568.0f, 505.0f, 1136, 640));
+    assert(runes::frame_index(5, false) == 8);
     transition = timeline::snapshot();
     assert(transition.old_career == 3);
     assert(transition.new_career == 5);
@@ -91,7 +111,9 @@ int main() {
     selector::complete_transition();
     timeline::reset();
     assert(input::on_touch_for_surface(0, 11, 568.0f, 145.0f, 1136, 640));
+    assert(runes::frame_index(1, false) == 1);
     assert(input::on_touch_for_surface(1, 11, 568.0f, 145.0f, 1136, 640));
+    assert(runes::frame_index(1, false) == 0);
     transition = timeline::snapshot();
     assert(transition.old_career == 5);
     assert(transition.new_career == 1);
@@ -99,6 +121,7 @@ int main() {
         timeline::kFarCareerChangeUnlockTicks);
 
     input::reset();
+    assert(runes::pressed_visual_tag() == 0);
     fs::remove_all(root);
     std::cout << "single select hero input smoke: ok\n";
     return 0;
