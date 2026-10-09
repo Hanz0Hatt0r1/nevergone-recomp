@@ -4,6 +4,8 @@
 #include <sstream>
 #include <utility>
 
+#include "character_name_state.h"
+#include "created_role_transition.h"
 #include "initial_ui_transition.h"
 #include "role_selection_state.h"
 #include "server_selection_state.h"
@@ -117,9 +119,40 @@ int l_capture_callback(lua_State* state) {
         event.arguments.push_back(argument_to_string(state, index));
     }
 
-    std::lock_guard<std::mutex> lock(g_callback_mutex);
-    apply_event_to_ui_state(event);
-    g_callback_events.push_back(std::move(event));
+    login_callback_payload::RoleEntry created_role;
+    bool has_created_role = false;
+    if (event.name == "cpp_OnCreateTheRole") {
+        // The shipped Lua callback passes cjson.encode(tBaseInfo). Reuse the
+        // existing bounded role parser: a valid creation callback contains one
+        // unique CharacterID record, even if the object has nested metadata.
+        login_callback_payload::RoleListPayload parsed;
+        if (login_callback_payload::parse_role_list_callback(event.arguments, &parsed) &&
+                parsed.valid && parsed.roles.size() == 1 &&
+                parsed.roles[0].character_id != 0) {
+            created_role = parsed.roles[0];
+            has_created_role = true;
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(g_callback_mutex);
+        apply_event_to_ui_state(event);
+        g_callback_events.push_back(event);
+    }
+
+    // CreateTheRoleSuccessful removes CharacterName and immediately starts the
+    // returned role. Do this only after releasing our callback mutex. The
+    // original native path re-enters Lua from this callback; pump_inline uses
+    // this exact lua_State directly and therefore never re-locks the persistent
+    // login-session mutex.
+    if (has_created_role) {
+        (void)nevergone::character_name_state::complete_creation();
+        if (nevergone::created_role_transition::stage(created_role)) {
+            std::string transition_error;
+            (void)nevergone::created_role_transition::pump_inline(
+                state, &transition_error);
+        }
+    }
     return 0;
 }
 
@@ -141,6 +174,7 @@ void register_login_callback_bindings(lua_State* state) {
     }
     nevergone::server_selection_state::reset();
     nevergone::role_selection_state::reset();
+    nevergone::created_role_transition::reset();
     register_callback(state, "cpp_OnGetServerList");
     register_callback(state, "cpp_OnGetRoleList");
     register_callback(state, "cpp_OnCreateTheRole");
@@ -175,6 +209,7 @@ void reset_client_ui_state() {
     }
     nevergone::server_selection_state::reset();
     nevergone::role_selection_state::reset();
+    nevergone::created_role_transition::reset();
 }
 
 std::string client_ui_state_report() {
@@ -210,6 +245,9 @@ std::string client_ui_state_report() {
     if (transition.management_route == nevergone::initial_ui_transition::ManagementRoute::kRoleSelection ||
             transition.management_route == nevergone::initial_ui_transition::ManagementRoute::kRoleCreated) {
         out << nevergone::role_selection_state::status_report();
+    }
+    if (transition.management_route == nevergone::initial_ui_transition::ManagementRoute::kRoleCreated) {
+        out << nevergone::created_role_transition::status_report();
     }
     return out.str();
 }

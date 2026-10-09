@@ -31,6 +31,8 @@ add_library(nevergone_recomp SHARED
     choose_hero_thunder_scheduler.cpp
     choose_hero_thunder_state.cpp
     client_callback_bridge.cpp
+    created_role_transition.cpp
+    created_role_transition_runtime.cpp
     filesystem_bindings.cpp
     fresh_role_compat_jni.cpp
     fresh_role_compat_state.cpp

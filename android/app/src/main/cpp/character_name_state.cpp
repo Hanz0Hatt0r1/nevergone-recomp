@@ -17,6 +17,7 @@ std::string g_role_name;
 std::uint64_t g_action_count = 0;
 std::uint64_t g_submit_count = 0;
 std::uint64_t g_close_count = 0;
+std::uint64_t g_completion_count = 0;
 std::uint64_t g_randomize_count = 0;
 bool g_randomize_pending = false;
 role_creation_validation::Snapshot g_last_validation;
@@ -30,6 +31,7 @@ Snapshot snapshot_locked() {
     result.action_count = g_action_count;
     result.submit_count = g_submit_count;
     result.close_count = g_close_count;
+    result.completion_count = g_completion_count;
     result.randomize_count = g_randomize_count;
     result.randomize_pending = g_randomize_pending;
     result.last_validation = g_last_validation;
@@ -47,6 +49,7 @@ void begin(std::int64_t career) {
     g_action_count = 0;
     g_submit_count = 0;
     g_close_count = 0;
+    g_completion_count = 0;
     g_randomize_count = 1;
     g_randomize_pending = true;
     g_last_validation = role_creation_validation::Snapshot{};
@@ -61,9 +64,19 @@ void reset() {
     g_action_count = 0;
     g_submit_count = 0;
     g_close_count = 0;
+    g_completion_count = 0;
     g_randomize_count = 0;
     g_randomize_pending = false;
     g_last_validation = role_creation_validation::Snapshot{};
+}
+
+bool complete_creation() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_active) return false;
+    g_active = false;
+    g_randomize_pending = false;
+    ++g_completion_count;
+    return true;
 }
 
 bool set_role_name(std::string value) {
@@ -159,6 +172,7 @@ std::string status_report() {
         << " actions=" << state.action_count
         << " submit=" << state.submit_count
         << " close=" << state.close_count
+        << " completion=" << state.completion_count
         << " randomize=" << state.randomize_count
         << " randomize-pending=" << (state.randomize_pending ? "yes" : "no")
         << "\n";

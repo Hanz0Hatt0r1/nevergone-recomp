@@ -24,6 +24,7 @@ struct Snapshot {
     std::uint64_t action_count = 0;
     std::uint64_t submit_count = 0;
     std::uint64_t close_count = 0;
+    std::uint64_t completion_count = 0;
     std::uint64_t randomize_count = 0;
     bool randomize_pending = false;
     role_creation_validation::Snapshot last_validation;
@@ -34,6 +35,11 @@ struct Snapshot {
 // shipped UI immediately dispatches its random-name control after creation.
 void begin(std::int64_t career);
 void reset();
+
+// CreateTheRoleSuccessful removes the CharacterName layer as a server-success
+// side effect, not as the user pressing the Cancel/tag-2 control. Keep that
+// completion distinct from close_count/action_count for diagnostics.
+bool complete_creation();
 
 bool set_role_name(std::string value);
 
