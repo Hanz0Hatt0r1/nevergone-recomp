@@ -82,7 +82,7 @@ std::string bootstrap_info() {
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
-    out << "\nNext milestone: route recovered ChooseHero thunder sound callbacks to imported audio, then continue role-selection/scene-entry reconstruction.";
+    out << "\nNext milestone: continue ChooseHero role-selection/scene-entry reconstruction after restored thunder visuals and audio.";
     return out.str();
 }
 
@@ -113,6 +113,11 @@ Java_org_nevergone_recomp_MainActivity_nativeAppDelegateOnPause(JNIEnv*, jclass)
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_MainActivity_nativeAppDelegateOnResume(JNIEnv*, jclass) {
     nevergone::app_delegate_state::on_app_resume();
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_nevergone_recomp_MainActivity_nativePollChooseHeroThunderSound(JNIEnv*, jclass) {
+    return static_cast<jint>(nevergone::choose_hero_thunder_effect_compositor::poll_sound());
 }
 
 extern "C" JNIEXPORT jstring JNICALL
