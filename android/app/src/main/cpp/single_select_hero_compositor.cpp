@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "initial_ui_transition.h"
 #include "offline_startup_flow.h"
 
 namespace nevergone::single_select_hero {
@@ -25,6 +26,13 @@ PositionedTexture g_background{};
 std::vector<std::uint32_t> g_background_pixels;
 int g_surface_width = 0;
 int g_surface_height = 0;
+
+bool route_active() {
+    const auto offline = offline_startup_flow::snapshot();
+    if (offline.route == offline_startup_flow::Route::kOpeningDialogue) return true;
+    return initial_ui_transition::snapshot().management_route ==
+        initial_ui_transition::ManagementRoute::kRoleSelection;
+}
 
 GLuint compile_shader(GLenum type, const char* source) {
     const GLuint shader = glCreateShader(type);
@@ -196,15 +204,14 @@ bool upload_background(
 
     // Match the recovered onExit resource lifecycle: keep imported pixels as
     // reloadable backing, but do not retain a scene-owned GLES texture while
-    // SingleSelectHero is not the active offline route.
-    if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue) {
-        return true;
-    }
+    // neither the offline opening-dialogue nor Management role-selection route
+    // owns SingleSelectHero.
+    if (!route_active()) return true;
     return ensure_background_texture();
 }
 
 void draw() {
-    if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue) {
+    if (!route_active()) {
         delete_texture();
         return;
     }
