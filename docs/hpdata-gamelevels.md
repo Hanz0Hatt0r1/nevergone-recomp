@@ -141,7 +141,20 @@ At Ghidra `0x002d2ba4`, the original tests the object's leading `FirstObjectPref
 - It then reads a uint32 at `0x002d2c18`, advances five bytes from that length field start, and copies exactly that many chars at `0x002d2c3a`, followed by a NUL terminator.
 - It reads an int32 at `0x002d2c62`. A second int32 local is initialized to zero and is populated at `0x002d2c8e` only when the first int32 equals `1`.
 
-`parse_first_object_conditional_header()` implements exactly those branches. A zero object-leading int32 succeeds without consuming any bytes after the version extension. Nonzero objects parse the one/two uint32 gate, bounded string and one/two int32 gate transactionally. The parser stops before the object-type-specific branch beginning at `0x002d2cb0`.
+`parse_first_object_conditional_header()` implements exactly those branches. A zero object-leading int32 succeeds without consuming any bytes after the version extension. Nonzero objects parse the one/two uint32 gate, bounded string and one/two int32 gate transactionally.
+
+## Verified complete first object record
+
+The remaining object tail is controlled only by the object's leading `first_i32`. Focused ARMv7 control flow reaches one of four stream-read shapes before the common object-field stores:
+
+- `(type & ~2) == 4`, which selects object values `4` and `6`: read one `int32` at Ghidra `0x002d2ce0`;
+- object value `9`: take the same one-`int32` path at `0x002d2ce0`;
+- object value `10`: read one `int32` at `0x002d2d0c`, then four floats at `0x002d2d26`, `0x002d2d3c`, `0x002d2d52`, and `0x002d2d68`; the four floats populate two `CCPoint` locals;
+- all other object values: consume no type-tail bytes.
+
+After those branches join, the original performs only object-field assignments and `CCString`/`CCPoint` stores before calling `GameSceneLayerData::AddObject()` at Ghidra `0x002d2dbe`. There are no further `HPData::getBytes` calls on any path between the tail join and `AddObject()`.
+
+`parse_first_object_record()` models this final tail transactionally. A successful result therefore identifies the complete evidence-backed end offset of the first object record, rather than merely an interior prefix. Synthetic regressions cover zero/default object types, the `4`, `6`, `9`, and `10` paths, exact float/int payload values, and a truncated type-10 tail that must leave the caller's output unchanged.
 
 ## Imported GameLevels asset probe
 
@@ -149,16 +162,16 @@ The reconstructed runtime resolves the user-owned app-private resource:
 
 `<files>/assets/gamescene/gs_list/pvp_scene.glData`
 
-The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It validates each evidence-backed boundary through the first object's conditional header.
+The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It validates each evidence-backed boundary through the complete first object record.
 
-Bootstrap diagnostics report only readiness and verified byte counts. They do **not** print imported scene strings, coordinates, counts, floats, object fields, or vector values. Synthetic host regressions cover truncated fields, hostile string lengths, the signed format gates, zero/positive vector counts, hostile vector counts, the zero-object bypass and all verified conditional-header forms without requiring game data.
+Bootstrap diagnostics report only readiness and verified byte counts. They do **not** print imported scene strings, coordinates, counts, floats, object fields, vector values, or type-tail values. Synthetic host regressions cover truncated fields, hostile string lengths, the signed format gates, zero/positive vector counts, hostile vector counts, the zero-object bypass, all shared conditional-header forms, and all recovered type-tail stream shapes without requiring game data.
 
-The reconstructed `cpp_OnEnterGame` route treats `first-object-conditional-header-verified` as the strongest current GameLevels entry state. It still does not instantiate or render a gameplay scene.
+The reconstructed `cpp_OnEnterGame` route treats `first-object-record-verified` as the strongest current GameLevels entry state. It still does not instantiate or render a gameplay scene.
 
 ## Remaining format work
 
-After the shared conditional header, the original enters an object-type-specific tail. The ARMv7 branch distinguishes at least the leading-object values `4/6`, `9`, and `10`: the first two groups consume one additional int32, while value `10` consumes one int32 plus four floats; other observed paths consume no bytes before the common stores and `AddObject()`.
+The next evidence-backed engineering step is to remove the artificial "first object" limitation. `LoadGL_Scene()` maintains one sequential stream offset across the layer's object loop, and after `AddObject()` increments the object-loop index and returns to the same `GameSceneLayerObjectData::create()` path while the index remains below the recovered `object_count`.
 
-Recover and model that tail through its common join point. Once all object-type-specific byte consumption is represented, the first object record has a complete evidence-backed size and the parser can safely advance to the second object, then the remaining objects/layers.
+Refactor the now-complete object parser so it accepts an explicit start offset plus the already recovered top-level format gate, then make the existing first-object wrappers delegate to it. Once that generic parser is covered, a second object can begin exactly at the previous record's `bytes_consumed` boundary and the remaining objects can be iterated without guessing record widths.
 
-Semantic names should be assigned only when the value's use in the original code makes them unambiguous.
+Only after the object loop is generic should parsing advance into the post-object layer data (the subsequent counted point-vector blocks). Semantic names should continue to be assigned only when the value's use in the original code makes them unambiguous.
