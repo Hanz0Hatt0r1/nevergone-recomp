@@ -21,7 +21,9 @@ void begin_locked(
         Phase phase,
         std::uint64_t tick,
         std::uint64_t selector_generation,
-        std::uint64_t duration_ticks) {
+        std::uint64_t duration_ticks,
+        std::int64_t old_career,
+        std::int64_t new_career) {
     const std::uint64_t prior_begin_count = g_state.begin_count;
     const std::uint64_t prior_completion_count = g_state.completion_count;
     const std::uint64_t prior_stale_count = g_state.stale_generation_count;
@@ -30,6 +32,8 @@ void begin_locked(
     g_state.selector_generation = selector_generation;
     g_state.begin_tick = tick;
     g_state.unlock_tick = saturating_add(tick, duration_ticks);
+    g_state.old_career = old_career;
+    g_state.new_career = new_career;
     g_state.begin_count = prior_begin_count + 1;
     g_state.completion_count = prior_completion_count;
     g_state.stale_generation_count = prior_stale_count;
@@ -37,29 +41,61 @@ void begin_locked(
 
 }  // namespace
 
+bool valid_career(std::int64_t career) {
+    return career >= 1 && career <= 5;
+}
+
+std::uint64_t career_change_unlock_ticks(
+        std::int64_t old_career,
+        std::int64_t new_career) {
+    if (!valid_career(old_career) || !valid_career(new_career) ||
+            old_career == new_career) {
+        return 0;
+    }
+    const std::int64_t distance = old_career > new_career
+        ? old_career - new_career
+        : new_career - old_career;
+    return distance <= 2
+        ? kNearCareerChangeUnlockTicks
+        : kFarCareerChangeUnlockTicks;
+}
+
 void reset() {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_state = Snapshot{};
 }
 
-void begin_initial(std::uint64_t tick, std::uint64_t selector_generation) {
-    if (selector_generation == 0) return;
+void begin_initial(
+        std::uint64_t tick,
+        std::uint64_t selector_generation,
+        std::int64_t selected_career) {
+    if (selector_generation == 0 || !valid_career(selected_career)) return;
     std::lock_guard<std::mutex> lock(g_mutex);
     begin_locked(
         Phase::kInitialCarousel,
         tick,
         selector_generation,
-        kInitialUnlockTicks);
+        kInitialUnlockTicks,
+        selected_career,
+        selected_career);
 }
 
-void begin_career_change(std::uint64_t tick, std::uint64_t selector_generation) {
-    if (selector_generation == 0) return;
+bool begin_career_change(
+        std::uint64_t tick,
+        std::uint64_t selector_generation,
+        std::int64_t old_career,
+        std::int64_t new_career) {
+    const std::uint64_t duration = career_change_unlock_ticks(old_career, new_career);
+    if (selector_generation == 0 || duration == 0) return false;
     std::lock_guard<std::mutex> lock(g_mutex);
     begin_locked(
         Phase::kCareerChange,
         tick,
         selector_generation,
-        kCareerChangeUnlockTicks);
+        duration,
+        old_career,
+        new_career);
+    return true;
 }
 
 bool advance(std::uint64_t tick, std::uint64_t selector_generation) {
@@ -84,6 +120,8 @@ bool advance(std::uint64_t tick, std::uint64_t selector_generation) {
     g_state.selector_generation = 0;
     g_state.begin_tick = 0;
     g_state.unlock_tick = 0;
+    g_state.old_career = 0;
+    g_state.new_career = 0;
     return true;
 }
 
@@ -106,6 +144,8 @@ std::string status_report() {
     std::ostringstream out;
     out << "single select transition: " << phase_name(g_state.phase)
         << " generation=" << g_state.selector_generation
+        << " old-career=" << g_state.old_career
+        << " new-career=" << g_state.new_career
         << " begin-tick=" << g_state.begin_tick
         << " unlock-tick=" << g_state.unlock_tick << "\n";
     out << "single select transition counts: begin=" << g_state.begin_count

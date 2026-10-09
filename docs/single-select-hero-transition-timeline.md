@@ -1,49 +1,35 @@
 # SingleSelectHero transition timing
 
-This note records the recovered interaction-unlock timing behind `SingleSelectHero::OpenTheDoor`, `Carousel`, `FunOpenTheDoor`, and `FuncCloseTheDoor`. The repository stores only the clean-room semantic timing relationships; original disassembly is not committed.
+This note records the recovered interaction-unlock timing behind `SingleSelectHero::OpenTheDoor`, `Carousel`, `FunOpenTheDoor`, and `FuncCloseTheDoor`. The repository stores only clean-room semantic timing relationships; original disassembly is not committed.
 
 ## Interaction byte
 
-`menuOpenGC(sender)` first checks the SingleSelectHero interaction byte. A changed career calls:
+`menuOpenGC(sender)` first checks the SingleSelectHero interaction byte. On a changed career, the old selected career remains in the argument register and the shipped handler calls:
 
 ```text
-OpenTheDoor(false, career)
+OpenTheDoor(false, oldCareer)
 ```
 
-and then stores the sender tag unchanged as the selected/current career. `OpenTheDoor(false, ...)` schedules the closing sequence and writes the interaction byte false immediately.
+before storing the sender tag as the new selected/current career. `OpenTheDoor(false, ...)` schedules the close sequence and writes the interaction byte false immediately.
 
-The closing sequence eventually calls `FuncCloseTheDoor(career)`, which forwards the same career into `Carousel(career)`. `Carousel` ends with a `FunOpenTheDoor` callback. That callback invokes:
-
-```text
-OpenTheDoor(true, career)
-```
-
-`OpenTheDoor(true, ...)` writes the interaction byte true synchronously when the callback fires. The gate therefore reopens at the beginning of the opening sequence scheduled by that call; it does not wait for all opening visuals to finish.
+The close sequence eventually calls `FuncCloseTheDoor(oldCareer)`, which forwards that old career into `Carousel(oldCareer)`. At that point the current-career field already contains the new career, so Carousel can choose its movement duration from `abs(newCareer - oldCareer)`. Carousel ends with `FunOpenTheDoor`, which calls `OpenTheDoor(true, ...)`; that call writes the interaction byte true synchronously.
 
 ## Initial transition
 
-`initUI()` writes the selected career into the current-career field, clears the interaction byte, and calls `Carousel(selectedCareer)`.
-
-For this normal path the current and target careers match, so the recovered Carousel sequence is:
+`initUI()` stores the selected career, clears the interaction byte, and calls `Carousel(selectedCareer)`. Old and new careers are equal, so the recovered sequence is:
 
 ```text
-1.5 s move/ease
+1.5 s primary move/ease
 0.3 s move
 0.6 s move
 FunOpenTheDoor callback
 ```
 
-The callback point is exactly `2.4 s` after the sequence starts. The recompilation fixed clock runs at 35 Hz, so the exact deadline is:
-
-```text
-2.4 * 35 = 84 ticks
-```
-
-`single_select_hero_transition_timeline::begin_initial()` therefore arms `tick + 84`.
+The callback point is exactly `2.4 s`, or `84` ticks on the reconstructed 35 Hz fixed clock. `begin_initial(tick, generation, selectedCareer)` therefore arms `tick + 84`.
 
 ## Changed-career transition
 
-The recovered close path before `FuncCloseTheDoor` is:
+The close path before `FuncCloseTheDoor` is:
 
 ```text
 2.0 s move/ease
@@ -53,28 +39,32 @@ instant FuncBegin callback
 FuncCloseTheDoor callback
 ```
 
-That is `2.69 s`, followed by the same `2.4 s` Carousel. The interaction byte is therefore restored at:
+This phase takes `2.69 s`. The following Carousel has two recovered primary durations:
+
+- `abs(newCareer - oldCareer) <= 2`: `1.5 + 0.3 + 0.6 = 2.4 s`;
+- `abs(newCareer - oldCareer) > 2`: `3.0 + 0.3 + 0.6 = 3.9 s`.
+
+Therefore the interaction unlock occurs at:
 
 ```text
-2.69 + 2.4 = 5.09 s
+near change: 2.69 + 2.4 = 5.09 s -> ceil(5.09 * 35) = 179 ticks
+far change:  2.69 + 3.9 = 6.59 s -> ceil(6.59 * 35) = 231 ticks
 ```
 
-At 35 Hz this is `178.15` ticks. The first fixed tick that is not earlier than the recovered callback point is `+179`, so `begin_career_change()` arms that deadline.
+`begin_career_change(tick, generation, oldCareer, newCareer)` records both careers and selects the matching fixed-clock deadline. Same-career or invalid-career requests do not arm a transition.
 
 ## Runtime integration
 
-The OpeningDialogue scene bridge now starts the initial timeline in the same frame that it calls `single_select_hero_state::begin(0)`. Every active frame advances the timeline using `game_clock::tick_count()`. When the deadline fires, the bridge calls `single_select_hero_state::complete_transition()`, reproducing the recovered `FunOpenTheDoor -> OpenTheDoor(true, career)` interaction effect.
+The OpeningDialogue scene bridge starts the initial timeline in the same frame that it calls `single_select_hero_state::begin(0)`, passing the resulting selected career into `begin_initial`. Every active frame advances the timeline using `game_clock::tick_count()`. When the deadline fires, the bridge calls `single_select_hero_state::complete_transition()`, reproducing the recovered `FunOpenTheDoor -> OpenTheDoor(true, ...)` gate effect.
 
-Selector generations are attached to every timeline so a stale callback from an old scene cannot unlock a newer selector.
-
-The temporary Android fresh-role compatibility overlay intentionally retains its explicit transition collapse. It is a development shim and remains separate from native GLES timing; if the shim clears `transition_pending` early, the scene bridge discards the armed native timeline rather than firing a stale callback later.
+Selector generations are attached to every timeline so a stale callback from an old scene cannot unlock a newer selector. The temporary Android fresh-role compatibility overlay may deliberately collapse the transition early; if it clears `transition_pending`, the native bridge discards the armed deadline rather than firing it later.
 
 ## Next boundary
 
-`begin_career_change()` is implemented but not yet called by the GLES rune renderer. The next native-input increment should:
+The exact rune hit rectangles are already reconstructed. The next native-input increment should:
 
-1. derive each rune hit rectangle from its imported normal-frame source size and recovered center;
-2. use the staged `xrfuwenfaguangNN` frame only while a valid rune press is active;
-3. dispatch `single_select_hero_state::select_career(tag)` on a completed press;
-4. when the selection actually changes, arm `begin_career_change(game_clock::tick_count(), selector_generation)`;
+1. use the staged `xrfuwenfaguangNN` frame while a valid rune press is active;
+2. dispatch `single_select_hero_state::select_career(tag)` on a completed DOWN/UP press;
+3. preserve the old career before dispatch;
+4. when the career actually changes, arm `begin_career_change(game_clock::tick_count(), generation, oldCareer, newCareer)`;
 5. route the recovered confirm control separately through `confirm_online()`.
