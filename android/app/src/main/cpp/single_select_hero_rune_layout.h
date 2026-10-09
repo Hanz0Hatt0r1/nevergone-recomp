@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace nevergone::single_select_hero_rune_layout {
@@ -30,6 +31,21 @@ struct Quad {
     float y1 = 0.0f;
 };
 
+struct RuntimeRuneMetrics {
+    std::atomic<int> source_width{0};
+    std::atomic<int> source_height{0};
+};
+
+// The compositor and Android touch router run on different threads. The
+// existing draw path already has both the real GLSurfaceView dimensions and
+// imported TexturePacker source sizes, so publish only those scalar metrics
+// atomically instead of duplicating Java plumbing or touching GL state from the
+// UI thread.
+inline std::atomic<int> g_runtime_surface_width{0};
+inline std::atomic<int> g_runtime_surface_height{0};
+inline std::atomic<int> g_runtime_pressed_tag{0};
+inline RuntimeRuneMetrics g_runtime_metrics[kRuneCount];
+
 inline bool valid_tag(int tag) {
     return tag >= 1 && tag <= kRuneCount;
 }
@@ -38,9 +54,48 @@ inline bool enabled_tag(int tag) {
     return valid_tag(tag);
 }
 
+inline void set_runtime_pressed_tag(int tag) {
+    g_runtime_pressed_tag.store(valid_tag(tag) ? tag : 0, std::memory_order_relaxed);
+}
+
+inline int runtime_pressed_tag() {
+    return g_runtime_pressed_tag.load(std::memory_order_relaxed);
+}
+
+inline int runtime_surface_width() {
+    return g_runtime_surface_width.load(std::memory_order_relaxed);
+}
+
+inline int runtime_surface_height() {
+    return g_runtime_surface_height.load(std::memory_order_relaxed);
+}
+
+inline int runtime_source_width(int tag) {
+    return valid_tag(tag)
+        ? g_runtime_metrics[tag - 1].source_width.load(std::memory_order_relaxed)
+        : 0;
+}
+
+inline int runtime_source_height(int tag) {
+    return valid_tag(tag)
+        ? g_runtime_metrics[tag - 1].source_height.load(std::memory_order_relaxed)
+        : 0;
+}
+
+inline void reset_runtime_input_metrics() {
+    g_runtime_surface_width.store(0, std::memory_order_relaxed);
+    g_runtime_surface_height.store(0, std::memory_order_relaxed);
+    g_runtime_pressed_tag.store(0, std::memory_order_relaxed);
+    for (int index = 0; index < kRuneCount; ++index) {
+        g_runtime_metrics[index].source_width.store(0, std::memory_order_relaxed);
+        g_runtime_metrics[index].source_height.store(0, std::memory_order_relaxed);
+    }
+}
+
 inline int frame_index(int tag, bool pressed) {
     if (!valid_tag(tag)) return -1;
-    return (tag - 1) * 2 + (pressed ? 1 : 0);
+    const bool effective_pressed = pressed || runtime_pressed_tag() == tag;
+    return (tag - 1) * 2 + (effective_pressed ? 1 : 0);
 }
 
 inline float center_y(int tag) {
@@ -88,6 +143,17 @@ inline bool hit_test_source(
         design_y >= cy - half_height && design_y <= cy + half_height;
 }
 
+inline bool hit_test_runtime(int tag, float surface_x, float surface_y) {
+    return hit_test_source(
+        runtime_source_width(tag),
+        runtime_source_height(tag),
+        tag,
+        runtime_surface_width(),
+        runtime_surface_height(),
+        surface_x,
+        surface_y);
+}
+
 inline Quad quad_for_surface(
         const FrameGeometry& frame,
         int tag,
@@ -101,6 +167,18 @@ inline Quad quad_for_surface(
             frame.left + frame.width > frame.source_width ||
             frame.top + frame.height > frame.source_height) {
         return result;
+    }
+
+    // Publish the current surface every draw. Preserve the normal-frame source
+    // content size while the transient pressed frame is active so the menu item
+    // hit rectangle does not change underneath a captured pointer.
+    g_runtime_surface_width.store(surface_width, std::memory_order_relaxed);
+    g_runtime_surface_height.store(surface_height, std::memory_order_relaxed);
+    if (runtime_pressed_tag() != tag) {
+        g_runtime_metrics[tag - 1].source_width.store(
+            frame.source_width, std::memory_order_relaxed);
+        g_runtime_metrics[tag - 1].source_height.store(
+            frame.source_height, std::memory_order_relaxed);
     }
 
     const float scale = surface_scale(surface_width, surface_height);
