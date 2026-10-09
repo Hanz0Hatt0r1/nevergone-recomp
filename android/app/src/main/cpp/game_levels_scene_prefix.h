@@ -71,11 +71,6 @@ struct FirstObjectConditionalHeader {
     std::size_t bytes_consumed = 0;
 };
 
-// ARMv7 shows no further HPData reads between this type-specific tail and the
-// common AddObject call. Types 4/6/9 read one int32. Type 10 reads one int32
-// plus four floats that populate two CCPoints. All other values consume no tail
-// bytes. Once this structure parses successfully, the first object record has a
-// complete evidence-backed byte extent.
 struct FirstObjectRecord {
     FirstObjectConditionalHeader header;
     bool has_tail_i32 = false;
@@ -85,6 +80,46 @@ struct FirstObjectRecord {
     float first_tail_point_y = 0.0f;
     float second_tail_point_x = 0.0f;
     float second_tail_point_y = 0.0f;
+    std::size_t bytes_consumed = 0;
+};
+
+// Generic evidence-backed object record independent of scene/layer position.
+// start_offset/end_offset are absolute reader offsets. Field names remain
+// intentionally structural where gameplay semantics are not yet proven.
+struct ObjectRecord {
+    std::size_t start_offset = 0;
+    std::size_t end_offset = 0;
+    std::int32_t first_i32 = 0;
+    std::uint32_t string_length = 0;
+    std::string string_value;
+    float first_point_x = 0.0f;
+    float first_point_y = 0.0f;
+    float middle_float = 0.0f;
+    float second_point_x = 0.0f;
+    float second_point_y = 0.0f;
+    std::int32_t trailing_i32 = 0;
+    bool first_bool = false;
+    bool second_bool = false;
+    std::vector<std::uint32_t> extra_u32_values;
+    bool conditional_present = false;
+    std::uint32_t conditional_first_u32 = 0;
+    std::uint32_t conditional_second_u32 = 0;
+    std::uint32_t conditional_string_length = 0;
+    std::string conditional_string_value;
+    std::int32_t primary_i32 = 0;
+    std::int32_t secondary_i32 = 0;
+    bool has_tail_i32 = false;
+    std::int32_t tail_i32 = 0;
+    bool has_tail_points = false;
+    float first_tail_point_x = 0.0f;
+    float first_tail_point_y = 0.0f;
+    float second_tail_point_x = 0.0f;
+    float second_tail_point_y = 0.0f;
+};
+
+struct FirstLayerObjectSequence {
+    FirstLayerHeader layer_header;
+    std::vector<ObjectRecord> objects;
     std::size_t bytes_consumed = 0;
 };
 
@@ -99,9 +134,22 @@ bool parse_first_object_version_extension(
 bool parse_first_object_conditional_header(
         const hp_data::Reader& reader,
         FirstObjectConditionalHeader* out);
-
-// Parse the entire first object record through the final type-specific stream
-// reads and the common AddObject join point. Output is transactional.
 bool parse_first_object_record(const hp_data::Reader& reader, FirstObjectRecord* out);
+
+// Parse one complete object record at an explicit stream offset using the
+// already recovered top-level signed format gate. The returned end_offset is
+// the exact next sequential stream position after the common AddObject join.
+bool parse_object_record_at(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        std::int32_t top_level_gate,
+        ObjectRecord* out);
+
+// Parse every object in the first layer by chaining each complete record's
+// end_offset. This mirrors the original object-loop stream progression and
+// stops before post-object layer data.
+bool parse_first_layer_objects(
+        const hp_data::Reader& reader,
+        FirstLayerObjectSequence* out);
 
 }  // namespace nevergone::game_levels_scene_prefix
