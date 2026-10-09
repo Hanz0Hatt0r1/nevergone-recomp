@@ -1,7 +1,7 @@
 #include "single_select_hero_transition_state.h"
 
 #include <algorithm>
-#include <cmath>
+#include <cstdlib>
 #include <mutex>
 #include <sstream>
 
