@@ -19,12 +19,23 @@ final class SingleSelectHeroBaseComposer {
             int sourceWidth,
             int sourceHeight,
             int[] argbPixels);
+    private static native void nativeClearCareerRunes();
+    private static native boolean nativeUploadCareerRune(
+            int runeIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
 
     private SingleSelectHeroBaseComposer() {}
 
     static SingleLoginAtlasComposer.AtlasLayer composeBackground(File plistFile, File atlasFile)
             throws Exception {
         nativeClearHeroTables();
+        nativeClearCareerRunes();
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
@@ -66,6 +77,37 @@ final class SingleSelectHeroBaseComposer {
                     outputIndex++;
                 }
                 if (outputIndex != career * 2) break;
+            }
+
+            // initUI() creates five tagged CCMenuItemSprite rune controls.
+            // Each item has a normal xrfuwenNN frame and a pressed
+            // xrfuwenfaguangNN frame. Items 3..5 remain visually present but
+            // disabled in native state, matching the shipped menu.
+            int runeIndex = 0;
+            for (int tag = 1; tag <= 5; tag++) {
+                String[] frameNames = {
+                        String.format(Locale.ROOT, "xrfuwen%02d.png", tag),
+                        String.format(Locale.ROOT, "xrfuwenfaguang%02d.png", tag),
+                };
+                for (String frameName : frameNames) {
+                    SingleLoginAtlasComposer.AtlasLayer layer =
+                            extractLayer(plistFile, atlas, frameName);
+                    if (layer == null || !nativeUploadCareerRune(
+                            runeIndex,
+                            layer.width,
+                            layer.height,
+                            layer.left,
+                            layer.top,
+                            layer.sourceWidth,
+                            layer.sourceHeight,
+                            layer.pixels)) {
+                        nativeClearCareerRunes();
+                        runeIndex = -1;
+                        break;
+                    }
+                    runeIndex++;
+                }
+                if (runeIndex < 0) break;
             }
             return background;
         } finally {
