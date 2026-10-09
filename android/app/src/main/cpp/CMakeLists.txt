@@ -8,6 +8,9 @@ add_library(nevergone_recomp SHARED
     choose_hero_background_timeline.cpp
     choose_hero_black_cloud_compositor.cpp
     choose_hero_black_cloud_timeline.cpp
+    choose_hero_role_item_assets.cpp
+    choose_hero_role_item_compositor.cpp
+    choose_hero_role_item_view.cpp
     choose_hero_role_selection_state.cpp
     choose_hero_thunder_effect_compositor.cpp
     choose_hero_thunder_scheduler.cpp
@@ -57,10 +60,6 @@ add_library(nevergone_recomp SHARED
 
 target_compile_features(nevergone_recomp PRIVATE cxx_std_17)
 
-# Keep the final shared object loadable on Android devices that use 16 KiB
-# memory pages. NDK r28 already does this for arm64, but the armeabi-v7a link
-# still defaults to 4 KiB PT_LOAD alignment unless the maximum page size is
-# stated explicitly.
 if(ANDROID)
     target_link_options(nevergone_recomp PRIVATE "-Wl,-z,max-page-size=16384")
 endif()
