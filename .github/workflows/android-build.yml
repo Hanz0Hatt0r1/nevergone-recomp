@@ -127,6 +127,16 @@ jobs:
             -o /tmp/server_selection_state_smoke
           /tmp/server_selection_state_smoke
 
+      - name: Validate role selection state
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/role_selection_state_smoke.cpp \
+            android/app/src/main/cpp/role_selection_state.cpp \
+            -o /tmp/role_selection_state_smoke
+          /tmp/role_selection_state_smoke
+
       - name: Validate server selection layout
         shell: bash
         run: |
