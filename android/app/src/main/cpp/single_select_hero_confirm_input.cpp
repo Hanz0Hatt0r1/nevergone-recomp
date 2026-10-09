@@ -48,7 +48,7 @@ bool on_touch_for_surface(
         switch (action) {
             case 0:
             case 5:
-                if (g_pointer_id != -1) return false;
+                if (g_pointer_id != -1) return true;
                 if (!single_select_hero_confirm_layout::hit_test(
                         surface_width, surface_height, x, y)) {
                     return false;
@@ -59,14 +59,16 @@ bool on_touch_for_surface(
                 return true;
 
             case 2:
-                if (pointer_id != g_pointer_id || !g_armed) return false;
+                if (g_pointer_id == -1 || !g_armed) return false;
+                if (pointer_id != g_pointer_id) return true;
                 g_pressed = single_select_hero_confirm_layout::hit_test(
                     surface_width, surface_height, x, y);
                 return true;
 
             case 1:
             case 6:
-                if (pointer_id != g_pointer_id || !g_armed) return false;
+                if (g_pointer_id == -1 || !g_armed) return false;
+                if (pointer_id != g_pointer_id) return true;
                 confirm = single_select_hero_confirm_layout::hit_test(
                     surface_width, surface_height, x, y);
                 clear_locked();
