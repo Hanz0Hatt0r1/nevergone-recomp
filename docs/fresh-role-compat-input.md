@@ -1,6 +1,6 @@
 # Fresh-role compatibility input
 
-This increment adds a temporary project-owned Android input bridge for the fresh-account role-creation path. It exists to keep the contiguous P4/P5 path operable while the shipped `SingleSelectHero` touch geometry, door/carousel timing, and `CharacterNameLayer` edit-box presentation are still being reconstructed.
+This increment adds a temporary project-owned Android input bridge for the fresh-account role-creation path. It exists to keep the contiguous P4/P5 path operable while the shipped `SingleSelectHero` career/confirm touch geometry and door/carousel timing are still being reconstructed, and while the newly recovered `CharacterNameLayer` geometry has not yet been connected to a native compositor/edit-box implementation.
 
 It is **not** presented as a visual reconstruction of the original controls. No guessed original hit boxes, artwork, or animation timing are introduced.
 
@@ -64,9 +64,13 @@ Character-name mode exposes:
 - Confirm -> recovered tag `1`;
 - Cancel -> recovered tag `2`.
 
-Entering CharacterName mode invokes the recovered initial random-name action once. Failure to load imported `RandomName.csv` remains visible/retryable instead of fabricating a fallback name.
+Entering CharacterName mode invokes the recovered initial random-name action only while the native state still marks it pending. A successful randomization therefore survives Activity recreation without generating a different second name. Failure to load imported `RandomName.csv` remains visible/retryable instead of fabricating a fallback name.
 
 JNI only carries semantic values and action tags. It does not expose pending Lua requests or duplicate validation/network logic in Java.
+
+## Relationship to recovered CharacterName geometry
+
+PR #162 recovered the exact renderer-independent `CharacterNameLayer::CretaUI` layout formulas for `Redbottom.png`, `RANDOMName.png`, the 30-pixel edit box, random control, Confirm/Cancel and modal blocker. This compatibility surface does not replace or contradict that work: it simply supplies an operable Android edit/IME surface until those formulas and imported assets are wired into a native CharacterName compositor/input router.
 
 ## Tests
 
@@ -83,11 +87,11 @@ The Android native library compiles the JNI bridge, while normal main-branch ful
 
 ## Removal condition / remaining gap
 
-Remove this compatibility surface once all of the following are evidence-backed and connected in the GLES path:
+Remove this compatibility surface once all of the following are connected in the GLES path:
 
-1. original SingleSelectHero career-control geometry and touch routing;
+1. evidence-backed SingleSelectHero career/confirm hit boxes;
 2. recovered OpenTheDoor / Carousel transition timing and unlock point;
-3. original confirm-control geometry;
-4. CharacterNameLayer edit-box placement, focus/IME behavior, and its confirm/random/cancel touch targets.
+3. a native CharacterName compositor using the already recovered `character_name_layout` geometry and imported assets;
+4. native CharacterName edit-box focus/IME plumbing and confirm/random/cancel routing using that recovered layout.
 
 The semantic state and `character_name_action_executor` should remain; only this temporary Android presentation and transition shortcut should disappear.
