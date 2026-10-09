@@ -1,0 +1,27 @@
+name: ChooseHero role focus
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate recovered focus action timeline
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/choose_hero_role_focus_timeline_smoke.cpp \
+            android/app/src/main/cpp/choose_hero_role_focus_timeline.cpp \
+            -o /tmp/choose_hero_role_focus_timeline_smoke
+          /tmp/choose_hero_role_focus_timeline_smoke
