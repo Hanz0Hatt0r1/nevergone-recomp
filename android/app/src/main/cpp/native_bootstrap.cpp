@@ -9,6 +9,7 @@
 #include "app_delegate_state.h"
 #include "choose_hero_background_compositor.h"
 #include "choose_hero_black_cloud_compositor.h"
+#include "choose_hero_role_focus_compositor.h"
 #include "choose_hero_role_item_compositor.h"
 #include "choose_hero_role_selection_state.h"
 #include "choose_hero_thunder_effect_compositor.h"
@@ -106,12 +107,13 @@ std::string bootstrap_info() {
     out << nevergone::choose_hero_black_cloud_compositor::status_report();
     out << nevergone::choose_hero_role_selection_state::status_report();
     out << nevergone::choose_hero_role_item_compositor::status_report();
+    out << nevergone::choose_hero_role_focus_compositor::status_report();
     out << nevergone::login_lua_session::status_report();
     out << nevergone::offline_startup_flow::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
-    out << "\nNext milestone: recover ChooseHero focesItem/name-level presentation and selected-role scene entry.";
+    out << "\nNext milestone: recover ChooseHero save-derived name/level presentation and OnCreateback scene-entry semantics.";
     return out.str();
 }
 

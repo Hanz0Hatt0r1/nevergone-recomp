@@ -66,6 +66,10 @@ final class ChooseHeroRoleAssetLoader {
                 return false;
             }
         }
+
+        // The focus streak is optional and may only exist after OBB/update
+        // import. It must not gate the baseline APK-backed role tiles.
+        ChooseHeroRoleFocusAssetLoader.reloadFromFilesDir(filesDir);
         return nativeReady();
     }
 }
