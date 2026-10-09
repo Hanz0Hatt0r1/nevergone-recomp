@@ -151,6 +151,13 @@ Java_org_nevergone_recomp_FreshRoleCompatOverlay_nativeRoleName(JNIEnv* env, jcl
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_FreshRoleCompatOverlay_nativeRandomizePending(JNIEnv*, jclass) {
+    return nevergone::fresh_role_compat_state::snapshot().randomize_pending
+        ? JNI_TRUE
+        : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_FreshRoleCompatOverlay_nativeSetRoleName(
         JNIEnv* env, jclass, jstring role_name) {
     return nevergone::fresh_role_compat_state::set_role_name(
