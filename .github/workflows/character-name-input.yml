@@ -1,0 +1,35 @@
+name: CharacterName input
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/character_name_input.cpp'
+      - 'android/app/src/main/cpp/character_name_input.h'
+      - 'android/app/src/main/cpp/character_name_layout.cpp'
+      - 'android/app/src/main/cpp/character_name_layout.h'
+      - 'android/app/src/main/cpp/character_name_assets.cpp'
+      - 'android/app/src/main/cpp/character_name_assets.h'
+      - 'tools/character_name_input_smoke.cpp'
+      - '.github/workflows/character-name-input.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/character_name_input.cpp'
+      - 'android/app/src/main/cpp/character_name_input.h'
+      - 'tools/character_name_input_smoke.cpp'
+      - '.github/workflows/character-name-input.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run CharacterName input smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            tools/character_name_input_smoke.cpp \
+            android/app/src/main/cpp/character_name_input.cpp \
+            android/app/src/main/cpp/character_name_assets.cpp \
+            android/app/src/main/cpp/character_name_layout.cpp \
+            -o /tmp/character_name_input_smoke
+          /tmp/character_name_input_smoke

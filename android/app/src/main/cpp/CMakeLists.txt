@@ -8,6 +8,8 @@ add_library(nevergone_recomp SHARED
     character_name_assets.cpp
     character_name_assets_jni.cpp
     character_name_compositor.cpp
+    character_name_input.cpp
+    character_name_input_surface.cpp
     character_name_layout.cpp
     character_name_state.cpp
     character_random_name.cpp
