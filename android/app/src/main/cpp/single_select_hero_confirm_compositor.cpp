@@ -298,7 +298,7 @@ Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeUploadConfirmFrame(
     const jsize length = env->GetArrayLength(pixels);
     const std::size_t expected =
         static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
-    if (static_cast<std::size_t>(length) != expected || expected > kMaxPixelsPerFrame) {
+    if (static_cast<std::size_t>(length) != expected || expected > 16777216u) {
         return JNI_FALSE;
     }
 
