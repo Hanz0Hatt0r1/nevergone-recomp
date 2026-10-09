@@ -83,6 +83,16 @@ jobs:
             -o /tmp/character_name_state_smoke
           /tmp/character_name_state_smoke
 
+          g++ $CXXFLAGS tools/character_random_name_smoke.cpp \
+            android/app/src/main/cpp/character_random_name.cpp \
+            android/app/src/main/cpp/character_name_state.cpp \
+            android/app/src/main/cpp/role_creation_validation.cpp \
+            android/app/src/main/cpp/role_selection_state.cpp \
+            android/app/src/main/cpp/string_validation.cpp \
+            android/app/src/main/cpp/startup_contract.cpp \
+            -o /tmp/character_random_name_smoke
+          /tmp/character_random_name_smoke
+
           g++ $CXXFLAGS tools/server_selection_layout_smoke.cpp \
             android/app/src/main/cpp/server_selection_layout.cpp \
             -o /tmp/server_selection_layout_smoke
