@@ -12,6 +12,7 @@
 
 #include "client_callback_bridge.h"
 #include "game_clock.h"
+#include "management_role_selection_compositor.h"
 #include "splash_sequence_state.h"
 #include "tap_to_start_state.h"
 
@@ -331,6 +332,14 @@ void sync_tap_to_start() {
         nevergone::splash_sequence_state::complete(tick));
 }
 
+void record_touch(int action, int pointer_id, float x, float y) {
+    std::lock_guard<std::mutex> lock(g_touch_mutex);
+    g_last_touch_action = action;
+    g_last_touch_pointer = pointer_id;
+    g_last_touch_x = x;
+    g_last_touch_y = y;
+}
+
 void on_surface_created() {
     g_frame_count.store(0, std::memory_order_relaxed);
     g_surface_generation.fetch_add(1, std::memory_order_relaxed);
@@ -390,11 +399,18 @@ void on_draw_frame() {
     } else {
         draw_fallback_phase();
     }
+    nevergone::management_role_selection_compositor::draw();
     g_frame_count.fetch_add(1, std::memory_order_relaxed);
 }
 
 void on_touch(int action, int pointer_id, float x, float y) {
     g_touch_count.fetch_add(1, std::memory_order_relaxed);
+
+    if (nevergone::management_role_selection_compositor::on_touch(
+            action, pointer_id, x, y)) {
+        record_touch(action, pointer_id, x, y);
+        return;
+    }
 
     // Android MotionEvent.ACTION_DOWN == 0. The recovered Cocos listener calls
     // TapToStart::OnTapScreen from ccTouchBegan, before any touch-end callback.
@@ -403,11 +419,7 @@ void on_touch(int action, int pointer_id, float x, float y) {
         (void)nevergone::tap_to_start_state::touch_began();
     }
 
-    std::lock_guard<std::mutex> lock(g_touch_mutex);
-    g_last_touch_action = action;
-    g_last_touch_pointer = pointer_id;
-    g_last_touch_x = x;
-    g_last_touch_y = y;
+    record_touch(action, pointer_id, x, y);
 }
 
 }  // namespace
