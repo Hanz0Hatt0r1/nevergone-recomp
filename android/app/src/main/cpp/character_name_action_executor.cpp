@@ -3,8 +3,6 @@
 #include <utility>
 
 #include "character_name_state.h"
-#include "character_random_name.h"
-#include "login_lua_session.h"
 #include "role_creation_validation.h"
 #include "role_selection_state.h"
 
@@ -13,14 +11,6 @@ namespace {
 
 void set_error(std::string* error, std::string value) {
     if (error != nullptr) *error = std::move(value);
-}
-
-bool production_create_dispatch() {
-    return login_lua_session::dispatch_pending_role_create_request();
-}
-
-bool production_randomize(std::string* error) {
-    return character_random_name::fulfill_pending(error);
 }
 
 }  // namespace
@@ -94,14 +84,6 @@ Outcome dispatch_tag_with_callbacks(
 
     set_error(error, "CharacterNameLayer action has no executor");
     return Outcome::kInvalidTag;
-}
-
-Outcome dispatch_tag(int tag, std::string* error) {
-    return dispatch_tag_with_callbacks(
-        tag,
-        &production_create_dispatch,
-        &production_randomize,
-        error);
 }
 
 const char* outcome_name(Outcome outcome) {
