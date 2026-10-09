@@ -103,6 +103,20 @@ std::uint64_t generation() {
     return g_generation;
 }
 
+bool dimensions(int index, int* width, int* height) {
+    if (width == nullptr || height == nullptr || index < 0 || index >= kAssetCount) return false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const Asset& asset = g_assets[static_cast<std::size_t>(index)];
+    if (!valid(asset)) {
+        *width = 0;
+        *height = 0;
+        return false;
+    }
+    *width = asset.width;
+    *height = asset.height;
+    return true;
+}
+
 bool copy(int index, Asset* output) {
     if (output == nullptr || index < 0 || index >= kAssetCount) return false;
     std::lock_guard<std::mutex> lock(g_mutex);
