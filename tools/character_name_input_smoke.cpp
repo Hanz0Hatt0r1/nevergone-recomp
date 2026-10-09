@@ -63,18 +63,22 @@ int main() {
     assert(input::pressed_tag() == 0);
     assert(g_count == 1 && g_tags[0] == 1);
 
-    // Cancel at (135, 52).
+    // Cancel at (135, 52). Its held tag drives the same recovered fixed-button
+    // pressed frame as Confirm, while preserving the distinct callback tag.
     assert(input::on_touch_for_surface(0, 8, 135.0f, 588.0f, 1136, 640, true, &record_tag));
+    assert(input::pressed_tag() == 2);
     assert(input::on_touch_for_surface(1, 8, 135.0f, 588.0f, 1136, 640, true, &record_tag));
+    assert(input::pressed_tag() == 0);
     assert(g_count == 2 && g_tags[1] == 2);
 
     // Random center: name_y = 367, x = 758 with the staged dimensions.
     assert(input::on_touch_for_surface(0, 9, 758.0f, 273.0f, 1136, 640, true, &record_tag));
     assert(input::pressed_tag() == 3);
     assert(input::on_touch_for_surface(1, 9, 758.0f, 273.0f, 1136, 640, true, &record_tag));
+    assert(input::pressed_tag() == 0);
     assert(g_count == 3 && g_tags[2] == 3);
 
-    // Moving outside an armed control cancels activation.
+    // Moving outside an armed control cancels activation and presentation.
     assert(input::on_touch_for_surface(0, 10, 1001.0f, 588.0f, 1136, 640, true, &record_tag));
     assert(input::on_touch_for_surface(2, 10, 568.0f, 320.0f, 1136, 640, true, &record_tag));
     assert(input::pressed_tag() == 0);
@@ -90,7 +94,9 @@ int main() {
 
     // Aspect-fit mapping remains exact at 2x.
     assert(input::on_touch_for_surface(0, 13, 2002.0f, 1176.0f, 2272, 1280, true, &record_tag));
+    assert(input::pressed_tag() == 1);
     assert(input::on_touch_for_surface(1, 13, 2002.0f, 1176.0f, 2272, 1280, true, &record_tag));
+    assert(input::pressed_tag() == 0);
     assert(g_count == 4 && g_tags[3] == 1);
 
     input::reset();

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "character_name_assets.h"
+#include "character_name_input.h"
 #include "character_name_layout.h"
 #include "character_name_state.h"
 
@@ -312,6 +313,14 @@ void draw(int surface_width, int surface_height) {
         static_cast<float>(fixed_button.height));
     if (!layout.valid) return;
 
+    const int pressed_tag = character_name_input::pressed_tag();
+    const int normal_button_slot =
+        static_cast<int>(character_name_assets::ImageSlot::kFixedButtonNormal);
+    const int pressed_button_slot =
+        static_cast<int>(character_name_assets::ImageSlot::kFixedButtonPressed);
+    const int confirm_button_slot = pressed_tag == 1 ? pressed_button_slot : normal_button_slot;
+    const int cancel_button_slot = pressed_tag == 2 ? pressed_button_slot : normal_button_slot;
+
     const SurfaceTransform transform = surface_transform(surface_width, surface_height);
     draw_asset(
         static_cast<int>(character_name_assets::ImageSlot::kBackground),
@@ -332,7 +341,7 @@ void draw(int surface_width, int surface_height) {
         layout.random_button,
         transform);
     draw_asset(
-        static_cast<int>(character_name_assets::ImageSlot::kFixedButtonNormal),
+        confirm_button_slot,
         layout.confirm_button,
         transform);
     draw_label(
@@ -342,7 +351,7 @@ void draw(int surface_width, int surface_height) {
         true,
         transform);
     draw_asset(
-        static_cast<int>(character_name_assets::ImageSlot::kFixedButtonNormal),
+        cancel_button_slot,
         layout.cancel_button,
         transform);
     draw_label(

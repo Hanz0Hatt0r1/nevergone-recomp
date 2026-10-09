@@ -7,43 +7,32 @@ import android.os.Looper;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
-import android.view.Gravity;
-import android.view.View;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 
 /**
- * Temporary project-owned input surface for the remaining CharacterName path.
+ * Temporary Android IME bridge for the remaining CharacterName text-entry path.
  *
- * SingleSelectHero career selection and Confirm are now owned by the native
- * reconstructed surface. This compatibility view stays hidden in career mode
- * and only exposes name/IME actions until CharacterName presentation is native.
+ * Career selection, SingleSelectHero Confirm, CharacterName Random/Confirm/Cancel,
+ * and modal touch ownership are now provided by the reconstructed native surface.
+ * This view only mirrors the active role name into an Android EditText so the
+ * platform IME can still edit the recovered native CharacterName state.
  */
 final class FreshRoleCompatOverlay extends LinearLayout {
     private static final int MODE_HIDDEN = 0;
     private static final int MODE_CAREER = 1;
     private static final int MODE_NAME = 2;
-    private static final int CAREER_COUNT = 5;
     private static final long POLL_MS = 100L;
 
     private static native int nativeMode();
-    private static native long nativeSelectedCareer();
-    private static native boolean nativeSelectCareer(long career);
-    private static native boolean nativeConfirmCareer();
     private static native String nativeRoleName();
     private static native boolean nativeRandomizePending();
     private static native boolean nativeSetRoleName(String roleName);
     private static native String nativeDispatchNameAction(int tag);
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final LinearLayout careerPanel;
-    private final LinearLayout namePanel;
-    private final Button[] careerButtons = new Button[CAREER_COUNT];
     private final EditText roleName;
-    private final TextView status;
     private boolean polling;
     private boolean syncingName;
     private int previousMode = MODE_HIDDEN;
@@ -64,56 +53,6 @@ final class FreshRoleCompatOverlay extends LinearLayout {
         setBackgroundColor(0xcc111111);
         setVisibility(GONE);
 
-        TextView heading = new TextView(context);
-        heading.setText("Compatibility input");
-        heading.setTextColor(Color.WHITE);
-        heading.setTextSize(13.0f);
-        addView(heading, matchWrap());
-
-        // Assign the final field before any listener captures it. The TextView
-        // is still added at the original bottom-of-overlay position below.
-        status = new TextView(context);
-        status.setTextColor(0xffdddddd);
-        status.setTextSize(12.0f);
-        status.setGravity(Gravity.START);
-
-        // Kept temporarily so old diagnostic JNI controls remain available to
-        // developers, but this panel is no longer shown in MODE_CAREER.
-        careerPanel = new LinearLayout(context);
-        careerPanel.setOrientation(VERTICAL);
-        addView(careerPanel, matchWrap());
-
-        LinearLayout careers = new LinearLayout(context);
-        careers.setOrientation(HORIZONTAL);
-        careerPanel.addView(careers, matchWrap());
-
-        for (int index = 0; index < CAREER_COUNT; ++index) {
-            final long career = index + 1L;
-            Button button = makeButton(context, Long.toString(career));
-            button.setOnClickListener(view -> {
-                boolean ok = nativeSelectCareer(career);
-                status.setText(ok
-                        ? "Career " + career + " selected"
-                        : "Career " + career + " selection blocked");
-                refreshCareerButtons();
-            });
-            careerButtons[index] = button;
-            careers.addView(button, weightedWrap());
-        }
-
-        Button confirmCareer = makeButton(context, "Confirm career");
-        confirmCareer.setOnClickListener(view -> {
-            boolean ok = nativeConfirmCareer();
-            status.setText(ok ? "Opening character name" : "Career cannot be confirmed");
-            refreshFromNative();
-        });
-        careerPanel.addView(confirmCareer, matchWrap());
-
-        namePanel = new LinearLayout(context);
-        namePanel.setOrientation(VERTICAL);
-        namePanel.setVisibility(GONE);
-        addView(namePanel, matchWrap());
-
         roleName = new EditText(context);
         roleName.setSingleLine(true);
         roleName.setHint("Character name (max 18 UTF-8 bytes)");
@@ -131,36 +70,7 @@ final class FreshRoleCompatOverlay extends LinearLayout {
                 }
             }
         });
-        namePanel.addView(roleName, matchWrap());
-
-        LinearLayout nameActions = new LinearLayout(context);
-        nameActions.setOrientation(HORIZONTAL);
-        namePanel.addView(nameActions, matchWrap());
-
-        Button random = makeButton(context, "Random");
-        random.setOnClickListener(view -> {
-            status.setText(nativeDispatchNameAction(3));
-            syncRoleName();
-        });
-        nameActions.addView(random, weightedWrap());
-
-        Button submit = makeButton(context, "Confirm");
-        submit.setOnClickListener(view -> {
-            nativeSetRoleName(roleName.getText().toString());
-            status.setText(nativeDispatchNameAction(1));
-            syncRoleName();
-        });
-        nameActions.addView(submit, weightedWrap());
-
-        Button cancel = makeButton(context, "Cancel");
-        cancel.setOnClickListener(view -> {
-            status.setText(nativeDispatchNameAction(2));
-            hideKeyboard();
-            refreshFromNative();
-        });
-        nameActions.addView(cancel, weightedWrap());
-
-        addView(status, matchWrap());
+        addView(roleName, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
     }
 
     @Override
@@ -180,30 +90,20 @@ final class FreshRoleCompatOverlay extends LinearLayout {
 
     private void refreshFromNative() {
         int mode = nativeMode();
-
-        // Native SingleSelectHero now owns both career runes and Confirm.
-        // Keep polling while hidden so the compatibility name editor appears
-        // immediately when native Confirm opens CharacterNameLayer state.
         if (mode == MODE_HIDDEN || mode == MODE_CAREER) {
             if (previousMode == MODE_NAME) hideKeyboard();
             previousMode = mode;
-            careerPanel.setVisibility(GONE);
-            namePanel.setVisibility(GONE);
             setVisibility(GONE);
             return;
         }
 
-        setVisibility(VISIBLE);
-        careerPanel.setVisibility(GONE);
-        namePanel.setVisibility(mode == MODE_NAME ? VISIBLE : GONE);
-
+        setVisibility(mode == MODE_NAME ? VISIBLE : GONE);
         if (mode == MODE_NAME) {
             if (previousMode != MODE_NAME && nativeRandomizePending()) {
                 // CharacterNameLayer::CretaUI immediately triggers the shipped
-                // random-name callback. Execute it only while the native state
-                // still marks that initial request pending, so Activity
-                // recreation does not generate a second name after success.
-                status.setText(nativeDispatchNameAction(3));
+                // random-name callback. Keep that one-time semantic side effect
+                // here until the edit-box itself is reconstructed natively.
+                nativeDispatchNameAction(3);
             }
             syncRoleName();
             if (previousMode != MODE_NAME) {
@@ -212,15 +112,6 @@ final class FreshRoleCompatOverlay extends LinearLayout {
             }
         }
         previousMode = mode;
-    }
-
-    private void refreshCareerButtons() {
-        long selected = nativeSelectedCareer();
-        for (int index = 0; index < CAREER_COUNT; ++index) {
-            long career = index + 1L;
-            careerButtons[index].setText(
-                    selected == career ? career + " ✓" : Long.toString(career));
-        }
     }
 
     private void syncRoleName() {
@@ -235,7 +126,7 @@ final class FreshRoleCompatOverlay extends LinearLayout {
     }
 
     private void showKeyboard() {
-        if (getVisibility() != VISIBLE || roleName.getVisibility() != VISIBLE) return;
+        if (getVisibility() != VISIBLE) return;
         InputMethodManager manager =
                 (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         if (manager != null) manager.showSoftInput(roleName, InputMethodManager.SHOW_IMPLICIT);
@@ -246,19 +137,5 @@ final class FreshRoleCompatOverlay extends LinearLayout {
                 (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         if (manager != null) manager.hideSoftInputFromWindow(getWindowToken(), 0);
         roleName.clearFocus();
-    }
-
-    private static Button makeButton(Context context, String text) {
-        Button button = new Button(context);
-        button.setText(text);
-        return button;
-    }
-
-    private static LayoutParams matchWrap() {
-        return new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-    }
-
-    private static LayoutParams weightedWrap() {
-        return new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.0f);
     }
 }
