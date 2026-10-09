@@ -21,7 +21,7 @@ std::uint64_t g_blocked_confirm_count = 0;
 std::uint64_t g_character_name_open_count = 0;
 
 std::int64_t normalize_existing_career(std::int64_t career) {
-    return career == kCareerOne || career == kCareerTwo ? career : 0;
+    return is_valid_career(career) ? career : 0;
 }
 
 Snapshot snapshot_locked() {
@@ -74,7 +74,7 @@ void reset() {
 }
 
 bool is_valid_career(std::int64_t career) {
-    return career == kCareerOne || career == kCareerTwo;
+    return career >= kFirstCareer && career <= kLastCareer;
 }
 
 void set_input_enabled(bool enabled) {
