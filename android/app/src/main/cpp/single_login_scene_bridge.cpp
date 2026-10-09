@@ -6,6 +6,7 @@
 #include "game_clock.h"
 #include "initial_ui_transition.h"
 #include "offline_startup_flow.h"
+#include "single_select_hero_state.h"
 #include "splash_sequence_state.h"
 #include "standalone_hero_save_probe.h"
 #include "startup_contract.h"
@@ -50,6 +51,7 @@ bool management_login_initialized() {
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeResetRecoveredSceneSequence(JNIEnv*, jclass) {
     nevergone::offline_startup_flow::reset();
+    nevergone::single_select_hero_state::reset();
     nevergone::tap_to_start_state::reset();
     nevergone::splash_sequence_state::reset();
     const std::uint64_t generation = nevergone::splash_sequence_state::generation();
@@ -86,8 +88,14 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeIsSingleSelectHeroActive(JNIEnv*
     advance_offline_startup_flow();
     update_initial_ui_transition();
     if (!management_login_initialized()) return JNI_FALSE;
-    return nevergone::offline_startup_flow::snapshot().route ==
-            nevergone::offline_startup_flow::Route::kOpeningDialogue
-        ? JNI_TRUE
-        : JNI_FALSE;
+
+    const bool active = nevergone::offline_startup_flow::snapshot().route ==
+        nevergone::offline_startup_flow::Route::kOpeningDialogue;
+    if (active && !nevergone::single_select_hero_state::snapshot().active) {
+        // OpeningDialogue is the no-standalone-hero route, so there is no
+        // existing career to disable. This mirrors SingleSelectHero::initUI()
+        // selecting career 1 and beginning its initial locked Carousel.
+        nevergone::single_select_hero_state::begin(0);
+    }
+    return active ? JNI_TRUE : JNI_FALSE;
 }
