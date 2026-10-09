@@ -12,8 +12,8 @@ Boundary classify(const game_levels_asset_probe::Snapshot& probe) {
     if (!probe.configured) return Boundary::kFilesDirUnconfigured;
     if (!probe.present) return Boundary::kAssetMissing;
     if (!probe.regular_file || !probe.within_size_limit || !probe.loaded) return Boundary::kAssetRejected;
-    if (!probe.first_object_core_readable) return Boundary::kVerifiedPrefixIncomplete;
-    return Boundary::kFirstObjectCoreVerified;
+    if (!probe.first_object_version_extension_readable) return Boundary::kVerifiedPrefixIncomplete;
+    return Boundary::kFirstObjectVersionExtensionVerified;
 }
 }  // namespace
 
@@ -33,8 +33,8 @@ void on_enter_game_with_probe(const game_levels_asset_probe::Snapshot& probe) {
     g_state.boundary = classify(probe);
     g_state.file_size = probe.file_size;
     g_state.reader_size = probe.reader_size;
-    g_state.verified_bytes = probe.first_object_core_readable
-        ? probe.first_object_core_bytes_consumed
+    g_state.verified_bytes = probe.first_object_version_extension_readable
+        ? probe.first_object_version_extension_bytes_consumed
         : 0;
 }
 
@@ -50,7 +50,8 @@ const char* boundary_name(Boundary boundary) {
         case Boundary::kAssetMissing: return "asset-missing";
         case Boundary::kAssetRejected: return "asset-rejected";
         case Boundary::kVerifiedPrefixIncomplete: return "verified-prefix-incomplete";
-        case Boundary::kFirstObjectCoreVerified: return "first-object-core-verified";
+        case Boundary::kFirstObjectVersionExtensionVerified:
+            return "first-object-version-extension-verified";
     }
     return "unknown";
 }

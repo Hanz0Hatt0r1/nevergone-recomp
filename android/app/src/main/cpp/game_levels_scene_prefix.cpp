@@ -113,4 +113,38 @@ bool parse_first_object_core(const hp_data::Reader& reader, FirstObjectCore* out
     return true;
 }
 
+bool parse_first_object_version_extension(
+        const hp_data::Reader& reader,
+        FirstObjectVersionExtension* out) {
+    if (out == nullptr) return false;
+
+    FirstObjectCore core;
+    if (!parse_first_object_core(reader, &core)) return false;
+
+    hp_data::Cursor cursor(reader, core.bytes_consumed);
+    FirstObjectVersionExtension parsed;
+    parsed.core = std::move(core);
+
+    const std::int32_t top_level_gate =
+        parsed.core.prefix.layer_header.scene_header.prefix.first_i32;
+    if (top_level_gate > 2) {
+        std::uint32_t count = 0;
+        if (!cursor.read_u32_le(&count)) return false;
+
+        const std::size_t value_count = static_cast<std::size_t>(count);
+        if (value_count > cursor.remaining() / sizeof(std::uint32_t)) return false;
+
+        parsed.extra_u32_values.reserve(value_count);
+        for (std::size_t i = 0; i < value_count; ++i) {
+            std::uint32_t value = 0;
+            if (!cursor.read_u32_le(&value)) return false;
+            parsed.extra_u32_values.push_back(value);
+        }
+    }
+
+    parsed.bytes_consumed = cursor.offset();
+    *out = std::move(parsed);
+    return true;
+}
+
 }  // namespace nevergone::game_levels_scene_prefix

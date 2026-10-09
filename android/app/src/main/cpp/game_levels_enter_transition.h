@@ -14,7 +14,7 @@ enum class Boundary {
     kAssetMissing,
     kAssetRejected,
     kVerifiedPrefixIncomplete,
-    kFirstObjectCoreVerified,
+    kFirstObjectVersionExtensionVerified,
 };
 
 struct Snapshot {
