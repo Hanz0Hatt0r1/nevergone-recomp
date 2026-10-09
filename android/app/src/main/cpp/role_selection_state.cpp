@@ -12,6 +12,7 @@ std::uint64_t g_payload_generation = 0;
 int g_selected_index = -1;
 std::uint64_t g_selection_changes = 0;
 std::uint64_t g_confirm_count = 0;
+std::uint64_t g_direct_enter_request_count = 0;
 std::uint64_t g_create_request_count = 0;
 EnterRoleRequest g_pending_enter;
 CreateRoleRequest g_pending_create;
@@ -45,6 +46,7 @@ Snapshot snapshot_locked() {
     result.selected_index = g_selected_index;
     result.selection_changes = g_selection_changes;
     result.confirm_count = g_confirm_count;
+    result.direct_enter_request_count = g_direct_enter_request_count;
     result.create_request_count = g_create_request_count;
     result.enter_request_pending = g_pending_enter.valid;
     result.create_request_pending = g_pending_create.valid;
@@ -67,6 +69,7 @@ void reset() {
     g_selected_index = -1;
     g_selection_changes = 0;
     g_confirm_count = 0;
+    g_direct_enter_request_count = 0;
     g_create_request_count = 0;
     clear_pending_locked();
 }
@@ -111,6 +114,18 @@ EnterRoleRequest confirm_selection() {
     g_pending_create = CreateRoleRequest{};
     ++g_confirm_count;
     return request;
+}
+
+bool request_enter_role(const login_callback_payload::RoleEntry& role) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (role.character_id == 0) return false;
+    g_pending_enter.valid = true;
+    g_pending_enter.character_id = role.character_id;
+    g_pending_enter.career = role.career;
+    g_pending_enter.character_name = role.character_name;
+    g_pending_create = CreateRoleRequest{};
+    ++g_direct_enter_request_count;
+    return true;
 }
 
 EnterRoleRequest peek_pending_enter_request() {
@@ -169,6 +184,7 @@ std::string status_report() {
     out << "\n";
     out << "role selection changes: " << state.selection_changes
         << " confirms=" << state.confirm_count
+        << " direct-enters=" << state.direct_enter_request_count
         << " creates=" << state.create_request_count
         << " enter-pending=" << (state.enter_request_pending ? "yes" : "no")
         << " create-pending=" << (state.create_request_pending ? "yes" : "no")
