@@ -12,6 +12,8 @@ constexpr std::size_t kMinimumObjectRecordBytes =
 constexpr std::size_t kMinimumLayerRecordBytes =
         sizeof(float) + sizeof(std::uint32_t) +
         sizeof(std::uint32_t) + sizeof(std::uint32_t);
+constexpr std::size_t kMinimumSceneRecordBytes =
+        sizeof(std::uint32_t) + 1u + sizeof(float) * 2u + sizeof(std::uint32_t);
 
 bool read_point_list(
         hp_data::Cursor* cursor,
@@ -151,6 +153,81 @@ bool parse_first_scene_layers(const hp_data::Reader& reader, FirstSceneLayerSequ
         }
         offset = layer.end_offset;
         parsed.layers.push_back(std::move(layer));
+    }
+
+    parsed.bytes_consumed = offset;
+    *out = std::move(parsed);
+    return true;
+}
+
+bool parse_scene_record_at(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        std::int32_t top_level_gate,
+        SceneRecord* out) {
+    if (out == nullptr || start_offset > reader.size()) return false;
+
+    hp_data::Cursor cursor(reader, start_offset);
+    SceneRecord parsed;
+    parsed.start_offset = start_offset;
+    if (!cursor.read_u32_le(&parsed.string_length) || !cursor.skip(1)) return false;
+
+    const std::size_t string_length = static_cast<std::size_t>(parsed.string_length);
+    constexpr std::size_t kTrailingHeaderBytes = sizeof(float) * 2u + sizeof(std::uint32_t);
+    if (string_length > cursor.remaining() ||
+            kTrailingHeaderBytes > cursor.remaining() - string_length) {
+        return false;
+    }
+    if (!cursor.read_fixed_string(string_length, &parsed.string_value) ||
+            !cursor.read_f32_le(&parsed.first_point_x) ||
+            !cursor.read_f32_le(&parsed.first_point_y) ||
+            !cursor.read_u32_le(&parsed.layer_count)) {
+        return false;
+    }
+
+    const std::size_t layer_count = static_cast<std::size_t>(parsed.layer_count);
+    if (layer_count > cursor.remaining() / kMinimumLayerRecordBytes) return false;
+
+    parsed.layers.reserve(layer_count);
+    std::size_t offset = cursor.offset();
+    for (std::size_t i = 0; i < layer_count; ++i) {
+        LayerRecord layer;
+        if (!parse_layer_record_at(reader, offset, top_level_gate, &layer) ||
+                layer.end_offset <= offset) {
+            return false;
+        }
+        offset = layer.end_offset;
+        parsed.layers.push_back(std::move(layer));
+    }
+
+    parsed.end_offset = offset;
+    if (parsed.end_offset <= start_offset) return false;
+    *out = std::move(parsed);
+    return true;
+}
+
+bool parse_scene_section(const hp_data::Reader& reader, SceneSection* out) {
+    if (out == nullptr) return false;
+
+    game_levels_scene_prefix::Prefix prefix;
+    if (!game_levels_scene_prefix::parse(reader, &prefix)) return false;
+
+    hp_data::Cursor cursor(reader, prefix.bytes_consumed);
+    const std::size_t scene_count = static_cast<std::size_t>(prefix.scene_count);
+    if (scene_count > cursor.remaining() / kMinimumSceneRecordBytes) return false;
+
+    SceneSection parsed;
+    parsed.prefix = prefix;
+    parsed.scenes.reserve(scene_count);
+    std::size_t offset = prefix.bytes_consumed;
+    for (std::size_t i = 0; i < scene_count; ++i) {
+        SceneRecord scene;
+        if (!parse_scene_record_at(reader, offset, prefix.first_i32, &scene) ||
+                scene.end_offset <= offset) {
+            return false;
+        }
+        offset = scene.end_offset;
+        parsed.scenes.push_back(std::move(scene));
     }
 
     parsed.bytes_consumed = offset;
