@@ -55,6 +55,17 @@ int main() {
     assert(hit_test_surface(4, 1136, 640, 520.0f, 320.0f) == -1);
     assert(hit_test_surface(4, 1136, 640, 546.0f, 320.0f) == 1);
 
+    // Original tag 10001 is the border1 selector control at visibleWidth/2,
+    // y=200. Supplied border1 decodes to 405x46.
+    const auto selector = selector_rect(405.0f, 46.0f);
+    assert(selector.original_tag == 10001);
+    assert(near(selector.left, 365.5f));
+    assert(near(selector.bottom, 177.0f));
+    assert(near(selector.width, 405.0f));
+    assert(near(selector.height, 46.0f));
+    assert(selector_contains(568.0f, 200.0f, 405.0f, 46.0f));
+    assert(!selector_contains(365.4f, 200.0f, 405.0f, 46.0f));
+
     const auto fallbackConfirm = confirm_rect();
     assert(fallbackConfirm.original_tag == 10002);
     assert(near(fallbackConfirm.left + fallbackConfirm.width * 0.5f, 568.0f));
