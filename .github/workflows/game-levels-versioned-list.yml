@@ -1,0 +1,32 @@
+name: GameLevels versioned object list
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.h'
+      - 'android/app/src/main/cpp/hp_data_reader.cpp'
+      - 'android/app/src/main/cpp/hp_data_reader.h'
+      - 'tools/game_levels_versioned_list_smoke.cpp'
+      - '.github/workflows/game-levels-versioned-list.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.h'
+      - 'tools/game_levels_versioned_list_smoke.cpp'
+      - '.github/workflows/game-levels-versioned-list.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run versioned list smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -Iandroid/app/src/main/cpp \
+            tools/game_levels_versioned_list_smoke.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/game_levels_versioned_list_smoke
+          /tmp/game_levels_versioned_list_smoke
