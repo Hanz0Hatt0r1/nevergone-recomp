@@ -113,6 +113,11 @@ jobs:
             -o /tmp/character_name_layout_smoke
           /tmp/character_name_layout_smoke
 
+          g++ $CXXFLAGS tools/character_name_assets_smoke.cpp \
+            android/app/src/main/cpp/character_name_assets.cpp \
+            -o /tmp/character_name_assets_smoke
+          /tmp/character_name_assets_smoke
+
           g++ $CXXFLAGS tools/single_select_hero_state_smoke.cpp \
             android/app/src/main/cpp/single_select_hero_state.cpp \
             android/app/src/main/cpp/character_name_state.cpp \
