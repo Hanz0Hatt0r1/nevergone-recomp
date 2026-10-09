@@ -9,7 +9,11 @@ namespace nevergone::server_selection_assets {
 enum AssetIndex : int {
     kBorder1 = 0,
     kBorder2 = 1,
-    kAssetCount = 2,
+    kButtonNormal = 2,
+    kButtonPressed = 3,
+    kButtonDisabled = 4,
+    kStartLabel = 5,
+    kAssetCount = 6,
 };
 
 struct Asset {
@@ -28,6 +32,7 @@ bool upload(
 
 bool ready(int index);
 bool row_ready();
+bool confirm_ready();
 std::uint64_t generation();
 bool dimensions(int index, int* width, int* height);
 bool copy(int index, Asset* output);
