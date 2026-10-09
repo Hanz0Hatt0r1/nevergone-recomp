@@ -1,0 +1,36 @@
+name: SingleSelectHero career runes
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/single_select_hero_compositor.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_rune_layout.h'
+      - 'android/app/src/main/java/org/nevergone/recomp/SingleSelectHeroBaseComposer.java'
+      - 'tools/single_select_hero_rune_layout_smoke.cpp'
+      - '.github/workflows/single-select-hero-runes.yml'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'android/app/src/main/cpp/single_select_hero_compositor.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_rune_layout.h'
+      - 'android/app/src/main/java/org/nevergone/recomp/SingleSelectHeroBaseComposer.java'
+      - 'tools/single_select_hero_rune_layout_smoke.cpp'
+      - '.github/workflows/single-select-hero-runes.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate career-rune layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -I android/app/src/main/cpp \
+            tools/single_select_hero_rune_layout_smoke.cpp \
+            -o /tmp/single_select_hero_rune_layout_smoke
+          /tmp/single_select_hero_rune_layout_smoke
