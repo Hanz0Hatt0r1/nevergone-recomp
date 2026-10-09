@@ -70,6 +70,13 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
         if (result.first_object_prefix_readable) {
             result.first_object_prefix_bytes_consumed = object_prefix.bytes_consumed;
         }
+
+        game_levels_scene_prefix::FirstObjectHeader object_header;
+        result.first_object_header_readable =
+                game_levels_scene_prefix::parse_first_object_header(reader, &object_header);
+        if (result.first_object_header_readable) {
+            result.first_object_header_bytes_consumed = object_header.bytes_consumed;
+        }
     }
     return result;
 }
@@ -107,9 +114,11 @@ std::string status_report(const std::string& files_dir) {
         out << "loaded (" << state.reader_size << " bytes; first scene header readable, first layer header unavailable)\n";
     } else if (!state.first_object_prefix_readable) {
         out << "loaded (" << state.reader_size << " bytes; first layer header readable, first object prefix unavailable)\n";
+    } else if (!state.first_object_header_readable) {
+        out << "loaded (" << state.reader_size << " bytes; first object prefix readable, first object header unavailable)\n";
     } else {
-        out << "loaded (" << state.reader_size << " bytes; first object prefix readable, "
-            << state.first_object_prefix_bytes_consumed << " bytes verified)\n";
+        out << "loaded (" << state.reader_size << " bytes; first object header readable, "
+            << state.first_object_header_bytes_consumed << " bytes verified)\n";
     }
     return out.str();
 }

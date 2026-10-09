@@ -15,10 +15,10 @@ Boundary classify(const game_levels_asset_probe::Snapshot& probe) {
     if (!probe.regular_file || !probe.within_size_limit || !probe.loaded) {
         return Boundary::kAssetRejected;
     }
-    if (!probe.first_object_prefix_readable) {
+    if (!probe.first_object_header_readable) {
         return Boundary::kVerifiedPrefixIncomplete;
     }
-    return Boundary::kFirstObjectPrefixVerified;
+    return Boundary::kFirstObjectHeaderVerified;
 }
 
 void apply_probe_locked(const game_levels_asset_probe::Snapshot& probe) {
@@ -27,8 +27,8 @@ void apply_probe_locked(const game_levels_asset_probe::Snapshot& probe) {
     g_state.boundary = classify(probe);
     g_state.file_size = probe.file_size;
     g_state.reader_size = probe.reader_size;
-    g_state.verified_bytes = probe.first_object_prefix_readable
-        ? probe.first_object_prefix_bytes_consumed
+    g_state.verified_bytes = probe.first_object_header_readable
+        ? probe.first_object_header_bytes_consumed
         : 0;
 }
 
@@ -61,7 +61,7 @@ const char* boundary_name(Boundary boundary) {
         case Boundary::kAssetMissing: return "asset-missing";
         case Boundary::kAssetRejected: return "asset-rejected";
         case Boundary::kVerifiedPrefixIncomplete: return "verified-prefix-incomplete";
-        case Boundary::kFirstObjectPrefixVerified: return "first-object-prefix-verified";
+        case Boundary::kFirstObjectHeaderVerified: return "first-object-header-verified";
     }
     return "unknown";
 }
