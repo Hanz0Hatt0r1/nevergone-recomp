@@ -22,6 +22,7 @@
 #include "render_bridge.h"
 #include "server_selection_compositor.h"
 #include "server_selection_state.h"
+#include "standalone_hero_save_metadata.h"
 #include "startup_contract.h"
 
 namespace {
@@ -108,12 +109,13 @@ std::string bootstrap_info() {
     out << nevergone::choose_hero_role_selection_state::status_report();
     out << nevergone::choose_hero_role_item_compositor::status_report();
     out << nevergone::choose_hero_role_focus_compositor::status_report();
+    out << nevergone::standalone_hero_save_metadata::status_report(runtime.files_dir);
     out << nevergone::login_lua_session::status_report();
     out << nevergone::offline_startup_flow::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
-    out << "\nNext milestone: recover ChooseHero save-derived name/level presentation and OnCreateback scene-entry semantics.";
+    out << "\nNext milestone: bind recovered standalone metadata and ALL_Loin localization to the ChooseHero name/level/time labels, then recover OnCreateback scene-entry semantics.";
     return out.str();
 }
 

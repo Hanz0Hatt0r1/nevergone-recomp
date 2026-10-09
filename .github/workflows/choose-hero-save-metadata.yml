@@ -1,0 +1,28 @@
+name: ChooseHero save metadata
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate standalone save metadata and localization
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/standalone_hero_save_metadata_smoke.cpp \
+            android/app/src/main/cpp/standalone_hero_save_metadata.cpp \
+            android/app/src/main/cpp/login_localization_csv.cpp \
+            -o /tmp/standalone_hero_save_metadata_smoke
+          /tmp/standalone_hero_save_metadata_smoke

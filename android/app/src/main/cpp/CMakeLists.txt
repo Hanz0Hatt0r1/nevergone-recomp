@@ -26,6 +26,7 @@ add_library(nevergone_recomp SHARED
     hp_data_reader.cpp
     initial_ui_transition.cpp
     login_callback_payload.cpp
+    login_localization_csv.cpp
     login_lua_dispatch.cpp
     login_lua_session.cpp
     lua_compat.cpp
@@ -53,6 +54,7 @@ add_library(nevergone_recomp SHARED
     splash_layer_renderer.cpp
     splash_sequence_state.cpp
     splash_timeline.cpp
+    standalone_hero_save_metadata.cpp
     standalone_hero_save_probe.cpp
     startup_audio_bridge.cpp
     startup_contract.cpp
