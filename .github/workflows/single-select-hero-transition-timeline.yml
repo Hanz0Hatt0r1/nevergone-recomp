@@ -1,0 +1,37 @@
+name: SingleSelectHero transition timeline
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/single_select_hero_transition_timeline.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_transition_timeline.h'
+      - 'android/app/src/main/cpp/single_login_scene_bridge.cpp'
+      - 'tools/single_select_hero_transition_timeline_smoke.cpp'
+      - '.github/workflows/single-select-hero-transition-timeline.yml'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'android/app/src/main/cpp/single_select_hero_transition_timeline.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_transition_timeline.h'
+      - 'android/app/src/main/cpp/single_login_scene_bridge.cpp'
+      - 'tools/single_select_hero_transition_timeline_smoke.cpp'
+      - '.github/workflows/single-select-hero-transition-timeline.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate recovered transition deadlines
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -I android/app/src/main/cpp \
+            tools/single_select_hero_transition_timeline_smoke.cpp \
+            android/app/src/main/cpp/single_select_hero_transition_timeline.cpp \
+            -o /tmp/single_select_hero_transition_timeline_smoke
+          /tmp/single_select_hero_transition_timeline_smoke
