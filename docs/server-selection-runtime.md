@@ -56,16 +56,16 @@ The structured callback parser also preserves optional `BattleIP` because it is 
 - confirmation produces an `EnterRequest { ip, server_id, server_name }` corresponding to `g_UILogin.EnterGameLogicServer(ip, id)`;
 - pending enter requests are invalidated by a newer server-list payload.
 
-The callback bridge synchronizes this state whenever `cpp_OnGetServerList` is captured. `login_lua_session` now keeps the reconstructed `Game.StartLua` state alive, and the server-selection touch bridge attempts `g_UILogin.EnterGameLogicServer(ip,id)` after confirm. The request is peeked non-destructively and consumed only after a successful Lua call. Missing tables/functions, startup failures and Lua exceptions leave it pending and are reported in runtime diagnostics.
+The callback bridge synchronizes this state whenever `cpp_OnGetServerList` is captured. `login_lua_session` keeps the reconstructed `Game.StartLua` state alive, and the server-selection touch bridge attempts `g_UILogin.EnterGameLogicServer(ip,id)` after confirm. The request is peeked non-destructively and consumed only after a successful Lua call. Missing tables/functions, startup failures and Lua exceptions leave it pending and are reported in runtime diagnostics.
 
 This does not imply that retired online services are available: `ProtoRPC` remains a clean-room boot-safe service boundary unless an offline-compatible replacement becomes necessary for the preservation path.
 
 ## Recovered row layout and hit rectangles
 
-`NewServerList::init` reveals the row placement independently of the missing artwork. The row sprite uses anchor `(0.0, 0.5)` and tags rows from `1` in creation order. Rows are arranged in two columns:
+`NewServerList::init` reveals the row placement. The row sprite uses anchor `(0.0, 0.5)` and tags rows from `1` in creation order. Rows are arranged in two columns:
 
 - first-column left X: `56`;
-- second-column left X: `rowWidth + 96`, which leaves a 40-pixel horizontal gap after a first-column row of width `rowWidth`;
+- second-column left X: `rowWidth + 96`;
 - first row-pair center Y: `320`;
 - each subsequent row pair moves down by `90` pixels (`320`, `230`, `140`, `50`, ...).
 
@@ -79,36 +79,55 @@ centerY = 320 - 90 * row + scrollOffsetY
 bottomY = centerY - rowHeight / 2
 ```
 
-`GetDrawRectSp` confirms that normal server-row hit rectangles use the sprite's full content width/height and add the scrolling content layer's Y position before `containsPoint`. This is represented by `server_selection_layout.{h,cpp}`. The row width and height remain caller-supplied because the original `border1.png` is absent from the baseline APK.
+`GetDrawRectSp` confirms that normal server-row hit rectangles use the sprite's full content width/height and add the scrolling content layer's Y position before `containsPoint`.
 
-## Surface mapping and visible fallback
+### Expansion-resource confirmation
 
-`server_selection_view.{h,cpp}` maps Android top-left surface coordinates into the verified `1136x640` design canvas using aspect-fit letterboxing. The same mapping is used for drawing and input, so recovered row hit rectangles stay aligned on non-16:9 devices.
+The user-supplied original expansion asset tree now provides the previously missing `gamescene_ui/ServerList` resources. Focused Thumb disassembly of shipped `NewServerList::init` resolves the per-server `CCSprite::create()` filename to:
 
-`server_selection_compositor.{h,cpp}` is wired into the normal `GameSurfaceView` GL lifecycle. It is active only while the reconstructed `ManagementLayer` route is `server-selection` and a valid server payload is present. It draws after the recovered SingleLogin/splash layers, so it behaves as an overlay rather than replacing the recovered background.
+```text
+gamescene_ui/ServerList/border2.png
+```
 
-Because the original server-list artwork is unavailable, the current visible rows and confirm control are explicitly **project-owned fallback visuals**:
+The imported/decoded `border2.png` content size is `499x68`. Therefore, with the original row artwork loaded:
 
-- fallback row size: `440x72` design pixels;
-- row placement/hit testing still uses the recovered `NewServerList` geometry;
-- selected rows receive a distinct fallback highlight;
-- fallback confirm uses the recovered logical tag `10002` but a project-owned rectangle;
-- a confirmed selection remains visibly pending if Lua startup/dispatch fails.
+```text
+rowWidth  = 499
+rowHeight = 68
+second-column left X = 499 + 96 = 595
+```
+
+The runtime does not hard-code that bitmap size for rendering. `ServerSelectionAssetLoader` reads the user-imported decoded image, the native asset store exposes its runtime dimensions, and those dimensions are passed to both `server_selection_layout` and touch hit testing. The `499x68` values are retained in regression coverage as clean-room evidence for the supplied expansion version.
+
+`border1.png` is also present and decodes to `405x46`, but its exact `NewServerList` role remains a separate recovery boundary; it is staged without being assigned speculative behavior.
+
+## Expansion encoding/import boundary
+
+Raw expansion `.png`, `.csv`, `.lua`, and `.hpc` files use the same byte encoding already implemented by `OriginalObbImporter`. For each file the importer starts a counter at zero and applies:
+
+```text
+decoded = ((encoded XOR 1) - counter) mod 256
+counter = (counter + 1) mod 127
+```
+
+The importer writes the decoded result under the app-private `files/assets` tree. Runtime loaders therefore use ordinary `BitmapFactory.decodeFile()` on those imported files; no proprietary resource bytes are checked into this repository.
+
+The same expansion tree contains `serverlist.csv`; after the existing import transform it is ordinary UTF-8 CSV. This confirms the encoding path but does not replace the callback-provided live/reconstructed server model used by `server_selection_state`.
+
+## Surface mapping and visible rendering
+
+`server_selection_view.{h,cpp}` maps Android top-left surface coordinates into the verified `1136x640` design canvas using aspect-fit letterboxing. The same mapping is used for drawing and input.
+
+`server_selection_compositor.{h,cpp}` is wired into the normal `GameSurfaceView` GL lifecycle. It is active only while the reconstructed `ManagementLayer` route is `server-selection` and a valid server payload is present. It draws after the recovered SingleLogin/splash layers.
+
+When expansion `border2.png` is available, rows use the original imported texture and its actual content dimensions. GLES texture state is generation-aware and is rebuilt after asset reload or EGL-context recreation. When the expansion row asset is absent, the project-owned `440x72` fallback remains available so the baseline-APK path does not regress.
+
+The surrounding dark panel, selected-row overlay and confirm control are still explicitly project-owned fallback visuals in this increment. They are not claimed to reproduce the original artwork. A focused ARM pass has separately confirmed the original confirm control center at `(visibleWidth/2, 100)`, tag `10002`, and type-1 standard-button family; that should be integrated as a separate verified increment rather than mixed into the row-resource change.
 
 `GameSurfaceView.onTouchEvent` offers each pointer event to the server-selection compositor first. If the server route is inactive, the compositor returns `false` and the existing `nativeOnTouch`/TapToStart path remains unchanged. While active, row taps use the recovered `<=10` design-pixel vertical movement rule before updating selection.
 
-Scrolling is not yet reconstructed in the fallback compositor. `server_selection_layout` already supports a content-layer Y offset, so a later verified scroll model can be connected without changing row placement or hit-test semantics.
+Scrolling is not yet reconstructed in the compositor. `server_selection_layout` already supports a content-layer Y offset, so a later verified scroll model can be connected without changing row placement or hit-test semantics.
 
-## Visual-resource boundary
+## Verification
 
-The original binary references server-list resources such as:
-
-- `gamescene_ui/ServerList/XMLFile1.xml`
-- `gamescene_ui/ServerList/border1.png`
-- `gamescene_ui/ServerList/border2.png`
-- `ServerList/RANDOM.png`
-- `ServerList/RANDOMName.png`
-
-Those files are not present in the baseline APK archive used by this project. A direct ZIP-name check of the user-provided baseline APK returned zero `ServerList` files, and a filename search on the connected project Drive did not expose standalone copies. They may belong to downloaded/update/expansion content.
-
-If user-imported update/OBB resources later provide the original row/button artwork, the compositor can replace only the fallback dimensions/textures while retaining the already verified callback, selection, layout, hit-test and confirm-request semantics.
+`tools/server_selection_layout_smoke.cpp` retains generic geometry fixtures and now additionally pins the supplied expansion row evidence (`499x68`, second-column X `595`) without committing any original image bytes.
