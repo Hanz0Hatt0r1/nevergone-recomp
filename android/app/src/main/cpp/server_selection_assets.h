@@ -29,6 +29,7 @@ bool upload(
 bool ready(int index);
 bool row_ready();
 std::uint64_t generation();
+bool dimensions(int index, int* width, int* height);
 bool copy(int index, Asset* output);
 
 }  // namespace nevergone::server_selection_assets
