@@ -32,10 +32,15 @@ RuneSize source_size(int tag) {
     }
 }
 
+void set_pressed_tag_locked(int tag) {
+    g_pressed_tag = single_select_hero_rune_layout::valid_tag(tag) ? tag : 0;
+    single_select_hero_rune_layout::set_pressed_visual_tag(g_pressed_tag);
+}
+
 void clear_gesture_locked() {
     g_pointer_id = -1;
     g_armed_tag = 0;
-    g_pressed_tag = 0;
+    set_pressed_tag_locked(0);
 }
 
 bool hit_tag(
@@ -116,20 +121,20 @@ bool on_touch_for_surface(
                 if (tag != 0) {
                     g_pointer_id = pointer_id;
                     g_armed_tag = tag;
-                    g_pressed_tag = tag;
+                    set_pressed_tag_locked(tag);
                 }
                 return true;
             }
             case 2:
                 if (pointer_id == g_pointer_id && g_armed_tag != 0) {
-                    g_pressed_tag = hit_tag(
+                    set_pressed_tag_locked(hit_tag(
                         g_armed_tag,
                         surface_width,
                         surface_height,
                         x,
                         y)
                         ? g_armed_tag
-                        : 0;
+                        : 0);
                 }
                 return true;
             case 1:
