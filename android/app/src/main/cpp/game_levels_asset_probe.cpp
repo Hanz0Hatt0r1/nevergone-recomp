@@ -65,6 +65,9 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
     game_levels_scene_prefix::FirstObjectRecord object_record;
     result.first_object_record_readable = game_levels_scene_prefix::parse_first_object_record(reader, &object_record);
     if (result.first_object_record_readable) result.first_object_record_bytes_consumed = object_record.bytes_consumed;
+    game_levels_scene_prefix::FirstLayerObjectSequence object_sequence;
+    result.first_layer_objects_readable = game_levels_scene_prefix::parse_first_layer_objects(reader, &object_sequence);
+    if (result.first_layer_objects_readable) result.first_layer_objects_bytes_consumed = object_sequence.bytes_consumed;
     return result;
 }
 
@@ -87,13 +90,9 @@ std::string status_report(const std::string& files_dir) {
     else if (!state.scene_prefix_readable) out << "loaded (" << state.reader_size << " bytes; LoadGL_Scene prefix truncated)\n";
     else if (!state.first_scene_header_readable) out << "loaded (" << state.reader_size << " bytes; first scene header unavailable)\n";
     else if (!state.first_layer_header_readable) out << "loaded (" << state.reader_size << " bytes; first layer header unavailable)\n";
-    else if (!state.first_object_prefix_readable) out << "loaded (" << state.reader_size << " bytes; first object prefix unavailable)\n";
-    else if (!state.first_object_core_readable) out << "loaded (" << state.reader_size << " bytes; first object core unavailable)\n";
-    else if (!state.first_object_version_extension_readable) out << "loaded (" << state.reader_size << " bytes; version extension unavailable)\n";
-    else if (!state.first_object_conditional_header_readable) out << "loaded (" << state.reader_size << " bytes; conditional header unavailable)\n";
-    else if (!state.first_object_record_readable) out << "loaded (" << state.reader_size << " bytes; conditional header readable, object tail unavailable)\n";
-    else out << "loaded (" << state.reader_size << " bytes; first object record complete, "
-             << state.first_object_record_bytes_consumed << " bytes verified)\n";
+    else if (!state.first_layer_objects_readable) out << "loaded (" << state.reader_size << " bytes; first layer header readable, object loop incomplete)\n";
+    else out << "loaded (" << state.reader_size << " bytes; first layer object loop complete, "
+             << state.first_layer_objects_bytes_consumed << " bytes verified)\n";
     return out.str();
 }
 

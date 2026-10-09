@@ -1,0 +1,31 @@
+name: GameLevels object sequence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.h'
+      - 'tools/game_levels_object_sequence_smoke.cpp'
+      - '.github/workflows/game-levels-object-sequence.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.h'
+      - 'tools/game_levels_object_sequence_smoke.cpp'
+      - '.github/workflows/game-levels-object-sequence.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run object-sequence smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_levels_object_sequence_smoke.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/game_levels_object_sequence_smoke
+          /tmp/game_levels_object_sequence_smoke
