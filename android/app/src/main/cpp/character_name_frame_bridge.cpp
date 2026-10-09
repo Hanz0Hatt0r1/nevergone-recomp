@@ -51,6 +51,12 @@ void maybe_stage_character_name_assets(JNIEnv* env) {
 void JNICALL wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::server_selection_compositor::on_surface_created();
     nevergone::character_name_compositor::on_surface_created();
+    // A recreated EGL context may invalidate numeric program/texture names
+    // retained by a previous context. Both compositors rebuild explicitly;
+    // discard any stale-context GL error before lazy texture uploads inspect
+    // glGetError() on their first active frame.
+    while (glGetError() != GL_NO_ERROR) {
+    }
 }
 
 void JNICALL wrapped_server_draw(JNIEnv* env, jclass) {
