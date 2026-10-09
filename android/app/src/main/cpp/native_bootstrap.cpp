@@ -9,6 +9,7 @@
 #include "app_delegate_state.h"
 #include "choose_hero_background_compositor.h"
 #include "choose_hero_black_cloud_compositor.h"
+#include "choose_hero_role_selection_state.h"
 #include "choose_hero_thunder_effect_compositor.h"
 #include "client_callback_bridge.h"
 #include "game_levels_asset_probe.h"
@@ -51,8 +52,6 @@ std::string bootstrap_info() {
     const bool have_uname = uname(&system_info) == 0;
     const long page_size = sysconf(_SC_PAGESIZE);
 
-    // Start or retry the long-lived reconstructed Lua state. A failed start is
-    // retained in diagnostics; importing assets and refreshing can retry it.
     (void)nevergone::login_lua_session::ensure_started();
 
     std::ostringstream out;
@@ -77,12 +76,13 @@ std::string bootstrap_info() {
     out << nevergone::choose_hero_background_compositor::status_report();
     out << nevergone::choose_hero_thunder_effect_compositor::status_report();
     out << nevergone::choose_hero_black_cloud_compositor::status_report();
+    out << nevergone::choose_hero_role_selection_state::status_report();
     out << nevergone::login_lua_session::status_report();
     out << nevergone::offline_startup_flow::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
-    out << "\nNext milestone: continue ChooseHero role-selection/scene-entry reconstruction after restored thunder visuals and audio.";
+    out << "\nNext milestone: render recovered ChooseHero hero/create items and route their exact tags into the reconstructed selection state.";
     return out.str();
 }
 
