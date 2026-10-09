@@ -25,6 +25,7 @@ struct Snapshot {
     bool first_layer_objects_readable = false;
     bool first_layer_record_readable = false;
     bool first_scene_layers_readable = false;
+    bool scene_section_readable = false;
     std::uint64_t file_size = 0;
     std::size_t reader_size = 0;
     std::size_t scene_prefix_bytes_consumed = 0;
@@ -38,6 +39,7 @@ struct Snapshot {
     std::size_t first_layer_objects_bytes_consumed = 0;
     std::size_t first_layer_record_bytes_consumed = 0;
     std::size_t first_scene_layers_bytes_consumed = 0;
+    std::size_t scene_section_bytes_consumed = 0;
 };
 
 Snapshot probe_file(const std::string& path, std::size_t max_bytes = kMaxProbeBytes);
