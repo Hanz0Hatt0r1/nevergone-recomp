@@ -28,6 +28,11 @@ final class ChooseHeroProfileLabelLoader {
         nativeClear();
         if (filesDir == null || filesDir.isEmpty()) return false;
 
+        // These update-era Common button assets are optional and have their
+        // own native store. Their absence must not make baseline profile labels
+        // fail, so trigger the reload and intentionally ignore its result.
+        ChooseHeroActionControlLoader.reloadFromFilesDir(filesDir);
+
         File backgroundFile = new File(new File(filesDir, "assets"), BACKGROUND_PATH);
         Bitmap background = BitmapFactory.decodeFile(backgroundFile.getAbsolutePath());
         if (background == null || !uploadBackground(background)) {

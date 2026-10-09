@@ -25,3 +25,13 @@ jobs:
             android/app/src/main/cpp/choose_hero_action_state.cpp \
             -o /tmp/choose_hero_action_state_smoke
           /tmp/choose_hero_action_state_smoke
+
+      - name: Validate recovered fixed-button layout
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/choose_hero_action_control_layout_smoke.cpp \
+            android/app/src/main/cpp/choose_hero_action_control_layout.cpp \
+            -o /tmp/choose_hero_action_control_layout_smoke
+          /tmp/choose_hero_action_control_layout_smoke
