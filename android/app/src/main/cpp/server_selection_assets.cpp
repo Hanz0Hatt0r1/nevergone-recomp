@@ -102,6 +102,10 @@ bool confirm_ready() {
     return ready(kButtonNormal) && ready(kButtonPressed) && ready(kStartLabel);
 }
 
+bool selector_labels_ready() {
+    return ready(kZoneSuffixLabel) && ready(kChooseZoneLabel);
+}
+
 std::uint64_t generation() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_generation;
