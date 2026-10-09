@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "offline_startup_flow.h"
+#include "single_select_hero_rune_layout.h"
 #include "single_select_hero_state.h"
 #include "single_select_hero_table_layout.h"
 
@@ -12,6 +13,7 @@ namespace nevergone::single_select_hero {
 namespace {
 
 constexpr int kHeroTableCount = 4;
+constexpr int kCareerRuneFrameCount = single_select_hero_rune_layout::kFrameCount;
 
 struct PositionedTexture {
     GLuint texture = 0;
@@ -25,10 +27,13 @@ struct PositionedTexture {
 
 GLuint g_program = 0;
 GLint g_sampler = -1;
+GLint g_alpha = -1;
 PositionedTexture g_background{};
 std::vector<std::uint32_t> g_background_pixels;
 PositionedTexture g_hero_tables[kHeroTableCount]{};
 std::vector<std::uint32_t> g_hero_table_pixels[kHeroTableCount];
+PositionedTexture g_career_runes[kCareerRuneFrameCount]{};
+std::vector<std::uint32_t> g_career_rune_pixels[kCareerRuneFrameCount];
 int g_surface_width = 0;
 int g_surface_height = 0;
 
@@ -58,8 +63,10 @@ void main() {
 precision mediump float;
 varying vec2 vTexCoord;
 uniform sampler2D uTexture;
+uniform float uAlpha;
 void main() {
-    gl_FragColor = texture2D(uTexture, vTexCoord);
+    vec4 color = texture2D(uTexture, vTexCoord);
+    gl_FragColor = vec4(color.rgb, color.a * uAlpha);
 }
 )GLSL";
 
@@ -113,6 +120,15 @@ void clear_hero_tables() {
         g_hero_tables[index] = {};
         g_hero_table_pixels[index].clear();
         g_hero_table_pixels[index].shrink_to_fit();
+    }
+}
+
+void clear_career_runes() {
+    for (int index = 0; index < kCareerRuneFrameCount; ++index) {
+        delete_texture(&g_career_runes[index]);
+        g_career_runes[index] = {};
+        g_career_rune_pixels[index].clear();
+        g_career_rune_pixels[index].shrink_to_fit();
     }
 }
 
@@ -173,9 +189,11 @@ void on_surface_created() {
     // available until Java refreshes the imported atlas frames.
     g_background.texture = 0;
     for (auto& table : g_hero_tables) table.texture = 0;
+    for (auto& rune : g_career_runes) rune.texture = 0;
     if (g_program != 0) glDeleteProgram(g_program);
     g_program = build_program();
     g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
+    g_alpha = g_program != 0 ? glGetUniformLocation(g_program, "uAlpha") : -1;
 }
 
 void on_surface_changed(int width, int height) {
@@ -261,7 +279,40 @@ bool upload_hero_table(
     return ensure_texture(&asset, g_hero_table_pixels[table_index]);
 }
 
-void bind_and_draw(GLuint texture, const GLfloat* vertices, bool blend) {
+bool upload_career_rune(
+        int rune_index,
+        int width,
+        int height,
+        int left,
+        int top,
+        int source_width,
+        int source_height,
+        const std::uint32_t* argb,
+        size_t count) {
+    if (rune_index < 0 || rune_index >= kCareerRuneFrameCount ||
+            !validate_asset_geometry(
+                    width, height, left, top, source_width, source_height, argb, count)) {
+        return false;
+    }
+
+    PositionedTexture& asset = g_career_runes[rune_index];
+    delete_texture(&asset);
+    asset = {};
+    asset.width = width;
+    asset.height = height;
+    asset.left = left;
+    asset.top = top;
+    asset.source_width = source_width;
+    asset.source_height = source_height;
+    g_career_rune_pixels[rune_index].assign(argb, argb + count);
+
+    if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue) {
+        return true;
+    }
+    return ensure_texture(&asset, g_career_rune_pixels[rune_index]);
+}
+
+void bind_and_draw(GLuint texture, const GLfloat* vertices, bool blend, float alpha = 1.0f) {
     static constexpr GLfloat kTexCoords[] = {
             0.0f, 0.0f,
             0.0f, 1.0f,
@@ -277,6 +328,7 @@ void bind_and_draw(GLuint texture, const GLfloat* vertices, bool blend) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture);
     glUniform1i(g_sampler, 0);
+    glUniform1f(g_alpha, alpha);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
@@ -317,6 +369,39 @@ void draw_background() {
     bind_and_draw(g_background.texture, vertices, false);
 }
 
+void draw_career_runes() {
+    for (int tag = 1; tag <= single_select_hero_rune_layout::kRuneCount; ++tag) {
+        const int frame_index = single_select_hero_rune_layout::frame_index(tag, false);
+        if (frame_index < 0 || frame_index >= kCareerRuneFrameCount) continue;
+
+        PositionedTexture& asset = g_career_runes[frame_index];
+        if (!ensure_texture(&asset, g_career_rune_pixels[frame_index])) continue;
+
+        single_select_hero_rune_layout::FrameGeometry geometry;
+        geometry.width = asset.width;
+        geometry.height = asset.height;
+        geometry.left = asset.left;
+        geometry.top = asset.top;
+        geometry.source_width = asset.source_width;
+        geometry.source_height = asset.source_height;
+        const auto quad = single_select_hero_rune_layout::quad_for_surface(
+            geometry, tag, g_surface_width, g_surface_height);
+        if (!quad.valid) continue;
+
+        const GLfloat vertices[] = {
+            quad.x0, quad.y0,
+            quad.x0, quad.y1,
+            quad.x1, quad.y0,
+            quad.x1, quad.y1,
+        };
+        bind_and_draw(
+            asset.texture,
+            vertices,
+            true,
+            single_select_hero_rune_layout::opacity(tag));
+    }
+}
+
 void draw_hero_table() {
     const auto state = single_select_hero_state::snapshot();
     const int table_index = single_select_hero_table_layout::frame_index(
@@ -350,14 +435,16 @@ void draw() {
     if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue) {
         delete_texture(&g_background);
         for (auto& table : g_hero_tables) delete_texture(&table);
+        for (auto& rune : g_career_runes) delete_texture(&rune);
         return;
     }
-    if (g_program == 0 || g_sampler < 0 ||
+    if (g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
             g_surface_width <= 0 || g_surface_height <= 0) {
         return;
     }
 
     draw_background();
+    draw_career_runes();
     draw_hero_table();
 }
 
@@ -436,6 +523,43 @@ Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeUploadHeroTable(
     if (values == nullptr) return JNI_FALSE;
     const bool uploaded = nevergone::single_select_hero::upload_hero_table(
             static_cast<int>(table_index),
+            static_cast<int>(width),
+            static_cast<int>(height),
+            static_cast<int>(left),
+            static_cast<int>(top),
+            static_cast<int>(source_width),
+            static_cast<int>(source_height),
+            reinterpret_cast<const std::uint32_t*>(values),
+            expected);
+    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
+    return uploaded ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeClearCareerRunes(JNIEnv*, jclass) {
+    nevergone::single_select_hero::clear_career_runes();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeUploadCareerRune(
+        JNIEnv* env,
+        jclass,
+        jint rune_index,
+        jint width,
+        jint height,
+        jint left,
+        jint top,
+        jint source_width,
+        jint source_height,
+        jintArray pixels) {
+    if (pixels == nullptr || width <= 0 || height <= 0) return JNI_FALSE;
+    const jsize length = env->GetArrayLength(pixels);
+    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (static_cast<size_t>(length) != expected) return JNI_FALSE;
+    jint* values = env->GetIntArrayElements(pixels, nullptr);
+    if (values == nullptr) return JNI_FALSE;
+    const bool uploaded = nevergone::single_select_hero::upload_career_rune(
+            static_cast<int>(rune_index),
             static_cast<int>(width),
             static_cast<int>(height),
             static_cast<int>(left),
