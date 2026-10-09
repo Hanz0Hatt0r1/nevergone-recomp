@@ -23,29 +23,29 @@ void append_f32(std::vector<std::uint8_t>& bytes, float value) {
 std::vector<std::uint8_t> make_header_through_layer() {
     std::vector<std::uint8_t> bytes;
     append_u32(bytes, 0xfffffffeu);
-    append_u32(bytes, 1u);           // scene_count
-    append_u32(bytes, 4u);           // scene string length
-    bytes.push_back(0x7fu);          // recovered skipped byte
+    append_u32(bytes, 1u);
+    append_u32(bytes, 4u);
+    bytes.push_back(0x7fu);
     bytes.insert(bytes.end(), {'h', 'e', 'r', 'o'});
     append_f32(bytes, 1.5f);
     append_f32(bytes, -2.25f);
-    append_u32(bytes, 1u);           // layer_count
+    append_u32(bytes, 1u);
     append_f32(bytes, 0.75f);
-    append_u32(bytes, 1u);           // object_count
+    append_u32(bytes, 1u);
     return bytes;
 }
 std::vector<std::uint8_t> make_object_core_fixture() {
     auto bytes = make_header_through_layer();
-    append_u32(bytes, 0xfffffffdu);  // first object opaque int32: -3
-    append_u32(bytes, 4u);           // proven object string byte length
-    bytes.push_back(0xaau);          // recovered skipped byte
+    append_u32(bytes, 0xfffffffdu);
+    append_u32(bytes, 4u);
+    bytes.push_back(0xaau);
     bytes.insert(bytes.end(), {'n', 'o', 'd', 'e'});
     append_f32(bytes, 10.0f);
     append_f32(bytes, -20.0f);
     append_f32(bytes, 0.5f);
     append_f32(bytes, 1.25f);
     append_f32(bytes, -1.5f);
-    append_u32(bytes, 0xfffffffbu);  // trailing opaque int32: -5
+    append_u32(bytes, 0xfffffffbu);
     bytes.push_back(1u);
     bytes.push_back(0u);
     return bytes;
@@ -99,6 +99,41 @@ int main() {
     assert(!object_core.second_bool);
     assert(object_core.bytes_consumed == 76u);
 
+    // Signed top-level values <= 2 do not contain the version-gated vector.
+    FirstObjectVersionExtension old_extension;
+    assert(parse_first_object_version_extension(reader, &old_extension));
+    assert(old_extension.extra_u32_values.empty());
+    assert(old_extension.bytes_consumed == 76u);
+
+    // A top-level value > 2 reads one count followed by exactly count uint32s.
+    std::vector<std::uint8_t> versioned_bytes = core_bytes;
+    versioned_bytes[0] = 3u;
+    versioned_bytes[1] = versioned_bytes[2] = versioned_bytes[3] = 0u;
+    append_u32(versioned_bytes, 2u);
+    append_u32(versioned_bytes, 0x11223344u);
+    append_u32(versioned_bytes, 0xaabbccddu);
+    nevergone::hp_data::Reader versioned_reader(versioned_bytes);
+    FirstObjectVersionExtension versioned_extension;
+    assert(parse_first_object_version_extension(versioned_reader, &versioned_extension));
+    assert(versioned_extension.core.bytes_consumed == 76u);
+    assert(versioned_extension.extra_u32_values.size() == 2u);
+    assert(versioned_extension.extra_u32_values[0] == 0x11223344u);
+    assert(versioned_extension.extra_u32_values[1] == 0xaabbccddu);
+    assert(versioned_extension.bytes_consumed == 88u);
+
+    std::vector<std::uint8_t> hostile_count = core_bytes;
+    hostile_count[0] = 3u;
+    hostile_count[1] = hostile_count[2] = hostile_count[3] = 0u;
+    append_u32(hostile_count, 0xffffffffu);
+    nevergone::hp_data::Reader hostile_count_reader(hostile_count);
+    FirstObjectVersionExtension unchanged_extension;
+    unchanged_extension.extra_u32_values = {7u};
+    unchanged_extension.bytes_consumed = 123u;
+    assert(!parse_first_object_version_extension(hostile_count_reader, &unchanged_extension));
+    assert(unchanged_extension.extra_u32_values.size() == 1u);
+    assert(unchanged_extension.extra_u32_values[0] == 7u);
+    assert(unchanged_extension.bytes_consumed == 123u);
+
     std::vector<std::uint8_t> no_object = core_bytes;
     no_object[33] = 0u;
     no_object[34] = no_object[35] = no_object[36] = 0u;
@@ -107,6 +142,7 @@ int main() {
     assert(layer_header.object_count == 0u);
     assert(!parse_first_object_prefix(no_object_reader, &object_prefix));
     assert(!parse_first_object_core(no_object_reader, &object_core));
+    assert(!parse_first_object_version_extension(no_object_reader, &old_extension));
 
     const std::vector<std::uint8_t> truncated_prefix(core_bytes.begin(), core_bytes.begin() + 44);
     nevergone::hp_data::Reader truncated_prefix_reader(truncated_prefix);
@@ -158,5 +194,6 @@ int main() {
     assert(!parse_first_layer_header(reader, nullptr));
     assert(!parse_first_object_prefix(reader, nullptr));
     assert(!parse_first_object_core(reader, nullptr));
+    assert(!parse_first_object_version_extension(reader, nullptr));
     return 0;
 }

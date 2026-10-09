@@ -77,6 +77,13 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
     if (result.first_object_core_readable) {
         result.first_object_core_bytes_consumed = object_core.bytes_consumed;
     }
+
+    game_levels_scene_prefix::FirstObjectVersionExtension version_extension;
+    result.first_object_version_extension_readable =
+        game_levels_scene_prefix::parse_first_object_version_extension(reader, &version_extension);
+    if (result.first_object_version_extension_readable) {
+        result.first_object_version_extension_bytes_consumed = version_extension.bytes_consumed;
+    }
     return result;
 }
 
@@ -101,8 +108,9 @@ std::string status_report(const std::string& files_dir) {
     else if (!state.first_layer_header_readable) out << "loaded (" << state.reader_size << " bytes; first layer header unavailable)\n";
     else if (!state.first_object_prefix_readable) out << "loaded (" << state.reader_size << " bytes; first object prefix unavailable)\n";
     else if (!state.first_object_core_readable) out << "loaded (" << state.reader_size << " bytes; first object prefix readable, core unavailable)\n";
-    else out << "loaded (" << state.reader_size << " bytes; first object core readable, "
-             << state.first_object_core_bytes_consumed << " bytes verified)\n";
+    else if (!state.first_object_version_extension_readable) out << "loaded (" << state.reader_size << " bytes; first object core readable, version extension unavailable)\n";
+    else out << "loaded (" << state.reader_size << " bytes; first object version extension readable, "
+             << state.first_object_version_extension_bytes_consumed << " bytes verified)\n";
     return out.str();
 }
 
