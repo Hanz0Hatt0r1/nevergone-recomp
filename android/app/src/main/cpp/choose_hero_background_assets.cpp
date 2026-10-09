@@ -13,6 +13,7 @@
 #include "choose_hero_role_focus_compositor.h"
 #include "choose_hero_role_item_compositor.h"
 #include "choose_hero_thunder_effect_compositor.h"
+#include "management_role_action_control_compositor.h"
 #include "offline_startup_flow.h"
 
 namespace nevergone::choose_hero_background {
@@ -236,7 +237,9 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeIsChooseHeroRouteActive(
         JNIEnv*, jclass) {
     // Preserve recovered scene/UI ordering. HeroInformation adds its fixed
     // button menu at z=1 and standalone hero items at z=3, so controls draw
-    // before the role tiles/profile/focus layer.
+    // before the role tiles/profile/focus layer. The online ManagementLayer
+    // Play control shares the same recovered fixed-button presentation but is
+    // independently route-gated and is drawn after its role tiles.
     nevergone::choose_hero_background_compositor::draw();
     nevergone::choose_hero_thunder_effect_compositor::draw();
     nevergone::choose_hero_black_cloud_compositor::draw();
@@ -244,5 +247,6 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeIsChooseHeroRouteActive(
     nevergone::choose_hero_role_item_compositor::draw();
     nevergone::choose_hero_profile_compositor::draw();
     nevergone::choose_hero_role_focus_compositor::draw();
+    nevergone::management_role_action_control_compositor::draw();
     return nevergone::choose_hero_background::route_active() ? JNI_TRUE : JNI_FALSE;
 }
