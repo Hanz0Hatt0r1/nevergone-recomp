@@ -31,9 +31,17 @@ bool stage(const login_callback_payload::RoleEntry& role) {
         return false;
     }
     g_state.pending = true;
+    g_state.dispatch_due = true;
     g_state.role = role;
     ++g_state.stage_count;
     g_state.last_error.clear();
+    return true;
+}
+
+bool request_retry() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_state.pending || g_state.dispatch_due) return false;
+    g_state.dispatch_due = true;
     return true;
 }
 
@@ -41,11 +49,12 @@ Outcome pump_with_dispatch(DispatchFn dispatch, std::string* error) {
     login_callback_payload::RoleEntry role;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
-        if (!g_state.pending) {
+        if (!g_state.pending || !g_state.dispatch_due) {
             if (error != nullptr) error->clear();
             return Outcome::kIdle;
         }
         role = g_state.role;
+        g_state.dispatch_due = false;
     }
 
     std::string dispatch_error;
@@ -68,6 +77,7 @@ Outcome pump_with_dispatch(DispatchFn dispatch, std::string* error) {
             return Outcome::kDispatchFailed;
         }
         g_state.pending = false;
+        g_state.dispatch_due = false;
         ++g_state.dispatch_count;
         g_state.last_error.clear();
     }
@@ -98,6 +108,7 @@ std::string status_report() {
     const Snapshot state = snapshot();
     std::ostringstream out;
     out << "created-role transition: " << (state.pending ? "pending" : "idle")
+        << " due=" << (state.dispatch_due ? "yes" : "no")
         << " staged=" << state.stage_count
         << " dispatched=" << state.dispatch_count
         << " failures=" << state.dispatch_failure_count;
