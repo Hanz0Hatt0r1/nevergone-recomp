@@ -63,6 +63,23 @@ int main() {
     assert(hit_test(6, width, height, 20.0f, 320.0f) == -1);
     assert(hit_test(6, width, height, 100.0f, 255.0f, 25.0f) == 2);
 
+    // The user-supplied expansion assets and shipped ARMv7 init path identify
+    // border2.png as the selectable row sprite. Its decoded content size is
+    // 499x68, so the recovered second-column X becomes 499+96 = 595.
+    constexpr float obb_width = 499.0f;
+    constexpr float obb_height = 68.0f;
+    const RowRect obb0 = row_rect(0, obb_width, obb_height);
+    const RowRect obb1 = row_rect(1, obb_width, obb_height);
+    const RowRect obb2 = row_rect(2, obb_width, obb_height);
+    assert(near(obb0.left, 56.0f));
+    assert(near(obb0.bottom, 286.0f));
+    assert(near(obb1.left, 595.0f));
+    assert(near(obb1.bottom, 286.0f));
+    assert(near(obb2.bottom, 196.0f));
+    assert(hit_test(4, obb_width, obb_height, 56.0f, 320.0f) == 0);
+    assert(hit_test(4, obb_width, obb_height, 595.0f, 320.0f) == 1);
+    assert(hit_test(4, obb_width, obb_height, 594.99f, 320.0f) == -1);
+
     assert(row_rect(0, 0.0f, height).index == -1);
     assert(build_rows(3, width, -1.0f).empty());
     assert(hit_test(3, width, height, NAN, 0.0f) == -1);
