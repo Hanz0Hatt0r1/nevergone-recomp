@@ -16,11 +16,11 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /**
- * Temporary project-owned input surface for the fresh-account role path.
+ * Temporary project-owned input surface for the remaining CharacterName path.
  *
- * This intentionally does not imitate the unrecovered SingleSelectHero touch
- * presentation. It exposes the reconstructed semantic state until the native
- * career/confirm routing and CharacterName compositor are connected.
+ * SingleSelectHero career selection and Confirm are now owned by the native
+ * reconstructed surface. This compatibility view stays hidden in career mode
+ * and only exposes name/IME actions until CharacterName presentation is native.
  */
 final class FreshRoleCompatOverlay extends LinearLayout {
     private static final int MODE_HIDDEN = 0;
@@ -77,6 +77,8 @@ final class FreshRoleCompatOverlay extends LinearLayout {
         status.setTextSize(12.0f);
         status.setGravity(Gravity.START);
 
+        // Kept temporarily so old diagnostic JNI controls remain available to
+        // developers, but this panel is no longer shown in MODE_CAREER.
         careerPanel = new LinearLayout(context);
         careerPanel.setOrientation(VERTICAL);
         addView(careerPanel, matchWrap());
@@ -178,20 +180,24 @@ final class FreshRoleCompatOverlay extends LinearLayout {
 
     private void refreshFromNative() {
         int mode = nativeMode();
-        if (mode == MODE_HIDDEN) {
+
+        // Native SingleSelectHero now owns both career runes and Confirm.
+        // Keep polling while hidden so the compatibility name editor appears
+        // immediately when native Confirm opens CharacterNameLayer state.
+        if (mode == MODE_HIDDEN || mode == MODE_CAREER) {
             if (previousMode == MODE_NAME) hideKeyboard();
             previousMode = mode;
+            careerPanel.setVisibility(GONE);
+            namePanel.setVisibility(GONE);
             setVisibility(GONE);
             return;
         }
 
         setVisibility(VISIBLE);
-        careerPanel.setVisibility(mode == MODE_CAREER ? VISIBLE : GONE);
+        careerPanel.setVisibility(GONE);
         namePanel.setVisibility(mode == MODE_NAME ? VISIBLE : GONE);
 
-        if (mode == MODE_CAREER) {
-            refreshCareerButtons();
-        } else if (mode == MODE_NAME) {
+        if (mode == MODE_NAME) {
             if (previousMode != MODE_NAME && nativeRandomizePending()) {
                 // CharacterNameLayer::CretaUI immediately triggers the shipped
                 // random-name callback. Execute it only while the native state

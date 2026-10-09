@@ -55,6 +55,7 @@ add_library(nevergone_recomp SHARED
     native_binding_registry.cpp
     native_bootstrap.cpp
     offline_startup_flow.cpp
+    post_scene_overlay_jni.cpp
     protorpc_bindings.cpp
     render_bridge.cpp
     role_creation_validation.cpp
@@ -73,6 +74,7 @@ add_library(nevergone_recomp SHARED
     single_login_sway_timeline.cpp
     single_login_thunder_bridge.cpp
     single_select_hero_compositor.cpp
+    single_select_hero_confirm_compositor.cpp
     single_select_hero_confirm_input.cpp
     single_select_hero_confirm_input_surface.cpp
     single_select_hero_input.cpp
