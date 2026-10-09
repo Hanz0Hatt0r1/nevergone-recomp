@@ -6,6 +6,8 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -22,11 +24,32 @@ public final class MainActivity extends Activity {
     private static final String DEVICE_ID = "device_id";
     private static final int REQUEST_ORIGINAL_APK = 1001;
     private static final int REQUEST_ORIGINAL_OBB = 1002;
+    private static final long CHOOSE_HERO_THUNDER_POLL_MS = 16L;
 
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private TextView status;
     private Button importButton;
     private Button importObbButton;
     private GameSurfaceView gameSurface;
+    private ChooseHeroThunderAudio chooseHeroThunderAudio;
+    private boolean chooseHeroThunderPolling;
+
+    private final Runnable chooseHeroThunderPoll = new Runnable() {
+        @Override
+        public void run() {
+            if (!chooseHeroThunderPolling) return;
+            if (chooseHeroThunderAudio != null) {
+                for (int soundIndex = nativePollChooseHeroThunderSound();
+                        soundIndex >= 0;
+                        soundIndex = nativePollChooseHeroThunderSound()) {
+                    chooseHeroThunderAudio.play(soundIndex);
+                }
+            }
+            if (chooseHeroThunderPolling) {
+                mainHandler.postDelayed(this, CHOOSE_HERO_THUNDER_POLL_MS);
+            }
+        }
+    };
 
     static {
         System.loadLibrary("nevergone_recomp");
@@ -39,6 +62,7 @@ public final class MainActivity extends Activity {
     private static native void nativeOnAppResume();
     private static native void nativeAppDelegateOnPause();
     private static native void nativeAppDelegateOnResume();
+    private static native int nativePollChooseHeroThunderSound();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +72,8 @@ public final class MainActivity extends Activity {
                 getFilesDir().getAbsolutePath(),
                 getOrCreateDeviceId(),
                 getAppVersion());
+        chooseHeroThunderAudio = new ChooseHeroThunderAudio(
+                new File(getFilesDir(), "assets"));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -104,6 +130,10 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        stopChooseHeroThunderPolling();
+        if (chooseHeroThunderAudio != null) {
+            chooseHeroThunderAudio.onPause();
+        }
         if (gameSurface != null) {
             gameSurface.pauseImportedAudio();
         }
@@ -126,10 +156,18 @@ public final class MainActivity extends Activity {
         if (gameSurface != null) {
             gameSurface.resumeImportedAudio();
         }
+        if (chooseHeroThunderAudio != null) {
+            chooseHeroThunderAudio.onResume();
+        }
+        startChooseHeroThunderPolling();
     }
 
     @Override
     protected void onDestroy() {
+        stopChooseHeroThunderPolling();
+        if (chooseHeroThunderAudio != null) {
+            chooseHeroThunderAudio.release();
+        }
         if (gameSurface != null) {
             gameSurface.releaseImportedAudio();
         }
@@ -190,6 +228,7 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     setImportButtonsEnabled(true);
                     if (gameSurface != null) gameSurface.reloadImportedSplash();
+                    if (chooseHeroThunderAudio != null) chooseHeroThunderAudio.onAssetsReloaded();
                     status.setText(buildStatusText(summary));
                 });
             } catch (Exception error) {
@@ -216,6 +255,7 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     setImportButtonsEnabled(true);
                     if (gameSurface != null) gameSurface.reloadImportedSplash();
+                    if (chooseHeroThunderAudio != null) chooseHeroThunderAudio.onAssetsReloaded();
                     status.setText(buildStatusText(summary));
                 });
             } catch (Exception error) {
@@ -234,6 +274,18 @@ public final class MainActivity extends Activity {
             setImportButtonsEnabled(true);
             status.setText(buildStatusText(summary));
         });
+    }
+
+    private void startChooseHeroThunderPolling() {
+        if (chooseHeroThunderPolling || chooseHeroThunderAudio == null) return;
+        chooseHeroThunderPolling = true;
+        mainHandler.post(chooseHeroThunderPoll);
+    }
+
+    private void stopChooseHeroThunderPolling() {
+        if (!chooseHeroThunderPolling) return;
+        chooseHeroThunderPolling = false;
+        mainHandler.removeCallbacks(chooseHeroThunderPoll);
     }
 
     private String buildStatusText(String notice) {
@@ -256,6 +308,11 @@ public final class MainActivity extends Activity {
         if (gameSurface != null) {
             text.append("SingleLogin BGM: ")
                     .append(gameSurface.importedAudioStatus())
+                    .append("\n");
+        }
+        if (chooseHeroThunderAudio != null) {
+            text.append("ChooseHero thunder: ")
+                    .append(chooseHeroThunderAudio.status())
                     .append("\n");
         }
         text.append("\n")
