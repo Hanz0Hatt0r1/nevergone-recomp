@@ -38,15 +38,6 @@ final class SingleSelectHeroBaseComposer {
             int top,
             int sourceWidth,
             int sourceHeight);
-    private static native boolean nativeUploadCareerRuneGlow(
-            int tag,
-            int width,
-            int height,
-            int left,
-            int top,
-            int sourceWidth,
-            int sourceHeight,
-            int[] argbPixels);
 
     private SingleSelectHeroBaseComposer() {}
 
@@ -98,9 +89,9 @@ final class SingleSelectHeroBaseComposer {
                 if (outputIndex != career * 2) break;
             }
 
-            // initUI() creates five tagged CCMenuItemSprite controls. Their
-            // normal sprite content size is the native hit box, while the
-            // xrfuwenfaguangNN selected sprite is used for pressed feedback.
+            // initUI() creates five tagged CCMenuItemSprite controls. The
+            // normal sprite's untrimmed source size is also the menu-item
+            // content size, so stage that exact geometry for native hit-tests.
             for (int tag = 1; tag <= 5; tag++) {
                 SingleLoginAtlasComposer.AtlasLayer normal = extractLayer(
                         plistFile,
@@ -136,16 +127,7 @@ final class SingleSelectHeroBaseComposer {
                                 normal.left,
                                 normal.top,
                                 normal.sourceWidth,
-                                normal.sourceHeight) ||
-                        !nativeUploadCareerRuneGlow(
-                                tag,
-                                glow.width,
-                                glow.height,
-                                glow.left,
-                                glow.top,
-                                glow.sourceWidth,
-                                glow.sourceHeight,
-                                glow.pixels)) {
+                                normal.sourceHeight)) {
                     nativeClearCareerRunes();
                     nativeClearCareerRuneTouchAssets();
                     break;
