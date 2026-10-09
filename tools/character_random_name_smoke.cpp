@@ -52,13 +52,22 @@ int main() {
     assert(generated == "AlphaTwo");
 
     // When the concatenated UTF-8 byte string exceeds 18 bytes, the shipped
-    // callback copies only the first selected part back into its buffer.
+    // callback executes strcpy(buffer, secondPart), retaining column 1 only.
     Table long_table;
     long_table.rows.push_back(Row{"ABCDEFGHIJKLMNO", "123456789", "NULL"});
     assert(nevergone::character_random_name::generate(
         long_table, 0, 0, &generated, &error));
-    assert(generated == "ABCDEFGHIJKLMNO");
-    assert(generated.size() == 15);
+    assert(generated == "123456789");
+    assert(generated.size() == 9);
+
+    // Prove that the fallback comes from the independently selected second row,
+    // rather than from the first row used for column 0.
+    Table split_table;
+    split_table.rows.push_back(Row{"ABCDEFGHIJKLMNOPQ", "FirstSecond", "NULL"});
+    split_table.rows.push_back(Row{"R", "SecondOnly", "NULL"});
+    assert(nevergone::character_random_name::generate(
+        split_table, 0, 0x40000000, &generated, &error));
+    assert(generated == "SecondOnly");
 
     // The pending CharacterNameLayer request is consumed only after the CSV
     // loads and a name is generated successfully. Career remains unchanged.
