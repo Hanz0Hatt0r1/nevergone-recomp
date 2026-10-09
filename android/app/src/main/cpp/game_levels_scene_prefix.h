@@ -3,13 +3,17 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "hp_data_reader.h"
 
 namespace nevergone::game_levels_scene_prefix {
 
 struct Prefix {
-    std::int32_t first_i32 = 0;
+    // The original stores this value directly at GameLevels+0x3c and uses it
+    // as serialized-format gates (>1 and >2). Keep the historical field name
+    // for source compatibility while documenting its now-proven role.
+    std::int32_t first_i32 = 0;  // format/version gate
     std::uint32_t scene_count = 0;
     std::size_t bytes_consumed = 0;
 };
@@ -31,11 +35,6 @@ struct FirstLayerHeader {
     std::size_t bytes_consumed = 0;
 };
 
-// ARMv7 proves the first object begins with an int32 followed by a uint32.
-// Later range construction now proves that the second value is the byte length
-// of the immediately following string payload. Keep the historical field name
-// here so existing probes remain source-compatible; FirstObjectCore exposes the
-// newly verified string itself.
 struct FirstObjectPrefix {
     FirstLayerHeader layer_header;
     std::int32_t first_i32 = 0;
@@ -43,12 +42,6 @@ struct FirstObjectPrefix {
     std::size_t bytes_consumed = 0;
 };
 
-// Strongest currently verified first-object boundary. After the prefix the
-// original advances by five bytes from the string-length field start (the four
-// length bytes plus one still-opaque byte), copies exactly second_u32 bytes,
-// appends a NUL, then reads five floats, one int32 and two one-byte bools.
-// Assignment shape proves float[0:2] and float[3:5] are CCPoint pairs, but their
-// gameplay semantics are intentionally not named yet.
 struct FirstObjectCore {
     FirstObjectPrefix prefix;
     std::string string_value;
@@ -63,14 +56,30 @@ struct FirstObjectCore {
     std::size_t bytes_consumed = 0;
 };
 
+// For serialized format versions >2, ARMv7 reads a uint32 count immediately
+// after FirstObjectCore and then exactly count uint32 values, appending each to
+// a vector owned by the object. Versions <=2 have no bytes for this block.
+// The values' gameplay meaning is not yet proven, so the clean-room model uses
+// neutral structural names only.
+struct FirstObjectVersionedList {
+    FirstObjectCore core;
+    bool present = false;
+    std::uint32_t value_count = 0;
+    std::vector<std::uint32_t> values;
+    std::size_t bytes_consumed = 0;
+};
+
 bool parse(const hp_data::Reader& reader, Prefix* out);
 bool parse_first_scene_header(const hp_data::Reader& reader, FirstSceneHeader* out);
 bool parse_first_layer_header(const hp_data::Reader& reader, FirstLayerHeader* out);
 bool parse_first_object_prefix(const hp_data::Reader& reader, FirstObjectPrefix* out);
-
-// Parse through the two proven bool fields and stop before the subsequent
-// conditional object block. Output is transactional: any truncated/hostile
-// string length or missing scalar leaves the caller's value unchanged.
 bool parse_first_object_core(const hp_data::Reader& reader, FirstObjectCore* out);
+
+// Advance through the version>2 uint32 vector when present, or return the core
+// boundary unchanged for older versions. Count is bounds-checked against the
+// remaining stream before allocating/reading any values.
+bool parse_first_object_versioned_list(
+    const hp_data::Reader& reader,
+    FirstObjectVersionedList* out);
 
 }  // namespace nevergone::game_levels_scene_prefix
