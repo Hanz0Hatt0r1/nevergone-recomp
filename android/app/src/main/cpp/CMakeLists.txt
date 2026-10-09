@@ -40,6 +40,8 @@ add_library(nevergone_recomp SHARED
     lua_runtime.cpp
     lua_startup_bindings.cpp
     luaxml_compat.cpp
+    management_role_selection_compositor.cpp
+    management_role_selection_view.cpp
     native_binding_registry.cpp
     native_bootstrap.cpp
     offline_startup_flow.cpp
