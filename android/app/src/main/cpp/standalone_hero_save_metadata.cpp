@@ -36,15 +36,16 @@ bool parse_i32(std::string_view token, std::int32_t* output) {
         if (index == token.size()) return false;
     }
 
+    const std::int64_t limit = negative
+        ? static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max()) + 1
+        : static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
     std::int64_t value = 0;
     for (; index < token.size(); ++index) {
         const char ch = token[index];
         if (ch < '0' || ch > '9') return false;
-        value = value * 10 + static_cast<std::int64_t>(ch - '0');
-        const std::int64_t limit = negative
-            ? static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max()) + 1
-            : static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
-        if (value > limit) return false;
+        const std::int64_t digit = static_cast<std::int64_t>(ch - '0');
+        if (value > (limit - digit) / 10) return false;
+        value = value * 10 + digit;
     }
     if (negative) value = -value;
     *output = static_cast<std::int32_t>(value);
@@ -104,9 +105,9 @@ bool parse(std::string_view bytes, std::uint32_t slot_id, Metadata* output) {
     Metadata parsed;
     parsed.slot_id = slot_id;
     parsed.version_code = version;
-    parsed.level = hero_fields[5];       // SaveDataHero + 0x50
-    parsed.game_hours = hero_fields[10]; // SaveDataHero + 0x64
-    parsed.game_minutes = hero_fields[11]; // SaveDataHero + 0x68
+    parsed.level = hero_fields[5];          // SaveDataHero + 0x50
+    parsed.game_hours = hero_fields[10];    // SaveDataHero + 0x64
+    parsed.game_minutes = hero_fields[11];  // SaveDataHero + 0x68
     parsed.name_key = "Hero" + std::to_string(slot_id) + "Name";
     *output = std::move(parsed);
     return true;
