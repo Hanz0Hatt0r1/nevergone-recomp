@@ -9,6 +9,7 @@ import android.text.InputType;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
@@ -37,6 +38,7 @@ final class FreshRoleCompatOverlay extends LinearLayout {
     private static native boolean nativeRandomizePending();
     private static native boolean nativeSetRoleName(String roleName);
     private static native String nativeDispatchNameAction(int tag);
+    private static native void nativeSetSingleSelectSurfaceSize(int width, int height);
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final LinearLayout careerPanel;
@@ -52,6 +54,7 @@ final class FreshRoleCompatOverlay extends LinearLayout {
         @Override
         public void run() {
             if (!polling) return;
+            publishGameSurfaceSize();
             refreshFromNative();
             if (polling) handler.postDelayed(this, POLL_MS);
         }
@@ -169,8 +172,29 @@ final class FreshRoleCompatOverlay extends LinearLayout {
     protected void onDetachedFromWindow() {
         polling = false;
         handler.removeCallbacks(poll);
+        nativeSetSingleSelectSurfaceSize(0, 0);
         hideKeyboard();
         super.onDetachedFromWindow();
+    }
+
+    private void publishGameSurfaceSize() {
+        GameSurfaceView surface = findGameSurface(getRootView());
+        if (surface == null) {
+            nativeSetSingleSelectSurfaceSize(0, 0);
+            return;
+        }
+        nativeSetSingleSelectSurfaceSize(surface.getWidth(), surface.getHeight());
+    }
+
+    private static GameSurfaceView findGameSurface(View view) {
+        if (view instanceof GameSurfaceView) return (GameSurfaceView) view;
+        if (!(view instanceof ViewGroup)) return null;
+        ViewGroup group = (ViewGroup) view;
+        for (int index = 0; index < group.getChildCount(); ++index) {
+            GameSurfaceView found = findGameSurface(group.getChildAt(index));
+            if (found != null) return found;
+        }
+        return null;
     }
 
     private void refreshFromNative() {
