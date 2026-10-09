@@ -56,19 +56,23 @@ Point surface_to_design(
     return result;
 }
 
-server_selection_layout::RowRect confirm_rect() {
+server_selection_layout::RowRect confirm_rect(float width, float height) {
     server_selection_layout::RowRect result;
+    if (!finite(width) || !finite(height) || width <= 0.0f || height <= 0.0f) {
+        return result;
+    }
     result.index = 0;
     result.original_tag = 10002;
-    result.left = kFallbackConfirmLeft;
-    result.bottom = kFallbackConfirmBottom;
-    result.width = kFallbackConfirmWidth;
-    result.height = kFallbackConfirmHeight;
+    result.width = width;
+    result.height = height;
+    result.left = kConfirmCenterX - width * 0.5f;
+    result.bottom = kConfirmCenterY - height * 0.5f;
     return result;
 }
 
-bool confirm_contains(float design_x, float design_y) {
-    return server_selection_layout::contains(confirm_rect(), design_x, design_y);
+bool confirm_contains(float design_x, float design_y, float width, float height) {
+    return server_selection_layout::contains(
+        confirm_rect(width, height), design_x, design_y);
 }
 
 int hit_test_surface(
