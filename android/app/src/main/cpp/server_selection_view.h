@@ -7,13 +7,12 @@
 namespace nevergone::server_selection_view {
 
 // Project-owned fallback dimensions used only when user-imported expansion
-// assets do not provide the recovered NewServerList row artwork. When
-// border2.png is available, the compositor supplies its decoded runtime size
-// to server_selection_layout and touch hit testing instead.
+// assets do not provide the recovered NewServerList artwork. The recovered
+// confirm center is independent of those fallback dimensions.
 constexpr float kFallbackRowWidth = 440.0f;
 constexpr float kFallbackRowHeight = 72.0f;
-constexpr float kFallbackConfirmLeft = 900.0f;
-constexpr float kFallbackConfirmBottom = 40.0f;
+constexpr float kConfirmCenterX = 568.0f;
+constexpr float kConfirmCenterY = 100.0f;
 constexpr float kFallbackConfirmWidth = 180.0f;
 constexpr float kFallbackConfirmHeight = 64.0f;
 
@@ -39,8 +38,14 @@ Point surface_to_design(
     float surface_x,
     float surface_y);
 
-server_selection_layout::RowRect confirm_rect();
-bool confirm_contains(float design_x, float design_y);
+server_selection_layout::RowRect confirm_rect(
+    float width = kFallbackConfirmWidth,
+    float height = kFallbackConfirmHeight);
+bool confirm_contains(
+    float design_x,
+    float design_y,
+    float width = kFallbackConfirmWidth,
+    float height = kFallbackConfirmHeight);
 
 int hit_test_surface(
     std::size_t server_count,
