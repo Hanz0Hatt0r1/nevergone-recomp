@@ -1,0 +1,27 @@
+name: ChooseHero action state
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate recovered OnCreateback action tags
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/choose_hero_action_state_smoke.cpp \
+            android/app/src/main/cpp/choose_hero_action_state.cpp \
+            -o /tmp/choose_hero_action_state_smoke
+          /tmp/choose_hero_action_state_smoke
