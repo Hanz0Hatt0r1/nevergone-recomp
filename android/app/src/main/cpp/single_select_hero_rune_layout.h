@@ -30,6 +30,14 @@ struct Quad {
     float y1 = 0.0f;
 };
 
+struct SurfaceRect {
+    bool valid = false;
+    float left = 0.0f;
+    float top = 0.0f;
+    float right = 0.0f;
+    float bottom = 0.0f;
+};
+
 inline bool valid_tag(int tag) {
     return tag >= 1 && tag <= kRuneCount;
 }
@@ -51,30 +59,93 @@ inline float opacity(int tag) {
     return valid_tag(tag) ? 1.0f : 0.0f;
 }
 
+inline bool valid_geometry(const FrameGeometry& frame) {
+    return frame.width > 0 && frame.height > 0 &&
+        frame.source_width > 0 && frame.source_height > 0 &&
+        frame.left >= 0 && frame.top >= 0 &&
+        frame.left + frame.width <= frame.source_width &&
+        frame.top + frame.height <= frame.source_height;
+}
+
+inline bool surface_mapping(
+        int surface_width,
+        int surface_height,
+        float* scale,
+        float* offset_x,
+        float* offset_y) {
+    if (surface_width <= 0 || surface_height <= 0 ||
+            scale == nullptr || offset_x == nullptr || offset_y == nullptr) {
+        return false;
+    }
+    *scale = std::min(
+        static_cast<float>(surface_width) / kDesignWidth,
+        static_cast<float>(surface_height) / kDesignHeight);
+    if (!std::isfinite(*scale) || *scale <= 0.0f) return false;
+    const float viewport_width = kDesignWidth * *scale;
+    const float viewport_height = kDesignHeight * *scale;
+    *offset_x = (static_cast<float>(surface_width) - viewport_width) * 0.5f;
+    *offset_y = (static_cast<float>(surface_height) - viewport_height) * 0.5f;
+    return true;
+}
+
+inline SurfaceRect hit_rect_for_surface(
+        const FrameGeometry& frame,
+        int tag,
+        int surface_width,
+        int surface_height) {
+    SurfaceRect result;
+    if (!valid_tag(tag) || !valid_geometry(frame)) return result;
+
+    float scale = 0.0f;
+    float offset_x = 0.0f;
+    float offset_y = 0.0f;
+    if (!surface_mapping(surface_width, surface_height, &scale, &offset_x, &offset_y)) {
+        return result;
+    }
+
+    // CCMenuItemSprite uses the untrimmed normal sprite content size for the
+    // menu-item bounds. TexturePacker trim offsets affect visible pixels only,
+    // not the hit rectangle centered at the recovered menu-item position.
+    const float center_y_design = center_y(tag);
+    const float design_left = kCenterX - static_cast<float>(frame.source_width) * 0.5f;
+    const float design_top = kDesignHeight -
+        (center_y_design + static_cast<float>(frame.source_height) * 0.5f);
+    result.valid = true;
+    result.left = offset_x + design_left * scale;
+    result.top = offset_y + design_top * scale;
+    result.right = result.left + static_cast<float>(frame.source_width) * scale;
+    result.bottom = result.top + static_cast<float>(frame.source_height) * scale;
+    return result;
+}
+
+inline bool hit_test(
+        const FrameGeometry& frame,
+        int tag,
+        int surface_width,
+        int surface_height,
+        float surface_x,
+        float surface_y) {
+    const SurfaceRect rect = hit_rect_for_surface(
+        frame, tag, surface_width, surface_height);
+    return rect.valid && std::isfinite(surface_x) && std::isfinite(surface_y) &&
+        surface_x >= rect.left && surface_x <= rect.right &&
+        surface_y >= rect.top && surface_y <= rect.bottom;
+}
+
 inline Quad quad_for_surface(
         const FrameGeometry& frame,
         int tag,
         int surface_width,
         int surface_height) {
     Quad result;
-    if (!valid_tag(tag) || surface_width <= 0 || surface_height <= 0 ||
-            frame.width <= 0 || frame.height <= 0 ||
-            frame.source_width <= 0 || frame.source_height <= 0 ||
-            frame.left < 0 || frame.top < 0 ||
-            frame.left + frame.width > frame.source_width ||
-            frame.top + frame.height > frame.source_height) {
+    if (!valid_tag(tag) || !valid_geometry(frame)) return result;
+
+    float scale = 0.0f;
+    float offset_x = 0.0f;
+    float offset_y = 0.0f;
+    if (!surface_mapping(surface_width, surface_height, &scale, &offset_x, &offset_y)) {
         return result;
     }
-
-    const float scale = std::min(
-        static_cast<float>(surface_width) / kDesignWidth,
-        static_cast<float>(surface_height) / kDesignHeight);
-    if (!std::isfinite(scale) || scale <= 0.0f) return result;
-
-    const float viewport_width = kDesignWidth * scale;
-    const float viewport_height = kDesignHeight * scale;
-    const float offset_x = (static_cast<float>(surface_width) - viewport_width) * 0.5f;
-    const float offset_y = (static_cast<float>(surface_height) - viewport_height) * 0.5f;
 
     const float center_y_design = center_y(tag);
     const float design_left = kCenterX -
