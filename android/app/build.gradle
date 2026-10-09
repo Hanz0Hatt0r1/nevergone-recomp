@@ -14,7 +14,13 @@ android {
         versionName '0.0.1-dev'
 
         ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a'
+            // Production/developer builds remain ARM-only. x86_64 exists solely so
+            // GitHub's hardware-accelerated Android emulator can exercise startup.
+            if (project.hasProperty('ciEmulator')) {
+                abiFilters 'x86_64'
+            } else {
+                abiFilters 'arm64-v8a', 'armeabi-v7a'
+            }
         }
 
         externalNativeBuild {
