@@ -61,12 +61,14 @@ int main() {
     assert(generated.size() == 9);
 
     // Prove that the fallback comes from the independently selected second row,
-    // rather than from the first row used for column 0.
+    // rather than from the first row used for column 0. For two rows the
+    // recovered formula maps the maximum lrand48 value to index 1.
     Table split_table;
     split_table.rows.push_back(Row{"ABCDEFGHIJKLMNOPQ", "FirstSecond", "NULL"});
     split_table.rows.push_back(Row{"R", "SecondOnly", "NULL"});
+    assert(nevergone::character_random_name::recovered_row_index(0x7fffffff, 2) == 1);
     assert(nevergone::character_random_name::generate(
-        split_table, 0, 0x40000000, &generated, &error));
+        split_table, 0, 0x7fffffff, &generated, &error));
     assert(generated == "SecondOnly");
 
     // The pending CharacterNameLayer request is consumed only after the CSV
