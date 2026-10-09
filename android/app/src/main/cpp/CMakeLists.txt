@@ -48,6 +48,7 @@ add_library(nevergone_recomp SHARED
     offline_startup_flow.cpp
     protorpc_bindings.cpp
     render_bridge.cpp
+    role_creation_validation.cpp
     role_selection_state.cpp
     server_selection_assets.cpp
     server_selection_compositor.cpp
@@ -70,6 +71,7 @@ add_library(nevergone_recomp SHARED
     standalone_hero_save_probe.cpp
     startup_audio_bridge.cpp
     startup_contract.cpp
+    string_validation.cpp
     string_validation_bindings.cpp
     tap_to_start_state.cpp
     xml_validation_binding.cpp
