@@ -29,6 +29,24 @@ final class SingleSelectHeroBaseComposer {
             int sourceWidth,
             int sourceHeight,
             int[] argbPixels);
+    private static native void nativeClearCareerRuneTouchAssets();
+    private static native boolean nativeConfigureCareerRuneHitbox(
+            int tag,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight);
+    private static native boolean nativeUploadCareerRuneGlow(
+            int tag,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
 
     private SingleSelectHeroBaseComposer() {}
 
@@ -36,6 +54,7 @@ final class SingleSelectHeroBaseComposer {
             throws Exception {
         nativeClearHeroTables();
         nativeClearCareerRunes();
+        nativeClearCareerRuneTouchAssets();
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
@@ -79,35 +98,58 @@ final class SingleSelectHeroBaseComposer {
                 if (outputIndex != career * 2) break;
             }
 
-            // initUI() creates five tagged CCMenuItemSprite rune controls.
-            // Each item has a normal xrfuwenNN frame and a pressed
-            // xrfuwenfaguangNN frame. Items 3..5 remain visually present but
-            // disabled in native state, matching the shipped menu.
-            int runeIndex = 0;
+            // initUI() creates five tagged CCMenuItemSprite controls. Their
+            // normal sprite content size is the native hit box, while the
+            // xrfuwenfaguangNN selected sprite is used for pressed feedback.
             for (int tag = 1; tag <= 5; tag++) {
-                String[] frameNames = {
-                        String.format(Locale.ROOT, "xrfuwen%02d.png", tag),
-                        String.format(Locale.ROOT, "xrfuwenfaguang%02d.png", tag),
-                };
-                for (String frameName : frameNames) {
-                    SingleLoginAtlasComposer.AtlasLayer layer =
-                            extractLayer(plistFile, atlas, frameName);
-                    if (layer == null || !nativeUploadCareerRune(
-                            runeIndex,
-                            layer.width,
-                            layer.height,
-                            layer.left,
-                            layer.top,
-                            layer.sourceWidth,
-                            layer.sourceHeight,
-                            layer.pixels)) {
-                        nativeClearCareerRunes();
-                        runeIndex = -1;
-                        break;
-                    }
-                    runeIndex++;
+                SingleLoginAtlasComposer.AtlasLayer normal = extractLayer(
+                        plistFile,
+                        atlas,
+                        String.format(Locale.ROOT, "xrfuwen%02d.png", tag));
+                SingleLoginAtlasComposer.AtlasLayer glow = extractLayer(
+                        plistFile,
+                        atlas,
+                        String.format(Locale.ROOT, "xrfuwenfaguang%02d.png", tag));
+                if (normal == null || glow == null ||
+                        !nativeUploadCareerRune(
+                                (tag - 1) * 2,
+                                normal.width,
+                                normal.height,
+                                normal.left,
+                                normal.top,
+                                normal.sourceWidth,
+                                normal.sourceHeight,
+                                normal.pixels) ||
+                        !nativeUploadCareerRune(
+                                (tag - 1) * 2 + 1,
+                                glow.width,
+                                glow.height,
+                                glow.left,
+                                glow.top,
+                                glow.sourceWidth,
+                                glow.sourceHeight,
+                                glow.pixels) ||
+                        !nativeConfigureCareerRuneHitbox(
+                                tag,
+                                normal.width,
+                                normal.height,
+                                normal.left,
+                                normal.top,
+                                normal.sourceWidth,
+                                normal.sourceHeight) ||
+                        !nativeUploadCareerRuneGlow(
+                                tag,
+                                glow.width,
+                                glow.height,
+                                glow.left,
+                                glow.top,
+                                glow.sourceWidth,
+                                glow.sourceHeight,
+                                glow.pixels)) {
+                    nativeClearCareerRunes();
+                    nativeClearCareerRuneTouchAssets();
+                    break;
                 }
-                if (runeIndex < 0) break;
             }
             return background;
         } finally {
