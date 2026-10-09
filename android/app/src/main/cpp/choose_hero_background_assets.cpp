@@ -8,6 +8,7 @@
 #include "choose_hero_background_assets.h"
 #include "choose_hero_background_compositor.h"
 #include "choose_hero_black_cloud_compositor.h"
+#include "choose_hero_role_focus_compositor.h"
 #include "choose_hero_role_item_compositor.h"
 #include "choose_hero_thunder_effect_compositor.h"
 #include "offline_startup_flow.h"
@@ -233,10 +234,11 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeIsChooseHeroRouteActive(
         JNIEnv*, jclass) {
     // GameSurfaceView calls this once per GL frame from its existing ChooseHero
     // asset lifecycle. Preserve recovered scene ordering first, then draw the
-    // role-item pane as UI above the storm/effect/cloud layers.
+    // role-item pane and its selected-item focus effect above the scene layers.
     nevergone::choose_hero_background_compositor::draw();
     nevergone::choose_hero_thunder_effect_compositor::draw();
     nevergone::choose_hero_black_cloud_compositor::draw();
     nevergone::choose_hero_role_item_compositor::draw();
+    nevergone::choose_hero_role_focus_compositor::draw();
     return nevergone::choose_hero_background::route_active() ? JNI_TRUE : JNI_FALSE;
 }
