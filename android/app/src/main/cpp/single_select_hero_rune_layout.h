@@ -46,6 +46,22 @@ inline bool enabled_tag(int tag) {
     return valid_tag(tag);
 }
 
+// TexturePacker source sizes from the shipped Singleselechero.plist. These are
+// the untrimmed CCMenuItemSprite content sizes and therefore the touch bounds;
+// visible trim/rotation metadata is intentionally not needed for hit testing.
+inline FrameGeometry source_geometry_for_tag(int tag) {
+    FrameGeometry result;
+    switch (tag) {
+        case 1: result.width = result.source_width = 79; result.height = result.source_height = 99; break;
+        case 2: result.width = result.source_width = 87; result.height = result.source_height = 89; break;
+        case 3: result.width = result.source_width = 75; result.height = result.source_height = 95; break;
+        case 4: result.width = result.source_width = 111; result.height = result.source_height = 110; break;
+        case 5: result.width = result.source_width = 137; result.height = result.source_height = 131; break;
+        default: break;
+    }
+    return result;
+}
+
 inline int frame_index(int tag, bool pressed) {
     if (!valid_tag(tag)) return -1;
     return (tag - 1) * 2 + (pressed ? 1 : 0);
