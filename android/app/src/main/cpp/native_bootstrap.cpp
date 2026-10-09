@@ -73,7 +73,11 @@ void reload_java_asset_loader(
     env->DeleteLocalRef(loader);
 }
 
-void reload_choose_hero_assets(JNIEnv* env, jstring files_dir) {
+void reload_runtime_assets(JNIEnv* env, jstring files_dir) {
+    reload_java_asset_loader(
+        env,
+        files_dir,
+        "org/nevergone/recomp/ServerSelectionAssetLoader");
     reload_java_asset_loader(
         env,
         files_dir,
@@ -84,12 +88,12 @@ void reload_choose_hero_assets(JNIEnv* env, jstring files_dir) {
         "org/nevergone/recomp/ChooseHeroProfileLabelLoader");
 }
 
-void reload_choose_hero_assets(JNIEnv* env) {
+void reload_runtime_assets(JNIEnv* env) {
     const std::string& files_dir = nevergone::startup::config().files_dir;
     if (files_dir.empty()) return;
     jstring value = env->NewStringUTF(files_dir.c_str());
     if (value == nullptr) return;
-    reload_choose_hero_assets(env, value);
+    reload_runtime_assets(env, value);
     env->DeleteLocalRef(value);
 }
 
@@ -133,7 +137,7 @@ std::string bootstrap_info() {
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
-    out << "\nNext milestone: wire the recovered ChooseHero action tags to visible controls and execute the offline-safe start/create paths.";
+    out << "\nNext milestone: replace the remaining server-selection fallback visuals with the recovered OBB UI resources.";
     return out.str();
 }
 
@@ -153,7 +157,7 @@ Java_org_nevergone_recomp_MainActivity_nativeConfigureRuntime(
     config.app_version = jstring_to_utf8(env, app_version);
     config.platform = "android";
     nevergone::startup::configure(std::move(config));
-    reload_choose_hero_assets(env, files_dir);
+    reload_runtime_assets(env, files_dir);
     nevergone::app_delegate_state::on_runtime_configured();
 }
 
@@ -174,7 +178,7 @@ Java_org_nevergone_recomp_MainActivity_nativePollChooseHeroThunderSound(JNIEnv*,
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_nevergone_recomp_MainActivity_nativeBootstrapInfo(JNIEnv* env, jclass) {
-    reload_choose_hero_assets(env);
+    reload_runtime_assets(env);
     const std::string info = bootstrap_info();
     return env->NewStringUTF(info.c_str());
 }
