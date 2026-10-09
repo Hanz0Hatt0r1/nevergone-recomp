@@ -1,0 +1,57 @@
+name: SingleSelectHero HeroTable
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/single_select_hero_compositor.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_table_layout.h'
+      - 'android/app/src/main/cpp/single_login_scene_bridge.cpp'
+      - 'android/app/src/main/java/org/nevergone/recomp/SingleSelectHeroBaseComposer.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/SingleSelectHeroPictureLanguage.java'
+      - 'tools/single_select_hero_table_layout_smoke.cpp'
+      - 'tools/SingleSelectHeroPictureLanguageSmoke.java'
+      - '.github/workflows/single-select-hero-table.yml'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'android/app/src/main/cpp/single_select_hero_compositor.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_table_layout.h'
+      - 'android/app/src/main/cpp/single_login_scene_bridge.cpp'
+      - 'android/app/src/main/java/org/nevergone/recomp/SingleSelectHeroBaseComposer.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/SingleSelectHeroPictureLanguage.java'
+      - 'tools/single_select_hero_table_layout_smoke.cpp'
+      - 'tools/SingleSelectHeroPictureLanguageSmoke.java'
+      - '.github/workflows/single-select-hero-table.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Validate HeroTable layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -I android/app/src/main/cpp \
+            tools/single_select_hero_table_layout_smoke.cpp \
+            -o /tmp/single_select_hero_table_layout_smoke
+          /tmp/single_select_hero_table_layout_smoke
+      - name: Validate picture-language mapping
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/single-select-picture-language
+          mkdir -p /tmp/single-select-picture-language
+          javac -d /tmp/single-select-picture-language \
+            android/app/src/main/java/org/nevergone/recomp/SingleSelectHeroPictureLanguage.java \
+            tools/SingleSelectHeroPictureLanguageSmoke.java
+          java -cp /tmp/single-select-picture-language \
+            org.nevergone.recomp.SingleSelectHeroPictureLanguageSmoke

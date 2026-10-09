@@ -4,16 +4,27 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
 import java.io.File;
+import java.util.Locale;
 
 final class SingleSelectHeroBaseComposer {
     private static final String BACKGROUND_FRAME = "xrbeijing.png";
+
+    private static native void nativeClearHeroTables();
+    private static native boolean nativeUploadHeroTable(
+            int tableIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
 
     private SingleSelectHeroBaseComposer() {}
 
     static SingleLoginAtlasComposer.AtlasLayer composeBackground(File plistFile, File atlasFile)
             throws Exception {
-        TexturePackerPlist.Frame frame = TexturePackerPlist.readFrame(plistFile, BACKGROUND_FRAME);
-        if (frame == null) return null;
+        nativeClearHeroTables();
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
@@ -21,19 +32,63 @@ final class SingleSelectHeroBaseComposer {
         if (atlas == null) return null;
 
         try {
-            TexturePackerAtlasExtractor.ExtractedFrame extracted =
-                    TexturePackerAtlasExtractor.extract(frame, atlas);
-            if (extracted == null) return null;
-            return new SingleLoginAtlasComposer.AtlasLayer(
-                    extracted.width,
-                    extracted.height,
-                    extracted.left,
-                    extracted.top,
-                    extracted.sourceWidth,
-                    extracted.sourceHeight,
-                    extracted.pixels);
+            SingleLoginAtlasComposer.AtlasLayer background =
+                    extractLayer(plistFile, atlas, BACKGROUND_FRAME);
+            if (background == null) return null;
+
+            // HeroTable is part of the same shipped atlas and is loaded on this
+            // GL thread so the native compositor can select frames at runtime
+            // without retaining proprietary bytes in the project.
+            final String prefix = SingleSelectHeroPictureLanguage.prefix(Locale.getDefault());
+            int outputIndex = 0;
+            for (int career = 1; career <= 2; career++) {
+                for (char variant : new char[] {'a', 'b'}) {
+                    String frameName = String.format(
+                            Locale.ROOT,
+                            "%s_HeroTable_%02d_%c.png",
+                            prefix,
+                            career,
+                            variant);
+                    SingleLoginAtlasComposer.AtlasLayer layer =
+                            extractLayer(plistFile, atlas, frameName);
+                    if (layer == null || !nativeUploadHeroTable(
+                            outputIndex,
+                            layer.width,
+                            layer.height,
+                            layer.left,
+                            layer.top,
+                            layer.sourceWidth,
+                            layer.sourceHeight,
+                            layer.pixels)) {
+                        nativeClearHeroTables();
+                        break;
+                    }
+                    outputIndex++;
+                }
+                if (outputIndex != career * 2) break;
+            }
+            return background;
         } finally {
             atlas.recycle();
         }
+    }
+
+    private static SingleLoginAtlasComposer.AtlasLayer extractLayer(
+            File plistFile,
+            Bitmap atlas,
+            String frameName) throws Exception {
+        TexturePackerPlist.Frame frame = TexturePackerPlist.readFrame(plistFile, frameName);
+        if (frame == null) return null;
+        TexturePackerAtlasExtractor.ExtractedFrame extracted =
+                TexturePackerAtlasExtractor.extract(frame, atlas);
+        if (extracted == null) return null;
+        return new SingleLoginAtlasComposer.AtlasLayer(
+                extracted.width,
+                extracted.height,
+                extracted.left,
+                extracted.top,
+                extracted.sourceWidth,
+                extracted.sourceHeight,
+                extracted.pixels);
     }
 }
