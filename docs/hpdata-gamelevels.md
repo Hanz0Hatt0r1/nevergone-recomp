@@ -55,13 +55,13 @@ A project-owned `hp_data::Cursor` layers sequential parsing on top of those expl
 
 The ordered metadata trace plus ARMv7 control flow establish the beginning of `GameLevels::LoadGL_Scene()`:
 
-1. a signed 32-bit value is read and stored in a `GameLevels` member whose semantic name is not yet recovered;
+1. a signed 32-bit value is read directly into `GameLevels + 0x3c` at Ghidra `0x002d27f0`;
 2. an unsigned 32-bit value is read;
 3. a zero-based loop index is compared directly against that unsigned value before `GameSceneData::create()`.
 
-The second value is therefore the scene count. No scene-local bytes are consumed when it is zero.
+The second value is therefore the scene count. No scene-local bytes are consumed when it is zero. The first signed field remains semantically unnamed, but later object parsing proves that it acts as a format gate.
 
-`game_levels_scene_prefix::parse()` models only this top-level prefix as `{first_i32, scene_count}` and consumes exactly 8 bytes. The unresolved first field remains deliberately opaque.
+`game_levels_scene_prefix::parse()` models this top-level prefix as `{first_i32, scene_count}` and consumes exactly 8 bytes.
 
 ## Verified first-scene header
 
@@ -76,9 +76,9 @@ When `scene_count > 0`, the original first scene iteration performs this verifie
 7. read another `uint32` at `0x002d28f2`;
 8. initialize a zero-based loop index and compare it directly against that value before each `GameSceneLayerData::create()` call.
 
-The third value is therefore the first scene's string byte length, and the later uint32 is the scene's layer count. The intervening single byte is confirmed as skipped but is intentionally left semantically unnamed.
+The first uint32 is therefore the scene string byte length, and the later uint32 is the scene layer count. The intervening single byte is confirmed as skipped but intentionally left semantically unnamed.
 
-`game_levels_scene_prefix::parse_first_scene_header()` implements exactly that evidence. It returns the top-level prefix, string length/string, two point floats, layer count, and verified byte count. Parsing is transactional. A zero scene count, truncated string, missing float/layer-count field, or impossible string length causes failure without exposing a partially updated output. For a string length `N`, the verified first-scene header ends at byte offset `25 + N`.
+`parse_first_scene_header()` implements exactly that evidence. It is transactional and, for a scene string length `N`, ends at byte offset `25 + N`.
 
 ## Verified first-layer header
 
@@ -89,19 +89,48 @@ When the first scene's `layer_count > 0`, the first layer begins immediately aft
 3. `HPData::getBytes(unsigned int*, ...)` at `0x002d2960`;
 4. a zero-based loop index is compared directly against that uint32 before `GameSceneLayerObjectData::create()` at `0x002d297e`.
 
-The uint32 is therefore the layer's object count. The float's semantic purpose is not yet proven and remains deliberately named `first_float`.
+The uint32 is therefore the layer object count. The float's semantic purpose is not yet proven and remains deliberately named `first_float`.
 
-`game_levels_scene_prefix::parse_first_layer_header()` extends the first-scene header by exactly 8 verified bytes and returns `{first_float, object_count}` plus the total consumed byte count. It fails cleanly when `layer_count == 0`, when either primitive is truncated, or when an earlier scene-header boundary is invalid.
+`parse_first_layer_header()` extends the first-scene header by exactly 8 verified bytes and returns `{first_float, object_count}` plus the total consumed byte count.
 
-## Verified first-object prefix
+## Verified first-object core
 
-A dedicated ordered-call metadata probe of the object body establishes the first reads after `GameSceneLayerObjectData::create()`:
+Focused Thumb/ARMv7 disassembly resolves the first object string and the fixed fields that follow it.
 
-1. `HPData::getBytes(int*, ...)` at `0x002d29a4`;
+The object begins with:
+
+1. `HPData::getBytes(int*, ...)` at Ghidra `0x002d29a4`;
 2. `HPData::getBytes(unsigned int*, ...)` at `0x002d29bc`;
-3. the next operation is an unresolved-width `HPData::getBytes(char*, ...)` at `0x002d29e6`.
+3. the second value is written directly to `HPRange.byte_length` before the char copy;
+4. the stream offset advances by **5** bytes from the start of that uint32, so the four length bytes plus one skipped byte precede the payload;
+5. `HPData::getBytes(char*, ...)` runs at `0x002d29e6` with that exact byte length;
+6. after the copy, the stream offset advances by the same length and the original writes a NUL at `buffer[length]`.
 
-The first two fields form an immediately sequential 8-byte prefix. Their semantic meanings are not yet proven, so `parse_first_object_prefix()` exposes them only as `first_i32` and `second_u32`. It requires `object_count > 0`, updates output only when both values are present, and stops before the char field.
+The historical `FirstObjectPrefix::second_u32` field is therefore conclusively the object string byte length. The source-compatible name is retained for now.
+
+Immediately after the string, the original performs these typed reads in order:
+
+1. five `float` reads at `0x002d2a14`, `0x002d2a2a`, `0x002d2a40`, `0x002d2a62`, and `0x002d2a78`;
+2. one `int32` read at `0x002d2a8e`;
+3. two one-byte `bool` reads at `0x002d2aae` and `0x002d2ac6`.
+
+The stores prove structural grouping without speculative gameplay names: floats 1–2 are assigned as one `CCPoint`, float 3 is a scalar, floats 4–5 form a second `CCPoint`, then the int32 and two bools are stored consecutively.
+
+`parse_first_object_core()` implements exactly this fixed boundary and stops immediately before the first version-gated block. For object string length `N`, this object portion consumes `35 + N` bytes from the beginning of the object record.
+
+## Verified version-gated uint32 vector
+
+The next branch is now recovered directly from ARMv7 control flow:
+
+1. at Ghidra `0x002d2b20`, `LoadGL_Scene` reloads `GameLevels + 0x3c`, the same signed value read as the top-level `Prefix::first_i32`;
+2. it compares that value with signed constant `2` and skips the entire block when `first_i32 <= 2`;
+3. for `first_i32 > 2`, it reads one `uint32` count at `0x002d2b48`;
+4. it initializes a zero-based index and loops until the index reaches that count;
+5. each iteration reads one `uint32` at `0x002d2b72` and appends it to the object-owned `std::vector<uint32_t>` at object offset `+0x5c`.
+
+`parse_first_object_version_extension()` reproduces only this verified gate. For top-level `first_i32 <= 2`, it succeeds without consuming bytes past `FirstObjectCore`. For values `> 2`, it reads the count and exactly `count` uint32 values with a pre-allocation bounds check that rejects hostile counts before reserving memory.
+
+The parser stops at Ghidra `0x002d2ba4`, before the next independent branch on `FirstObjectPrefix::first_i32`. No later conditional object fields are guessed.
 
 ## Imported GameLevels asset probe
 
@@ -109,12 +138,16 @@ The reconstructed runtime resolves the user-owned app-private resource:
 
 `<files>/assets/gamescene/gs_list/pvp_scene.glData`
 
-The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It validates the 8-byte top-level prefix, the first-scene header when a scene exists, the first-layer header when a layer exists, and the first-object prefix when an object exists.
+The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It validates each evidence-backed boundary through the first object's version-gated uint32 vector.
 
-Bootstrap diagnostics report only readiness and verified byte counts. They do **not** print the imported scene's strings, coordinates, counts, floats, object fields, or other proprietary field values. Synthetic host regressions cover missing/readable/oversized/non-regular paths, zero scenes, zero layers, zero objects, valid nested headers, truncated fields, and hostile string lengths without requiring game data.
+Bootstrap diagnostics report only readiness and verified byte counts. They do **not** print imported scene strings, coordinates, counts, floats, object fields, or vector values. Synthetic host regressions cover truncated fields, hostile string lengths, the signed version gate, zero/positive vector counts, and hostile vector counts without requiring game data.
+
+The reconstructed `cpp_OnEnterGame` route treats `first-object-version-extension-verified` as the strongest current GameLevels entry state. It still does not instantiate or render a gameplay scene.
 
 ## Remaining format work
 
-Recover the exact range construction for the first object `char*` read at `0x002d29e6`. Only after its byte width/offset is proven should reconstruction advance into the five following floats and the remaining object fields. Parsing a second object/layer before the complete object-record size/schema is known would be speculative.
+After the optional uint32 vector, the original checks the object's leading `first_i32`. A zero value jumps directly to adding the object to its layer. A nonzero value enters another conditional block whose shape depends again on the top-level format gate and then on additional object values.
+
+Recover that branch through its join point before attempting to parse a second object or layer. In particular, the complete object-record size is not fixed yet for nonzero object types, so iterating object records before those cases are proven would be speculative.
 
 Semantic names should be assigned only when the value's use in the original code makes them unambiguous.
