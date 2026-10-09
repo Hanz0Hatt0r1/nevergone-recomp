@@ -6,8 +6,7 @@
 
 namespace nevergone::choose_hero_role_item_assets {
 
-constexpr int kRequiredAssetCount = 8;
-constexpr int kAssetCount = 9;
+constexpr int kAssetCount = 8;
 
 enum AssetIndex : int {
     kBoardA = 0,
@@ -18,7 +17,6 @@ enum AssetIndex : int {
     kHero02B = 5,
     kCreateA = 6,
     kCreateB = 7,
-    kFocusHighlight = 8,
 };
 
 struct Asset {
@@ -28,9 +26,13 @@ struct Asset {
 };
 
 void clear();
-bool upload(int index, int width, int height, const std::uint32_t* pixels, std::size_t count);
+bool upload(
+    int index,
+    int width,
+    int height,
+    const std::uint32_t* pixels,
+    std::size_t count);
 bool ready();
-bool focus_ready();
 std::uint64_t generation();
 bool copy(int index, Asset* output);
 
