@@ -9,6 +9,8 @@
 namespace nevergone::standalone_hero_save_metadata {
 namespace {
 
+constexpr std::size_t kMaxPrefixBytes = 64u * 1024u;
+
 bool shipped_slot(std::uint32_t slot_id) {
     return slot_id == 1u || slot_id == 2u;
 }
@@ -115,15 +117,20 @@ bool parse(std::string_view bytes, std::uint32_t slot_id, Metadata* output) {
 
 bool read_file(const std::string& files_dir, std::uint32_t slot_id, Metadata* output) {
     if (output == nullptr) return false;
+    *output = {};
     const std::string path = save_path(files_dir, slot_id);
     if (path.empty()) return false;
 
     std::ifstream input(path, std::ios::binary);
     if (!input) return false;
-    std::ostringstream bytes;
-    bytes << input.rdbuf();
-    if (!input.good() && !input.eof()) return false;
-    return parse(bytes.str(), slot_id, output);
+    std::array<char, kMaxPrefixBytes> prefix{};
+    input.read(prefix.data(), static_cast<std::streamsize>(prefix.size()));
+    const std::streamsize count = input.gcount();
+    if (count <= 0) return false;
+    return parse(
+        std::string_view(prefix.data(), static_cast<std::size_t>(count)),
+        slot_id,
+        output);
 }
 
 std::vector<Metadata> load_present(const std::string& files_dir) {
