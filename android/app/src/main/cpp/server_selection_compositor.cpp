@@ -3,6 +3,7 @@
 #include <GLES2/gl2.h>
 #include <jni.h>
 
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <cstdint>
@@ -18,6 +19,12 @@
 namespace nevergone::server_selection_compositor {
 namespace {
 
+struct TextureSlot {
+    GLuint texture = 0;
+    int width = 0;
+    int height = 0;
+};
+
 std::atomic<int> g_surface_width{0};
 std::atomic<int> g_surface_height{0};
 std::atomic<int> g_confirm_pointer{-1};
@@ -27,8 +34,8 @@ GLuint g_color_program = 0;
 GLint g_color_uniform = -1;
 GLuint g_texture_program = 0;
 GLint g_texture_sampler = -1;
-GLuint g_row_texture = 0;
-std::uint64_t g_row_texture_generation = 0;
+std::array<TextureSlot, server_selection_assets::kAssetCount> g_asset_textures{};
+std::uint64_t g_asset_texture_generation = 0;
 
 GLuint compile_shader(GLenum type, const char* source) {
     const GLuint shader = glCreateShader(type);
@@ -164,6 +171,23 @@ bool row_dimensions(float* width, float* height) {
     return false;
 }
 
+bool confirm_dimensions(float* width, float* height) {
+    if (width == nullptr || height == nullptr) return false;
+    int asset_width = 0;
+    int asset_height = 0;
+    if (nevergone::server_selection_assets::dimensions(
+            nevergone::server_selection_assets::kButtonNormal,
+            &asset_width,
+            &asset_height)) {
+        *width = static_cast<float>(asset_width);
+        *height = static_cast<float>(asset_height);
+        return true;
+    }
+    *width = nevergone::server_selection_view::kFallbackConfirmWidth;
+    *height = nevergone::server_selection_view::kFallbackConfirmHeight;
+    return false;
+}
+
 void rect_vertices(
         const server_selection_layout::RowRect& rect,
         GLfloat* vertices) {
@@ -210,31 +234,22 @@ void draw_rect(
     glDisableVertexAttribArray(0);
 }
 
-void clear_row_texture() {
-    if (g_row_texture != 0 && glIsTexture(g_row_texture) == GL_TRUE) {
-        glDeleteTextures(1, &g_row_texture);
+void clear_asset_textures() {
+    for (TextureSlot& slot : g_asset_textures) {
+        if (slot.texture != 0 && glIsTexture(slot.texture) == GL_TRUE) {
+            glDeleteTextures(1, &slot.texture);
+        }
+        slot = {};
     }
-    g_row_texture = 0;
-    g_row_texture_generation = 0;
+    g_asset_texture_generation = 0;
 }
 
-bool ensure_row_texture() {
-    const std::uint64_t generation = nevergone::server_selection_assets::generation();
-    if (!nevergone::server_selection_assets::row_ready()) {
-        clear_row_texture();
-        g_row_texture_generation = generation;
-        return false;
-    }
-    if (g_row_texture_generation == generation && g_row_texture != 0 &&
-            glIsTexture(g_row_texture) == GL_TRUE) {
-        return true;
-    }
-
-    clear_row_texture();
-    nevergone::server_selection_assets::Asset asset;
-    if (!nevergone::server_selection_assets::copy(
-            nevergone::server_selection_assets::kBorder2, &asset)) {
-        g_row_texture_generation = generation;
+bool upload_texture(
+        const server_selection_assets::Asset& asset,
+        TextureSlot* output) {
+    if (output == nullptr || asset.width <= 0 || asset.height <= 0 ||
+            asset.pixels.size() != static_cast<std::size_t>(asset.width) *
+                static_cast<std::size_t>(asset.height)) {
         return false;
     }
 
@@ -247,9 +262,10 @@ bool ensure_row_texture() {
         rgba[index * 4u + 3u] = static_cast<std::uint8_t>((pixel >> 24u) & 0xffu);
     }
 
-    glGenTextures(1, &g_row_texture);
-    if (g_row_texture == 0) return false;
-    glBindTexture(GL_TEXTURE_2D, g_row_texture);
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    if (texture == 0) return false;
+    glBindTexture(GL_TEXTURE_2D, texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -268,15 +284,49 @@ bool ensure_row_texture() {
     const GLenum error = glGetError();
     glBindTexture(GL_TEXTURE_2D, 0);
     if (error != GL_NO_ERROR) {
-        clear_row_texture();
+        glDeleteTextures(1, &texture);
         return false;
     }
-    g_row_texture_generation = generation;
+    output->texture = texture;
+    output->width = asset.width;
+    output->height = asset.height;
     return true;
 }
 
-void draw_row_texture(const server_selection_layout::RowRect& rect) {
-    if (g_texture_program == 0 || g_texture_sampler < 0 || g_row_texture == 0 ||
+bool ensure_asset_textures() {
+    if (g_texture_program == 0 || g_texture_sampler < 0) return false;
+    const std::uint64_t generation = nevergone::server_selection_assets::generation();
+    if (g_asset_texture_generation == generation) {
+        bool valid = true;
+        for (int index = 0; index < server_selection_assets::kAssetCount; ++index) {
+            if (!server_selection_assets::ready(index)) continue;
+            const TextureSlot& slot = g_asset_textures[static_cast<std::size_t>(index)];
+            if (slot.texture == 0 || glIsTexture(slot.texture) != GL_TRUE) {
+                valid = false;
+                break;
+            }
+        }
+        if (valid) return true;
+    }
+
+    clear_asset_textures();
+    for (int index = 0; index < server_selection_assets::kAssetCount; ++index) {
+        if (!server_selection_assets::ready(index)) continue;
+        server_selection_assets::Asset asset;
+        if (!server_selection_assets::copy(index, &asset) ||
+                !upload_texture(asset, &g_asset_textures[static_cast<std::size_t>(index)])) {
+            clear_asset_textures();
+            return false;
+        }
+    }
+    g_asset_texture_generation = generation;
+    return true;
+}
+
+void draw_texture(
+        const TextureSlot& slot,
+        const server_selection_layout::RowRect& rect) {
+    if (g_texture_program == 0 || g_texture_sampler < 0 || slot.texture == 0 ||
             !finite_rect(rect)) {
         return;
     }
@@ -293,7 +343,7 @@ void draw_row_texture(const server_selection_layout::RowRect& rect) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(g_texture_program);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, g_row_texture);
+    glBindTexture(GL_TEXTURE_2D, slot.texture);
     glUniform1i(g_texture_sampler, 0);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
@@ -316,6 +366,21 @@ server_selection_layout::RowRect panel_rect() {
     return rect;
 }
 
+server_selection_layout::RowRect label_rect(const TextureSlot& label) {
+    server_selection_layout::RowRect rect;
+    if (label.width <= 0 || label.height <= 0) return rect;
+    constexpr float kType1LabelMaxWidth = 115.0f;
+    const float width = static_cast<float>(label.width);
+    const float scale = width > kType1LabelMaxWidth ? kType1LabelMaxWidth / width : 1.0f;
+    rect.index = 0;
+    rect.left = server_selection_view::kConfirmCenterX - width * scale * 0.5f;
+    rect.bottom = server_selection_view::kConfirmCenterY -
+        static_cast<float>(label.height) * scale * 0.5f;
+    rect.width = width * scale;
+    rect.height = static_cast<float>(label.height) * scale;
+    return rect;
+}
+
 void clear_touch(int pointer_id) {
     nevergone::server_selection_state::touch_cancelled(pointer_id);
     int expected = pointer_id;
@@ -329,8 +394,8 @@ void on_surface_created() {
     g_color_uniform = -1;
     g_texture_program = 0;
     g_texture_sampler = -1;
-    g_row_texture = 0;
-    g_row_texture_generation = 0;
+    g_asset_textures = {};
+    g_asset_texture_generation = 0;
 
     const GLuint color_program = build_color_program();
     if (color_program != 0) {
@@ -371,10 +436,11 @@ void draw() {
     const auto state = nevergone::server_selection_state::snapshot();
     draw_rect(panel_rect(), 0.035f, 0.055f, 0.085f, 0.82f);
 
+    const bool textures_ready = ensure_asset_textures();
     float row_width = nevergone::server_selection_view::kFallbackRowWidth;
     float row_height = nevergone::server_selection_view::kFallbackRowHeight;
-    const bool original_rows = row_dimensions(&row_width, &row_height) &&
-        g_texture_program != 0 && ensure_row_texture();
+    const bool original_rows = row_dimensions(&row_width, &row_height) && textures_ready &&
+        g_asset_textures[server_selection_assets::kBorder2].texture != 0;
     const auto rows = nevergone::server_selection_layout::build_rows(
         state.server_count, row_width, row_height);
     for (const auto& row : rows) {
@@ -384,7 +450,7 @@ void draw() {
         }
         const bool selected = row.index == state.selected_index;
         if (original_rows) {
-            draw_row_texture(row);
+            draw_texture(g_asset_textures[server_selection_assets::kBorder2], row);
             // The shipped selection overlay/panel transition is not yet fully
             // recovered. Keep the existing project-owned highlight explicit.
             if (selected) draw_rect(row, 0.20f, 0.58f, 0.90f, 0.24f);
@@ -396,8 +462,20 @@ void draw() {
     }
 
     if (state.selected_index >= 0) {
-        const auto confirm = nevergone::server_selection_view::confirm_rect();
-        if (state.enter_request_pending) {
+        float confirm_width = server_selection_view::kFallbackConfirmWidth;
+        float confirm_height = server_selection_view::kFallbackConfirmHeight;
+        const bool original_confirm = confirm_dimensions(&confirm_width, &confirm_height) &&
+            textures_ready && server_selection_assets::confirm_ready();
+        const auto confirm = server_selection_view::confirm_rect(confirm_width, confirm_height);
+        if (original_confirm) {
+            const int button_asset = g_confirm_pointer.load(std::memory_order_relaxed) >= 0
+                ? server_selection_assets::kButtonPressed
+                : server_selection_assets::kButtonNormal;
+            draw_texture(g_asset_textures[static_cast<std::size_t>(button_asset)], confirm);
+            draw_texture(
+                g_asset_textures[server_selection_assets::kStartLabel],
+                label_rect(g_asset_textures[server_selection_assets::kStartLabel]));
+        } else if (state.enter_request_pending) {
             draw_rect(confirm, 0.20f, 0.72f, 0.38f, 0.95f);
         } else {
             draw_rect(confirm, 0.82f, 0.48f, 0.16f, 0.95f);
@@ -424,11 +502,16 @@ bool on_touch(int action, int pointer_id, float surface_x, float surface_y) {
 
     g_owned_touch_count.fetch_add(1, std::memory_order_relaxed);
 
+    float confirm_width = nevergone::server_selection_view::kFallbackConfirmWidth;
+    float confirm_height = nevergone::server_selection_view::kFallbackConfirmHeight;
+    (void)confirm_dimensions(&confirm_width, &confirm_height);
+
     // Android MotionEvent constants: DOWN=0, UP=1, MOVE=2, CANCEL=3,
     // POINTER_DOWN=5, POINTER_UP=6.
     if (action == 0 || action == 5) {
         nevergone::server_selection_state::touch_began(pointer_id, point.y);
-        if (nevergone::server_selection_view::confirm_contains(point.x, point.y) &&
+        if (nevergone::server_selection_view::confirm_contains(
+                point.x, point.y, confirm_width, confirm_height) &&
                 nevergone::server_selection_state::snapshot().selected_index >= 0) {
             g_confirm_pointer.store(pointer_id, std::memory_order_relaxed);
         } else {
@@ -445,7 +528,8 @@ bool on_touch(int action, int pointer_id, float surface_x, float surface_y) {
     if (action == 1 || action == 6) {
         const int confirm_pointer = g_confirm_pointer.load(std::memory_order_relaxed);
         if (confirm_pointer == pointer_id &&
-                nevergone::server_selection_view::confirm_contains(point.x, point.y)) {
+                nevergone::server_selection_view::confirm_contains(
+                    point.x, point.y, confirm_width, confirm_height)) {
             nevergone::server_selection_state::touch_cancelled(pointer_id);
             g_confirm_pointer.store(-1, std::memory_order_relaxed);
             (void)nevergone::server_selection_state::confirm_selection();
@@ -487,6 +571,22 @@ std::string status_report() {
         out << "server selection row visual: project-owned fallback row="
             << nevergone::server_selection_view::kFallbackRowWidth
             << "x" << nevergone::server_selection_view::kFallbackRowHeight << "\n";
+    }
+    int confirm_width = 0;
+    int confirm_height = 0;
+    if (nevergone::server_selection_assets::dimensions(
+            nevergone::server_selection_assets::kButtonNormal,
+            &confirm_width,
+            &confirm_height) &&
+            nevergone::server_selection_assets::confirm_ready()) {
+        out << "server selection confirm visual: original standard button "
+            << confirm_width << "x" << confirm_height << " center="
+            << server_selection_view::kConfirmCenterX << ","
+            << server_selection_view::kConfirmCenterY << "\n";
+    } else {
+        out << "server selection confirm visual: project-owned fallback center="
+            << server_selection_view::kConfirmCenterX << ","
+            << server_selection_view::kConfirmCenterY << "\n";
     }
     out << "server selection draws: " << g_draw_count.load(std::memory_order_relaxed)
         << " owned-touches=" << g_owned_touch_count.load(std::memory_order_relaxed) << "\n";
