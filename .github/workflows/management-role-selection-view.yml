@@ -1,0 +1,27 @@
+name: Management role selection view
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate recovered role-item layout and hit testing
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/management_role_selection_view_smoke.cpp \
+            android/app/src/main/cpp/management_role_selection_view.cpp \
+            -o /tmp/management_role_selection_view_smoke
+          /tmp/management_role_selection_view_smoke
