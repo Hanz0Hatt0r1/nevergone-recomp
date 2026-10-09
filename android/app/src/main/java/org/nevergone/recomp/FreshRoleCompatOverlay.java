@@ -70,6 +70,14 @@ final class FreshRoleCompatOverlay extends LinearLayout {
         heading.setTextSize(13.0f);
         addView(heading, matchWrap());
 
+        // Initialize the final status field before any listener lambda captures
+        // it. Keep addView(status, ...) at the original location below so the
+        // visible layout order remains unchanged.
+        status = new TextView(context);
+        status.setTextColor(0xffdddddd);
+        status.setTextSize(12.0f);
+        status.setGravity(Gravity.START);
+
         careerPanel = new LinearLayout(context);
         careerPanel.setOrientation(VERTICAL);
         addView(careerPanel, matchWrap());
@@ -151,10 +159,6 @@ final class FreshRoleCompatOverlay extends LinearLayout {
         });
         nameActions.addView(cancel, weightedWrap());
 
-        status = new TextView(context);
-        status.setTextColor(0xffdddddd);
-        status.setTextSize(12.0f);
-        status.setGravity(Gravity.START);
         addView(status, matchWrap());
     }
 
