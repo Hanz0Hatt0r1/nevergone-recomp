@@ -22,7 +22,8 @@ final class ServerSelectionAssetLoader {
             "Common/btn_standard_c.png"
     };
     private static final String STRINGS_FILE = "gamescene_ui/ServerList/XMLFile1.xml";
-    private static final int START_LABEL_INDEX = 5;
+    private static final String[] LABEL_KEYS = {"start", "qu", "xuanqu"};
+    private static final int FIRST_LABEL_INDEX = 5;
     private static final int FONT_SIZE = 24;
 
     private static native void nativeClear();
@@ -53,19 +54,20 @@ final class ServerSelectionAssetLoader {
             }
         }
 
-        String startLabel = readString(new File(assetRoot, STRINGS_FILE), "start");
-        if (startLabel != null && !startLabel.isEmpty()) {
-            Bitmap label = renderLabel(startLabel);
-            if (label != null) {
-                try {
-                    if (!upload(START_LABEL_INDEX, label)) {
-                        nativeClear();
-                        return false;
-                    }
-                    uploadedAny = true;
-                } finally {
-                    label.recycle();
+        File stringsFile = new File(assetRoot, STRINGS_FILE);
+        for (int index = 0; index < LABEL_KEYS.length; index++) {
+            String text = readString(stringsFile, LABEL_KEYS[index]);
+            if (text == null || text.isEmpty()) continue;
+            Bitmap label = renderLabel(text);
+            if (label == null) continue;
+            try {
+                if (!upload(FIRST_LABEL_INDEX + index, label)) {
+                    nativeClear();
+                    return false;
                 }
+                uploadedAny = true;
+            } finally {
+                label.recycle();
             }
         }
         return uploadedAny;
