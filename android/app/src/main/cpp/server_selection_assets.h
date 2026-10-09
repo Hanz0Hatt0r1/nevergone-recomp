@@ -13,7 +13,9 @@ enum AssetIndex : int {
     kButtonPressed = 3,
     kButtonDisabled = 4,
     kStartLabel = 5,
-    kAssetCount = 6,
+    kZoneSuffixLabel = 6,
+    kChooseZoneLabel = 7,
+    kAssetCount = 8,
 };
 
 struct Asset {
@@ -33,6 +35,7 @@ bool upload(
 bool ready(int index);
 bool row_ready();
 bool confirm_ready();
+bool selector_labels_ready();
 std::uint64_t generation();
 bool dimensions(int index, int* width, int* height);
 bool copy(int index, Asset* output);
