@@ -5,6 +5,10 @@ add_library(nevergone_recomp SHARED
     app_delegate_state.cpp
     character_name_action_executor.cpp
     character_name_action_runtime.cpp
+    character_name_assets.cpp
+    character_name_assets_jni.cpp
+    character_name_compositor.cpp
+    character_name_frame_bridge.cpp
     character_name_layout.cpp
     character_name_state.cpp
     character_random_name.cpp
