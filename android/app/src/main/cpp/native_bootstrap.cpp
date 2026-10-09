@@ -9,6 +9,7 @@
 #include "app_delegate_state.h"
 #include "choose_hero_background_compositor.h"
 #include "choose_hero_black_cloud_compositor.h"
+#include "choose_hero_thunder_effect_compositor.h"
 #include "client_callback_bridge.h"
 #include "game_levels_asset_probe.h"
 #include "initial_ui_transition.h"
@@ -74,13 +75,14 @@ std::string bootstrap_info() {
     out << nevergone::server_selection_state::status_report();
     out << nevergone::server_selection_compositor::status_report();
     out << nevergone::choose_hero_background_compositor::status_report();
+    out << nevergone::choose_hero_thunder_effect_compositor::status_report();
     out << nevergone::choose_hero_black_cloud_compositor::status_report();
     out << nevergone::login_lua_session::status_report();
     out << nevergone::offline_startup_flow::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
-    out << "\nNext milestone: recover ChooseHero random-thunder/lightning actions and role selection without guessing unresolved callbacks.";
+    out << "\nNext milestone: route recovered ChooseHero thunder sound callbacks to imported audio, then continue role-selection/scene-entry reconstruction.";
     return out.str();
 }
 

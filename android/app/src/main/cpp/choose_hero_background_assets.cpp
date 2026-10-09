@@ -8,6 +8,7 @@
 #include "choose_hero_background_assets.h"
 #include "choose_hero_background_compositor.h"
 #include "choose_hero_black_cloud_compositor.h"
+#include "choose_hero_thunder_effect_compositor.h"
 #include "offline_startup_flow.h"
 
 namespace nevergone::choose_hero_background {
@@ -230,9 +231,10 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeIsChooseHeroRouteActive(
         JNIEnv*, jclass) {
     // GameSurfaceView calls this once per GL frame from its existing ChooseHero
-    // asset lifecycle. Preserve recovered z ordering: PartThree background at
-    // z=10 first, then BalckCloud sprites at z=30.
+    // asset lifecycle. Preserve recovered z ordering: PartThree storm at z=10,
+    // lightning/thunder/ground-light at z=20, BalckCloud sprites at z=30.
     nevergone::choose_hero_background_compositor::draw();
+    nevergone::choose_hero_thunder_effect_compositor::draw();
     nevergone::choose_hero_black_cloud_compositor::draw();
     return nevergone::choose_hero_background::route_active() ? JNI_TRUE : JNI_FALSE;
 }

@@ -8,7 +8,9 @@ add_library(nevergone_recomp SHARED
     choose_hero_background_timeline.cpp
     choose_hero_black_cloud_compositor.cpp
     choose_hero_black_cloud_timeline.cpp
+    choose_hero_thunder_effect_compositor.cpp
     choose_hero_thunder_scheduler.cpp
+    choose_hero_thunder_state.cpp
     client_callback_bridge.cpp
     filesystem_bindings.cpp
     game_clock.cpp
