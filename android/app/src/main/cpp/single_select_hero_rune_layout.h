@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace nevergone::single_select_hero_rune_layout {
@@ -12,6 +13,12 @@ constexpr float kFirstCenterY = 495.0f;
 constexpr float kStepY = 90.0f;
 constexpr int kRuneCount = 5;
 constexpr int kFrameCount = kRuneCount * 2;
+
+// Presentation-only bridge between the GLES-independent touch router and the
+// existing compositor. The original CCMenuItemSprite swaps to the staged
+// xrfuwenfaguangNN.png frame only while the item is pressed. Keeping this
+// state here avoids duplicating input semantics in the renderer.
+inline std::atomic<int> g_pressed_render_tag{0};
 
 struct FrameGeometry {
     int width = 0;
@@ -46,9 +53,19 @@ inline bool enabled_tag(int tag) {
     return valid_tag(tag);
 }
 
+inline void set_pressed_render_tag(int tag) {
+    g_pressed_render_tag.store(valid_tag(tag) ? tag : 0, std::memory_order_relaxed);
+}
+
+inline int pressed_render_tag() {
+    const int tag = g_pressed_render_tag.load(std::memory_order_relaxed);
+    return valid_tag(tag) ? tag : 0;
+}
+
 inline int frame_index(int tag, bool pressed) {
     if (!valid_tag(tag)) return -1;
-    return (tag - 1) * 2 + (pressed ? 1 : 0);
+    const bool show_pressed = pressed || pressed_render_tag() == tag;
+    return (tag - 1) * 2 + (show_pressed ? 1 : 0);
 }
 
 inline float center_y(int tag) {
