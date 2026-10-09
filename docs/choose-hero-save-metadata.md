@@ -37,7 +37,7 @@ SaveDataHero +0x6C
 
 `SaveDataHero` itself is `0xE4` bytes in this build. The standalone loader writes the file slot id separately to `SaveDataHero +0x3C`; it is not another serialized token in this prefix.
 
-`standalone_hero_save_metadata` stops after these thirteen values. Later save sections are deliberately not parsed until their schemas are proven independently.
+`standalone_hero_save_metadata` stops after these thirteen values. Later save sections are deliberately not parsed until their schemas are proven independently. Runtime prefix reads are bounded to 64 KiB.
 
 ## Hero display name is localization, not save data
 
@@ -53,16 +53,7 @@ with the standalone slot id and resolves it through `ManagementLayer::GetPlistSt
 
 The baseline APK contains those rows in `Login/ALL_Loin.csv`. `OriginalApkImporter` already decodes `.csv` resources into `files/assets`, so the reconstructed runtime can read that CSV directly after APK import.
 
-Confirmed rows include:
-
-```text
-Hero1Name -> English DAWN
-Hero2Name -> English HIGGS
-GdUI08    -> English Lv.
-GameUSETime -> English Time 
-```
-
-No proprietary CSV content is checked into the project; these examples document the semantic keys/values recovered during analysis.
+Confirmed semantic examples include English `Hero1Name = DAWN`, `Hero2Name = HIGGS`, `GdUI08 = Lv.` and the `GameUSETime` prefix. Original CSV bytes are not checked into the repository.
 
 ## Localization columns
 
@@ -75,35 +66,44 @@ No proprietary CSV content is checked into the project; these examples document 
 - 7: German;
 - 8: Japanese.
 
-`login_localization_csv` takes an explicit column index. Platform-language selection remains a separate integration boundary, avoiding an invented mapping for any unresolved system-language cases.
+The shipped language switch falls back to column 4 for English and for system-language enums corresponding to Italian, Spanish, Russian, Korean, unknown and out-of-range values. Chinese selects column 2 or 3 according to the traditional-Chinese probe (`zh-Hant` in the Android bridge). The reconstructed Android loader mirrors that behavior, using Hant/TW/HK/MO locale information for the traditional branch and English for unsupported languages.
 
 ## ChooseHero label evidence
 
-`ChooseHeroItem::createChooseHeroItem()` uses the localized name and level with these shipped presentation constants:
+`ChooseHeroItem::createChooseHeroItem()` uses these shipped presentation constants:
 
 - font `Arial`;
 - size `20`;
 - RGB `(96,96,96)`;
 - `sel_hero_name_bg.png` at `(0.70 * itemWidth, 0.67 * itemHeight)`;
+- name anchor `(0, 0.5)`;
 - name X = `backgroundX - backgroundWidth/2 + 20`, name Y = `backgroundY`;
-- level X = `0.80 * itemWidth - labelWidth/2`;
-- level Y = `0.25 * itemHeight`;
-- level prefix comes from localized key `GdUI08`.
+- level prefix comes from localized key `GdUI08`;
+- level label is a child of the name label at local `(nameLabel.contentWidth, 0)` with anchor `(0,0)`;
+- GameUSETime anchor is `(0,0.5)`;
+- GameUSETime uses `x = 0.80 * itemWidth - labelWidth/2`, `y = 0.25 * itemHeight`; because the X anchor is zero, its visible center is at `0.80 * itemWidth`.
 
-This PR establishes the data source only. Text rasterization and `sel_hero_name_bg.png` rendering are intentionally left for the next visual increment so font behavior can be validated independently.
+The previously documented `0.80W / 0.25H` placement for the level label was incorrect; focused ARMv7 inspection shows that formula belongs to GameUSETime.
+
+The baseline APK also contains `Login/ChooseHero/sel_hero_name_bg.png` (122x29 in the analyzed build), so the profile background can be loaded directly from user-imported APK assets.
+
+## Android text rasterization
+
+The Android Cocos2d-x 2.x path used by the shipped game creates TTF label textures with Android `Paint`: anti-aliasing enabled, `Typeface.create(fontName, NORMAL)`, `measureText` rounded up for unconstrained width, font-metric height rounded up, and the baseline at `-fontMetrics.top` for an unconstrained label.
+
+`ChooseHeroProfileLabelLoader` follows that behavior with `Arial` size 20, generates white ARGB label textures, and the GLES profile compositor applies the shipped `(96,96,96)` node color as an RGB tint. This preserves UTF-8 localized text without introducing a project-specific bitmap font.
 
 ## Validation boundary
 
-The host regression checks:
+Regression coverage checks:
 
 - exact magic and shipped version acceptance boundary;
 - device-history count `0..5`;
-- truncated prefixes;
+- truncated prefixes and integer overflow rejection;
 - slot ids restricted to `1` and `2`;
 - level and play-time field positions;
 - terminal NUL tolerance outside the token stream;
-- UTF-8 CSV lookup;
-- quoted CSV fields containing commas;
-- missing keys/columns.
+- UTF-8 CSV lookup and quoted CSV fields containing commas;
+- localized name/level/GameUSETime composition for multiple language columns.
 
-Runtime diagnostics report only metadata from saves that pass this parser. The existing route-selection probe is not changed by this increment, so compatibility behavior for previously detected files remains stable until the metadata reader is deliberately connected to scene routing.
+Runtime diagnostics report only metadata from saves that pass this parser. The existing route-selection probe remains separate, while the profile compositor consumes verified metadata only when a matching valid slot is available.
