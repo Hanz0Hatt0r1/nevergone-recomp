@@ -27,6 +27,7 @@ struct TextureSlot {
 
 std::atomic<int> g_surface_width{0};
 std::atomic<int> g_surface_height{0};
+std::atomic<int> g_selector_pointer{-1};
 std::atomic<int> g_confirm_pointer{-1};
 std::atomic<std::uint64_t> g_draw_count{0};
 std::atomic<std::uint64_t> g_owned_touch_count{0};
@@ -154,38 +155,51 @@ bool finite_rect(const server_selection_layout::RowRect& rect) {
         rect.width > 0.0f && rect.height > 0.0f;
 }
 
-bool row_dimensions(float* width, float* height) {
+bool dimensions_or_fallback(
+        int asset_index,
+        float fallback_width,
+        float fallback_height,
+        float* width,
+        float* height) {
     if (width == nullptr || height == nullptr) return false;
     int asset_width = 0;
     int asset_height = 0;
     if (nevergone::server_selection_assets::dimensions(
-            nevergone::server_selection_assets::kBorder2,
-            &asset_width,
-            &asset_height)) {
+            asset_index, &asset_width, &asset_height)) {
         *width = static_cast<float>(asset_width);
         *height = static_cast<float>(asset_height);
         return true;
     }
-    *width = nevergone::server_selection_view::kFallbackRowWidth;
-    *height = nevergone::server_selection_view::kFallbackRowHeight;
+    *width = fallback_width;
+    *height = fallback_height;
     return false;
 }
 
+bool row_dimensions(float* width, float* height) {
+    return dimensions_or_fallback(
+        server_selection_assets::kBorder2,
+        server_selection_view::kFallbackRowWidth,
+        server_selection_view::kFallbackRowHeight,
+        width,
+        height);
+}
+
+bool selector_dimensions(float* width, float* height) {
+    return dimensions_or_fallback(
+        server_selection_assets::kBorder1,
+        server_selection_view::kFallbackSelectorWidth,
+        server_selection_view::kFallbackSelectorHeight,
+        width,
+        height);
+}
+
 bool confirm_dimensions(float* width, float* height) {
-    if (width == nullptr || height == nullptr) return false;
-    int asset_width = 0;
-    int asset_height = 0;
-    if (nevergone::server_selection_assets::dimensions(
-            nevergone::server_selection_assets::kButtonNormal,
-            &asset_width,
-            &asset_height)) {
-        *width = static_cast<float>(asset_width);
-        *height = static_cast<float>(asset_height);
-        return true;
-    }
-    *width = nevergone::server_selection_view::kFallbackConfirmWidth;
-    *height = nevergone::server_selection_view::kFallbackConfirmHeight;
-    return false;
+    return dimensions_or_fallback(
+        server_selection_assets::kButtonNormal,
+        server_selection_view::kFallbackConfirmWidth,
+        server_selection_view::kFallbackConfirmHeight,
+        width,
+        height);
 }
 
 void rect_vertices(
@@ -272,15 +286,8 @@ bool upload_texture(
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA,
-        asset.width,
-        asset.height,
-        0,
-        GL_RGBA,
-        GL_UNSIGNED_BYTE,
-        rgba.data());
+        GL_TEXTURE_2D, 0, GL_RGBA, asset.width, asset.height, 0,
+        GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
     const GLenum error = glGetError();
     glBindTexture(GL_TEXTURE_2D, 0);
     if (error != GL_NO_ERROR) {
@@ -381,10 +388,16 @@ server_selection_layout::RowRect label_rect(const TextureSlot& label) {
     return rect;
 }
 
+void clear_pointer(std::atomic<int>* pointer, int pointer_id) {
+    if (pointer == nullptr) return;
+    int expected = pointer_id;
+    pointer->compare_exchange_strong(expected, -1, std::memory_order_relaxed);
+}
+
 void clear_touch(int pointer_id) {
     nevergone::server_selection_state::touch_cancelled(pointer_id);
-    int expected = pointer_id;
-    g_confirm_pointer.compare_exchange_strong(expected, -1, std::memory_order_relaxed);
+    clear_pointer(&g_selector_pointer, pointer_id);
+    clear_pointer(&g_confirm_pointer, pointer_id);
 }
 
 }  // namespace
@@ -396,6 +409,8 @@ void on_surface_created() {
     g_texture_sampler = -1;
     g_asset_textures = {};
     g_asset_texture_generation = 0;
+    g_selector_pointer.store(-1, std::memory_order_relaxed);
+    g_confirm_pointer.store(-1, std::memory_order_relaxed);
 
     const GLuint color_program = build_color_program();
     if (color_program != 0) {
@@ -434,31 +449,50 @@ void draw() {
     if (!active() || g_color_program == 0) return;
 
     const auto state = nevergone::server_selection_state::snapshot();
-    draw_rect(panel_rect(), 0.035f, 0.055f, 0.085f, 0.82f);
-
     const bool textures_ready = ensure_asset_textures();
-    float row_width = nevergone::server_selection_view::kFallbackRowWidth;
-    float row_height = nevergone::server_selection_view::kFallbackRowHeight;
-    const bool original_rows = row_dimensions(&row_width, &row_height) && textures_ready &&
-        g_asset_textures[server_selection_assets::kBorder2].texture != 0;
-    const auto rows = nevergone::server_selection_layout::build_rows(
-        state.server_count, row_width, row_height);
-    for (const auto& row : rows) {
-        if (row.bottom + row.height < 0.0f ||
-                row.bottom > server_selection_layout::kDesignHeight) {
-            continue;
+
+    if (state.chooser_open) {
+        // The original hidden CCLayerColor becomes visible at tag 10001 and is
+        // raised to z-order 5. The surrounding panel remains project-owned,
+        // while row placement/artwork are recovered from NewServerList.
+        draw_rect(panel_rect(), 0.035f, 0.055f, 0.085f, 0.82f);
+        float row_width = server_selection_view::kFallbackRowWidth;
+        float row_height = server_selection_view::kFallbackRowHeight;
+        const bool original_rows = row_dimensions(&row_width, &row_height) &&
+            textures_ready &&
+            g_asset_textures[server_selection_assets::kBorder2].texture != 0;
+        const auto rows = server_selection_layout::build_rows(
+            state.server_count, row_width, row_height);
+        for (const auto& row : rows) {
+            if (row.bottom + row.height < 0.0f ||
+                    row.bottom > server_selection_layout::kDesignHeight) {
+                continue;
+            }
+            const bool selected = row.index == state.selected_index;
+            if (original_rows) {
+                draw_texture(g_asset_textures[server_selection_assets::kBorder2], row);
+                if (selected) draw_rect(row, 0.20f, 0.58f, 0.90f, 0.24f);
+            } else if (selected) {
+                draw_rect(row, 0.20f, 0.58f, 0.90f, 0.92f);
+            } else {
+                draw_rect(row, 0.12f, 0.18f, 0.28f, 0.88f);
+            }
         }
-        const bool selected = row.index == state.selected_index;
-        if (original_rows) {
-            draw_texture(g_asset_textures[server_selection_assets::kBorder2], row);
-            // The shipped selection overlay/panel transition is not yet fully
-            // recovered. Keep the existing project-owned highlight explicit.
-            if (selected) draw_rect(row, 0.20f, 0.58f, 0.90f, 0.24f);
-        } else if (selected) {
-            draw_rect(row, 0.20f, 0.58f, 0.90f, 0.92f);
-        } else {
-            draw_rect(row, 0.12f, 0.18f, 0.28f, 0.88f);
-        }
+        g_draw_count.fetch_add(1, std::memory_order_relaxed);
+        return;
+    }
+
+    // Main NewServerList view: border1 tag 10001 is the selector at y=200.
+    float selector_width = server_selection_view::kFallbackSelectorWidth;
+    float selector_height = server_selection_view::kFallbackSelectorHeight;
+    const bool original_selector = selector_dimensions(&selector_width, &selector_height) &&
+        textures_ready && g_asset_textures[server_selection_assets::kBorder1].texture != 0;
+    const auto selector = server_selection_view::selector_rect(selector_width, selector_height);
+    if (original_selector) {
+        // The original uses border1 for both normal and selected images.
+        draw_texture(g_asset_textures[server_selection_assets::kBorder1], selector);
+    } else {
+        draw_rect(selector, 0.12f, 0.18f, 0.28f, 0.92f);
     }
 
     if (state.selected_index >= 0) {
@@ -493,7 +527,7 @@ bool on_touch(int action, int pointer_id, float surface_x, float surface_y) {
 
     const int width = g_surface_width.load(std::memory_order_relaxed);
     const int height = g_surface_height.load(std::memory_order_relaxed);
-    const auto point = nevergone::server_selection_view::surface_to_design(
+    const auto point = server_selection_view::surface_to_design(
         width, height, surface_x, surface_y);
     if (!point.inside_design) {
         if (action == 1 || action == 3 || action == 6) clear_touch(pointer_id);
@@ -501,21 +535,53 @@ bool on_touch(int action, int pointer_id, float surface_x, float surface_y) {
     }
 
     g_owned_touch_count.fetch_add(1, std::memory_order_relaxed);
-
-    float confirm_width = nevergone::server_selection_view::kFallbackConfirmWidth;
-    float confirm_height = nevergone::server_selection_view::kFallbackConfirmHeight;
-    (void)confirm_dimensions(&confirm_width, &confirm_height);
+    const auto state = server_selection_state::snapshot();
 
     // Android MotionEvent constants: DOWN=0, UP=1, MOVE=2, CANCEL=3,
     // POINTER_DOWN=5, POINTER_UP=6.
+    if (state.chooser_open) {
+        if (action == 0 || action == 5) {
+            server_selection_state::touch_began(pointer_id, point.y);
+            return true;
+        }
+        if (action == 3) {
+            clear_touch(pointer_id);
+            return true;
+        }
+        if (action == 1 || action == 6) {
+            float row_width = server_selection_view::kFallbackRowWidth;
+            float row_height = server_selection_view::kFallbackRowHeight;
+            (void)row_dimensions(&row_width, &row_height);
+            const int hit_index = server_selection_layout::hit_test(
+                state.server_count, row_width, row_height, point.x, point.y);
+            (void)server_selection_state::touch_ended(pointer_id, point.y, hit_index);
+            clear_pointer(&g_selector_pointer, pointer_id);
+            clear_pointer(&g_confirm_pointer, pointer_id);
+            return true;
+        }
+        return true;
+    }
+
+    float selector_width = server_selection_view::kFallbackSelectorWidth;
+    float selector_height = server_selection_view::kFallbackSelectorHeight;
+    (void)selector_dimensions(&selector_width, &selector_height);
+    float confirm_width = server_selection_view::kFallbackConfirmWidth;
+    float confirm_height = server_selection_view::kFallbackConfirmHeight;
+    (void)confirm_dimensions(&confirm_width, &confirm_height);
+
     if (action == 0 || action == 5) {
-        nevergone::server_selection_state::touch_began(pointer_id, point.y);
-        if (nevergone::server_selection_view::confirm_contains(
-                point.x, point.y, confirm_width, confirm_height) &&
-                nevergone::server_selection_state::snapshot().selected_index >= 0) {
-            g_confirm_pointer.store(pointer_id, std::memory_order_relaxed);
-        } else {
+        if (server_selection_view::selector_contains(
+                point.x, point.y, selector_width, selector_height)) {
+            g_selector_pointer.store(pointer_id, std::memory_order_relaxed);
             g_confirm_pointer.store(-1, std::memory_order_relaxed);
+            return true;
+        }
+        if (state.selected_index >= 0 &&
+                server_selection_view::confirm_contains(
+                    point.x, point.y, confirm_width, confirm_height)) {
+            g_confirm_pointer.store(pointer_id, std::memory_order_relaxed);
+            g_selector_pointer.store(-1, std::memory_order_relaxed);
+            return true;
         }
         return true;
     }
@@ -526,29 +592,25 @@ bool on_touch(int action, int pointer_id, float surface_x, float surface_y) {
     }
 
     if (action == 1 || action == 6) {
-        const int confirm_pointer = g_confirm_pointer.load(std::memory_order_relaxed);
-        if (confirm_pointer == pointer_id &&
-                nevergone::server_selection_view::confirm_contains(
-                    point.x, point.y, confirm_width, confirm_height)) {
-            nevergone::server_selection_state::touch_cancelled(pointer_id);
-            g_confirm_pointer.store(-1, std::memory_order_relaxed);
-            (void)nevergone::server_selection_state::confirm_selection();
+        const int selector_pointer = g_selector_pointer.load(std::memory_order_relaxed);
+        if (selector_pointer == pointer_id &&
+                server_selection_view::selector_contains(
+                    point.x, point.y, selector_width, selector_height)) {
+            clear_pointer(&g_selector_pointer, pointer_id);
+            (void)server_selection_state::open_chooser();
             return true;
         }
 
-        float row_width = nevergone::server_selection_view::kFallbackRowWidth;
-        float row_height = nevergone::server_selection_view::kFallbackRowHeight;
-        (void)row_dimensions(&row_width, &row_height);
-        const auto state = nevergone::server_selection_state::snapshot();
-        const int hit_index = nevergone::server_selection_layout::hit_test(
-            state.server_count,
-            row_width,
-            row_height,
-            point.x,
-            point.y);
-        (void)nevergone::server_selection_state::touch_ended(
-            pointer_id, point.y, hit_index);
-        g_confirm_pointer.store(-1, std::memory_order_relaxed);
+        const int confirm_pointer = g_confirm_pointer.load(std::memory_order_relaxed);
+        if (confirm_pointer == pointer_id &&
+                server_selection_view::confirm_contains(
+                    point.x, point.y, confirm_width, confirm_height)) {
+            clear_pointer(&g_confirm_pointer, pointer_id);
+            (void)server_selection_state::confirm_selection();
+            return true;
+        }
+
+        clear_touch(pointer_id);
         return true;
     }
 
@@ -557,28 +619,46 @@ bool on_touch(int action, int pointer_id, float surface_x, float surface_y) {
 
 std::string status_report() {
     std::ostringstream out;
+    const auto state = server_selection_state::snapshot();
     out << "server selection compositor: " << (active() ? "active" : "inactive") << "\n";
     out << "server selection surface: "
         << g_surface_width.load(std::memory_order_relaxed) << "x"
         << g_surface_height.load(std::memory_order_relaxed) << "\n";
+    out << "server selection visible view: "
+        << (state.chooser_open ? "chooser-overlay" : "main-selector") << "\n";
+
+    int selector_width = 0;
+    int selector_height = 0;
+    if (server_selection_assets::dimensions(
+            server_selection_assets::kBorder1, &selector_width, &selector_height)) {
+        out << "server selection selector visual: original OBB border1 "
+            << selector_width << "x" << selector_height << " center="
+            << server_selection_view::kSelectorCenterX << ","
+            << server_selection_view::kSelectorCenterY << "\n";
+    } else {
+        out << "server selection selector visual: project-owned fallback center="
+            << server_selection_view::kSelectorCenterX << ","
+            << server_selection_view::kSelectorCenterY << "\n";
+    }
+
     int row_width = 0;
     int row_height = 0;
-    if (nevergone::server_selection_assets::dimensions(
-            nevergone::server_selection_assets::kBorder2, &row_width, &row_height)) {
+    if (server_selection_assets::dimensions(
+            server_selection_assets::kBorder2, &row_width, &row_height)) {
         out << "server selection row visual: original OBB border2 "
             << row_width << "x" << row_height << "\n";
     } else {
         out << "server selection row visual: project-owned fallback row="
-            << nevergone::server_selection_view::kFallbackRowWidth
-            << "x" << nevergone::server_selection_view::kFallbackRowHeight << "\n";
+            << server_selection_view::kFallbackRowWidth
+            << "x" << server_selection_view::kFallbackRowHeight << "\n";
     }
+
     int confirm_width = 0;
     int confirm_height = 0;
-    if (nevergone::server_selection_assets::dimensions(
-            nevergone::server_selection_assets::kButtonNormal,
+    if (server_selection_assets::dimensions(
+            server_selection_assets::kButtonNormal,
             &confirm_width,
-            &confirm_height) &&
-            nevergone::server_selection_assets::confirm_ready()) {
+            &confirm_height) && server_selection_assets::confirm_ready()) {
         out << "server selection confirm visual: original standard button "
             << confirm_width << "x" << confirm_height << " center="
             << server_selection_view::kConfirmCenterX << ","
