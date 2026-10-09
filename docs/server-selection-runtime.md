@@ -101,6 +101,29 @@ The runtime does not hard-code that bitmap size for rendering. `ServerSelectionA
 
 `border1.png` is also present and decodes to `405x46`, but its exact `NewServerList` role remains a separate recovery boundary; it is staged without being assigned speculative behavior.
 
+## Recovered confirm control
+
+Focused `NewServerList::init` evidence confirms the enter-game control as a type-1 standard button with original tag `10002` and center:
+
+```text
+x = visibleWidth / 2
+y = 100
+```
+
+For the verified `1136x640` design surface, the center is `(568,100)`. The user-supplied expansion tree contains the same type-1 button family already recovered for ChooseHero:
+
+```text
+Common/btn_standard_a.png  normal
+Common/btn_standard_b.png  pressed
+Common/btn_standard_c.png  disabled
+```
+
+All three supplied button states decode to `162x63`. `ServerSelectionAssetLoader` loads these files independently of the ChooseHero loader, so server selection does not depend on the ChooseHero route being initialized.
+
+The shipped `gamescene_ui/ServerList/XMLFile1.xml` contains the `start` string used for the visible enter-game label. The loader renders that string at the recovered type-1 label size and applies the already recovered type-1 maximum label width of `115` design pixels. The same runtime button dimensions drive both the rendered quad and touch hit rectangle.
+
+If the expansion button resources are unavailable, the project-owned fallback control remains at the recovered `(568,100)` center rather than the old temporary right-edge position.
+
 ## Expansion encoding/import boundary
 
 Raw expansion `.png`, `.csv`, `.lua`, and `.hpc` files use the same byte encoding already implemented by `OriginalObbImporter`. For each file the importer starts a counter at zero and applies:
@@ -120,9 +143,9 @@ The same expansion tree contains `serverlist.csv`; after the existing import tra
 
 `server_selection_compositor.{h,cpp}` is wired into the normal `GameSurfaceView` GL lifecycle. It is active only while the reconstructed `ManagementLayer` route is `server-selection` and a valid server payload is present. It draws after the recovered SingleLogin/splash layers.
 
-When expansion `border2.png` is available, rows use the original imported texture and its actual content dimensions. GLES texture state is generation-aware and is rebuilt after asset reload or EGL-context recreation. When the expansion row asset is absent, the project-owned `440x72` fallback remains available so the baseline-APK path does not regress.
+When expansion `border2.png` is available, rows use the original imported texture and its actual content dimensions. When the standard-button family and `start` label are available, the confirm control uses the original normal/pressed artwork and shipped label text. GLES texture state is generation-aware and is rebuilt after asset reload or EGL-context recreation.
 
-The surrounding dark panel, selected-row overlay and confirm control are still explicitly project-owned fallback visuals in this increment. They are not claimed to reproduce the original artwork. A focused ARM pass has separately confirmed the original confirm control center at `(visibleWidth/2, 100)`, tag `10002`, and type-1 standard-button family; that should be integrated as a separate verified increment rather than mixed into the row-resource change.
+The surrounding dark panel and selected-row overlay remain explicitly project-owned fallback visuals. They are not claimed to reproduce the original artwork. The confirm control is rendered only after a server selection exists, matching the reconstructed selection/dispatch safety boundary; exact original disabled/no-selection behavior remains unclaimed until separately verified.
 
 `GameSurfaceView.onTouchEvent` offers each pointer event to the server-selection compositor first. If the server route is inactive, the compositor returns `false` and the existing `nativeOnTouch`/TapToStart path remains unchanged. While active, row taps use the recovered `<=10` design-pixel vertical movement rule before updating selection.
 
@@ -130,4 +153,6 @@ Scrolling is not yet reconstructed in the compositor. `server_selection_layout` 
 
 ## Verification
 
-`tools/server_selection_layout_smoke.cpp` retains generic geometry fixtures and now additionally pins the supplied expansion row evidence (`499x68`, second-column X `595`) without committing any original image bytes.
+`tools/server_selection_layout_smoke.cpp` retains generic geometry fixtures and pins the supplied expansion row evidence (`499x68`, second-column X `595`) without committing any original image bytes.
+
+`tools/server_selection_view_smoke.cpp` pins the recovered confirm center `(568,100)`, original tag `10002`, and the supplied type-1 button size `162x63`, while continuing to exercise aspect-fit coordinate mapping.
