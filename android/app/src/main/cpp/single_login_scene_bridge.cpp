@@ -7,6 +7,7 @@
 #include "initial_ui_transition.h"
 #include "offline_startup_flow.h"
 #include "single_select_hero_state.h"
+#include "single_select_hero_transition_timeline.h"
 #include "splash_sequence_state.h"
 #include "standalone_hero_save_probe.h"
 #include "startup_contract.h"
@@ -46,12 +47,40 @@ bool management_login_initialized() {
         nevergone::initial_ui_transition::Phase::kManagementLoginInitialized;
 }
 
+void advance_single_select_hero_transition(std::uint64_t tick) {
+    const auto selector = nevergone::single_select_hero_state::snapshot();
+    if (!selector.active) {
+        nevergone::single_select_hero_transition_timeline::reset();
+        return;
+    }
+
+    // The project-owned compatibility overlay may deliberately collapse the
+    // transition before the native visual timeline completes. Do not leave a
+    // stale callback armed in that case.
+    if (!selector.transition_pending) {
+        if (nevergone::single_select_hero_transition_timeline::snapshot().phase !=
+                nevergone::single_select_hero_transition_timeline::Phase::kInactive) {
+            nevergone::single_select_hero_transition_timeline::reset();
+        }
+        return;
+    }
+
+    if (nevergone::single_select_hero_transition_timeline::advance(
+            tick, selector.generation)) {
+        // FunOpenTheDoor calls OpenTheDoor(true, career); the shipped handler
+        // writes the interaction byte true immediately when this callback
+        // fires, before the opening visuals scheduled by OpenTheDoor finish.
+        nevergone::single_select_hero_state::complete_transition();
+    }
+}
+
 }  // namespace
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeResetRecoveredSceneSequence(JNIEnv*, jclass) {
     nevergone::offline_startup_flow::reset();
     nevergone::single_select_hero_state::reset();
+    nevergone::single_select_hero_transition_timeline::reset();
     nevergone::tap_to_start_state::reset();
     nevergone::splash_sequence_state::reset();
     const std::uint64_t generation = nevergone::splash_sequence_state::generation();
@@ -65,6 +94,7 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeResetRecoveredSceneSequence(JNIE
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeBeginRecoveredSceneSequence(JNIEnv*, jclass) {
     const std::uint64_t tick = nevergone::game_clock::tick_count();
+    nevergone::single_select_hero_transition_timeline::reset();
     nevergone::splash_sequence_state::begin(tick);
     const std::uint64_t generation = nevergone::splash_sequence_state::generation();
     nevergone::choose_hero_action_state::reset(generation);
@@ -91,11 +121,21 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeIsSingleSelectHeroActive(JNIEnv*
 
     const bool active = nevergone::offline_startup_flow::snapshot().route ==
         nevergone::offline_startup_flow::Route::kOpeningDialogue;
-    if (active && !nevergone::single_select_hero_state::snapshot().active) {
-        // OpeningDialogue is the no-standalone-hero route, so there is no
-        // existing career to disable. This mirrors SingleSelectHero::initUI()
-        // selecting career 1 and beginning its initial locked Carousel.
+    const std::uint64_t tick = nevergone::game_clock::tick_count();
+    auto selector = nevergone::single_select_hero_state::snapshot();
+    if (active && !selector.active) {
+        // OpeningDialogue is the no-standalone-hero route. initUI selects its
+        // initial career, clears the interaction byte, and starts Carousel.
         nevergone::single_select_hero_state::begin(0);
+        selector = nevergone::single_select_hero_state::snapshot();
+        nevergone::single_select_hero_transition_timeline::begin_initial(
+            tick, selector.generation);
+    }
+
+    if (active) {
+        advance_single_select_hero_transition(tick);
+    } else {
+        nevergone::single_select_hero_transition_timeline::reset();
     }
     return active ? JNI_TRUE : JNI_FALSE;
 }
