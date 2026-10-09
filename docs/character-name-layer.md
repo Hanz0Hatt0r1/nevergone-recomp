@@ -60,15 +60,37 @@ The recovered CharacterNameLayer construction references the following imported 
 
 These names are evidence for the later renderer/input reconstruction. No replacement artwork is embedded in the repository.
 
+## Runtime action executor
+
+`character_name_action_executor` is now the side-effect boundary that future CharacterNameLayer input/render code should call instead of talking to state, Lua and CSV helpers independently.
+
+For tag `1` it preserves the recovered ordering:
+
+```text
+character_name_state::dispatch_tag(1)
+  -> validate current name (18-byte CharacterNameLayer rule)
+  -> role_selection_state::request_create_role(name, career)
+  -> login_lua_session::dispatch_pending_role_create_request()
+  -> g_UILogin.CreateCharacter(name, career)
+```
+
+If validation rejects the name, no Lua dispatch is attempted. If Lua startup/call fails, `login_lua_session` leaves the staged create request pending for diagnostics/retry; the action executor reports a dispatch failure without silently consuming it.
+
+For tag `3`, the executor first records the recovered randomize action and then fulfills the pending request through `character_random_name::fulfill_pending()`. Failed CSV/load/generation attempts leave the pending randomize state available for retry. Tag `2` closes the CharacterNameLayer state without creating any network request.
+
+The executor core accepts injected callbacks so host CI can verify ordering and retry semantics without requiring a built Lua runtime. The Android production adapter supplies the real persistent-login and `RandomName.csv` implementations.
+
 ## Current implementation boundary
 
-`character_name_state` now owns the presentation-independent semantics:
+The reconstructed fresh-account creation path now owns:
 
 - active scene generation and exact career identity;
 - current edit-box text;
 - exact tag `1` / `2` / `3` action mapping;
 - initial and explicit random-name requests;
 - CharacterNameLayer-specific 18-byte validation;
-- successful submit staging through `role_selection_state::request_create_role(name, career)`.
+- successful submit staging through `role_selection_state::request_create_role(name, career)`;
+- production execution of a valid staged request through `g_UILogin.CreateCharacter(name, career)`;
+- recovered `RandomName.csv` generation and retry-safe action execution.
 
-The existing persistent login Lua executor remains responsible for consuming that staged request and calling `g_UILogin.CreateCharacter(name, career)`. RandomName.csv parsing, Android text/IME presentation, visual composition, and the SingleSelectHero class-selection controls are separate follow-up increments.
+Android text/IME presentation, visual composition and touch hit boxes for the CharacterNameLayer remain the next UI boundary. The production executor is intentionally ready before that layer so the renderer can remain a thin consumer of already tested semantics.
