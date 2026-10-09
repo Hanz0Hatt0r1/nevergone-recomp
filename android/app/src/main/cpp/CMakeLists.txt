@@ -3,6 +3,9 @@ project(nevergone_recomp LANGUAGES C CXX)
 
 add_library(nevergone_recomp SHARED
     app_delegate_state.cpp
+    choose_hero_action_control_assets.cpp
+    choose_hero_action_control_compositor.cpp
+    choose_hero_action_control_layout.cpp
     choose_hero_action_state.cpp
     choose_hero_background_assets.cpp
     choose_hero_background_compositor.cpp
