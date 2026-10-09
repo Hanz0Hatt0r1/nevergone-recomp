@@ -6,9 +6,10 @@
 
 namespace nevergone::server_selection_view {
 
-// Project-owned fallback dimensions used only while the original
-// gamescene_ui/ServerList row/button artwork is unavailable. The recovered
-// NewServerList placement math remains in server_selection_layout.
+// Project-owned fallback dimensions used only when user-imported expansion
+// assets do not provide the recovered NewServerList row artwork. When
+// border2.png is available, the compositor supplies its decoded runtime size
+// to server_selection_layout and touch hit testing instead.
 constexpr float kFallbackRowWidth = 440.0f;
 constexpr float kFallbackRowHeight = 72.0f;
 constexpr float kFallbackConfirmLeft = 900.0f;
