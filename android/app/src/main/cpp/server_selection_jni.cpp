@@ -1,5 +1,6 @@
 #include <jni.h>
 
+#include "choose_hero_role_item_compositor.h"
 #include "login_lua_session.h"
 #include "server_selection_compositor.h"
 #include "server_selection_state.h"
@@ -12,6 +13,17 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnServerSelectionTouch(
     jint pointer_id,
     jfloat x,
     jfloat y) {
+    // GameSurfaceView already sends every touch through this native router
+    // before the generic TapToStart path. Reuse it for the mutually-exclusive
+    // offline choose-role route so Java input plumbing remains unchanged.
+    if (nevergone::choose_hero_role_item_compositor::on_touch(
+            static_cast<int>(action),
+            static_cast<int>(pointer_id),
+            static_cast<float>(x),
+            static_cast<float>(y))) {
+        return JNI_TRUE;
+    }
+
     const bool handled = nevergone::server_selection_compositor::on_touch(
         static_cast<int>(action),
         static_cast<int>(pointer_id),
