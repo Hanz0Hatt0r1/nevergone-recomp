@@ -13,6 +13,7 @@ bool g_active = false;
 std::uint64_t g_generation = 0;
 std::int64_t g_existing_career = 0;
 std::int64_t g_selected_career = 0;
+std::int64_t g_transition_from_career = 0;
 bool g_input_enabled = false;
 bool g_transition_pending = false;
 std::uint64_t g_selection_count = 0;
@@ -30,6 +31,7 @@ Snapshot snapshot_locked() {
     result.generation = g_generation;
     result.existing_career = g_existing_career;
     result.selected_career = g_selected_career;
+    result.transition_from_career = g_transition_from_career;
     result.input_enabled = g_input_enabled;
     result.transition_pending = g_transition_pending;
     result.selection_count = g_selection_count;
@@ -49,8 +51,12 @@ void begin(std::int64_t existing_career) {
     g_selected_career =
         g_existing_career == kCareerOne ? kCareerTwo : kCareerOne;
 
+    // initUI() writes #1d8 from #1dc immediately before Carousel(selected), so
+    // the initial transition's old/new distance is zero.
+    g_transition_from_career = g_selected_career;
+
     // initUI() writes the interaction byte false before the initial Carousel.
-    // A later visual transition executor restores it through OpenTheDoor(true).
+    // The recovered Carousel callback restores it through OpenTheDoor(true).
     g_input_enabled = false;
     g_transition_pending = true;
     g_selection_count = 0;
@@ -65,6 +71,7 @@ void reset() {
     ++g_generation;
     g_existing_career = 0;
     g_selected_career = 0;
+    g_transition_from_career = 0;
     g_input_enabled = false;
     g_transition_pending = false;
     g_selection_count = 0;
@@ -95,6 +102,10 @@ bool select_career(std::int64_t career) {
     if (!g_active || !g_input_enabled) return false;
     if (g_selected_career == career) return true;
 
+    // menuOpenGC passes the previous #1dc value as OpenTheDoor(false, data)
+    // before writing the new sender tag to #1d8/#1dc. FuncCloseTheDoor later
+    // forwards that old tag to Carousel(oldCareer).
+    g_transition_from_career = g_selected_career;
     g_selected_career = career;
     g_input_enabled = false;
     g_transition_pending = true;
@@ -138,6 +149,7 @@ std::string status_report() {
         << " generation=" << state.generation
         << " existing-career=" << state.existing_career
         << " selected-career=" << state.selected_career
+        << " transition-from=" << state.transition_from_career
         << " input=" << (state.input_enabled ? "enabled" : "locked")
         << " transition=" << (state.transition_pending ? "pending" : "idle")
         << "\n";
