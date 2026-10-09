@@ -16,23 +16,19 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
     Snapshot result;
     result.configured = !path.empty();
     if (!result.configured) return result;
-
     std::error_code error;
     const std::filesystem::path file(path);
     result.present = std::filesystem::exists(file, error) && !error;
     if (!result.present) return result;
-
     error.clear();
     result.regular_file = std::filesystem::is_regular_file(file, error) && !error;
     if (!result.regular_file) return result;
-
     error.clear();
     const auto raw_size = std::filesystem::file_size(file, error);
     if (error) return result;
     result.file_size = static_cast<std::uint64_t>(raw_size);
     result.within_size_limit = raw_size <= max_bytes;
     if (!result.within_size_limit) return result;
-
     std::ifstream input(file, std::ios::binary);
     if (!input) return result;
     std::vector<std::uint8_t> bytes(static_cast<std::size_t>(raw_size));
@@ -40,7 +36,6 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
         input.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
         if (!input || input.gcount() != static_cast<std::streamsize>(bytes.size())) return result;
     }
-
     hp_data::Reader reader(std::move(bytes));
     result.reader_size = reader.size();
     result.loaded = result.reader_size == static_cast<std::size_t>(raw_size);
@@ -49,55 +44,34 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
     game_levels_scene_prefix::Prefix prefix;
     result.scene_prefix_readable = game_levels_scene_prefix::parse(reader, &prefix);
     if (result.scene_prefix_readable) result.scene_prefix_bytes_consumed = prefix.bytes_consumed;
-
     game_levels_scene_prefix::FirstSceneHeader scene_header;
-    result.first_scene_header_readable =
-        game_levels_scene_prefix::parse_first_scene_header(reader, &scene_header);
-    if (result.first_scene_header_readable) {
-        result.first_scene_header_bytes_consumed = scene_header.bytes_consumed;
-    }
-
+    result.first_scene_header_readable = game_levels_scene_prefix::parse_first_scene_header(reader, &scene_header);
+    if (result.first_scene_header_readable) result.first_scene_header_bytes_consumed = scene_header.bytes_consumed;
     game_levels_scene_prefix::FirstLayerHeader layer_header;
-    result.first_layer_header_readable =
-        game_levels_scene_prefix::parse_first_layer_header(reader, &layer_header);
-    if (result.first_layer_header_readable) {
-        result.first_layer_header_bytes_consumed = layer_header.bytes_consumed;
-    }
-
+    result.first_layer_header_readable = game_levels_scene_prefix::parse_first_layer_header(reader, &layer_header);
+    if (result.first_layer_header_readable) result.first_layer_header_bytes_consumed = layer_header.bytes_consumed;
     game_levels_scene_prefix::FirstObjectPrefix object_prefix;
-    result.first_object_prefix_readable =
-        game_levels_scene_prefix::parse_first_object_prefix(reader, &object_prefix);
-    if (result.first_object_prefix_readable) {
-        result.first_object_prefix_bytes_consumed = object_prefix.bytes_consumed;
-    }
-
+    result.first_object_prefix_readable = game_levels_scene_prefix::parse_first_object_prefix(reader, &object_prefix);
+    if (result.first_object_prefix_readable) result.first_object_prefix_bytes_consumed = object_prefix.bytes_consumed;
     game_levels_scene_prefix::FirstObjectCore object_core;
-    result.first_object_core_readable =
-        game_levels_scene_prefix::parse_first_object_core(reader, &object_core);
-    if (result.first_object_core_readable) {
-        result.first_object_core_bytes_consumed = object_core.bytes_consumed;
-    }
-
+    result.first_object_core_readable = game_levels_scene_prefix::parse_first_object_core(reader, &object_core);
+    if (result.first_object_core_readable) result.first_object_core_bytes_consumed = object_core.bytes_consumed;
     game_levels_scene_prefix::FirstObjectVersionExtension version_extension;
-    result.first_object_version_extension_readable =
-        game_levels_scene_prefix::parse_first_object_version_extension(reader, &version_extension);
-    if (result.first_object_version_extension_readable) {
-        result.first_object_version_extension_bytes_consumed = version_extension.bytes_consumed;
-    }
-
+    result.first_object_version_extension_readable = game_levels_scene_prefix::parse_first_object_version_extension(reader, &version_extension);
+    if (result.first_object_version_extension_readable) result.first_object_version_extension_bytes_consumed = version_extension.bytes_consumed;
     game_levels_scene_prefix::FirstObjectConditionalHeader conditional_header;
-    result.first_object_conditional_header_readable =
-        game_levels_scene_prefix::parse_first_object_conditional_header(reader, &conditional_header);
-    if (result.first_object_conditional_header_readable) {
-        result.first_object_conditional_header_bytes_consumed = conditional_header.bytes_consumed;
-    }
+    result.first_object_conditional_header_readable = game_levels_scene_prefix::parse_first_object_conditional_header(reader, &conditional_header);
+    if (result.first_object_conditional_header_readable) result.first_object_conditional_header_bytes_consumed = conditional_header.bytes_consumed;
+    game_levels_scene_prefix::FirstObjectRecord object_record;
+    result.first_object_record_readable = game_levels_scene_prefix::parse_first_object_record(reader, &object_record);
+    if (result.first_object_record_readable) result.first_object_record_bytes_consumed = object_record.bytes_consumed;
     return result;
 }
 
 Snapshot probe_pvp_scene(const std::string& files_dir) {
     if (files_dir.empty()) return {};
-    const std::filesystem::path path =
-        std::filesystem::path(files_dir) / "assets" / "gamescene" / "gs_list" / "pvp_scene.glData";
+    const std::filesystem::path path = std::filesystem::path(files_dir) /
+        "assets" / "gamescene" / "gs_list" / "pvp_scene.glData";
     return probe_file(path.string());
 }
 
@@ -114,11 +88,12 @@ std::string status_report(const std::string& files_dir) {
     else if (!state.first_scene_header_readable) out << "loaded (" << state.reader_size << " bytes; first scene header unavailable)\n";
     else if (!state.first_layer_header_readable) out << "loaded (" << state.reader_size << " bytes; first layer header unavailable)\n";
     else if (!state.first_object_prefix_readable) out << "loaded (" << state.reader_size << " bytes; first object prefix unavailable)\n";
-    else if (!state.first_object_core_readable) out << "loaded (" << state.reader_size << " bytes; first object prefix readable, core unavailable)\n";
-    else if (!state.first_object_version_extension_readable) out << "loaded (" << state.reader_size << " bytes; first object core readable, version extension unavailable)\n";
-    else if (!state.first_object_conditional_header_readable) out << "loaded (" << state.reader_size << " bytes; version extension readable, conditional header unavailable)\n";
-    else out << "loaded (" << state.reader_size << " bytes; first object conditional header readable, "
-             << state.first_object_conditional_header_bytes_consumed << " bytes verified)\n";
+    else if (!state.first_object_core_readable) out << "loaded (" << state.reader_size << " bytes; first object core unavailable)\n";
+    else if (!state.first_object_version_extension_readable) out << "loaded (" << state.reader_size << " bytes; version extension unavailable)\n";
+    else if (!state.first_object_conditional_header_readable) out << "loaded (" << state.reader_size << " bytes; conditional header unavailable)\n";
+    else if (!state.first_object_record_readable) out << "loaded (" << state.reader_size << " bytes; conditional header readable, object tail unavailable)\n";
+    else out << "loaded (" << state.reader_size << " bytes; first object record complete, "
+             << state.first_object_record_bytes_consumed << " bytes verified)\n";
     return out.str();
 }
 

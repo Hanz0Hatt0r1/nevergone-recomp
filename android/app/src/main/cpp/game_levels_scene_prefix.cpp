@@ -29,9 +29,7 @@ bool parse_first_scene_header(const hp_data::Reader& reader, FirstSceneHeader* o
     const std::size_t string_length = static_cast<std::size_t>(parsed.first_string_length);
     constexpr std::size_t kTrailingFixedBytes = sizeof(float) * 2u + sizeof(std::uint32_t);
     if (string_length > cursor.remaining() ||
-            kTrailingFixedBytes > cursor.remaining() - string_length) {
-        return false;
-    }
+            kTrailingFixedBytes > cursor.remaining() - string_length) return false;
     if (!cursor.read_fixed_string(string_length, &parsed.first_string)) return false;
     if (!cursor.read_f32_le(&parsed.first_point_x)) return false;
     if (!cursor.read_f32_le(&parsed.first_point_y)) return false;
@@ -44,10 +42,7 @@ bool parse_first_scene_header(const hp_data::Reader& reader, FirstSceneHeader* o
 bool parse_first_layer_header(const hp_data::Reader& reader, FirstLayerHeader* out) {
     if (out == nullptr) return false;
     FirstSceneHeader scene_header;
-    if (!parse_first_scene_header(reader, &scene_header) || scene_header.layer_count == 0) {
-        return false;
-    }
-
+    if (!parse_first_scene_header(reader, &scene_header) || scene_header.layer_count == 0) return false;
     hp_data::Cursor cursor(reader, scene_header.bytes_consumed);
     FirstLayerHeader parsed;
     parsed.scene_header = std::move(scene_header);
@@ -61,10 +56,7 @@ bool parse_first_layer_header(const hp_data::Reader& reader, FirstLayerHeader* o
 bool parse_first_object_prefix(const hp_data::Reader& reader, FirstObjectPrefix* out) {
     if (out == nullptr) return false;
     FirstLayerHeader layer_header;
-    if (!parse_first_layer_header(reader, &layer_header) || layer_header.object_count == 0) {
-        return false;
-    }
-
+    if (!parse_first_layer_header(reader, &layer_header) || layer_header.object_count == 0) return false;
     hp_data::Cursor cursor(reader, layer_header.bytes_consumed);
     FirstObjectPrefix parsed;
     parsed.layer_header = std::move(layer_header);
@@ -77,26 +69,16 @@ bool parse_first_object_prefix(const hp_data::Reader& reader, FirstObjectPrefix*
 
 bool parse_first_object_core(const hp_data::Reader& reader, FirstObjectCore* out) {
     if (out == nullptr) return false;
-
     FirstObjectPrefix prefix;
     if (!parse_first_object_prefix(reader, &prefix)) return false;
-
     hp_data::Cursor cursor(reader, prefix.bytes_consumed);
     FirstObjectCore parsed;
     parsed.prefix = std::move(prefix);
-
-    // The stream offset advances by five from the start of the uint32 length:
-    // four length bytes are already consumed, leaving one opaque byte to skip.
     if (!cursor.skip(1)) return false;
-
     const std::size_t string_length = static_cast<std::size_t>(parsed.prefix.second_u32);
-    constexpr std::size_t kTrailingFixedBytes =
-        sizeof(float) * 5u + sizeof(std::int32_t) + 2u;
+    constexpr std::size_t kTrailingFixedBytes = sizeof(float) * 5u + sizeof(std::int32_t) + 2u;
     if (string_length > cursor.remaining() ||
-            kTrailingFixedBytes > cursor.remaining() - string_length) {
-        return false;
-    }
-
+            kTrailingFixedBytes > cursor.remaining() - string_length) return false;
     if (!cursor.read_fixed_string(string_length, &parsed.string_value)) return false;
     if (!cursor.read_f32_le(&parsed.first_point_x)) return false;
     if (!cursor.read_f32_le(&parsed.first_point_y)) return false;
@@ -106,7 +88,6 @@ bool parse_first_object_core(const hp_data::Reader& reader, FirstObjectCore* out
     if (!cursor.read_i32_le(&parsed.trailing_i32)) return false;
     if (!cursor.read_bool8(&parsed.first_bool)) return false;
     if (!cursor.read_bool8(&parsed.second_bool)) return false;
-
     parsed.bytes_consumed = cursor.offset();
     *out = std::move(parsed);
     return true;
@@ -116,23 +97,18 @@ bool parse_first_object_version_extension(
         const hp_data::Reader& reader,
         FirstObjectVersionExtension* out) {
     if (out == nullptr) return false;
-
     FirstObjectCore core;
     if (!parse_first_object_core(reader, &core)) return false;
-
     hp_data::Cursor cursor(reader, core.bytes_consumed);
     FirstObjectVersionExtension parsed;
     parsed.core = std::move(core);
-
     const std::int32_t top_level_gate =
         parsed.core.prefix.layer_header.scene_header.prefix.first_i32;
     if (top_level_gate > 2) {
         std::uint32_t count = 0;
         if (!cursor.read_u32_le(&count)) return false;
-
         const std::size_t value_count = static_cast<std::size_t>(count);
         if (value_count > cursor.remaining() / sizeof(std::uint32_t)) return false;
-
         parsed.extra_u32_values.reserve(value_count);
         for (std::size_t i = 0; i < value_count; ++i) {
             std::uint32_t value = 0;
@@ -140,7 +116,6 @@ bool parse_first_object_version_extension(
             parsed.extra_u32_values.push_back(value);
         }
     }
-
     parsed.bytes_consumed = cursor.offset();
     *out = std::move(parsed);
     return true;
@@ -150,39 +125,67 @@ bool parse_first_object_conditional_header(
         const hp_data::Reader& reader,
         FirstObjectConditionalHeader* out) {
     if (out == nullptr) return false;
-
     FirstObjectVersionExtension extension;
     if (!parse_first_object_version_extension(reader, &extension)) return false;
-
     hp_data::Cursor cursor(reader, extension.bytes_consumed);
     FirstObjectConditionalHeader parsed;
     parsed.extension = std::move(extension);
-
-    // The original jumps directly to GameSceneLayerData::AddObject when the
-    // object's leading int32 is zero. This is a complete no-byte branch.
     if (parsed.extension.core.prefix.first_i32 == 0) {
         parsed.bytes_consumed = cursor.offset();
         *out = std::move(parsed);
         return true;
     }
-
     parsed.present = true;
     const std::int32_t top_level_gate =
         parsed.extension.core.prefix.layer_header.scene_header.prefix.first_i32;
     if (!cursor.read_u32_le(&parsed.first_u32)) return false;
     if (top_level_gate > 1 && !cursor.read_u32_le(&parsed.second_u32)) return false;
-
     if (!cursor.read_u32_le(&parsed.string_length) || !cursor.skip(1)) return false;
     const std::size_t string_length = static_cast<std::size_t>(parsed.string_length);
     if (string_length > cursor.remaining() ||
-            sizeof(std::int32_t) > cursor.remaining() - string_length) {
-        return false;
-    }
-
+            sizeof(std::int32_t) > cursor.remaining() - string_length) return false;
     if (!cursor.read_fixed_string(string_length, &parsed.string_value)) return false;
     if (!cursor.read_i32_le(&parsed.primary_i32)) return false;
     if (parsed.primary_i32 == 1 && !cursor.read_i32_le(&parsed.secondary_i32)) return false;
+    parsed.bytes_consumed = cursor.offset();
+    *out = std::move(parsed);
+    return true;
+}
 
+bool parse_first_object_record(const hp_data::Reader& reader, FirstObjectRecord* out) {
+    if (out == nullptr) return false;
+
+    FirstObjectConditionalHeader header;
+    if (!parse_first_object_conditional_header(reader, &header)) return false;
+
+    hp_data::Cursor cursor(reader, header.bytes_consumed);
+    FirstObjectRecord parsed;
+    parsed.header = std::move(header);
+
+    const std::int32_t object_type = parsed.header.extension.core.prefix.first_i32;
+    if (object_type == 0) {
+        parsed.bytes_consumed = cursor.offset();
+        *out = std::move(parsed);
+        return true;
+    }
+
+    const std::uint32_t type_bits = static_cast<std::uint32_t>(object_type);
+    const bool one_int_type = ((type_bits & ~0x2u) == 0x4u) || object_type == 9;
+    if (one_int_type) {
+        parsed.has_tail_i32 = true;
+        if (!cursor.read_i32_le(&parsed.tail_i32)) return false;
+    } else if (object_type == 10) {
+        parsed.has_tail_i32 = true;
+        parsed.has_tail_points = true;
+        if (!cursor.read_i32_le(&parsed.tail_i32)) return false;
+        if (!cursor.read_f32_le(&parsed.first_tail_point_x)) return false;
+        if (!cursor.read_f32_le(&parsed.first_tail_point_y)) return false;
+        if (!cursor.read_f32_le(&parsed.second_tail_point_x)) return false;
+        if (!cursor.read_f32_le(&parsed.second_tail_point_y)) return false;
+    }
+
+    // The original performs only object-field stores and CCString construction
+    // after this point, then calls AddObject. No more HPData bytes are consumed.
     parsed.bytes_consumed = cursor.offset();
     *out = std::move(parsed);
     return true;
