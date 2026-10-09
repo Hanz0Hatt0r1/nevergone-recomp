@@ -5,6 +5,7 @@ add_library(nevergone_recomp SHARED
     app_delegate_state.cpp
     character_name_action_executor.cpp
     character_name_action_runtime.cpp
+    character_name_layout.cpp
     character_name_state.cpp
     character_random_name.cpp
     choose_hero_action_control_assets.cpp
