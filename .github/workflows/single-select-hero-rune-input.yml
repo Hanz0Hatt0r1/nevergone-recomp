@@ -1,0 +1,51 @@
+name: SingleSelectHero rune input
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/single_select_hero_rune_input.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_rune_input.h'
+      - 'android/app/src/main/cpp/single_select_hero_rune_layout.h'
+      - 'android/app/src/main/cpp/server_selection_jni.cpp'
+      - 'android/app/src/main/cpp/single_login_scene_bridge.cpp'
+      - 'tools/single_select_hero_rune_input_smoke.cpp'
+      - '.github/workflows/single-select-hero-rune-input.yml'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'android/app/src/main/cpp/single_select_hero_rune_input.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_rune_input.h'
+      - 'android/app/src/main/cpp/single_select_hero_rune_layout.h'
+      - 'android/app/src/main/cpp/server_selection_jni.cpp'
+      - 'android/app/src/main/cpp/single_login_scene_bridge.cpp'
+      - 'tools/single_select_hero_rune_input_smoke.cpp'
+      - '.github/workflows/single-select-hero-rune-input.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate career rune pointer routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          CXXFLAGS='-std=c++17 -O2 -I android/app/src/main/cpp'
+          g++ $CXXFLAGS \
+            tools/single_select_hero_rune_input_smoke.cpp \
+            android/app/src/main/cpp/single_select_hero_rune_input.cpp \
+            android/app/src/main/cpp/single_select_hero_state.cpp \
+            android/app/src/main/cpp/single_select_hero_transition_timeline.cpp \
+            android/app/src/main/cpp/game_clock.cpp \
+            android/app/src/main/cpp/offline_startup_flow.cpp \
+            android/app/src/main/cpp/character_name_state.cpp \
+            android/app/src/main/cpp/role_creation_validation.cpp \
+            android/app/src/main/cpp/role_selection_state.cpp \
+            android/app/src/main/cpp/string_validation.cpp \
+            android/app/src/main/cpp/startup_contract.cpp \
+            -o /tmp/single_select_hero_rune_input_smoke
+          /tmp/single_select_hero_rune_input_smoke
