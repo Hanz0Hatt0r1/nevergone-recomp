@@ -6,6 +6,7 @@
 #include "game_clock.h"
 #include "initial_ui_transition.h"
 #include "offline_startup_flow.h"
+#include "single_select_hero_rune_input.h"
 #include "single_select_hero_state.h"
 #include "single_select_hero_transition_timeline.h"
 #include "splash_sequence_state.h"
@@ -79,6 +80,7 @@ void advance_single_select_hero_transition(std::uint64_t tick) {
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeResetRecoveredSceneSequence(JNIEnv*, jclass) {
     nevergone::offline_startup_flow::reset();
+    nevergone::single_select_hero_rune_input::reset();
     nevergone::single_select_hero_state::reset();
     nevergone::single_select_hero_transition_timeline::reset();
     nevergone::tap_to_start_state::reset();
@@ -94,6 +96,7 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeResetRecoveredSceneSequence(JNIE
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeBeginRecoveredSceneSequence(JNIEnv*, jclass) {
     const std::uint64_t tick = nevergone::game_clock::tick_count();
+    nevergone::single_select_hero_rune_input::reset();
     nevergone::single_select_hero_transition_timeline::reset();
     nevergone::splash_sequence_state::begin(tick);
     const std::uint64_t generation = nevergone::splash_sequence_state::generation();
