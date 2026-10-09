@@ -73,6 +73,7 @@ add_library(nevergone_recomp SHARED
     single_login_sway_timeline.cpp
     single_login_thunder_bridge.cpp
     single_select_hero_compositor.cpp
+    single_select_hero_confirm_compositor.cpp
     single_select_hero_confirm_input.cpp
     single_select_hero_confirm_input_surface.cpp
     single_select_hero_input.cpp
