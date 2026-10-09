@@ -32,18 +32,20 @@ int main() {
     using namespace nevergone::offline_startup_flow;
     using nevergone::standalone_hero_save_probe::has_standalone_hero_save;
     using nevergone::standalone_hero_save_probe::is_standalone_hero_save_name;
+    using nevergone::standalone_hero_save_probe::standalone_hero_slots;
 
-    assert(is_standalone_hero_save_name("DMG_00.sData"));
-    assert(is_standalone_hero_save_name("DMG_12.sData"));
-    assert(is_standalone_hero_save_name("DMG_123.sData"));
+    assert(is_standalone_hero_save_name("DMG_01.sData"));
+    assert(is_standalone_hero_save_name("DMG_02.sData"));
+    assert(!is_standalone_hero_save_name("DMG_00.sData"));
+    assert(!is_standalone_hero_save_name("DMG_03.sData"));
+    assert(!is_standalone_hero_save_name("DMG_12.sData"));
     assert(!is_standalone_hero_save_name("DMG_1.sData"));
-    assert(!is_standalone_hero_save_name("DMG_ab.sData"));
-    assert(!is_standalone_hero_save_name("dmg_00.sData"));
-    assert(!is_standalone_hero_save_name("DMG_00.sdata"));
+    assert(!is_standalone_hero_save_name("dmg_01.sData"));
 
     const std::string directory = make_temp_dir();
     assert(!has_standalone_hero_save(directory));
     write_file(directory + "/unrelated.bin");
+    write_file(directory + "/DMG_00.sData");
     assert(!has_standalone_hero_save(directory));
 
     reset();
@@ -60,13 +62,13 @@ int main() {
     assert(state.auto_login_success_count == 1);
     assert(state.route_resolution_count == 1);
 
-    // Duplicate success for the same scene is ignored. The TapToStart gate
-    // already prevents this, but the compatibility layer keeps the invariant.
     on_auto_login_compat_success(1);
     assert(snapshot().auto_login_success_count == 1);
 
     reset();
-    write_file(directory + "/DMG_00.sData");
+    write_file(directory + "/DMG_02.sData");
+    auto slots = standalone_hero_slots(directory);
+    assert(slots.size() == 1 && slots[0] == 2);
     assert(has_standalone_hero_save(directory));
     set_standalone_hero_presence(true);
     on_auto_login_compat_success(2);
@@ -76,7 +78,11 @@ int main() {
     assert(state.auto_login_success_count == 1);
     assert(state.route_resolution_count == 1);
 
-    // The route may wait for a file-system probe and resolve afterward.
+    write_file(directory + "/DMG_01.sData");
+    slots = standalone_hero_slots(directory);
+    assert(slots.size() == 2);
+    assert(slots[0] == 1 && slots[1] == 2);
+
     reset();
     on_auto_login_compat_success(3);
     state = snapshot();
@@ -86,6 +92,8 @@ int main() {
     assert(snapshot().route == Route::kOpeningDialogue);
 
     std::remove((directory + "/DMG_00.sData").c_str());
+    std::remove((directory + "/DMG_01.sData").c_str());
+    std::remove((directory + "/DMG_02.sData").c_str());
     std::remove((directory + "/unrelated.bin").c_str());
     rmdir(directory.c_str());
     return 0;

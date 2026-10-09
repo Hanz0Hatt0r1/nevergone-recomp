@@ -1,6 +1,7 @@
 #include <jni.h>
 
 #include "app_delegate_state.h"
+#include "choose_hero_role_selection_state.h"
 #include "game_clock.h"
 #include "initial_ui_transition.h"
 #include "offline_startup_flow.h"
@@ -15,11 +16,14 @@ void advance_offline_startup_flow() {
     if (!nevergone::tap_to_start_state::consume_auto_login_request()) return;
 
     const auto tap_state = nevergone::tap_to_start_state::snapshot();
-    const bool has_standalone_heroes =
-        nevergone::standalone_hero_save_probe::has_standalone_hero_save(
+    const auto hero_slots =
+        nevergone::standalone_hero_save_probe::standalone_hero_slots(
             nevergone::startup::config().files_dir);
 
-    nevergone::offline_startup_flow::set_standalone_hero_presence(has_standalone_heroes);
+    nevergone::choose_hero_role_selection_state::configure_slots(
+        hero_slots,
+        tap_state.scene_generation);
+    nevergone::offline_startup_flow::set_standalone_hero_presence(!hero_slots.empty());
     nevergone::offline_startup_flow::on_auto_login_compat_success(
         tap_state.scene_generation);
 }
@@ -47,6 +51,8 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeResetRecoveredSceneSequence(JNIE
     nevergone::offline_startup_flow::reset();
     nevergone::tap_to_start_state::reset();
     nevergone::splash_sequence_state::reset();
+    nevergone::choose_hero_role_selection_state::reset(
+        nevergone::splash_sequence_state::generation());
     nevergone::app_delegate_state::on_surface_ready();
     nevergone::app_delegate_state::on_scene_sequence_reset(
         nevergone::splash_sequence_state::generation());

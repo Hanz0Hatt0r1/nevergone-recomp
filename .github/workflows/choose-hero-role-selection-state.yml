@@ -1,0 +1,37 @@
+name: ChooseHero role selection state
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  state:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate ChooseHero role selection
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/choose_hero_role_selection_state_smoke.cpp \
+            android/app/src/main/cpp/choose_hero_role_selection_state.cpp \
+            -o /tmp/choose_hero_role_selection_state_smoke
+          /tmp/choose_hero_role_selection_state_smoke
+
+      - name: Validate shipped standalone save slots
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/offline_startup_flow_smoke.cpp \
+            android/app/src/main/cpp/offline_startup_flow.cpp \
+            android/app/src/main/cpp/standalone_hero_save_probe.cpp \
+            -o /tmp/offline_startup_flow_smoke
+          /tmp/offline_startup_flow_smoke
