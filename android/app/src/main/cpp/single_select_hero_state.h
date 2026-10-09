@@ -18,6 +18,10 @@ struct Snapshot {
     std::uint64_t generation = 0;
     std::int64_t existing_career = 0;
     std::int64_t selected_career = 0;
+    // Carousel(int) receives the previously displayed career while #1d8 holds
+    // the newly selected career. Preserve both ends so the recovered 1.5/3.0s
+    // travel choice can be reproduced without inferring it from frame history.
+    std::int64_t transition_from_career = 0;
     bool input_enabled = false;
     bool transition_pending = false;
     std::uint64_t selection_count = 0;
@@ -37,16 +41,18 @@ void reset();
 bool is_valid_career(std::int64_t career);
 
 // OpenTheDoor(false, ...) locks menuOpenGC while a carousel/door transition is
-// active; OpenTheDoor(true, ...) restores interaction. The later visual
-// executor should call complete_transition() at the recovered unlock point.
+// active; OpenTheDoor(true, ...) restores interaction. The visual/timing
+// executor calls complete_transition() at the recovered callback point.
 void set_input_enabled(bool enabled);
 void complete_transition();
 
 // Mirrors menuOpenGC(sender): once the recovered interaction gate permits the
 // click, the sender tag is copied unchanged into the selected-career fields.
-// Selecting the already displayed career is a handled no-op. The existing
-// career is not rejected here because the recovered handler itself does not
-// perform that comparison; menuConfirm owns the proven equality block.
+// Selecting the already displayed career is a handled no-op. For a change,
+// transition_from_career retains the old sender/tag value passed through
+// OpenTheDoor(false,...)->FuncCloseTheDoor()->Carousel(oldCareer).
+// The existing career is not rejected here because the recovered handler itself
+// does not perform that comparison; menuConfirm owns the proven equality block.
 bool select_career(std::int64_t career);
 
 // Mirrors the online branch of menuConfirm(). Confirming the career already
