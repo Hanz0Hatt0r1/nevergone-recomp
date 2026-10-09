@@ -10,6 +10,26 @@ bool finite(float value) {
     return std::isfinite(value);
 }
 
+server_selection_layout::RowRect centered_rect(
+        float center_x,
+        float center_y,
+        float width,
+        float height,
+        int original_tag) {
+    server_selection_layout::RowRect result;
+    if (!finite(center_x) || !finite(center_y) || !finite(width) || !finite(height) ||
+            width <= 0.0f || height <= 0.0f) {
+        return result;
+    }
+    result.index = 0;
+    result.original_tag = original_tag;
+    result.width = width;
+    result.height = height;
+    result.left = center_x - width * 0.5f;
+    result.bottom = center_y - height * 0.5f;
+    return result;
+}
+
 }  // namespace
 
 SurfaceMapping mapping_for_surface(int surface_width, int surface_height) {
@@ -56,18 +76,17 @@ Point surface_to_design(
     return result;
 }
 
+server_selection_layout::RowRect selector_rect(float width, float height) {
+    return centered_rect(kSelectorCenterX, kSelectorCenterY, width, height, 10001);
+}
+
+bool selector_contains(float design_x, float design_y, float width, float height) {
+    return server_selection_layout::contains(
+        selector_rect(width, height), design_x, design_y);
+}
+
 server_selection_layout::RowRect confirm_rect(float width, float height) {
-    server_selection_layout::RowRect result;
-    if (!finite(width) || !finite(height) || width <= 0.0f || height <= 0.0f) {
-        return result;
-    }
-    result.index = 0;
-    result.original_tag = 10002;
-    result.width = width;
-    result.height = height;
-    result.left = kConfirmCenterX - width * 0.5f;
-    result.bottom = kConfirmCenterY - height * 0.5f;
-    return result;
+    return centered_rect(kConfirmCenterX, kConfirmCenterY, width, height, 10002);
 }
 
 bool confirm_contains(float design_x, float design_y, float width, float height) {
