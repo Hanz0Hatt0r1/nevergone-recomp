@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace nevergone::single_select_hero_rune_layout {
@@ -38,6 +39,8 @@ struct SurfaceRect {
     float bottom = 0.0f;
 };
 
+inline std::atomic<int> g_pressed_visual_tag{0};
+
 inline bool valid_tag(int tag) {
     return tag >= 1 && tag <= kRuneCount;
 }
@@ -46,9 +49,18 @@ inline bool enabled_tag(int tag) {
     return valid_tag(tag);
 }
 
+inline void set_pressed_visual_tag(int tag) {
+    g_pressed_visual_tag.store(valid_tag(tag) ? tag : 0, std::memory_order_release);
+}
+
+inline int pressed_visual_tag() {
+    return g_pressed_visual_tag.load(std::memory_order_acquire);
+}
+
 inline int frame_index(int tag, bool pressed) {
     if (!valid_tag(tag)) return -1;
-    return (tag - 1) * 2 + (pressed ? 1 : 0);
+    const bool show_pressed = pressed || pressed_visual_tag() == tag;
+    return (tag - 1) * 2 + (show_pressed ? 1 : 0);
 }
 
 inline float center_y(int tag) {
