@@ -1,22 +1,17 @@
 #include <GLES2/gl2.h>
 #include <jni.h>
 
-#include <algorithm>
-#include <cmath>
 #include <cstdint>
 #include <vector>
 
 #include "offline_startup_flow.h"
 #include "single_select_hero_state.h"
+#include "single_select_hero_table_layout.h"
 
 namespace nevergone::single_select_hero {
 namespace {
 
 constexpr int kHeroTableCount = 4;
-constexpr float kDesignWidth = 1136.0f;
-constexpr float kDesignHeight = 640.0f;
-constexpr float kHeroTableCenterX = 830.0f;
-constexpr float kHeroTableCenterY = 320.0f;
 
 struct PositionedTexture {
     GLuint texture = 0;
@@ -324,43 +319,30 @@ void draw_background() {
 
 void draw_hero_table() {
     const auto state = single_select_hero_state::snapshot();
-    if (!state.active || !single_select_hero_state::is_valid_career(state.selected_career)) return;
+    const int table_index = single_select_hero_table_layout::frame_index(
+        state.selected_career, state.existing_career);
+    if (!state.active || table_index < 0 || table_index >= kHeroTableCount) return;
 
-    const bool blocked = state.existing_career != 0 &&
-        state.existing_career == state.selected_career;
-    const int table_index = static_cast<int>((state.selected_career - 1) * 2 + (blocked ? 1 : 0));
     PositionedTexture& asset = g_hero_tables[table_index];
     if (!ensure_texture(&asset, g_hero_table_pixels[table_index])) return;
 
-    const float scale = std::min(
-        static_cast<float>(g_surface_width) / kDesignWidth,
-        static_cast<float>(g_surface_height) / kDesignHeight);
-    if (!std::isfinite(scale) || scale <= 0.0f) return;
-    const float viewport_width = kDesignWidth * scale;
-    const float viewport_height = kDesignHeight * scale;
-    const float offset_x = (static_cast<float>(g_surface_width) - viewport_width) * 0.5f;
-    const float offset_y = (static_cast<float>(g_surface_height) - viewport_height) * 0.5f;
+    single_select_hero_table_layout::FrameGeometry geometry;
+    geometry.width = asset.width;
+    geometry.height = asset.height;
+    geometry.left = asset.left;
+    geometry.top = asset.top;
+    geometry.source_width = asset.source_width;
+    geometry.source_height = asset.source_height;
+    const auto quad = single_select_hero_table_layout::quad_for_surface(
+        geometry, g_surface_width, g_surface_height);
+    if (!quad.valid) return;
 
-    // TexturePacker placement.left/top are the trimmed-image offsets inside the
-    // untrimmed source rectangle. The Cocos sprite itself is centered at the
-    // recovered design coordinate (830, 320), with Y increasing upward.
-    const float design_left = kHeroTableCenterX -
-        static_cast<float>(asset.source_width) * 0.5f + static_cast<float>(asset.left);
-    const float design_top = kDesignHeight -
-        (kHeroTableCenterY + static_cast<float>(asset.source_height) * 0.5f) +
-        static_cast<float>(asset.top);
-    const float design_right = design_left + static_cast<float>(asset.width);
-    const float design_bottom = design_top + static_cast<float>(asset.height);
-
-    const float surface_left = offset_x + design_left * scale;
-    const float surface_right = offset_x + design_right * scale;
-    const float surface_top = offset_y + design_top * scale;
-    const float surface_bottom = offset_y + design_bottom * scale;
-    const float x0 = surface_left * 2.0f / static_cast<float>(g_surface_width) - 1.0f;
-    const float x1 = surface_right * 2.0f / static_cast<float>(g_surface_width) - 1.0f;
-    const float y0 = 1.0f - surface_top * 2.0f / static_cast<float>(g_surface_height);
-    const float y1 = 1.0f - surface_bottom * 2.0f / static_cast<float>(g_surface_height);
-    const GLfloat vertices[] = {x0, y0, x0, y1, x1, y0, x1, y1};
+    const GLfloat vertices[] = {
+        quad.x0, quad.y0,
+        quad.x0, quad.y1,
+        quad.x1, quad.y0,
+        quad.x1, quad.y1,
+    };
     bind_and_draw(asset.texture, vertices, true);
 }
 
