@@ -1,0 +1,51 @@
+name: SingleSelectHero confirm input
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/single_select_hero_confirm_input.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_confirm_input.h'
+      - 'android/app/src/main/cpp/single_select_hero_confirm_input_surface.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_confirm_layout.h'
+      - 'android/app/src/main/cpp/single_select_hero_input_surface.cpp'
+      - 'android/app/src/main/cpp/server_selection_jni.cpp'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/single_select_hero_confirm_input_smoke.cpp'
+      - '.github/workflows/single-select-hero-confirm-input.yml'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'android/app/src/main/cpp/single_select_hero_confirm_input.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_confirm_input.h'
+      - 'android/app/src/main/cpp/single_select_hero_confirm_input_surface.cpp'
+      - 'android/app/src/main/cpp/single_select_hero_confirm_layout.h'
+      - 'android/app/src/main/cpp/single_select_hero_input_surface.cpp'
+      - 'android/app/src/main/cpp/server_selection_jni.cpp'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/single_select_hero_confirm_input_smoke.cpp'
+      - '.github/workflows/single-select-hero-confirm-input.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate recovered Confirm layout and routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -I android/app/src/main/cpp \
+            tools/single_select_hero_confirm_input_smoke.cpp \
+            android/app/src/main/cpp/single_select_hero_confirm_input.cpp \
+            android/app/src/main/cpp/single_select_hero_state.cpp \
+            android/app/src/main/cpp/character_name_state.cpp \
+            android/app/src/main/cpp/role_creation_validation.cpp \
+            android/app/src/main/cpp/role_selection_state.cpp \
+            android/app/src/main/cpp/string_validation.cpp \
+            android/app/src/main/cpp/startup_contract.cpp \
+            -o /tmp/single_select_hero_confirm_input_smoke
+          /tmp/single_select_hero_confirm_input_smoke
