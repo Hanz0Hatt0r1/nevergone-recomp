@@ -6,6 +6,7 @@
 #include "management_role_action_control_compositor.h"
 #include "server_selection_compositor.h"
 #include "server_selection_state.h"
+#include "single_select_hero_touch_bridge.h"
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeOnServerSelectionTouch(
@@ -15,6 +16,18 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnServerSelectionTouch(
     jint pointer_id,
     jfloat x,
     jfloat y) {
+    // SingleSelectHero is mutually exclusive with the management/server routes,
+    // but Java already funnels all reconstructed UI controls through this first
+    // refusal bridge. Keep that plumbing stable while the original rune input is
+    // moved from the temporary Android compatibility panel onto the GLES scene.
+    if (nevergone::single_select_hero_touch_bridge::on_touch(
+            static_cast<int>(action),
+            static_cast<int>(pointer_id),
+            static_cast<float>(x),
+            static_cast<float>(y))) {
+        return JNI_TRUE;
+    }
+
     // The recovered ChooseHero fixed buttons live outside the hero-item pane,
     // but the existing role-item route consumes the whole choose-role screen.
     // Give Play/Delete first refusal so their exact type-1 hit boxes can emit
