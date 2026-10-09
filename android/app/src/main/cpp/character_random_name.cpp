@@ -38,7 +38,7 @@ bool parse_csv_row(const std::string& line, Row* output) {
             continue;
         }
 
-        if (ch == ',' ) {
+        if (ch == ',') {
             fields.push_back(field);
             field.clear();
         } else if (ch == '"' && field.empty()) {
@@ -143,8 +143,10 @@ bool generate(
 
     std::string result = first_row.first + second_row.second;
     if (result.size() > character_name_state::kMaxCharacterNameBytes) {
-        // The shipped callback uses strcpy(buffer, firstPart) in this case.
-        result = first_row.first;
+        // After sprintf(buffer, "%s%s", firstPart, secondPart), the shipped
+        // callback checks strlen(buffer) > 18 and then executes
+        // strcpy(buffer, secondPart). Keep the second-column component here.
+        result = second_row.second;
     }
 
     *output = std::move(result);
