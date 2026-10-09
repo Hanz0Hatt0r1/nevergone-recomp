@@ -26,10 +26,11 @@ int main() {
     nevergone::character_name_state::reset();
     nevergone::single_select_hero_state::reset();
 
-    assert(nevergone::single_select_hero_state::is_valid_career(1));
-    assert(nevergone::single_select_hero_state::is_valid_career(2));
+    for (std::int64_t career = 1; career <= 5; ++career) {
+        assert(nevergone::single_select_hero_state::is_valid_career(career));
+    }
     assert(!nevergone::single_select_hero_state::is_valid_career(0));
-    assert(!nevergone::single_select_hero_state::is_valid_career(3));
+    assert(!nevergone::single_select_hero_state::is_valid_career(6));
 
     // With no existing role the shipped initUI path starts on career 1 and
     // disables menuOpenGC input while the initial Carousel transition runs.
@@ -57,31 +58,33 @@ int main() {
     assert(!selector.transition_pending);
 
     // menuOpenGC uses the sender tag directly as career. Re-selecting the
-    // visible career is a handled no-op; changing it starts a new locked
-    // transition until OpenTheDoor(true) is represented by complete_transition.
+    // visible career is a handled no-op; each changed career starts another
+    // locked transition until OpenTheDoor(true) is represented by
+    // complete_transition().
     assert(nevergone::single_select_hero_state::select_career(1));
     selector = nevergone::single_select_hero_state::snapshot();
     assert(selector.selection_count == 0);
-    assert(nevergone::single_select_hero_state::select_career(2));
-    assert(!nevergone::single_select_hero_state::select_career(3));
-    selector = nevergone::single_select_hero_state::snapshot();
-    assert(selector.selected_career == 2);
-    assert(!selector.input_enabled);
-    assert(selector.transition_pending);
-    assert(selector.selection_count == 1);
-    assert(!nevergone::single_select_hero_state::select_career(1));
 
-    nevergone::single_select_hero_state::complete_transition();
+    for (std::int64_t career = 2; career <= 5; ++career) {
+        assert(nevergone::single_select_hero_state::select_career(career));
+        selector = nevergone::single_select_hero_state::snapshot();
+        assert(selector.selected_career == career);
+        assert(!selector.input_enabled);
+        assert(selector.transition_pending);
+        assert(selector.selection_count == static_cast<std::uint64_t>(career - 1));
+        assert(!nevergone::single_select_hero_state::select_career(
+            career == 5 ? 1 : career + 1));
+        nevergone::single_select_hero_state::complete_transition();
+    }
+    assert(!nevergone::single_select_hero_state::select_career(6));
+
+    // The currently selected career is forwarded unchanged into CharacterName.
     nevergone::character_name_state::reset();
     assert(nevergone::single_select_hero_state::confirm_online());
     character_name = nevergone::character_name_state::snapshot();
     assert(character_name.active);
-    assert(character_name.career == 2);
+    assert(character_name.career == 5);
     assert(character_name.randomize_pending);
-    selector = nevergone::single_select_hero_state::snapshot();
-    assert(selector.confirm_count == 2);
-    assert(selector.blocked_confirm_count == 0);
-    assert(selector.character_name_open_count == 2);
 
     // If career 1 already exists, initUI deliberately starts on career 2.
     nevergone::character_name_state::reset();
@@ -95,26 +98,28 @@ int main() {
     assert(character_name.active);
     assert(character_name.career == 2);
 
-    // If career 2 exists, the default remains career 1. After the transition
-    // gate opens, menuOpenGC may move back onto career 2; menuConfirm owns the
-    // recovered equality check and blocks CharacterNameLayer in that case.
-    nevergone::character_name_state::reset();
-    nevergone::single_select_hero_state::begin(2);
-    selector = nevergone::single_select_hero_state::snapshot();
-    assert(selector.existing_career == 2);
-    assert(selector.selected_career == 1);
-    nevergone::single_select_hero_state::complete_transition();
-    assert(nevergone::single_select_hero_state::select_career(2));
-    assert(!nevergone::single_select_hero_state::confirm_online());
-    selector = nevergone::single_select_hero_state::snapshot();
-    assert(selector.confirm_count == 1);
-    assert(selector.blocked_confirm_count == 1);
-    assert(selector.character_name_open_count == 0);
-    character_name = nevergone::character_name_state::snapshot();
-    assert(!character_name.active);
+    // Existing careers 2..5 are preserved. The default candidate remains 1,
+    // but menuOpenGC may move onto the existing career; menuConfirm owns the
+    // recovered equality block and must reject it for every supported career.
+    for (std::int64_t existing = 2; existing <= 5; ++existing) {
+        nevergone::character_name_state::reset();
+        nevergone::single_select_hero_state::begin(existing);
+        selector = nevergone::single_select_hero_state::snapshot();
+        assert(selector.existing_career == existing);
+        assert(selector.selected_career == 1);
+        nevergone::single_select_hero_state::complete_transition();
+        assert(nevergone::single_select_hero_state::select_career(existing));
+        assert(!nevergone::single_select_hero_state::confirm_online());
+        selector = nevergone::single_select_hero_state::snapshot();
+        assert(selector.confirm_count == 1);
+        assert(selector.blocked_confirm_count == 1);
+        assert(selector.character_name_open_count == 0);
+        character_name = nevergone::character_name_state::snapshot();
+        assert(!character_name.active);
+    }
 
-    // Non-career values in the existing-role field are equivalent to no
-    // existing supported career for this two-class selector.
+    // Values outside the shipped 1..5 sender-tag range are treated as no
+    // existing supported career.
     nevergone::single_select_hero_state::begin(99);
     selector = nevergone::single_select_hero_state::snapshot();
     assert(selector.existing_career == 0);
