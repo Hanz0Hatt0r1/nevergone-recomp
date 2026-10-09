@@ -45,7 +45,13 @@ and formats:
 %s%s
 ```
 
-The resulting UTF-8 byte buffer is measured with `strlen`. If it is longer than the CharacterNameLayer limit of `18` bytes, the callback discards the second component and copies only `first` into the edit-box buffer.
+The resulting UTF-8 byte buffer is measured with `strlen`. If it is longer than the CharacterNameLayer limit of `18` bytes, the callback executes the recovered equivalent of:
+
+```text
+strcpy(buffer, second)
+```
+
+so the fallback retains **only the second component from column 1**. This detail is covered explicitly by the host smoke test using different first/second rows.
 
 This is distinct from the separate legacy ChooseHero submit limit of 21 bytes.
 
