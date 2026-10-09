@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "app_delegate_state.h"
+#include "choose_hero_action_state.h"
 #include "choose_hero_background_compositor.h"
 #include "choose_hero_black_cloud_compositor.h"
 #include "choose_hero_profile_compositor.h"
@@ -122,6 +123,7 @@ std::string bootstrap_info() {
     out << nevergone::choose_hero_thunder_effect_compositor::status_report();
     out << nevergone::choose_hero_black_cloud_compositor::status_report();
     out << nevergone::choose_hero_role_selection_state::status_report();
+    out << nevergone::choose_hero_action_state::status_report();
     out << nevergone::choose_hero_role_item_compositor::status_report();
     out << nevergone::choose_hero_profile_compositor::status_report();
     out << nevergone::choose_hero_role_focus_compositor::status_report();
@@ -131,7 +133,7 @@ std::string bootstrap_info() {
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
-    out << "\nNext milestone: recover ChooseHero OnCreateback selected-role scene-entry/create-character semantics.";
+    out << "\nNext milestone: wire the recovered ChooseHero action tags to visible controls and execute the offline-safe start/create paths.";
     return out.str();
 }
 
