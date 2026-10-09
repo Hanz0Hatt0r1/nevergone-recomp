@@ -7,6 +7,11 @@ namespace nevergone::single_select_hero_state {
 
 constexpr std::int64_t kCareerOne = 1;
 constexpr std::int64_t kCareerTwo = 2;
+constexpr std::int64_t kCareerThree = 3;
+constexpr std::int64_t kCareerFour = 4;
+constexpr std::int64_t kCareerFive = 5;
+constexpr std::int64_t kFirstCareer = kCareerOne;
+constexpr std::int64_t kLastCareer = kCareerFive;
 
 struct Snapshot {
     bool active = false;
@@ -22,9 +27,9 @@ struct Snapshot {
 };
 
 // Mirrors SingleSelectHero::initUI() for the online create-role path. The
-// shipped selector has exactly careers 1 and 2. If career 1 already exists it
-// starts on career 2; otherwise it starts on career 1 (including when career 2
-// already exists or when there is no existing career). initUI disables the
+// shipped UI creates five menuOpenGC items tagged with careers 1 through 5.
+// Its initial candidate rule is narrower: if career 1 already exists it starts
+// on career 2; otherwise it starts on career 1. initUI disables the
 // OpenTheDoor/menuOpenGC interaction gate before starting the first Carousel.
 void begin(std::int64_t existing_career = 0);
 void reset();
