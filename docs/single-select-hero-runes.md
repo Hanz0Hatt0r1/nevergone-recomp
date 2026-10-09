@@ -12,7 +12,7 @@ The construction loop assigns sender tags `1..5`. All five are valid career cont
 
 All five items use `x = visibleWidth * 0.5` and `y = visibleHeight - 55 - 90 * tag`. On the recovered 1136x640 design surface the centers are `(568,495)`, `(568,405)`, `(568,315)`, `(568,225)`, and `(568,135)`.
 
-`single_select_hero_rune_layout` maps each imported TexturePacker frame by its untrimmed source rectangle and trim offset through the shared centered aspect-fit transform. All five tags render at full opacity. The staged glow frames remain reserved for the pressed state.
+`single_select_hero_rune_layout` maps each imported TexturePacker frame by its untrimmed source rectangle and trim offset through the shared centered aspect-fit transform. All five tags render at full opacity.
 
 ## Touch rectangles
 
@@ -28,8 +28,22 @@ The visible atlas rectangle and the Cocos menu-item touch rectangle are not alwa
 
 Career 2 demonstrates why this matters: its visible normal frame has a 3-pixel top trim, so drawing begins at design Y `193.5`, while the original menu-item hit rectangle begins at `190.5`.
 
-The layout helper now exposes source-size-based `hit_rect_for_surface()` and `hit_test()` using the same centered aspect-fit transform as rendering. Host coverage checks all five recovered rectangles, boundary inclusion/exclusion, invalid inputs, and a 2x surface.
+The layout helper exposes source-size-based `hit_rect_for_surface()` and `hit_test()` using the same centered aspect-fit transform as rendering. Host coverage checks all five recovered rectangles, boundary inclusion/exclusion, invalid inputs, and a 2x surface.
+
+## Pressed frame behavior
+
+The native rune input bridge now drives the staged glow frame directly:
+
+- DOWN inside a rune publishes that tag as the presentation-only pressed rune;
+- MOVE outside clears the presentation tag and MOVE back inside restores it;
+- UP, POINTER_UP, CANCEL, locked input and reset clear it;
+- while the tag is present, `frame_index(tag, false)` resolves to the matching odd-numbered glow frame;
+- after the gesture ends, the renderer immediately returns to the normal frame even if that career became selected.
+
+The published presentation tag is atomic because Android touch dispatch and GLES drawing can run on different threads. Career selection, transition locking and network/create-role state remain owned by their existing state machines.
 
 ## Runtime boundary
 
-`SingleSelectHeroBaseComposer` extracts all ten normal/pressed frames from the imported `Singleselechero.plist/png` atlas; no original image bytes are committed. The next interaction increment can route pointer DOWN/UP through these exact hit boxes and show the staged glow frame while pressed. Career changes must still respect the recovered `OpenTheDoor` transition gate; confirm remains a separate `menuConfirm` control.
+`SingleSelectHeroBaseComposer` extracts all ten normal/pressed frames from the imported `Singleselechero.plist/png` atlas; no original image bytes are committed. Rune hit routing, pressed visual feedback and recovered near/far transition dispatch are now connected.
+
+The remaining interaction gap on this scene is the separate shipped `menuConfirm` control. It should be reconstructed from evidence-backed resources/content size/position and routed to the existing `single_select_hero_state::confirm_online()` path rather than approximated through the temporary Android compatibility overlay.
