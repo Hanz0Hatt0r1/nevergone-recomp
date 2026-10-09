@@ -20,27 +20,43 @@ void append_f32(std::vector<std::uint8_t>& bytes, float value) {
     std::memcpy(&bits, &value, sizeof(bits));
     append_u32(bytes, bits);
 }
-}  // namespace
-
-int main() {
-    using namespace nevergone::game_levels_scene_prefix;
-
+std::vector<std::uint8_t> make_header_through_layer() {
     std::vector<std::uint8_t> bytes;
     append_u32(bytes, 0xfffffffeu);
     append_u32(bytes, 1u);           // scene_count
     append_u32(bytes, 4u);           // scene string length
-    bytes.push_back(0x7fu);
+    bytes.push_back(0x7fu);          // recovered skipped byte
     bytes.insert(bytes.end(), {'h', 'e', 'r', 'o'});
     append_f32(bytes, 1.5f);
     append_f32(bytes, -2.25f);
     append_u32(bytes, 1u);           // layer_count
     append_f32(bytes, 0.75f);
     append_u32(bytes, 1u);           // object_count
+    return bytes;
+}
+std::vector<std::uint8_t> make_object_core_fixture() {
+    auto bytes = make_header_through_layer();
     append_u32(bytes, 0xfffffffdu);  // first object opaque int32: -3
-    append_u32(bytes, 9u);           // first object opaque uint32
-    bytes.push_back(0xaau);          // following char-field data untouched
+    append_u32(bytes, 4u);           // proven object string byte length
+    bytes.push_back(0xaau);          // recovered skipped byte
+    bytes.insert(bytes.end(), {'n', 'o', 'd', 'e'});
+    append_f32(bytes, 10.0f);
+    append_f32(bytes, -20.0f);
+    append_f32(bytes, 0.5f);
+    append_f32(bytes, 1.25f);
+    append_f32(bytes, -1.5f);
+    append_u32(bytes, 0xfffffffbu);  // trailing opaque int32: -5
+    bytes.push_back(1u);
+    bytes.push_back(0u);
+    return bytes;
+}
+}  // namespace
 
-    nevergone::hp_data::Reader reader(bytes);
+int main() {
+    using namespace nevergone::game_levels_scene_prefix;
+
+    const std::vector<std::uint8_t> core_bytes = make_object_core_fixture();
+    nevergone::hp_data::Reader reader(core_bytes);
 
     Prefix prefix;
     assert(parse(reader, &prefix));
@@ -65,45 +81,82 @@ int main() {
     FirstObjectPrefix object_prefix;
     assert(parse_first_object_prefix(reader, &object_prefix));
     assert(object_prefix.first_i32 == -3);
-    assert(object_prefix.second_u32 == 9u);
+    assert(object_prefix.second_u32 == 4u);
     assert(object_prefix.bytes_consumed == 45u);
 
-    std::vector<std::uint8_t> no_object = bytes;
+    FirstObjectCore object_core;
+    assert(parse_first_object_core(reader, &object_core));
+    assert(object_core.prefix.first_i32 == -3);
+    assert(object_core.prefix.second_u32 == 4u);
+    assert(object_core.string_value == "node");
+    assert(std::fabs(object_core.first_point_x - 10.0f) < 0.000001f);
+    assert(std::fabs(object_core.first_point_y + 20.0f) < 0.000001f);
+    assert(std::fabs(object_core.middle_float - 0.5f) < 0.000001f);
+    assert(std::fabs(object_core.second_point_x - 1.25f) < 0.000001f);
+    assert(std::fabs(object_core.second_point_y + 1.5f) < 0.000001f);
+    assert(object_core.trailing_i32 == -5);
+    assert(object_core.first_bool);
+    assert(!object_core.second_bool);
+    assert(object_core.bytes_consumed == 76u);
+
+    std::vector<std::uint8_t> no_object = core_bytes;
     no_object[33] = 0u;
     no_object[34] = no_object[35] = no_object[36] = 0u;
     nevergone::hp_data::Reader no_object_reader(no_object);
     assert(parse_first_layer_header(no_object_reader, &layer_header));
     assert(layer_header.object_count == 0u);
     assert(!parse_first_object_prefix(no_object_reader, &object_prefix));
+    assert(!parse_first_object_core(no_object_reader, &object_core));
 
-    const std::vector<std::uint8_t> truncated_object(bytes.begin(), bytes.begin() + 44);
-    nevergone::hp_data::Reader truncated_object_reader(truncated_object);
-    FirstObjectPrefix unchanged_object;
-    unchanged_object.first_i32 = 11;
-    unchanged_object.second_u32 = 22;
-    unchanged_object.bytes_consumed = 33;
-    assert(!parse_first_object_prefix(truncated_object_reader, &unchanged_object));
-    assert(unchanged_object.first_i32 == 11);
-    assert(unchanged_object.second_u32 == 22u);
-    assert(unchanged_object.bytes_consumed == 33u);
+    const std::vector<std::uint8_t> truncated_prefix(core_bytes.begin(), core_bytes.begin() + 44);
+    nevergone::hp_data::Reader truncated_prefix_reader(truncated_prefix);
+    FirstObjectPrefix unchanged_prefix;
+    unchanged_prefix.first_i32 = 11;
+    unchanged_prefix.second_u32 = 22;
+    unchanged_prefix.bytes_consumed = 33;
+    assert(!parse_first_object_prefix(truncated_prefix_reader, &unchanged_prefix));
+    assert(unchanged_prefix.first_i32 == 11);
+    assert(unchanged_prefix.second_u32 == 22u);
+    assert(unchanged_prefix.bytes_consumed == 33u);
+
+    const std::vector<std::uint8_t> truncated_core(core_bytes.begin(), core_bytes.end() - 1);
+    nevergone::hp_data::Reader truncated_core_reader(truncated_core);
+    FirstObjectCore unchanged_core;
+    unchanged_core.string_value = "unchanged";
+    unchanged_core.trailing_i32 = 99;
+    unchanged_core.bytes_consumed = 123;
+    assert(!parse_first_object_core(truncated_core_reader, &unchanged_core));
+    assert(unchanged_core.string_value == "unchanged");
+    assert(unchanged_core.trailing_i32 == 99);
+    assert(unchanged_core.bytes_consumed == 123u);
+
+    std::vector<std::uint8_t> hostile_object_length = core_bytes;
+    hostile_object_length[41] = 0xffu;
+    hostile_object_length[42] = 0xffu;
+    hostile_object_length[43] = 0xffu;
+    hostile_object_length[44] = 0x7fu;
+    nevergone::hp_data::Reader hostile_object_reader(hostile_object_length);
+    assert(parse_first_object_prefix(hostile_object_reader, &object_prefix));
+    assert(!parse_first_object_core(hostile_object_reader, &object_core));
 
     std::vector<std::uint8_t> no_scene;
     append_u32(no_scene, 7u);
     append_u32(no_scene, 0u);
     nevergone::hp_data::Reader no_scene_reader(no_scene);
-    assert(!parse_first_object_prefix(no_scene_reader, &object_prefix));
+    assert(!parse_first_object_core(no_scene_reader, &object_core));
 
-    std::vector<std::uint8_t> oversized_length = bytes;
-    oversized_length[8] = 0xff;
-    oversized_length[9] = 0xff;
-    oversized_length[10] = 0xff;
-    oversized_length[11] = 0x7f;
-    nevergone::hp_data::Reader oversized_reader(oversized_length);
-    assert(!parse_first_object_prefix(oversized_reader, &object_prefix));
+    std::vector<std::uint8_t> oversized_scene_length = core_bytes;
+    oversized_scene_length[8] = 0xff;
+    oversized_scene_length[9] = 0xff;
+    oversized_scene_length[10] = 0xff;
+    oversized_scene_length[11] = 0x7f;
+    nevergone::hp_data::Reader oversized_reader(oversized_scene_length);
+    assert(!parse_first_object_core(oversized_reader, &object_core));
 
     assert(!parse(reader, nullptr));
     assert(!parse_first_scene_header(reader, nullptr));
     assert(!parse_first_layer_header(reader, nullptr));
     assert(!parse_first_object_prefix(reader, nullptr));
+    assert(!parse_first_object_core(reader, nullptr));
     return 0;
 }

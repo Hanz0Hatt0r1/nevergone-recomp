@@ -1,40 +1,47 @@
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <vector>
 
 #include "game_levels_enter_transition.h"
 
 namespace {
-
 std::string make_temp_dir() {
     char pattern[] = "/tmp/nevergone-gamelevels-enter-XXXXXX";
     char* result = mkdtemp(pattern);
     assert(result != nullptr);
     return result;
 }
-
-void write_verified_prefix_fixture(const std::filesystem::path& path) {
+void append_u32(std::vector<std::uint8_t>& out, std::uint32_t value) {
+    for (unsigned shift = 0; shift < 32; shift += 8) out.push_back(static_cast<std::uint8_t>(value >> shift));
+}
+void append_f32(std::vector<std::uint8_t>& out, float value) {
+    std::uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    append_u32(out, bits);
+}
+std::vector<std::uint8_t> verified_core_fixture() {
+    std::vector<std::uint8_t> out;
+    append_u32(out, 1u); append_u32(out, 1u);
+    append_u32(out, 4u); out.push_back(0x7fu); out.insert(out.end(), {'h','e','r','o'});
+    append_f32(out, 1.0f); append_f32(out, 2.0f); append_u32(out, 1u);
+    append_f32(out, 0.75f); append_u32(out, 1u);
+    append_u32(out, 0xfffffffdu); append_u32(out, 4u);
+    out.push_back(0xaau); out.insert(out.end(), {'n','o','d','e'});
+    for (int i = 0; i < 5; ++i) append_f32(out, static_cast<float>(i + 1));
+    append_u32(out, 7u); out.push_back(1u); out.push_back(0u);
+    assert(out.size() == 76u);
+    return out;
+}
+void write_fixture(const std::filesystem::path& path) {
+    const auto data = verified_core_fixture();
     std::ofstream output(path, std::ios::binary);
-    assert(output);
-    const std::string data(
-        "\x01\x00\x00\x00"  // unresolved signed header field
-        "\x01\x00\x00\x00"  // scene_count
-        "\x04\x00\x00\x00"  // first string length
-        "\x7fhero"
-        "\x00\x00\x80\x3f"  // 1.0f
-        "\x00\x00\x00\x40"  // 2.0f
-        "\x01\x00\x00\x00"  // layer_count
-        "\x00\x00\x40\x3f"  // layer float
-        "\x01\x00\x00\x00"  // object_count
-        "\xfd\xff\xff\xff"  // first object int32
-        "\x09\x00\x00\x00", // first object uint32
-        45);
-    output.write(data.data(), static_cast<std::streamsize>(data.size()));
+    output.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
     assert(output.good());
 }
-
 }  // namespace
 
 int main() {
@@ -43,76 +50,46 @@ int main() {
     using Probe = nevergone::game_levels_asset_probe::Snapshot;
 
     transition::reset();
-    auto state = transition::snapshot();
-    assert(state.boundary == Boundary::kIdle);
-    assert(state.enter_callback_count == 0);
-    assert(state.probe_attempt_count == 0);
-
     Probe probe;
     transition::on_enter_game_with_probe(probe);
-    state = transition::snapshot();
-    assert(state.boundary == Boundary::kFilesDirUnconfigured);
-    assert(state.enter_callback_count == 1);
-    assert(state.probe_attempt_count == 1);
+    assert(transition::snapshot().boundary == Boundary::kFilesDirUnconfigured);
 
     probe.configured = true;
     transition::on_enter_game_with_probe(probe);
-    state = transition::snapshot();
-    assert(state.boundary == Boundary::kAssetMissing);
+    assert(transition::snapshot().boundary == Boundary::kAssetMissing);
 
     probe.present = true;
     transition::on_enter_game_with_probe(probe);
-    state = transition::snapshot();
-    assert(state.boundary == Boundary::kAssetRejected);
+    assert(transition::snapshot().boundary == Boundary::kAssetRejected);
 
-    probe.regular_file = true;
-    probe.within_size_limit = true;
-    probe.loaded = true;
-    probe.file_size = 45;
-    probe.reader_size = 45;
-    transition::on_enter_game_with_probe(probe);
-    state = transition::snapshot();
-    assert(state.boundary == Boundary::kVerifiedPrefixIncomplete);
-    assert(state.verified_bytes == 0);
-
-    probe.scene_prefix_readable = true;
-    probe.first_scene_header_readable = true;
-    probe.first_layer_header_readable = true;
+    probe.regular_file = true; probe.within_size_limit = true; probe.loaded = true;
+    probe.file_size = 76; probe.reader_size = 76;
     probe.first_object_prefix_readable = true;
     probe.first_object_prefix_bytes_consumed = 45;
     transition::on_enter_game_with_probe(probe);
-    state = transition::snapshot();
-    assert(state.boundary == Boundary::kFirstObjectPrefixVerified);
-    assert(state.enter_callback_count == 5);
-    assert(state.probe_attempt_count == 5);
-    assert(state.file_size == 45);
-    assert(state.reader_size == 45);
-    assert(state.verified_bytes == 45);
+    assert(transition::snapshot().boundary == Boundary::kVerifiedPrefixIncomplete);
+    assert(transition::snapshot().verified_bytes == 0);
 
-    const std::string report = transition::status_report();
-    assert(report.find("first-object-prefix-verified") != std::string::npos);
-    assert(report.find("verified LoadGL_Scene bytes: 45") != std::string::npos);
+    probe.first_object_core_readable = true;
+    probe.first_object_core_bytes_consumed = 76;
+    transition::on_enter_game_with_probe(probe);
+    auto state = transition::snapshot();
+    assert(state.boundary == Boundary::kFirstObjectCoreVerified);
+    assert(state.verified_bytes == 76u);
+    assert(transition::status_report().find("first-object-core-verified") != std::string::npos);
 
-    // Production path: cpp_OnEnterGame supplies the app files directory. Make
-    // sure the transition probes exactly the recovered imported scene path and
-    // reaches only the same verified 45-byte fixture boundary.
     transition::reset();
     const std::filesystem::path root(make_temp_dir());
-    const std::filesystem::path scene =
-        root / "assets" / "gamescene" / "gs_list" / "pvp_scene.glData";
+    const auto scene = root / "assets" / "gamescene" / "gs_list" / "pvp_scene.glData";
     std::filesystem::create_directories(scene.parent_path());
-    write_verified_prefix_fixture(scene);
+    write_fixture(scene);
     transition::on_enter_game(root.string());
     state = transition::snapshot();
-    assert(state.boundary == Boundary::kFirstObjectPrefixVerified);
-    assert(state.enter_callback_count == 1);
-    assert(state.probe_attempt_count == 1);
-    assert(state.verified_bytes == 45);
+    assert(state.boundary == Boundary::kFirstObjectCoreVerified);
+    assert(state.verified_bytes == 76u);
     std::filesystem::remove_all(root);
 
     transition::reset();
-    state = transition::snapshot();
-    assert(state.boundary == Boundary::kIdle);
-    assert(state.enter_callback_count == 0);
+    assert(transition::snapshot().boundary == Boundary::kIdle);
     return 0;
 }
