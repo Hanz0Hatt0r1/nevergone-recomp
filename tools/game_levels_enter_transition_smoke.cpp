@@ -32,7 +32,7 @@ void append_core(std::vector<std::uint8_t>& out, std::int32_t type, const char* 
     out.push_back(1u);
     out.push_back(0u);
 }
-std::vector<std::uint8_t> verified_layer_objects_fixture() {
+std::vector<std::uint8_t> verified_layer_record_fixture() {
     std::vector<std::uint8_t> out;
     append_i32(out, 2); append_u32(out, 1u);
     append_u32(out, 4u); out.push_back(0x7fu); out.insert(out.end(), {'h','e','r','o'});
@@ -50,10 +50,17 @@ std::vector<std::uint8_t> verified_layer_objects_fixture() {
     append_f32(out, 10.0f); append_f32(out, 20.0f);
     append_f32(out, 30.0f); append_f32(out, 40.0f);
     assert(out.size() == 153u);
+
+    append_u32(out, 2u);
+    append_f32(out, 100.0f); append_f32(out, 200.0f);
+    append_f32(out, 300.0f); append_f32(out, 400.0f);
+    append_u32(out, 1u);
+    append_f32(out, 500.0f); append_f32(out, 600.0f);
+    assert(out.size() == 185u);
     return out;
 }
 void write_fixture(const std::filesystem::path& path) {
-    const auto data = verified_layer_objects_fixture();
+    const auto data = verified_layer_record_fixture();
     std::ofstream output(path, std::ios::binary);
     output.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
     assert(output.good());
@@ -77,20 +84,20 @@ int main() {
     assert(transition::snapshot().boundary == Boundary::kAssetRejected);
 
     probe.regular_file = true; probe.within_size_limit = true; probe.loaded = true;
-    probe.file_size = 153; probe.reader_size = 153;
-    probe.first_object_record_readable = true;
-    probe.first_object_record_bytes_consumed = 73;
+    probe.file_size = 185; probe.reader_size = 185;
+    probe.first_layer_objects_readable = true;
+    probe.first_layer_objects_bytes_consumed = 153;
     transition::on_enter_game_with_probe(probe);
     assert(transition::snapshot().boundary == Boundary::kVerifiedPrefixIncomplete);
     assert(transition::snapshot().verified_bytes == 0);
 
-    probe.first_layer_objects_readable = true;
-    probe.first_layer_objects_bytes_consumed = 153;
+    probe.first_layer_record_readable = true;
+    probe.first_layer_record_bytes_consumed = 185;
     transition::on_enter_game_with_probe(probe);
     auto state = transition::snapshot();
-    assert(state.boundary == Boundary::kFirstLayerObjectsVerified);
-    assert(state.verified_bytes == 153u);
-    assert(transition::status_report().find("first-layer-objects-verified") != std::string::npos);
+    assert(state.boundary == Boundary::kFirstLayerRecordVerified);
+    assert(state.verified_bytes == 185u);
+    assert(transition::status_report().find("first-layer-record-verified") != std::string::npos);
 
     transition::reset();
     const std::filesystem::path root(make_temp_dir());
@@ -99,8 +106,8 @@ int main() {
     write_fixture(scene);
     transition::on_enter_game(root.string());
     state = transition::snapshot();
-    assert(state.boundary == Boundary::kFirstLayerObjectsVerified);
-    assert(state.verified_bytes == 153u);
+    assert(state.boundary == Boundary::kFirstLayerRecordVerified);
+    assert(state.verified_bytes == 185u);
     std::filesystem::remove_all(root);
     return 0;
 }

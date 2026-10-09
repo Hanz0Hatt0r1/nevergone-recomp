@@ -175,6 +175,7 @@ jobs:
 
           g++ $CXXFLAGS tools/game_levels_asset_probe_smoke.cpp \
             android/app/src/main/cpp/game_levels_asset_probe.cpp \
+            android/app/src/main/cpp/game_levels_layer_tail.cpp \
             android/app/src/main/cpp/game_levels_scene_prefix.cpp \
             android/app/src/main/cpp/hp_data_reader.cpp \
             -o /tmp/game_levels_asset_probe_smoke
@@ -183,6 +184,7 @@ jobs:
           g++ $CXXFLAGS tools/game_levels_enter_transition_smoke.cpp \
             android/app/src/main/cpp/game_levels_enter_transition.cpp \
             android/app/src/main/cpp/game_levels_asset_probe.cpp \
+            android/app/src/main/cpp/game_levels_layer_tail.cpp \
             android/app/src/main/cpp/game_levels_scene_prefix.cpp \
             android/app/src/main/cpp/hp_data_reader.cpp \
             -o /tmp/game_levels_enter_transition_smoke

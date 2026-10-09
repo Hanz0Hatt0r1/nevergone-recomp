@@ -1,0 +1,36 @@
+name: GameLevels layer tail
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_levels_layer_tail.cpp'
+      - 'android/app/src/main/cpp/game_levels_layer_tail.h'
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.h'
+      - 'tools/game_levels_layer_tail_smoke.cpp'
+      - '.github/workflows/game-levels-layer-tail.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_levels_layer_tail.cpp'
+      - 'android/app/src/main/cpp/game_levels_layer_tail.h'
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.h'
+      - 'tools/game_levels_layer_tail_smoke.cpp'
+      - '.github/workflows/game-levels-layer-tail.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run layer-tail smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_levels_layer_tail_smoke.cpp \
+            android/app/src/main/cpp/game_levels_layer_tail.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/game_levels_layer_tail_smoke
+          /tmp/game_levels_layer_tail_smoke
