@@ -54,10 +54,15 @@ bool upload(
 
 bool ready() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    for (const Asset& asset : g_assets) {
-        if (!valid(asset)) return false;
+    for (int index = 0; index < kRequiredAssetCount; ++index) {
+        if (!valid(g_assets[static_cast<std::size_t>(index)])) return false;
     }
     return true;
+}
+
+bool focus_ready() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return valid(g_assets[static_cast<std::size_t>(kFocusHighlight)]);
 }
 
 std::uint64_t generation() {
