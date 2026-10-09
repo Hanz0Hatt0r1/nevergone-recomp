@@ -6,6 +6,7 @@
 #include "management_role_action_control_compositor.h"
 #include "server_selection_compositor.h"
 #include "server_selection_state.h"
+#include "single_select_hero_confirm_input.h"
 #include "single_select_hero_input.h"
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -16,6 +17,14 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnServerSelectionTouch(
     jint pointer_id,
     jfloat x,
     jfloat y) {
+    if (nevergone::single_select_hero_confirm_input::on_touch(
+            static_cast<int>(action),
+            static_cast<int>(pointer_id),
+            static_cast<float>(x),
+            static_cast<float>(y))) {
+        return JNI_TRUE;
+    }
+
     if (nevergone::single_select_hero_input::on_touch(
             static_cast<int>(action),
             static_cast<int>(pointer_id),

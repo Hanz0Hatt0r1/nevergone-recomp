@@ -1,4 +1,4 @@
-#include "single_select_hero_input.h"
+#include "single_select_hero_confirm_input.h"
 
 #include <sstream>
 #include <string>
@@ -8,7 +8,7 @@
 #include "render_bridge.h"
 #include "single_select_hero_state.h"
 
-namespace nevergone::single_select_hero_input {
+namespace nevergone::single_select_hero_confirm_input {
 namespace {
 
 bool route_active() {
@@ -61,4 +61,4 @@ bool on_touch(int action, int pointer_id, float x, float y) {
     return on_touch_for_surface(action, pointer_id, x, y, width, height);
 }
 
-}  // namespace nevergone::single_select_hero_input
+}  // namespace nevergone::single_select_hero_confirm_input
