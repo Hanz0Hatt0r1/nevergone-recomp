@@ -22,6 +22,14 @@ struct FrameGeometry {
     int source_height = 0;
 };
 
+struct SurfaceRect {
+    bool valid = false;
+    float left = 0.0f;
+    float top = 0.0f;
+    float right = 0.0f;
+    float bottom = 0.0f;
+};
+
 struct Quad {
     bool valid = false;
     float x0 = 0.0f;
@@ -51,30 +59,54 @@ inline float opacity(int tag) {
     return valid_tag(tag) ? 1.0f : 0.0f;
 }
 
-inline Quad quad_for_surface(
+inline bool valid_frame(const FrameGeometry& frame) {
+    return frame.width > 0 && frame.height > 0 &&
+        frame.source_width > 0 && frame.source_height > 0 &&
+        frame.left >= 0 && frame.top >= 0 &&
+        frame.left + frame.width <= frame.source_width &&
+        frame.top + frame.height <= frame.source_height;
+}
+
+inline bool surface_transform(
+        int surface_width,
+        int surface_height,
+        float* scale,
+        float* offset_x,
+        float* offset_y) {
+    if (surface_width <= 0 || surface_height <= 0 ||
+            scale == nullptr || offset_x == nullptr || offset_y == nullptr) {
+        return false;
+    }
+
+    const float resolved_scale = std::min(
+        static_cast<float>(surface_width) / kDesignWidth,
+        static_cast<float>(surface_height) / kDesignHeight);
+    if (!std::isfinite(resolved_scale) || resolved_scale <= 0.0f) return false;
+
+    *scale = resolved_scale;
+    *offset_x = (static_cast<float>(surface_width) - kDesignWidth * resolved_scale) * 0.5f;
+    *offset_y = (static_cast<float>(surface_height) - kDesignHeight * resolved_scale) * 0.5f;
+    return true;
+}
+
+// Visible TexturePacker crop used by the renderer. The sprite's recovered
+// center refers to its untrimmed source size, so left/top place the trimmed
+// pixels inside that source-sized content box.
+inline SurfaceRect visible_rect_for_surface(
         const FrameGeometry& frame,
         int tag,
         int surface_width,
         int surface_height) {
-    Quad result;
-    if (!valid_tag(tag) || surface_width <= 0 || surface_height <= 0 ||
-            frame.width <= 0 || frame.height <= 0 ||
-            frame.source_width <= 0 || frame.source_height <= 0 ||
-            frame.left < 0 || frame.top < 0 ||
-            frame.left + frame.width > frame.source_width ||
-            frame.top + frame.height > frame.source_height) {
+    SurfaceRect result;
+    if (!valid_tag(tag) || !valid_frame(frame)) return result;
+
+    float scale = 0.0f;
+    float offset_x = 0.0f;
+    float offset_y = 0.0f;
+    if (!surface_transform(
+            surface_width, surface_height, &scale, &offset_x, &offset_y)) {
         return result;
     }
-
-    const float scale = std::min(
-        static_cast<float>(surface_width) / kDesignWidth,
-        static_cast<float>(surface_height) / kDesignHeight);
-    if (!std::isfinite(scale) || scale <= 0.0f) return result;
-
-    const float viewport_width = kDesignWidth * scale;
-    const float viewport_height = kDesignHeight * scale;
-    const float offset_x = (static_cast<float>(surface_width) - viewport_width) * 0.5f;
-    const float offset_y = (static_cast<float>(surface_height) - viewport_height) * 0.5f;
 
     const float center_y_design = center_y(tag);
     const float design_left = kCenterX -
@@ -82,19 +114,66 @@ inline Quad quad_for_surface(
     const float design_top = kDesignHeight -
         (center_y_design + static_cast<float>(frame.source_height) * 0.5f) +
         static_cast<float>(frame.top);
-    const float design_right = design_left + static_cast<float>(frame.width);
-    const float design_bottom = design_top + static_cast<float>(frame.height);
-
-    const float surface_left = offset_x + design_left * scale;
-    const float surface_right = offset_x + design_right * scale;
-    const float surface_top = offset_y + design_top * scale;
-    const float surface_bottom = offset_y + design_bottom * scale;
 
     result.valid = true;
-    result.x0 = surface_left * 2.0f / static_cast<float>(surface_width) - 1.0f;
-    result.x1 = surface_right * 2.0f / static_cast<float>(surface_width) - 1.0f;
-    result.y0 = 1.0f - surface_top * 2.0f / static_cast<float>(surface_height);
-    result.y1 = 1.0f - surface_bottom * 2.0f / static_cast<float>(surface_height);
+    result.left = offset_x + design_left * scale;
+    result.top = offset_y + design_top * scale;
+    result.right = result.left + static_cast<float>(frame.width) * scale;
+    result.bottom = result.top + static_cast<float>(frame.height) * scale;
+    return result;
+}
+
+// CCMenuItemSprite inherits the normal sprite content size, not only the
+// TexturePacker-visible crop. Use the imported untrimmed source dimensions for
+// native hit testing around the exact recovered item center.
+inline SurfaceRect content_rect_for_surface(
+        const FrameGeometry& frame,
+        int tag,
+        int surface_width,
+        int surface_height) {
+    SurfaceRect result;
+    if (!valid_tag(tag) || !valid_frame(frame)) return result;
+
+    float scale = 0.0f;
+    float offset_x = 0.0f;
+    float offset_y = 0.0f;
+    if (!surface_transform(
+            surface_width, surface_height, &scale, &offset_x, &offset_y)) {
+        return result;
+    }
+
+    const float design_left = kCenterX - static_cast<float>(frame.source_width) * 0.5f;
+    const float design_top = kDesignHeight -
+        (center_y(tag) + static_cast<float>(frame.source_height) * 0.5f);
+
+    result.valid = true;
+    result.left = offset_x + design_left * scale;
+    result.top = offset_y + design_top * scale;
+    result.right = result.left + static_cast<float>(frame.source_width) * scale;
+    result.bottom = result.top + static_cast<float>(frame.source_height) * scale;
+    return result;
+}
+
+inline bool contains(const SurfaceRect& rect, float x, float y) {
+    return rect.valid && std::isfinite(x) && std::isfinite(y) &&
+        x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+inline Quad quad_for_surface(
+        const FrameGeometry& frame,
+        int tag,
+        int surface_width,
+        int surface_height) {
+    Quad result;
+    const SurfaceRect rect = visible_rect_for_surface(
+        frame, tag, surface_width, surface_height);
+    if (!rect.valid) return result;
+
+    result.valid = true;
+    result.x0 = rect.left * 2.0f / static_cast<float>(surface_width) - 1.0f;
+    result.x1 = rect.right * 2.0f / static_cast<float>(surface_width) - 1.0f;
+    result.y0 = 1.0f - rect.top * 2.0f / static_cast<float>(surface_height);
+    result.y1 = 1.0f - rect.bottom * 2.0f / static_cast<float>(surface_height);
     return result;
 }
 
