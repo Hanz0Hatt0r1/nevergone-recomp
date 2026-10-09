@@ -31,6 +31,8 @@ add_library(nevergone_recomp SHARED
     choose_hero_thunder_state.cpp
     client_callback_bridge.cpp
     filesystem_bindings.cpp
+    fresh_role_compat_jni.cpp
+    fresh_role_compat_state.cpp
     game_clock.cpp
     game_levels_asset_probe.cpp
     game_levels_scene_prefix.cpp
