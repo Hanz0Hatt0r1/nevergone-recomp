@@ -73,7 +73,10 @@ add_library(nevergone_recomp SHARED
     single_login_sway_timeline.cpp
     single_login_thunder_bridge.cpp
     single_select_hero_compositor.cpp
+    single_select_hero_pointer_jni.cpp
+    single_select_hero_pointer_router.cpp
     single_select_hero_state.cpp
+    single_select_hero_touch_state.cpp
     single_select_hero_transition_timeline.cpp
     splash_layer_renderer.cpp
     splash_sequence_state.cpp
