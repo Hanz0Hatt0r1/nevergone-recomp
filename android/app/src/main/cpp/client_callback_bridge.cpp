@@ -6,9 +6,11 @@
 
 #include "character_name_state.h"
 #include "created_role_transition.h"
+#include "game_levels_enter_transition.h"
 #include "initial_ui_transition.h"
 #include "role_selection_state.h"
 #include "server_selection_state.h"
+#include "startup_contract.h"
 
 #if defined(NEVERGONE_HAS_LUA)
 extern "C" {
@@ -133,11 +135,21 @@ int l_capture_callback(lua_State* state) {
             has_created_role = true;
         }
     }
+    const bool enter_game_event = event.name == "cpp_OnEnterGame";
 
     {
         std::lock_guard<std::mutex> lock(g_callback_mutex);
         apply_event_to_ui_state(event);
         g_callback_events.push_back(event);
+    }
+
+    // Enter-game callback is the recovered ManagementLayer boundary where the
+    // login/role UI hands off toward gameplay. Probe only the already verified
+    // GameLevels prefix after releasing the callback mutex so file I/O never
+    // blocks readers of the captured callback state.
+    if (enter_game_event) {
+        nevergone::game_levels_enter_transition::on_enter_game(
+            nevergone::startup::config().files_dir);
     }
 
     // CreateTheRoleSuccessful removes CharacterName and immediately starts the
@@ -175,6 +187,7 @@ void register_login_callback_bindings(lua_State* state) {
     nevergone::server_selection_state::reset();
     nevergone::role_selection_state::reset();
     nevergone::created_role_transition::reset();
+    nevergone::game_levels_enter_transition::reset();
     register_callback(state, "cpp_OnGetServerList");
     register_callback(state, "cpp_OnGetRoleList");
     register_callback(state, "cpp_OnCreateTheRole");
@@ -210,6 +223,7 @@ void reset_client_ui_state() {
     nevergone::server_selection_state::reset();
     nevergone::role_selection_state::reset();
     nevergone::created_role_transition::reset();
+    nevergone::game_levels_enter_transition::reset();
 }
 
 std::string client_ui_state_report() {
@@ -248,6 +262,9 @@ std::string client_ui_state_report() {
     }
     if (transition.management_route == nevergone::initial_ui_transition::ManagementRoute::kRoleCreated) {
         out << nevergone::created_role_transition::status_report();
+    }
+    if (transition.management_route == nevergone::initial_ui_transition::ManagementRoute::kEnteringGame) {
+        out << nevergone::game_levels_enter_transition::status_report();
     }
     return out.str();
 }
