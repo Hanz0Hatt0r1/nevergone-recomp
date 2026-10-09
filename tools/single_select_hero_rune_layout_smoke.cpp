@@ -18,11 +18,27 @@ void assert_rect(
 
 int main() {
     namespace layout = nevergone::single_select_hero_rune_layout;
+    layout::set_pressed_render_tag(0);
+    assert(layout::pressed_render_tag() == 0);
     assert(layout::frame_index(1, false) == 0);
     assert(layout::frame_index(1, true) == 1);
     assert(layout::frame_index(5, true) == 9);
     assert(layout::frame_index(0, false) == -1);
     assert(layout::frame_index(6, false) == -1);
+
+    // The touch router publishes a presentation-only pressed tag. Existing
+    // compositor calls that request the normal frame then transparently select
+    // the staged glow frame only for that rune.
+    layout::set_pressed_render_tag(3);
+    assert(layout::pressed_render_tag() == 3);
+    assert(layout::frame_index(1, false) == 0);
+    assert(layout::frame_index(3, false) == 5);
+    assert(layout::frame_index(3, true) == 5);
+    assert(layout::frame_index(4, false) == 6);
+    layout::set_pressed_render_tag(99);
+    assert(layout::pressed_render_tag() == 0);
+    assert(layout::frame_index(3, false) == 4);
+
     for (int tag = 1; tag <= 5; ++tag) {
         assert(layout::enabled_tag(tag));
         assert(close_enough(layout::opacity(tag), 1.0f));
