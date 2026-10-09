@@ -9,6 +9,7 @@
 #include "app_delegate_state.h"
 #include "choose_hero_background_compositor.h"
 #include "choose_hero_black_cloud_compositor.h"
+#include "choose_hero_role_item_compositor.h"
 #include "choose_hero_role_selection_state.h"
 #include "choose_hero_thunder_effect_compositor.h"
 #include "client_callback_bridge.h"
@@ -47,6 +48,33 @@ std::string jstring_to_utf8(JNIEnv* env, jstring value) {
     return result;
 }
 
+void reload_choose_hero_role_assets(JNIEnv* env, jstring files_dir) {
+    if (env == nullptr || files_dir == nullptr) return;
+    jclass loader = env->FindClass("org/nevergone/recomp/ChooseHeroRoleAssetLoader");
+    if (loader == nullptr) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        return;
+    }
+    jmethodID reload = env->GetStaticMethodID(
+        loader,
+        "reloadFromFilesDir",
+        "(Ljava/lang/String;)Z");
+    if (reload != nullptr) {
+        (void)env->CallStaticBooleanMethod(loader, reload, files_dir);
+    }
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    env->DeleteLocalRef(loader);
+}
+
+void reload_choose_hero_role_assets(JNIEnv* env) {
+    const std::string& files_dir = nevergone::startup::config().files_dir;
+    if (files_dir.empty()) return;
+    jstring value = env->NewStringUTF(files_dir.c_str());
+    if (value == nullptr) return;
+    reload_choose_hero_role_assets(env, value);
+    env->DeleteLocalRef(value);
+}
+
 std::string bootstrap_info() {
     utsname system_info{};
     const bool have_uname = uname(&system_info) == 0;
@@ -77,12 +105,13 @@ std::string bootstrap_info() {
     out << nevergone::choose_hero_thunder_effect_compositor::status_report();
     out << nevergone::choose_hero_black_cloud_compositor::status_report();
     out << nevergone::choose_hero_role_selection_state::status_report();
+    out << nevergone::choose_hero_role_item_compositor::status_report();
     out << nevergone::login_lua_session::status_report();
     out << nevergone::offline_startup_flow::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
-    out << "\nNext milestone: render recovered ChooseHero hero/create items and route their exact tags into the reconstructed selection state.";
+    out << "\nNext milestone: recover ChooseHero focesItem/name-level presentation and selected-role scene entry.";
     return out.str();
 }
 
@@ -102,6 +131,7 @@ Java_org_nevergone_recomp_MainActivity_nativeConfigureRuntime(
     config.app_version = jstring_to_utf8(env, app_version);
     config.platform = "android";
     nevergone::startup::configure(std::move(config));
+    reload_choose_hero_role_assets(env, files_dir);
     nevergone::app_delegate_state::on_runtime_configured();
 }
 
@@ -122,6 +152,7 @@ Java_org_nevergone_recomp_MainActivity_nativePollChooseHeroThunderSound(JNIEnv*,
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_nevergone_recomp_MainActivity_nativeBootstrapInfo(JNIEnv* env, jclass) {
+    reload_choose_hero_role_assets(env);
     const std::string info = bootstrap_info();
     return env->NewStringUTF(info.c_str());
 }
