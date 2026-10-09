@@ -45,6 +45,7 @@ add_library(nevergone_recomp SHARED
     offline_startup_flow.cpp
     protorpc_bindings.cpp
     render_bridge.cpp
+    role_selection_state.cpp
     server_selection_assets.cpp
     server_selection_compositor.cpp
     server_selection_jni.cpp
