@@ -5,6 +5,8 @@
 
 #include "login_callback_payload.h"
 
+struct lua_State;
+
 namespace nevergone::created_role_transition {
 
 enum class Outcome {
@@ -25,18 +27,21 @@ struct Snapshot {
 
 using DispatchFn = bool (*)(const login_callback_payload::RoleEntry&, std::string* error);
 
-// Stages the role returned by cpp_OnCreateTheRole. The actual EnterGameWithCid
-// dispatch is deliberately deferred outside the Lua callback stack so the
-// persistent session never has to re-lock itself from a nested callback.
+// Stages the role returned by cpp_OnCreateTheRole.
 bool stage(const login_callback_payload::RoleEntry& role);
 
-// A failed automatic attempt leaves the created role pending but not due, so a
-// render loop cannot hammer the Lua/session boundary every frame. Diagnostics
-// or a later recovery path may explicitly arm one retry.
+// A failed automatic attempt leaves the created role pending but not due, so
+// no outer loop can hammer the Lua boundary. Diagnostics may explicitly arm
+// one retry.
 bool request_retry();
 
 Outcome pump_with_dispatch(DispatchFn dispatch, std::string* error = nullptr);
-Outcome pump(std::string* error = nullptr);
+
+// Production CreateTheRoleSuccessful-equivalent. It runs after the callback
+// capture mutex has been released but on the same Lua state/call stack as the
+// shipped native callback, so it can invoke EnterGameWithCid without touching
+// the persistent-session mutex recursively.
+Outcome pump_inline(lua_State* state, std::string* error = nullptr);
 
 void reset();
 Snapshot snapshot();
