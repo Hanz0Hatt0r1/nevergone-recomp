@@ -98,6 +98,10 @@ bool row_ready() {
     return ready(kBorder2);
 }
 
+bool confirm_ready() {
+    return ready(kButtonNormal) && ready(kButtonPressed) && ready(kStartLabel);
+}
+
 std::uint64_t generation() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_generation;
