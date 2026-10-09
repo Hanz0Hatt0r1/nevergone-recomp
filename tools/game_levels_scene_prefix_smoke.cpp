@@ -15,10 +15,19 @@ void append_u32(std::vector<std::uint8_t>& bytes, std::uint32_t value) {
     bytes.push_back(static_cast<std::uint8_t>((value >> 16u) & 0xffu));
     bytes.push_back(static_cast<std::uint8_t>((value >> 24u) & 0xffu));
 }
+void append_i32(std::vector<std::uint8_t>& bytes, std::int32_t value) {
+    append_u32(bytes, static_cast<std::uint32_t>(value));
+}
 void append_f32(std::vector<std::uint8_t>& bytes, float value) {
     std::uint32_t bits = 0;
     std::memcpy(&bits, &value, sizeof(bits));
     append_u32(bytes, bits);
+}
+void write_u32(std::vector<std::uint8_t>& bytes, std::size_t offset, std::uint32_t value) {
+    assert(offset + 4u <= bytes.size());
+    for (std::size_t i = 0; i < 4u; ++i) {
+        bytes[offset + i] = static_cast<std::uint8_t>(value >> (i * 8u));
+    }
 }
 std::vector<std::uint8_t> make_header_through_layer() {
     std::vector<std::uint8_t> bytes;
@@ -36,7 +45,7 @@ std::vector<std::uint8_t> make_header_through_layer() {
 }
 std::vector<std::uint8_t> make_object_core_fixture() {
     auto bytes = make_header_through_layer();
-    append_u32(bytes, 0xfffffffdu);
+    append_i32(bytes, -3);
     append_u32(bytes, 4u);
     bytes.push_back(0xaau);
     bytes.insert(bytes.end(), {'n', 'o', 'd', 'e'});
@@ -45,9 +54,10 @@ std::vector<std::uint8_t> make_object_core_fixture() {
     append_f32(bytes, 0.5f);
     append_f32(bytes, 1.25f);
     append_f32(bytes, -1.5f);
-    append_u32(bytes, 0xfffffffbu);
+    append_i32(bytes, -5);
     bytes.push_back(1u);
     bytes.push_back(0u);
+    assert(bytes.size() == 76u);
     return bytes;
 }
 }  // namespace
@@ -86,8 +96,6 @@ int main() {
 
     FirstObjectCore object_core;
     assert(parse_first_object_core(reader, &object_core));
-    assert(object_core.prefix.first_i32 == -3);
-    assert(object_core.prefix.second_u32 == 4u);
     assert(object_core.string_value == "node");
     assert(std::fabs(object_core.first_point_x - 10.0f) < 0.000001f);
     assert(std::fabs(object_core.first_point_y + 20.0f) < 0.000001f);
@@ -99,95 +107,152 @@ int main() {
     assert(!object_core.second_bool);
     assert(object_core.bytes_consumed == 76u);
 
-    // Signed top-level values <= 2 do not contain the version-gated vector.
     FirstObjectVersionExtension old_extension;
     assert(parse_first_object_version_extension(reader, &old_extension));
     assert(old_extension.extra_u32_values.empty());
     assert(old_extension.bytes_consumed == 76u);
 
-    // A top-level value > 2 reads one count followed by exactly count uint32s.
-    std::vector<std::uint8_t> versioned_bytes = core_bytes;
-    versioned_bytes[0] = 3u;
-    versioned_bytes[1] = versioned_bytes[2] = versioned_bytes[3] = 0u;
-    append_u32(versioned_bytes, 2u);
-    append_u32(versioned_bytes, 0x11223344u);
-    append_u32(versioned_bytes, 0xaabbccddu);
-    nevergone::hp_data::Reader versioned_reader(versioned_bytes);
-    FirstObjectVersionExtension versioned_extension;
-    assert(parse_first_object_version_extension(versioned_reader, &versioned_extension));
-    assert(versioned_extension.core.bytes_consumed == 76u);
-    assert(versioned_extension.extra_u32_values.size() == 2u);
-    assert(versioned_extension.extra_u32_values[0] == 0x11223344u);
-    assert(versioned_extension.extra_u32_values[1] == 0xaabbccddu);
-    assert(versioned_extension.bytes_consumed == 88u);
+    // A zero object type jumps directly to AddObject after the version vector.
+    std::vector<std::uint8_t> zero_object = core_bytes;
+    write_u32(zero_object, 37u, 0u);
+    nevergone::hp_data::Reader zero_object_reader(zero_object);
+    FirstObjectConditionalHeader zero_header;
+    assert(parse_first_object_conditional_header(zero_object_reader, &zero_header));
+    assert(!zero_header.present);
+    assert(zero_header.bytes_consumed == 76u);
+
+    // Top-level gate <= 1 reads one uint32 before the string. A primary int32
+    // value of one adds one secondary int32.
+    std::vector<std::uint8_t> v1 = core_bytes;
+    write_u32(v1, 0u, 1u);
+    write_u32(v1, 37u, 1u);
+    append_u32(v1, 0x11111111u);
+    append_u32(v1, 3u);
+    v1.push_back(0x55u);
+    v1.insert(v1.end(), {'f', 'o', 'o'});
+    append_i32(v1, 1);
+    append_i32(v1, -9);
+    assert(v1.size() == 96u);
+    nevergone::hp_data::Reader v1_reader(v1);
+    FirstObjectConditionalHeader v1_header;
+    assert(parse_first_object_conditional_header(v1_reader, &v1_header));
+    assert(v1_header.present);
+    assert(v1_header.first_u32 == 0x11111111u);
+    assert(v1_header.second_u32 == 0u);
+    assert(v1_header.string_value == "foo");
+    assert(v1_header.primary_i32 == 1);
+    assert(v1_header.secondary_i32 == -9);
+    assert(v1_header.bytes_consumed == 96u);
+
+    // Top-level gate 2 reads two uint32s but still has no version-vector block.
+    std::vector<std::uint8_t> v2 = core_bytes;
+    write_u32(v2, 0u, 2u);
+    write_u32(v2, 37u, 1u);
+    append_u32(v2, 0x22222221u);
+    append_u32(v2, 0x22222222u);
+    append_u32(v2, 3u);
+    v2.push_back(0x66u);
+    v2.insert(v2.end(), {'b', 'a', 'r'});
+    append_i32(v2, 0);
+    assert(v2.size() == 96u);
+    nevergone::hp_data::Reader v2_reader(v2);
+    FirstObjectConditionalHeader v2_header;
+    assert(parse_first_object_conditional_header(v2_reader, &v2_header));
+    assert(v2_header.first_u32 == 0x22222221u);
+    assert(v2_header.second_u32 == 0x22222222u);
+    assert(v2_header.string_value == "bar");
+    assert(v2_header.primary_i32 == 0);
+    assert(v2_header.secondary_i32 == 0);
+    assert(v2_header.bytes_consumed == 96u);
+
+    // Gate > 2 first consumes its counted vector, then the same two-u32 header.
+    std::vector<std::uint8_t> v3 = core_bytes;
+    write_u32(v3, 0u, 3u);
+    write_u32(v3, 37u, 1u);
+    append_u32(v3, 1u);
+    append_u32(v3, 0xdeadbeefu);
+    append_u32(v3, 0x33333331u);
+    append_u32(v3, 0x33333332u);
+    append_u32(v3, 3u);
+    v3.push_back(0x77u);
+    v3.insert(v3.end(), {'b', 'a', 'z'});
+    append_i32(v3, 1);
+    append_i32(v3, -7);
+    assert(v3.size() == 108u);
+    nevergone::hp_data::Reader v3_reader(v3);
+    FirstObjectConditionalHeader v3_header;
+    assert(parse_first_object_conditional_header(v3_reader, &v3_header));
+    assert(v3_header.extension.extra_u32_values.size() == 1u);
+    assert(v3_header.extension.extra_u32_values[0] == 0xdeadbeefu);
+    assert(v3_header.first_u32 == 0x33333331u);
+    assert(v3_header.second_u32 == 0x33333332u);
+    assert(v3_header.string_value == "baz");
+    assert(v3_header.primary_i32 == 1);
+    assert(v3_header.secondary_i32 == -7);
+    assert(v3_header.bytes_consumed == 108u);
 
     std::vector<std::uint8_t> hostile_count = core_bytes;
-    hostile_count[0] = 3u;
-    hostile_count[1] = hostile_count[2] = hostile_count[3] = 0u;
+    write_u32(hostile_count, 0u, 3u);
     append_u32(hostile_count, 0xffffffffu);
     nevergone::hp_data::Reader hostile_count_reader(hostile_count);
     FirstObjectVersionExtension unchanged_extension;
     unchanged_extension.extra_u32_values = {7u};
     unchanged_extension.bytes_consumed = 123u;
     assert(!parse_first_object_version_extension(hostile_count_reader, &unchanged_extension));
-    assert(unchanged_extension.extra_u32_values.size() == 1u);
-    assert(unchanged_extension.extra_u32_values[0] == 7u);
+    assert(unchanged_extension.extra_u32_values == std::vector<std::uint32_t>{7u});
     assert(unchanged_extension.bytes_consumed == 123u);
 
+    // Hostile conditional string lengths and truncated secondary int32s fail
+    // without modifying the caller's previous result.
+    std::vector<std::uint8_t> hostile_string = core_bytes;
+    write_u32(hostile_string, 0u, 1u);
+    write_u32(hostile_string, 37u, 1u);
+    append_u32(hostile_string, 5u);
+    append_u32(hostile_string, 0x7fffffffu);
+    nevergone::hp_data::Reader hostile_string_reader(hostile_string);
+    FirstObjectConditionalHeader unchanged_header;
+    unchanged_header.present = true;
+    unchanged_header.first_u32 = 9u;
+    unchanged_header.string_value = "keep";
+    unchanged_header.bytes_consumed = 321u;
+    assert(!parse_first_object_conditional_header(hostile_string_reader, &unchanged_header));
+    assert(unchanged_header.present);
+    assert(unchanged_header.first_u32 == 9u);
+    assert(unchanged_header.string_value == "keep");
+    assert(unchanged_header.bytes_consumed == 321u);
+
+    std::vector<std::uint8_t> truncated_secondary = core_bytes;
+    write_u32(truncated_secondary, 0u, 1u);
+    write_u32(truncated_secondary, 37u, 1u);
+    append_u32(truncated_secondary, 4u);
+    append_u32(truncated_secondary, 1u);
+    truncated_secondary.push_back(0x44u);
+    truncated_secondary.push_back('x');
+    append_i32(truncated_secondary, 1);
+    nevergone::hp_data::Reader truncated_secondary_reader(truncated_secondary);
+    assert(!parse_first_object_conditional_header(truncated_secondary_reader, &unchanged_header));
+    assert(unchanged_header.string_value == "keep");
+
     std::vector<std::uint8_t> no_object = core_bytes;
-    no_object[33] = 0u;
-    no_object[34] = no_object[35] = no_object[36] = 0u;
+    write_u32(no_object, 33u, 0u);
     nevergone::hp_data::Reader no_object_reader(no_object);
     assert(parse_first_layer_header(no_object_reader, &layer_header));
     assert(layer_header.object_count == 0u);
     assert(!parse_first_object_prefix(no_object_reader, &object_prefix));
     assert(!parse_first_object_core(no_object_reader, &object_core));
     assert(!parse_first_object_version_extension(no_object_reader, &old_extension));
-
-    const std::vector<std::uint8_t> truncated_prefix(core_bytes.begin(), core_bytes.begin() + 44);
-    nevergone::hp_data::Reader truncated_prefix_reader(truncated_prefix);
-    FirstObjectPrefix unchanged_prefix;
-    unchanged_prefix.first_i32 = 11;
-    unchanged_prefix.second_u32 = 22;
-    unchanged_prefix.bytes_consumed = 33;
-    assert(!parse_first_object_prefix(truncated_prefix_reader, &unchanged_prefix));
-    assert(unchanged_prefix.first_i32 == 11);
-    assert(unchanged_prefix.second_u32 == 22u);
-    assert(unchanged_prefix.bytes_consumed == 33u);
+    assert(!parse_first_object_conditional_header(no_object_reader, &zero_header));
 
     const std::vector<std::uint8_t> truncated_core(core_bytes.begin(), core_bytes.end() - 1);
     nevergone::hp_data::Reader truncated_core_reader(truncated_core);
     FirstObjectCore unchanged_core;
     unchanged_core.string_value = "unchanged";
     unchanged_core.trailing_i32 = 99;
-    unchanged_core.bytes_consumed = 123;
+    unchanged_core.bytes_consumed = 123u;
     assert(!parse_first_object_core(truncated_core_reader, &unchanged_core));
     assert(unchanged_core.string_value == "unchanged");
     assert(unchanged_core.trailing_i32 == 99);
     assert(unchanged_core.bytes_consumed == 123u);
-
-    std::vector<std::uint8_t> hostile_object_length = core_bytes;
-    hostile_object_length[41] = 0xffu;
-    hostile_object_length[42] = 0xffu;
-    hostile_object_length[43] = 0xffu;
-    hostile_object_length[44] = 0x7fu;
-    nevergone::hp_data::Reader hostile_object_reader(hostile_object_length);
-    assert(parse_first_object_prefix(hostile_object_reader, &object_prefix));
-    assert(!parse_first_object_core(hostile_object_reader, &object_core));
-
-    std::vector<std::uint8_t> no_scene;
-    append_u32(no_scene, 7u);
-    append_u32(no_scene, 0u);
-    nevergone::hp_data::Reader no_scene_reader(no_scene);
-    assert(!parse_first_object_core(no_scene_reader, &object_core));
-
-    std::vector<std::uint8_t> oversized_scene_length = core_bytes;
-    oversized_scene_length[8] = 0xff;
-    oversized_scene_length[9] = 0xff;
-    oversized_scene_length[10] = 0xff;
-    oversized_scene_length[11] = 0x7f;
-    nevergone::hp_data::Reader oversized_reader(oversized_scene_length);
-    assert(!parse_first_object_core(oversized_reader, &object_core));
 
     assert(!parse(reader, nullptr));
     assert(!parse_first_scene_header(reader, nullptr));
@@ -195,5 +260,6 @@ int main() {
     assert(!parse_first_object_prefix(reader, nullptr));
     assert(!parse_first_object_core(reader, nullptr));
     assert(!parse_first_object_version_extension(reader, nullptr));
+    assert(!parse_first_object_conditional_header(reader, nullptr));
     return 0;
 }

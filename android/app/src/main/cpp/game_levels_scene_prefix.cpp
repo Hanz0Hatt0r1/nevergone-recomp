@@ -85,9 +85,8 @@ bool parse_first_object_core(const hp_data::Reader& reader, FirstObjectCore* out
     FirstObjectCore parsed;
     parsed.prefix = std::move(prefix);
 
-    // The ARMv7 stream offset is advanced by 5 immediately after the length
-    // read: four bytes are the already-consumed uint32 and one additional byte
-    // remains opaque. The cursor is already after the uint32, so skip one.
+    // The stream offset advances by five from the start of the uint32 length:
+    // four length bytes are already consumed, leaving one opaque byte to skip.
     if (!cursor.skip(1)) return false;
 
     const std::size_t string_length = static_cast<std::size_t>(parsed.prefix.second_u32);
@@ -141,6 +140,48 @@ bool parse_first_object_version_extension(
             parsed.extra_u32_values.push_back(value);
         }
     }
+
+    parsed.bytes_consumed = cursor.offset();
+    *out = std::move(parsed);
+    return true;
+}
+
+bool parse_first_object_conditional_header(
+        const hp_data::Reader& reader,
+        FirstObjectConditionalHeader* out) {
+    if (out == nullptr) return false;
+
+    FirstObjectVersionExtension extension;
+    if (!parse_first_object_version_extension(reader, &extension)) return false;
+
+    hp_data::Cursor cursor(reader, extension.bytes_consumed);
+    FirstObjectConditionalHeader parsed;
+    parsed.extension = std::move(extension);
+
+    // The original jumps directly to GameSceneLayerData::AddObject when the
+    // object's leading int32 is zero. This is a complete no-byte branch.
+    if (parsed.extension.core.prefix.first_i32 == 0) {
+        parsed.bytes_consumed = cursor.offset();
+        *out = std::move(parsed);
+        return true;
+    }
+
+    parsed.present = true;
+    const std::int32_t top_level_gate =
+        parsed.extension.core.prefix.layer_header.scene_header.prefix.first_i32;
+    if (!cursor.read_u32_le(&parsed.first_u32)) return false;
+    if (top_level_gate > 1 && !cursor.read_u32_le(&parsed.second_u32)) return false;
+
+    if (!cursor.read_u32_le(&parsed.string_length) || !cursor.skip(1)) return false;
+    const std::size_t string_length = static_cast<std::size_t>(parsed.string_length);
+    if (string_length > cursor.remaining() ||
+            sizeof(std::int32_t) > cursor.remaining() - string_length) {
+        return false;
+    }
+
+    if (!cursor.read_fixed_string(string_length, &parsed.string_value)) return false;
+    if (!cursor.read_i32_le(&parsed.primary_i32)) return false;
+    if (parsed.primary_i32 == 1 && !cursor.read_i32_le(&parsed.secondary_i32)) return false;
 
     parsed.bytes_consumed = cursor.offset();
     *out = std::move(parsed);

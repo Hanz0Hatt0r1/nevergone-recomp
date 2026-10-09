@@ -33,10 +33,9 @@ struct FirstLayerHeader {
 };
 
 // ARMv7 proves the first object begins with an int32 followed by a uint32.
-// Later range construction now proves that the second value is the byte length
-// of the immediately following string payload. Keep the historical field name
-// here so existing probes remain source-compatible; FirstObjectCore exposes the
-// newly verified string itself.
+// Later range construction proves that the second value is the byte length of
+// the immediately following string payload. Keep the historical field name so
+// existing probes remain source-compatible.
 struct FirstObjectPrefix {
     FirstLayerHeader layer_header;
     std::int32_t first_i32 = 0;
@@ -44,10 +43,6 @@ struct FirstObjectPrefix {
     std::size_t bytes_consumed = 0;
 };
 
-// Strongest non-versioned first-object boundary. After the prefix the original
-// advances by five bytes from the string-length field start (the four length
-// bytes plus one still-opaque byte), copies exactly second_u32 bytes, appends a
-// NUL, then reads five floats, one int32 and two one-byte bools.
 struct FirstObjectCore {
     FirstObjectPrefix prefix;
     std::string string_value;
@@ -72,20 +67,37 @@ struct FirstObjectVersionExtension {
     std::size_t bytes_consumed = 0;
 };
 
+// The next branch tests the object's leading first_i32. A zero value jumps
+// directly to AddObject and consumes no further bytes. For nonzero values the
+// original reads one uint32 when the top-level gate <= 1, otherwise two; then a
+// uint32 string length, one skipped byte, exactly that many chars, an int32 and
+// a second int32 only when the first int32 equals 1. Semantics stay opaque.
+struct FirstObjectConditionalHeader {
+    FirstObjectVersionExtension extension;
+    bool present = false;
+    std::uint32_t first_u32 = 0;
+    std::uint32_t second_u32 = 0;
+    std::uint32_t string_length = 0;
+    std::string string_value;
+    std::int32_t primary_i32 = 0;
+    std::int32_t secondary_i32 = 0;
+    std::size_t bytes_consumed = 0;
+};
+
 bool parse(const hp_data::Reader& reader, Prefix* out);
 bool parse_first_scene_header(const hp_data::Reader& reader, FirstSceneHeader* out);
 bool parse_first_layer_header(const hp_data::Reader& reader, FirstLayerHeader* out);
 bool parse_first_object_prefix(const hp_data::Reader& reader, FirstObjectPrefix* out);
-
-// Parse through the two proven bool fields and stop before the subsequent
-// version-gated object block. Output is transactional.
 bool parse_first_object_core(const hp_data::Reader& reader, FirstObjectCore* out);
-
-// Parse the first proven version-gated object block. This deliberately stops
-// before the subsequent branch on FirstObjectPrefix::first_i32. For top-level
-// first_i32 <= 2, this succeeds without consuming bytes beyond FirstObjectCore.
 bool parse_first_object_version_extension(
         const hp_data::Reader& reader,
         FirstObjectVersionExtension* out);
+
+// Parse through the shared conditional object header and stop before the
+// following object-type-specific branch (the branch beginning with the
+// recovered first_i32 values 4/6/9/10). Output is transactional.
+bool parse_first_object_conditional_header(
+        const hp_data::Reader& reader,
+        FirstObjectConditionalHeader* out);
 
 }  // namespace nevergone::game_levels_scene_prefix
