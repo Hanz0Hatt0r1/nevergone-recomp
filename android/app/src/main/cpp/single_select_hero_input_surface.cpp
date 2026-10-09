@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 
+#include "character_name_state.h"
 #include "offline_startup_flow.h"
 #include "render_bridge.h"
 #include "single_select_hero_state.h"
@@ -13,7 +14,8 @@ namespace {
 bool route_active() {
     return offline_startup_flow::snapshot().route ==
             offline_startup_flow::Route::kOpeningDialogue &&
-        single_select_hero_state::snapshot().active;
+        single_select_hero_state::snapshot().active &&
+        !character_name_state::snapshot().active;
 }
 
 bool read_render_surface_size(int* width, int* height) {
