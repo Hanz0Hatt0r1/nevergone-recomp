@@ -1,0 +1,145 @@
+name: Auto merge owner PRs
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, synchronize, labeled, unlabeled]
+  workflow_run:
+    workflows: ["Fast checks"]
+    types: [completed]
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: auto-merge-owner-prs
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge fully green owner PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          owner="${GITHUB_REPOSITORY%%/*}"
+          mapfile -t prs < <(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" \
+              --jq '.[].number'
+          )
+
+          if [[ ${#prs[@]} -eq 0 ]]; then
+            echo "No open pull requests."
+            exit 0
+          fi
+
+          for pr in "${prs[@]}"; do
+            echo "Evaluating PR #$pr"
+            pr_json="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr")"
+
+            state="$(jq -r '.state' <<<"$pr_json")"
+            draft="$(jq -r '.draft' <<<"$pr_json")"
+            author="$(jq -r '.user.login' <<<"$pr_json")"
+            head_repo="$(jq -r '.head.repo.full_name // empty' <<<"$pr_json")"
+            base_ref="$(jq -r '.base.ref' <<<"$pr_json")"
+            head_sha="$(jq -r '.head.sha' <<<"$pr_json")"
+            mergeable="$(jq -r '.mergeable | if . == null then "unknown" else tostring end' <<<"$pr_json")"
+            body="$(jq -r '.body // ""' <<<"$pr_json")"
+
+            if [[ "$state" != "open" || "$draft" == "true" ]]; then
+              echo "PR #$pr is not an open ready PR; skipping."
+              continue
+            fi
+            if [[ "$author" != "$owner" || "$head_repo" != "$GITHUB_REPOSITORY" ]]; then
+              echo "PR #$pr is not an owner-authored same-repository PR; skipping."
+              continue
+            fi
+            if [[ "$base_ref" != "main" ]]; then
+              echo "PR #$pr does not target main; skipping."
+              continue
+            fi
+
+            if jq -e '[.labels[].name] | any(. == "manual-review" or . == "no-auto-merge" or . == "do-not-merge" or . == "hold")' <<<"$pr_json" >/dev/null; then
+              echo "PR #$pr carries a manual/hold label; skipping."
+              continue
+            fi
+            if grep -Eiq '(explicit|manual)[ -]?review|do not auto[- ]?merge|do not merge|intentionally left for explicit review' <<<"$body"; then
+              echo "PR #$pr explicitly requests manual review; skipping."
+              continue
+            fi
+
+            if [[ "$mergeable" != "true" ]]; then
+              echo "PR #$pr mergeable=$mergeable; skipping until GitHub reports it mergeable."
+              continue
+            fi
+
+            runs_json="$(
+              gh api --paginate \
+                "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$head_sha&event=pull_request&per_page=100" \
+                --slurp |
+              jq '[.[].workflow_runs[]] | sort_by(.workflow_id, .run_number) | group_by(.workflow_id) | map(last)'
+            )"
+
+            run_count="$(jq 'length' <<<"$runs_json")"
+            if [[ "$run_count" -eq 0 ]]; then
+              echo "PR #$pr has no pull-request workflow runs yet; skipping."
+              continue
+            fi
+
+            fast_checks="$(jq -r '[.[] | select(.name == "Fast checks")] | last | .conclusion // "missing"' <<<"$runs_json")"
+            if [[ "$fast_checks" != "success" ]]; then
+              echo "PR #$pr Fast checks=$fast_checks; skipping."
+              continue
+            fi
+
+            unfinished="$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs_json")"
+            failed="$(jq '[.[] | select(.status == "completed" and (.conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped"))] | length' <<<"$runs_json")"
+            if [[ "$unfinished" -ne 0 || "$failed" -ne 0 ]]; then
+              echo "PR #$pr workflows unfinished=$unfinished failed=$failed; skipping."
+              continue
+            fi
+
+            status_json="$(gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/status")"
+            status_count="$(jq '.statuses | length' <<<"$status_json")"
+            if [[ "$status_count" -gt 0 ]]; then
+              bad_statuses="$(jq '[.statuses[] | select(.state != "success")] | length' <<<"$status_json")"
+              if [[ "$bad_statuses" -ne 0 ]]; then
+                echo "PR #$pr has non-success commit statuses; skipping."
+                continue
+              fi
+            fi
+
+            # Re-read immediately before merge so a force-push cannot race the checks.
+            fresh="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr")"
+            fresh_sha="$(jq -r '.head.sha' <<<"$fresh")"
+            fresh_state="$(jq -r '.state' <<<"$fresh")"
+            fresh_draft="$(jq -r '.draft' <<<"$fresh")"
+            fresh_mergeable="$(jq -r '.mergeable | if . == null then "unknown" else tostring end' <<<"$fresh")"
+
+            if [[ "$fresh_sha" != "$head_sha" || "$fresh_state" != "open" || "$fresh_draft" == "true" || "$fresh_mergeable" != "true" ]]; then
+              echo "PR #$pr changed while being evaluated; refusing stale merge."
+              continue
+            fi
+
+            if result="$(gh api --method PUT "repos/$GITHUB_REPOSITORY/pulls/$pr/merge" -f sha="$head_sha" -f merge_method=squash 2>&1)"; then
+              merged="$(jq -r '.merged // false' <<<"$result")"
+              message="$(jq -r '.message // ""' <<<"$result")"
+              echo "PR #$pr merge result: merged=$merged message=$message"
+              if [[ "$merged" != "true" ]]; then
+                echo "GitHub did not merge PR #$pr; it will be reconsidered on the next run."
+              fi
+            else
+              echo "Merge API rejected PR #$pr; it will be reconsidered on the next run."
+              echo "$result"
+            fi
+          done
