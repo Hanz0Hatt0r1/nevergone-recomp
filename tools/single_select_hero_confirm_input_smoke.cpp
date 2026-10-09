@@ -38,6 +38,45 @@ int main() {
     assert(close_enough(rect2x.right, 1842.0f));
     assert(close_enough(rect2x.bottom, 1215.0f));
 
+    // Exact recovered atlas geometry for the parent and normal/pressed menu
+    // frames. btn_d has a two-pixel horizontal trim inside its 170x75 source.
+    layout::FrameGeometry parent;
+    parent.width = 177;
+    parent.height = 80;
+    parent.source_width = 177;
+    parent.source_height = 80;
+    auto quad = layout::quad_for_surface(parent, 1136, 640);
+    assert(quad.valid);
+    assert(close_enough(quad.x0, 747.5f * 2.0f / 1136.0f - 1.0f));
+    assert(close_enough(quad.x1, 924.5f * 2.0f / 1136.0f - 1.0f));
+    assert(close_enough(quad.y0, 1.0f - 530.0f * 2.0f / 640.0f));
+    assert(close_enough(quad.y1, 1.0f - 610.0f * 2.0f / 640.0f));
+
+    layout::FrameGeometry normal;
+    normal.width = 166;
+    normal.height = 75;
+    normal.left = 2;
+    normal.source_width = 170;
+    normal.source_height = 75;
+    quad = layout::quad_for_surface(normal, 1136, 640);
+    assert(quad.valid);
+    assert(close_enough(quad.x0, 753.0f * 2.0f / 1136.0f - 1.0f));
+    assert(close_enough(quad.x1, 919.0f * 2.0f / 1136.0f - 1.0f));
+
+    layout::FrameGeometry pressed;
+    pressed.width = 170;
+    pressed.height = 75;
+    pressed.source_width = 170;
+    pressed.source_height = 75;
+    quad = layout::quad_for_surface(pressed, 1136, 640);
+    assert(quad.valid);
+    assert(close_enough(quad.x0, 751.0f * 2.0f / 1136.0f - 1.0f));
+    assert(close_enough(quad.x1, 921.0f * 2.0f / 1136.0f - 1.0f));
+
+    layout::FrameGeometry invalid = normal;
+    invalid.width = 171;
+    assert(!layout::quad_for_surface(invalid, 1136, 640).valid);
+
     const fs::path root = fs::temp_directory_path() / "nevergone_single_select_confirm";
     fs::remove_all(root);
     fs::create_directories(root / "assets");
