@@ -18,14 +18,15 @@ import android.widget.TextView;
 /**
  * Temporary project-owned input surface for the fresh-account role path.
  *
- * This intentionally does not imitate the unrecovered SingleSelectHero or
- * CharacterNameLayer hit geometry. It only exposes the already reconstructed
- * semantic state until the original touch/IME presentation is evidence-backed.
+ * This intentionally does not imitate the unrecovered SingleSelectHero touch
+ * presentation. It exposes the reconstructed semantic state until the native
+ * career/confirm routing and CharacterName compositor are connected.
  */
 final class FreshRoleCompatOverlay extends LinearLayout {
     private static final int MODE_HIDDEN = 0;
     private static final int MODE_CAREER = 1;
     private static final int MODE_NAME = 2;
+    private static final int CAREER_COUNT = 5;
     private static final long POLL_MS = 100L;
 
     private static native int nativeMode();
@@ -40,8 +41,7 @@ final class FreshRoleCompatOverlay extends LinearLayout {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final LinearLayout careerPanel;
     private final LinearLayout namePanel;
-    private final Button careerOne;
-    private final Button careerTwo;
+    private final Button[] careerButtons = new Button[CAREER_COUNT];
     private final EditText roleName;
     private final TextView status;
     private boolean polling;
@@ -78,21 +78,19 @@ final class FreshRoleCompatOverlay extends LinearLayout {
         careers.setOrientation(HORIZONTAL);
         careerPanel.addView(careers, matchWrap());
 
-        careerOne = makeButton(context, "Career 1");
-        careerOne.setOnClickListener(view -> {
-            boolean ok = nativeSelectCareer(1);
-            status.setText(ok ? "Career 1 selected" : "Career 1 selection blocked");
-            refreshCareerButtons();
-        });
-        careers.addView(careerOne, weightedWrap());
-
-        careerTwo = makeButton(context, "Career 2");
-        careerTwo.setOnClickListener(view -> {
-            boolean ok = nativeSelectCareer(2);
-            status.setText(ok ? "Career 2 selected" : "Career 2 selection blocked");
-            refreshCareerButtons();
-        });
-        careers.addView(careerTwo, weightedWrap());
+        for (int index = 0; index < CAREER_COUNT; ++index) {
+            final long career = index + 1L;
+            Button button = makeButton(context, Long.toString(career));
+            button.setOnClickListener(view -> {
+                boolean ok = nativeSelectCareer(career);
+                status.setText(ok
+                        ? "Career " + career + " selected"
+                        : "Career " + career + " selection blocked");
+                refreshCareerButtons();
+            });
+            careerButtons[index] = button;
+            careers.addView(button, weightedWrap());
+        }
 
         Button confirmCareer = makeButton(context, "Confirm career");
         confirmCareer.setOnClickListener(view -> {
@@ -209,8 +207,11 @@ final class FreshRoleCompatOverlay extends LinearLayout {
 
     private void refreshCareerButtons() {
         long selected = nativeSelectedCareer();
-        careerOne.setText(selected == 1 ? "Career 1 ✓" : "Career 1");
-        careerTwo.setText(selected == 2 ? "Career 2 ✓" : "Career 2");
+        for (int index = 0; index < CAREER_COUNT; ++index) {
+            long career = index + 1L;
+            careerButtons[index].setText(
+                    selected == career ? career + " ✓" : Long.toString(career));
+        }
     }
 
     private void syncRoleName() {
