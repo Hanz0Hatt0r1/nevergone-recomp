@@ -1,0 +1,318 @@
+name: Full Android and runtime validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '23 3 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 9.6.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android build dependencies
+        shell: bash
+        run: |
+          sdkmanager \
+            'platforms;android-36' \
+            'build-tools;36.0.0' \
+            'cmake;3.22.1' \
+            'ndk;28.2.13676358'
+
+      - name: Validate Python tools
+        run: python3 -m compileall -q tools
+
+      - name: Validate local resource indexer
+        run: python3 tools/resource_index_smoke.py
+
+      - name: Validate Android manifest summary parser
+        run: python3 tools/apk_manifest_summary_smoke.py
+
+      - name: Validate DEX bootstrap mapper
+        run: python3 tools/dex_bootstrap_map_smoke.py
+
+      - name: Validate TexturePacker rotated-frame transform
+        shell: bash
+        run: |
+          rm -rf /tmp/texturepacker-java
+          mkdir -p /tmp/texturepacker-java
+          javac -d /tmp/texturepacker-java \
+            android/app/src/main/java/org/nevergone/recomp/TexturePackerPixelTransform.java \
+            tools/TexturePackerPixelTransformSmoke.java
+          java -cp /tmp/texturepacker-java org.nevergone.recomp.TexturePackerPixelTransformSmoke
+
+      - name: Validate Ghidra metadata index
+        run: python3 tools/ghidra/verify_full_index.py docs/ghidra/full-index
+
+      - name: Validate ChooseHero background atlas contract
+        run: python3 tools/verify_choose_hero_background_contract.py
+
+      - name: Validate ChooseHero black-cloud timeline
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/choose_hero_black_cloud_timeline_smoke.cpp \
+            android/app/src/main/cpp/choose_hero_black_cloud_timeline.cpp \
+            -o /tmp/choose_hero_black_cloud_timeline_smoke
+          /tmp/choose_hero_black_cloud_timeline_smoke
+
+      - name: Validate ChooseHero thunder scheduler
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/choose_hero_thunder_scheduler_smoke.cpp \
+            android/app/src/main/cpp/choose_hero_thunder_scheduler.cpp \
+            -o /tmp/choose_hero_thunder_scheduler_smoke
+          /tmp/choose_hero_thunder_scheduler_smoke
+
+      - name: Validate AppDelegate startup state
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/app_delegate_state_smoke.cpp \
+            android/app/src/main/cpp/app_delegate_state.cpp \
+            -o /tmp/app_delegate_state_smoke
+          /tmp/app_delegate_state_smoke
+
+      - name: Validate initial UI transition
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/initial_ui_transition_smoke.cpp \
+            android/app/src/main/cpp/initial_ui_transition.cpp \
+            -o /tmp/initial_ui_transition_smoke
+          /tmp/initial_ui_transition_smoke
+
+      - name: Validate structured login callback payloads
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/login_callback_payload_smoke.cpp \
+            android/app/src/main/cpp/login_callback_payload.cpp \
+            -o /tmp/login_callback_payload_smoke
+          /tmp/login_callback_payload_smoke
+
+      - name: Validate server selection state
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/server_selection_state_smoke.cpp \
+            android/app/src/main/cpp/server_selection_state.cpp \
+            -o /tmp/server_selection_state_smoke
+          /tmp/server_selection_state_smoke
+
+      - name: Validate role selection state
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/role_selection_state_smoke.cpp \
+            android/app/src/main/cpp/role_selection_state.cpp \
+            -o /tmp/role_selection_state_smoke
+          /tmp/role_selection_state_smoke
+
+      - name: Validate server selection layout
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/server_selection_layout_smoke.cpp \
+            android/app/src/main/cpp/server_selection_layout.cpp \
+            -o /tmp/server_selection_layout_smoke
+          /tmp/server_selection_layout_smoke
+
+      - name: Validate server selection surface mapping
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/server_selection_view_smoke.cpp \
+            android/app/src/main/cpp/server_selection_view.cpp \
+            android/app/src/main/cpp/server_selection_layout.cpp \
+            -o /tmp/server_selection_view_smoke
+          /tmp/server_selection_view_smoke
+
+      - name: Validate HPData reader foundation
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/hp_data_reader_smoke.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/hp_data_reader_smoke
+          /tmp/hp_data_reader_smoke
+
+      - name: Validate GameLevels scene prefix
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/game_levels_scene_prefix_smoke.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/game_levels_scene_prefix_smoke
+          /tmp/game_levels_scene_prefix_smoke
+
+      - name: Validate GameLevels asset probe
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/game_levels_asset_probe_smoke.cpp \
+            android/app/src/main/cpp/game_levels_asset_probe.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/game_levels_asset_probe_smoke
+          /tmp/game_levels_asset_probe_smoke
+
+      - name: Validate SingleLogin light timeline
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/single_login_light_timeline_smoke.cpp \
+            android/app/src/main/cpp/single_login_light_timeline.cpp \
+            -o /tmp/single_login_light_timeline_smoke
+          /tmp/single_login_light_timeline_smoke
+
+      - name: Validate SingleLogin cloud timeline
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/single_login_cloud_timeline_smoke.cpp \
+            android/app/src/main/cpp/single_login_cloud_timeline.cpp \
+            -o /tmp/single_login_cloud_timeline_smoke
+          /tmp/single_login_cloud_timeline_smoke
+
+      - name: Validate SingleLogin sway timeline
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/single_login_sway_timeline_smoke.cpp \
+            android/app/src/main/cpp/single_login_sway_timeline.cpp \
+            -o /tmp/single_login_sway_timeline_smoke
+          /tmp/single_login_sway_timeline_smoke
+
+      - name: Validate SingleLogin lightning timeline
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/single_login_lightning_timeline_smoke.cpp \
+            android/app/src/main/cpp/single_login_lightning_timeline.cpp \
+            -o /tmp/single_login_lightning_timeline_smoke
+          /tmp/single_login_lightning_timeline_smoke
+
+      - name: Validate TapToStart input state
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/tap_to_start_state_smoke.cpp \
+            android/app/src/main/cpp/tap_to_start_state.cpp \
+            -o /tmp/tap_to_start_state_smoke
+          /tmp/tap_to_start_state_smoke
+
+      - name: Validate offline startup role flow
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/offline_startup_flow_smoke.cpp \
+            android/app/src/main/cpp/offline_startup_flow.cpp \
+            android/app/src/main/cpp/standalone_hero_save_probe.cpp \
+            -o /tmp/offline_startup_flow_smoke
+          /tmp/offline_startup_flow_smoke
+
+      - name: Validate splash sequence-local timing
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/splash_sequence_state_smoke.cpp \
+            android/app/src/main/cpp/splash_sequence_state.cpp \
+            android/app/src/main/cpp/initial_ui_transition.cpp \
+            android/app/src/main/cpp/splash_timeline.cpp \
+            -o /tmp/splash_sequence_state_smoke
+          /tmp/splash_sequence_state_smoke
+
+      - name: Prepare verified Lua 5.2.3
+        run: python3 tools/fetch_lua_5_2_3.py
+
+      - name: Validate embedded Lua compatibility layer
+        shell: bash
+        run: |
+          make -C third_party/_local/lua-5.2.3 generic
+          python3 tools/run_lua_compat_smoke.py third_party/_local/lua-5.2.3/src/lua
+
+      - name: Validate reconstructed login Lua dispatch
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 -DNEVERGONE_HAS_LUA=1 \
+            -I android/app/src/main/cpp \
+            -I third_party/_local/lua-5.2.3/src \
+            tools/login_lua_dispatch_smoke.cpp \
+            android/app/src/main/cpp/login_lua_dispatch.cpp \
+            third_party/_local/lua-5.2.3/src/liblua.a \
+            -ldl -lm \
+            -o /tmp/login_lua_dispatch_smoke
+          /tmp/login_lua_dispatch_smoke
+
+      - name: Build debug APK
+        working-directory: android
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Validate 16 KiB page compatibility
+        shell: bash
+        run: |
+          APK="$(find android/app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+          test -n "$APK"
+          python3 tools/check_android_16k_alignment.py "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
+
+      - name: Archive debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nevergone-recomp-debug-${{ github.sha }}
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
