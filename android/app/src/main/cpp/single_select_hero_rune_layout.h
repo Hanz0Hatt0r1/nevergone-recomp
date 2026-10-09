@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace nevergone::single_select_hero_rune_layout {
@@ -38,6 +39,16 @@ struct SurfaceRect {
     float bottom = 0.0f;
 };
 
+struct RuntimeRuneMetrics {
+    std::atomic<int> source_width{0};
+    std::atomic<int> source_height{0};
+};
+
+inline std::atomic<int> g_runtime_surface_width{0};
+inline std::atomic<int> g_runtime_surface_height{0};
+inline std::atomic<int> g_runtime_pressed_tag{0};
+inline RuntimeRuneMetrics g_runtime_metrics[kRuneCount];
+
 inline bool valid_tag(int tag) {
     return tag >= 1 && tag <= kRuneCount;
 }
@@ -46,9 +57,48 @@ inline bool enabled_tag(int tag) {
     return valid_tag(tag);
 }
 
+inline void set_runtime_pressed_tag(int tag) {
+    g_runtime_pressed_tag.store(valid_tag(tag) ? tag : 0, std::memory_order_relaxed);
+}
+
+inline int runtime_pressed_tag() {
+    return g_runtime_pressed_tag.load(std::memory_order_relaxed);
+}
+
+inline int runtime_surface_width() {
+    return g_runtime_surface_width.load(std::memory_order_relaxed);
+}
+
+inline int runtime_surface_height() {
+    return g_runtime_surface_height.load(std::memory_order_relaxed);
+}
+
+inline int runtime_source_width(int tag) {
+    return valid_tag(tag)
+        ? g_runtime_metrics[tag - 1].source_width.load(std::memory_order_relaxed)
+        : 0;
+}
+
+inline int runtime_source_height(int tag) {
+    return valid_tag(tag)
+        ? g_runtime_metrics[tag - 1].source_height.load(std::memory_order_relaxed)
+        : 0;
+}
+
+inline void reset_runtime_input_metrics() {
+    g_runtime_surface_width.store(0, std::memory_order_relaxed);
+    g_runtime_surface_height.store(0, std::memory_order_relaxed);
+    g_runtime_pressed_tag.store(0, std::memory_order_relaxed);
+    for (int index = 0; index < kRuneCount; ++index) {
+        g_runtime_metrics[index].source_width.store(0, std::memory_order_relaxed);
+        g_runtime_metrics[index].source_height.store(0, std::memory_order_relaxed);
+    }
+}
+
 inline int frame_index(int tag, bool pressed) {
     if (!valid_tag(tag)) return -1;
-    return (tag - 1) * 2 + (pressed ? 1 : 0);
+    const bool effective_pressed = pressed || runtime_pressed_tag() == tag;
+    return (tag - 1) * 2 + (effective_pressed ? 1 : 0);
 }
 
 inline float center_y(int tag) {
@@ -79,9 +129,6 @@ inline bool surface_transform(
     return true;
 }
 
-// CCMenuItemSprite uses the untrimmed normal sprite content size for its touch
-// rectangle. The visible atlas quad may be smaller because TexturePacker trim
-// offsets are applied only while drawing.
 inline SurfaceRect hit_rect_for_surface(
         int source_width,
         int source_height,
@@ -103,9 +150,9 @@ inline SurfaceRect hit_rect_for_surface(
     const float half_height = static_cast<float>(source_height) * 0.5f;
     const float design_left = kCenterX - half_width;
     const float design_right = kCenterX + half_width;
-    const float center_y_design = center_y(tag);
-    const float design_top = kDesignHeight - (center_y_design + half_height);
-    const float design_bottom = kDesignHeight - (center_y_design - half_height);
+    const float cy = center_y(tag);
+    const float design_top = kDesignHeight - (cy + half_height);
+    const float design_bottom = kDesignHeight - (cy - half_height);
 
     result.valid = true;
     result.left = offset_x + design_left * scale;
@@ -126,8 +173,20 @@ inline bool hit_test(
     const SurfaceRect rect = hit_rect_for_surface(
         source_width, source_height, tag, surface_width, surface_height);
     return rect.valid &&
+        std::isfinite(surface_x) && std::isfinite(surface_y) &&
         surface_x >= rect.left && surface_x <= rect.right &&
         surface_y >= rect.top && surface_y <= rect.bottom;
+}
+
+inline bool hit_test_runtime(int tag, float surface_x, float surface_y) {
+    return hit_test(
+        runtime_source_width(tag),
+        runtime_source_height(tag),
+        tag,
+        runtime_surface_width(),
+        runtime_surface_height(),
+        surface_x,
+        surface_y);
 }
 
 inline Quad quad_for_surface(
@@ -153,11 +212,20 @@ inline Quad quad_for_surface(
         return result;
     }
 
-    const float center_y_design = center_y(tag);
+    g_runtime_surface_width.store(surface_width, std::memory_order_relaxed);
+    g_runtime_surface_height.store(surface_height, std::memory_order_relaxed);
+    if ((frame_index(tag, false) & 1) == 0) {
+        g_runtime_metrics[tag - 1].source_width.store(
+            frame.source_width, std::memory_order_relaxed);
+        g_runtime_metrics[tag - 1].source_height.store(
+            frame.source_height, std::memory_order_relaxed);
+    }
+
+    const float cy = center_y(tag);
     const float design_left = kCenterX -
         static_cast<float>(frame.source_width) * 0.5f + static_cast<float>(frame.left);
     const float design_top = kDesignHeight -
-        (center_y_design + static_cast<float>(frame.source_height) * 0.5f) +
+        (cy + static_cast<float>(frame.source_height) * 0.5f) +
         static_cast<float>(frame.top);
     const float design_right = design_left + static_cast<float>(frame.width);
     const float design_bottom = design_top + static_cast<float>(frame.height);
