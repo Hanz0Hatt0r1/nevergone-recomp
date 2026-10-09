@@ -33,6 +33,7 @@ final class FreshRoleCompatOverlay extends LinearLayout {
     private static native boolean nativeSelectCareer(long career);
     private static native boolean nativeConfirmCareer();
     private static native String nativeRoleName();
+    private static native boolean nativeRandomizePending();
     private static native boolean nativeSetRoleName(String roleName);
     private static native String nativeDispatchNameAction(int tag);
 
@@ -190,10 +191,11 @@ final class FreshRoleCompatOverlay extends LinearLayout {
         if (mode == MODE_CAREER) {
             refreshCareerButtons();
         } else if (mode == MODE_NAME) {
-            if (previousMode != MODE_NAME) {
+            if (previousMode != MODE_NAME && nativeRandomizePending()) {
                 // CharacterNameLayer::CretaUI immediately triggers the shipped
-                // random-name callback. Execute that semantic action once on
-                // entry; a missing imported CSV remains retryable via Random.
+                // random-name callback. Execute it only while the native state
+                // still marks that initial request pending, so Activity
+                // recreation does not generate a second name after success.
                 status.setText(nativeDispatchNameAction(3));
             }
             syncRoleName();
