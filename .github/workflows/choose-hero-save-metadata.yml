@@ -26,3 +26,15 @@ jobs:
             android/app/src/main/cpp/login_localization_csv.cpp \
             -o /tmp/standalone_hero_save_metadata_smoke
           /tmp/standalone_hero_save_metadata_smoke
+
+      - name: Validate localized ChooseHero profile text
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/choose_hero_profile_text_smoke.cpp \
+            android/app/src/main/cpp/choose_hero_profile_text.cpp \
+            android/app/src/main/cpp/standalone_hero_save_metadata.cpp \
+            android/app/src/main/cpp/login_localization_csv.cpp \
+            -o /tmp/choose_hero_profile_text_smoke
+          /tmp/choose_hero_profile_text_smoke

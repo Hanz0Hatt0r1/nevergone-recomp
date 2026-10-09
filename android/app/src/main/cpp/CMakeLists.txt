@@ -8,6 +8,9 @@ add_library(nevergone_recomp SHARED
     choose_hero_background_timeline.cpp
     choose_hero_black_cloud_compositor.cpp
     choose_hero_black_cloud_timeline.cpp
+    choose_hero_profile_assets.cpp
+    choose_hero_profile_compositor.cpp
+    choose_hero_profile_text.cpp
     choose_hero_role_focus_asset.cpp
     choose_hero_role_focus_compositor.cpp
     choose_hero_role_focus_timeline.cpp
