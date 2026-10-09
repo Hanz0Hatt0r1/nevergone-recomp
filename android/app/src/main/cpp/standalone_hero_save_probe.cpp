@@ -4,6 +4,7 @@
 
 #include <array>
 #include <string>
+#include <utility>
 
 namespace nevergone::standalone_hero_save_probe {
 namespace {
