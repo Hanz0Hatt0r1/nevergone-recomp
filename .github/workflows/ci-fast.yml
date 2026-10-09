@@ -1,0 +1,114 @@
+name: Fast checks
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fast-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  critical-path:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Python tools
+        run: python3 -m compileall -q tools
+
+      - name: Validate local resource indexer
+        run: python3 tools/resource_index_smoke.py
+
+      - name: Validate Android manifest summary parser
+        run: python3 tools/apk_manifest_summary_smoke.py
+
+      - name: Validate DEX bootstrap mapper
+        run: python3 tools/dex_bootstrap_map_smoke.py
+
+      - name: Validate ChooseHero background atlas contract
+        run: python3 tools/verify_choose_hero_background_contract.py
+
+      - name: Validate startup and critical-path native states
+        shell: bash
+        run: |
+          set -euo pipefail
+          CXXFLAGS='-std=c++17 -O2 -I android/app/src/main/cpp'
+
+          g++ $CXXFLAGS tools/app_delegate_state_smoke.cpp \
+            android/app/src/main/cpp/app_delegate_state.cpp \
+            -o /tmp/app_delegate_state_smoke
+          /tmp/app_delegate_state_smoke
+
+          g++ $CXXFLAGS tools/initial_ui_transition_smoke.cpp \
+            android/app/src/main/cpp/initial_ui_transition.cpp \
+            -o /tmp/initial_ui_transition_smoke
+          /tmp/initial_ui_transition_smoke
+
+          g++ $CXXFLAGS tools/login_callback_payload_smoke.cpp \
+            android/app/src/main/cpp/login_callback_payload.cpp \
+            -o /tmp/login_callback_payload_smoke
+          /tmp/login_callback_payload_smoke
+
+          g++ $CXXFLAGS tools/server_selection_state_smoke.cpp \
+            android/app/src/main/cpp/server_selection_state.cpp \
+            -o /tmp/server_selection_state_smoke
+          /tmp/server_selection_state_smoke
+
+          g++ $CXXFLAGS tools/role_selection_state_smoke.cpp \
+            android/app/src/main/cpp/role_selection_state.cpp \
+            -o /tmp/role_selection_state_smoke
+          /tmp/role_selection_state_smoke
+
+          g++ $CXXFLAGS tools/server_selection_layout_smoke.cpp \
+            android/app/src/main/cpp/server_selection_layout.cpp \
+            -o /tmp/server_selection_layout_smoke
+          /tmp/server_selection_layout_smoke
+
+          g++ $CXXFLAGS tools/server_selection_view_smoke.cpp \
+            android/app/src/main/cpp/server_selection_view.cpp \
+            android/app/src/main/cpp/server_selection_layout.cpp \
+            -o /tmp/server_selection_view_smoke
+          /tmp/server_selection_view_smoke
+
+          g++ $CXXFLAGS tools/tap_to_start_state_smoke.cpp \
+            android/app/src/main/cpp/tap_to_start_state.cpp \
+            -o /tmp/tap_to_start_state_smoke
+          /tmp/tap_to_start_state_smoke
+
+          g++ $CXXFLAGS tools/offline_startup_flow_smoke.cpp \
+            android/app/src/main/cpp/offline_startup_flow.cpp \
+            android/app/src/main/cpp/standalone_hero_save_probe.cpp \
+            -o /tmp/offline_startup_flow_smoke
+          /tmp/offline_startup_flow_smoke
+
+      - name: Validate bounded scene parsing
+        shell: bash
+        run: |
+          set -euo pipefail
+          CXXFLAGS='-std=c++17 -O2 -I android/app/src/main/cpp'
+
+          g++ $CXXFLAGS tools/hp_data_reader_smoke.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/hp_data_reader_smoke
+          /tmp/hp_data_reader_smoke
+
+          g++ $CXXFLAGS tools/game_levels_scene_prefix_smoke.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/game_levels_scene_prefix_smoke
+          /tmp/game_levels_scene_prefix_smoke
+
+          g++ $CXXFLAGS tools/game_levels_asset_probe_smoke.cpp \
+            android/app/src/main/cpp/game_levels_asset_probe.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/game_levels_asset_probe_smoke
+          /tmp/game_levels_asset_probe_smoke
