@@ -3,6 +3,7 @@
 #include "choose_hero_action_control_compositor.h"
 #include "choose_hero_role_item_compositor.h"
 #include "login_lua_session.h"
+#include "management_role_action_control_compositor.h"
 #include "server_selection_compositor.h"
 #include "server_selection_state.h"
 
@@ -19,6 +20,17 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnServerSelectionTouch(
     // Give Play/Delete first refusal so their exact type-1 hit boxes can emit
     // the shipped OnCreateback tags 3/8 before item selection handles input.
     if (nevergone::choose_hero_action_control_compositor::on_touch(
+            static_cast<int>(action),
+            static_cast<int>(pointer_id),
+            static_cast<float>(x),
+            static_cast<float>(y))) {
+        return JNI_TRUE;
+    }
+
+    // The online ManagementLayer role route uses the same recovered Play
+    // button presentation, but dispatches CharacterID through g_UILogin.
+    // Give that control first refusal before its role boards are considered.
+    if (nevergone::management_role_action_control_compositor::on_touch(
             static_cast<int>(action),
             static_cast<int>(pointer_id),
             static_cast<float>(x),
