@@ -6,6 +6,7 @@
 #include "game_clock.h"
 #include "initial_ui_transition.h"
 #include "offline_startup_flow.h"
+#include "single_select_hero_input.h"
 #include "single_select_hero_state.h"
 #include "single_select_hero_transition_state.h"
 #include "splash_sequence_state.h"
@@ -52,6 +53,7 @@ bool management_login_initialized() {
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeResetRecoveredSceneSequence(JNIEnv*, jclass) {
     nevergone::offline_startup_flow::reset();
+    nevergone::single_select_hero_input::reset();
     nevergone::single_select_hero_state::reset();
     nevergone::single_select_hero_transition_state::reset();
     nevergone::tap_to_start_state::reset();
@@ -105,6 +107,7 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeIsSingleSelectHeroActive(JNIEnv*
         return JNI_TRUE;
     }
 
+    nevergone::single_select_hero_input::reset();
     if (nevergone::single_select_hero_state::snapshot().active) {
         nevergone::single_select_hero_state::reset();
     }
