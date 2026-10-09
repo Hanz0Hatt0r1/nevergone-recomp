@@ -140,13 +140,18 @@ int l_capture_callback(lua_State* state) {
         g_callback_events.push_back(event);
     }
 
-    // CreateTheRoleSuccessful removes CharacterName and starts the returned
-    // role immediately. Stage that follow-up after releasing the callback
-    // mutex, but defer the Lua dispatch itself until the next runtime pump so
-    // a callback cannot recursively lock the persistent Lua session.
+    // CreateTheRoleSuccessful removes CharacterName and immediately starts the
+    // returned role. Do this only after releasing our callback mutex. The
+    // original native path re-enters Lua from this callback; pump_inline uses
+    // this exact lua_State directly and therefore never re-locks the persistent
+    // login-session mutex.
     if (has_created_role) {
         (void)nevergone::character_name_state::complete_creation();
-        (void)nevergone::created_role_transition::stage(created_role);
+        if (nevergone::created_role_transition::stage(created_role)) {
+            std::string transition_error;
+            (void)nevergone::created_role_transition::pump_inline(
+                state, &transition_error);
+        }
     }
     return 0;
 }
