@@ -38,8 +38,8 @@ bool g_scene_active = false;
 std::uint64_t g_scene_generation = 0;
 std::uint64_t g_start_tick = 0;
 std::uint64_t g_seed_seconds = 0;
-std::uint64_t g_suppressed_sound_count = 0;
-int g_last_suppressed_sound = -1;
+std::uint64_t g_polled_sound_count = 0;
+int g_last_polled_sound = -1;
 
 std::atomic<std::uint64_t> g_draw_count{0};
 std::atomic<float> g_last_elapsed_seconds{0.0f};
@@ -223,8 +223,8 @@ void reset_scene_state() {
     g_scene_generation = 0;
     g_start_tick = 0;
     g_seed_seconds = 0;
-    g_suppressed_sound_count = 0;
-    g_last_suppressed_sound = -1;
+    g_polled_sound_count = 0;
+    g_last_polled_sound = -1;
     g_machine.reset(0);
     delete_textures();
     g_last_elapsed_seconds.store(0.0f, std::memory_order_relaxed);
@@ -243,18 +243,14 @@ choose_hero_thunder_state::Snapshot update_state(
         g_seed_seconds = now > 0 ? static_cast<std::uint64_t>(now) : route_state.scene_generation;
         g_machine.reset(g_seed_seconds);
         g_machine.start();
-        g_suppressed_sound_count = 0;
-        g_last_suppressed_sound = -1;
+        g_polled_sound_count = 0;
+        g_last_polled_sound = -1;
     }
 
     const double elapsed = tick >= g_start_tick
         ? static_cast<double>(tick - g_start_tick) * game_clock::kFixedStepSeconds
         : 0.0;
     g_machine.advance(elapsed);
-    for (int sound = g_machine.take_sound_index(); sound >= 0; sound = g_machine.take_sound_index()) {
-        ++g_suppressed_sound_count;
-        g_last_suppressed_sound = sound;
-    }
     if (elapsed_out != nullptr) *elapsed_out = elapsed;
     return g_machine.snapshot(elapsed);
 }
@@ -359,6 +355,16 @@ void draw() {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+int poll_sound() {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    const int sound = g_machine.take_sound_index();
+    if (sound >= 0) {
+        ++g_polled_sound_count;
+        g_last_polled_sound = sound;
+    }
+    return sound;
+}
+
 std::string status_report() {
     std::lock_guard<std::mutex> lock(g_state_mutex);
     const auto state = g_machine.snapshot(g_last_elapsed_seconds.load(std::memory_order_relaxed));
@@ -372,8 +378,8 @@ std::string status_report() {
         << state.thunder_begin_count << "/" << state.thunder_end_count << "\n";
     out << "ChooseHero lightning schedules: " << state.lightning_schedule_count << "\n";
     out << "ChooseHero ground-light schedules: " << state.ground_light_schedule_count << "\n";
-    out << "ChooseHero suppressed thunder sounds: " << g_suppressed_sound_count
-        << " last=" << g_last_suppressed_sound << "\n";
+    out << "ChooseHero delivered thunder sounds: " << g_polled_sound_count
+        << " last=" << g_last_polled_sound << "\n";
     out << "ChooseHero effect draws: " << g_draw_count.load(std::memory_order_relaxed) << "\n";
     return out.str();
 }
