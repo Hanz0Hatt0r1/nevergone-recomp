@@ -1,10 +1,10 @@
 # ChooseHero role-item compositor
 
-This note documents the first visual/touch layer built on the recovered standalone `ChooseHero` selection state. It uses only user-imported original PNG files at runtime; no original image bytes are stored in the repository.
+This note documents the reconstructed standalone `ChooseHero` role pane. It uses only user-imported original PNG files at runtime; no original image bytes are stored in the repository.
 
 ## Imported resources
 
-The baseline APK contains the following direct PNGs under `assets/Login/ChooseHero/`, and `OriginalApkImporter` already decodes PNG assets into app-private `files/assets` storage:
+The baseline APK contains direct PNGs under `assets/Login/ChooseHero/`, including:
 
 - `hero_board_a.png`
 - `hero_board_b.png`
@@ -14,52 +14,48 @@ The baseline APK contains the following direct PNGs under `assets/Login/ChooseHe
 - `Hero_02_b.png`
 - `create_add_a.png`
 - `create_add_b.png`
+- `sel_hero_name_bg.png`
 
-`ChooseHeroRoleAssetLoader` decodes those files with Android `BitmapFactory` and uploads ARGB pixels into a synchronized native CPU backing store. Width and height come from the imported files at runtime rather than from hard-coded metadata. A diagnostics refresh reloads the store, so an APK import performed after launch becomes visible without restarting the process.
+`ChooseHeroRoleAssetLoader` decodes the board/hero/create files with Android `BitmapFactory` and uploads ARGB pixels into a synchronized native CPU backing store. Width and height come from imported files at runtime rather than hard-coded metadata. `ChooseHeroProfileLabelLoader` separately loads `sel_hero_name_bg.png` and rasterizes the recovered localized profile labels.
 
 ## Recovered toggle semantics
 
 `ChooseHeroItem::createChooseHeroItem()` and `createCreateHeroItem()` construct a `CCMenuItemToggle` from two reversed `CCMenuItemImage` states:
 
-- the selected state uses `hero_board_b.png` as its normal image;
-- the cleared/unselected state uses `hero_board_a.png` as its normal image.
+- selected uses `hero_board_b.png`;
+- cleared/unselected uses `hero_board_a.png`.
 
 `setSelected()` chooses toggle index `0`, while `clearSelect()` chooses index `1`.
 
-The item child sprites follow the same A/B distinction. The existing-hero variants are `Hero_%02d_a/b.png`, and the create tile uses `create_add_a/b.png`. Recovered item code places those sprites at local position `(-30, 0)`. The compositor therefore draws:
-
-- unselected hero: `hero_board_a` + `Hero_0N_a`;
-- selected hero: `hero_board_b` + `Hero_0N_b`;
-- unselected create tile: `hero_board_a` + `create_add_a`;
-- selected create tile: `hero_board_b` + `create_add_b`.
-
-The role ids/tags themselves come from `choose_hero_role_selection_state` and remain the shipped standalone slot ids `1` and `2`; the create tile is tag `0`.
+The item child sprites follow the same A/B distinction. Existing heroes use `Hero_%02d_a/b.png`; the create tile uses `create_add_a/b.png`. Recovered item code places those sprites at local `(-30, 0)`. The role ids/tags remain standalone slot ids `1` and `2`; create is tag `0`.
 
 ## Placement and hit testing
 
-`ChooseHero::initSaveDataUI()` positions each `ChooseHeroItem` at X `100`. The first Y is `visibleHeight - 100`; each following item subtracts `ItemHeight + 15`. `ItemHeight` is the `CCMenuItemToggle` content height, so the runtime compositor derives it from the imported board image instead of freezing the observed baseline size in code.
+`ChooseHero::initSaveDataUI()` positions each item at X `100`. The first Y is `visibleHeight - 100`; each following item subtracts `ItemHeight + 15`. `ItemHeight` comes from the runtime board image, matching the original content-size dependency.
 
-The original menu item is centered at its node position. The reconstructed hit rectangle therefore uses the imported board width/height centered on the recovered item position.
-
-Android surface coordinates are converted into the 1136x640 design canvas with aspect-fit letterboxing before hit testing. A DOWN/UP pair must begin and end on the same item before its recovered sender tag is passed to `choose_hero_role_selection_state::select_tag`. While the offline `choose-role` route owns input, those touches are consumed before the pre-existing server/TapToStart paths.
+The original menu item is centered at its node position. Android surface coordinates are converted into the 1136x640 design canvas with aspect-fit letterboxing before hit testing. A DOWN/UP pair must begin and end on the same item before its recovered sender tag is passed to `choose_hero_role_selection_state::select_tag`.
 
 ## Rendering order
 
-The existing ChooseHero GL callback already reconstructs:
+The ChooseHero GL callback reconstructs:
 
 1. PartThree storm background (z=10);
 2. thunder/lightning/ground-light effects (z=20);
-3. `BalckCloud` foreground clouds (z=30).
+3. `BalckCloud` foreground clouds (z=30);
+4. role board/icon tiles;
+5. save-derived name background/name/level/GameUSETime profile content;
+6. selected-item `focesItem()` highlight streaks.
 
-The item pane is UI rather than another background-effect node, so it is drawn after those scene layers. The compositor keeps its GLES textures generation-aware and recreates them if imported asset generation changes or an EGL context invalidates the old texture names.
+All GLES stores are generation-aware and recreate texture names after imported asset changes or EGL context loss.
 
-## Deliberate boundary
+## Profile and focus layers
 
-This layer does **not** approximate the remaining `ChooseHeroItem::focesItem()` behavior. In particular, it does not yet draw or animate:
+The selected-item `focesItem()` action is reconstructed separately from the static tile: two mirrored `act_hilight.png` streaks run the shipped 5.51-second repeat sequence and restart when selection changes.
 
-- `sel_hero_name_bg.png`;
-- save-derived hero name and level labels;
-- the exact focus scale/color action sequence;
-- Play/Create buttons and their scene-entry callbacks.
+Existing-hero profile data is also independent of the selection model. Valid `DMG_01/02.sData` metadata supplies level and played time; `Login/ALL_Loin.csv` supplies localized `Hero%dName`, `GdUI08` and `GameUSETime` strings. Labels use the recovered `Arial` size 20 Android/Cocos rasterization behavior and node color `(96,96,96)`.
 
-Those are separate evidence-driven increments. The current layer establishes the original board/icon appearance, recovered item positions, runtime-sized hit boxes, and exact selection tags without inventing the unresolved presentation logic.
+The exact profile hierarchy/anchors are documented in `docs/choose-hero-save-metadata.md`.
+
+## Remaining boundary
+
+The role pane now has recovered board/icon selection, focus effects and save-derived profile presentation. Play/Create controls and their `ChooseHero::OnCreateback()` / selected-role scene-entry behavior remain intentionally unresolved rather than approximated.
