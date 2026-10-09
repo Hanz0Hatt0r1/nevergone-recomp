@@ -60,6 +60,14 @@ int main() {
     assert(!confirm::on_touch_for_surface(0, 2, 500.0f, 570.0f, 1136, 640));
     assert(confirm::on_touch_for_surface(0, 2, 836.0f, 570.0f, 1136, 640));
     assert(confirm::pressed());
+
+    // Once Confirm owns a pointer, secondary pointers remain consumed so they
+    // cannot leak into the rune router underneath the same gesture.
+    assert(confirm::on_touch_for_surface(5, 9, 568.0f, 325.0f, 1136, 640));
+    assert(confirm::pressed());
+    assert(confirm::on_touch_for_surface(6, 9, 568.0f, 325.0f, 1136, 640));
+    assert(confirm::pressed());
+
     assert(confirm::on_touch_for_surface(2, 2, 700.0f, 570.0f, 1136, 640));
     assert(!confirm::pressed());
     assert(confirm::on_touch_for_surface(2, 2, 836.0f, 570.0f, 1136, 640));
