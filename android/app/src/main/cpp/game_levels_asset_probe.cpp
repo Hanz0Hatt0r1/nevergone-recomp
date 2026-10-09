@@ -84,6 +84,13 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
     if (result.first_object_version_extension_readable) {
         result.first_object_version_extension_bytes_consumed = version_extension.bytes_consumed;
     }
+
+    game_levels_scene_prefix::FirstObjectConditionalHeader conditional_header;
+    result.first_object_conditional_header_readable =
+        game_levels_scene_prefix::parse_first_object_conditional_header(reader, &conditional_header);
+    if (result.first_object_conditional_header_readable) {
+        result.first_object_conditional_header_bytes_consumed = conditional_header.bytes_consumed;
+    }
     return result;
 }
 
@@ -109,8 +116,9 @@ std::string status_report(const std::string& files_dir) {
     else if (!state.first_object_prefix_readable) out << "loaded (" << state.reader_size << " bytes; first object prefix unavailable)\n";
     else if (!state.first_object_core_readable) out << "loaded (" << state.reader_size << " bytes; first object prefix readable, core unavailable)\n";
     else if (!state.first_object_version_extension_readable) out << "loaded (" << state.reader_size << " bytes; first object core readable, version extension unavailable)\n";
-    else out << "loaded (" << state.reader_size << " bytes; first object version extension readable, "
-             << state.first_object_version_extension_bytes_consumed << " bytes verified)\n";
+    else if (!state.first_object_conditional_header_readable) out << "loaded (" << state.reader_size << " bytes; version extension readable, conditional header unavailable)\n";
+    else out << "loaded (" << state.reader_size << " bytes; first object conditional header readable, "
+             << state.first_object_conditional_header_bytes_consumed << " bytes verified)\n";
     return out.str();
 }
 

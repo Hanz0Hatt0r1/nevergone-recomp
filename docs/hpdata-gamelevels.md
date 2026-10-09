@@ -120,7 +120,7 @@ The stores prove structural grouping without speculative gameplay names: floats 
 
 ## Verified version-gated uint32 vector
 
-The next branch is now recovered directly from ARMv7 control flow:
+The next branch is recovered directly from ARMv7 control flow:
 
 1. at Ghidra `0x002d2b20`, `LoadGL_Scene` reloads `GameLevels + 0x3c`, the same signed value read as the top-level `Prefix::first_i32`;
 2. it compares that value with signed constant `2` and skips the entire block when `first_i32 <= 2`;
@@ -130,7 +130,18 @@ The next branch is now recovered directly from ARMv7 control flow:
 
 `parse_first_object_version_extension()` reproduces only this verified gate. For top-level `first_i32 <= 2`, it succeeds without consuming bytes past `FirstObjectCore`. For values `> 2`, it reads the count and exactly `count` uint32 values with a pre-allocation bounds check that rejects hostile counts before reserving memory.
 
-The parser stops at Ghidra `0x002d2ba4`, before the next independent branch on `FirstObjectPrefix::first_i32`. No later conditional object fields are guessed.
+## Verified conditional object header
+
+At Ghidra `0x002d2ba4`, the original tests the object's leading `FirstObjectPrefix::first_i32`.
+
+- `first_i32 == 0` branches directly to `GameSceneLayerData::AddObject()` at `0x002d2dbe`; no more bytes belong to that object record on this path.
+- For nonzero values, two local uint32 fields are initialized to zero. The top-level format gate (`GameLevels + 0x3c`) is compared against signed constant `1`.
+- When the top-level gate is `> 1`, the original reads two sequential uint32 values at `0x002d2bce` and `0x002d2be4`.
+- When the top-level gate is `<= 1`, it reads only the first uint32 at `0x002d2bee`; the second remains zero.
+- It then reads a uint32 at `0x002d2c18`, advances five bytes from that length field start, and copies exactly that many chars at `0x002d2c3a`, followed by a NUL terminator.
+- It reads an int32 at `0x002d2c62`. A second int32 local is initialized to zero and is populated at `0x002d2c8e` only when the first int32 equals `1`.
+
+`parse_first_object_conditional_header()` implements exactly those branches. A zero object-leading int32 succeeds without consuming any bytes after the version extension. Nonzero objects parse the one/two uint32 gate, bounded string and one/two int32 gate transactionally. The parser stops before the object-type-specific branch beginning at `0x002d2cb0`.
 
 ## Imported GameLevels asset probe
 
@@ -138,16 +149,16 @@ The reconstructed runtime resolves the user-owned app-private resource:
 
 `<files>/assets/gamescene/gs_list/pvp_scene.glData`
 
-The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It validates each evidence-backed boundary through the first object's version-gated uint32 vector.
+The probe checks that the path exists and is a regular file, obtains its size, enforces a 64 MiB upper bound, then loads the bytes into the reconstructed `hp_data::Reader`. It validates each evidence-backed boundary through the first object's conditional header.
 
-Bootstrap diagnostics report only readiness and verified byte counts. They do **not** print imported scene strings, coordinates, counts, floats, object fields, or vector values. Synthetic host regressions cover truncated fields, hostile string lengths, the signed version gate, zero/positive vector counts, and hostile vector counts without requiring game data.
+Bootstrap diagnostics report only readiness and verified byte counts. They do **not** print imported scene strings, coordinates, counts, floats, object fields, or vector values. Synthetic host regressions cover truncated fields, hostile string lengths, the signed format gates, zero/positive vector counts, hostile vector counts, the zero-object bypass and all verified conditional-header forms without requiring game data.
 
-The reconstructed `cpp_OnEnterGame` route treats `first-object-version-extension-verified` as the strongest current GameLevels entry state. It still does not instantiate or render a gameplay scene.
+The reconstructed `cpp_OnEnterGame` route treats `first-object-conditional-header-verified` as the strongest current GameLevels entry state. It still does not instantiate or render a gameplay scene.
 
 ## Remaining format work
 
-After the optional uint32 vector, the original checks the object's leading `first_i32`. A zero value jumps directly to adding the object to its layer. A nonzero value enters another conditional block whose shape depends again on the top-level format gate and then on additional object values.
+After the shared conditional header, the original enters an object-type-specific tail. The ARMv7 branch distinguishes at least the leading-object values `4/6`, `9`, and `10`: the first two groups consume one additional int32, while value `10` consumes one int32 plus four floats; other observed paths consume no bytes before the common stores and `AddObject()`.
 
-Recover that branch through its join point before attempting to parse a second object or layer. In particular, the complete object-record size is not fixed yet for nonzero object types, so iterating object records before those cases are proven would be speculative.
+Recover and model that tail through its common join point. Once all object-type-specific byte consumption is represented, the first object record has a complete evidence-backed size and the parser can safely advance to the second object, then the remaining objects/layers.
 
 Semantic names should be assigned only when the value's use in the original code makes them unambiguous.
