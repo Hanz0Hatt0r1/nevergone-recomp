@@ -55,12 +55,35 @@ int main() {
     assert(hit_test_surface(4, 1136, 640, 520.0f, 320.0f) == -1);
     assert(hit_test_surface(4, 1136, 640, 546.0f, 320.0f) == 1);
 
-    const auto confirm = confirm_rect();
-    assert(confirm.original_tag == 10002);
-    assert(confirm_contains(
-        confirm.left + confirm.width * 0.5f,
-        confirm.bottom + confirm.height * 0.5f));
+    // Original tag 10001 is the border1 selector control at visibleWidth/2,
+    // y=200. Supplied border1 decodes to 405x46.
+    const auto selector = selector_rect(405.0f, 46.0f);
+    assert(selector.original_tag == 10001);
+    assert(near(selector.left, 365.5f));
+    assert(near(selector.bottom, 177.0f));
+    assert(near(selector.width, 405.0f));
+    assert(near(selector.height, 46.0f));
+    assert(selector_contains(568.0f, 200.0f, 405.0f, 46.0f));
+    assert(!selector_contains(365.4f, 200.0f, 405.0f, 46.0f));
+
+    const auto fallbackConfirm = confirm_rect();
+    assert(fallbackConfirm.original_tag == 10002);
+    assert(near(fallbackConfirm.left + fallbackConfirm.width * 0.5f, 568.0f));
+    assert(near(fallbackConfirm.bottom + fallbackConfirm.height * 0.5f, 100.0f));
+    assert(confirm_contains(568.0f, 100.0f));
     assert(!confirm_contains(0.0f, 0.0f));
+
+    // User-supplied expansion evidence: all three shipped type-1 standard
+    // button states decode to 162x63. Hit geometry follows those runtime
+    // dimensions while retaining the recovered center and original tag 10002.
+    const auto originalConfirm = confirm_rect(162.0f, 63.0f);
+    assert(originalConfirm.original_tag == 10002);
+    assert(near(originalConfirm.left, 487.0f));
+    assert(near(originalConfirm.bottom, 68.5f));
+    assert(near(originalConfirm.width, 162.0f));
+    assert(near(originalConfirm.height, 63.0f));
+    assert(confirm_contains(568.0f, 100.0f, 162.0f, 63.0f));
+    assert(!confirm_contains(486.9f, 100.0f, 162.0f, 63.0f));
 
     std::cout << "server selection view smoke: ok\n";
     return 0;

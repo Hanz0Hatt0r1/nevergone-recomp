@@ -30,29 +30,37 @@ int main() {
     assert(state.payload_valid);
     assert(state.server_count == 3);
     assert(state.selected_index == 1);
+    assert(!state.chooser_open);
     assert(state.selected_server_id == 8);
     assert(state.selected_server_name == "Asia");
     assert(state.selected_server_ip == "10.0.1.1");
 
-    sync_server_list(sample_payload("999"));
+    // Original tag 10001 opens the hidden server list. Repeated opens are
+    // idempotent; only the closed->open transition is counted.
+    assert(open_chooser());
     state = snapshot();
-    assert(state.selected_index == -1);
-    sync_server_list(sample_payload("8x"));
-    assert(snapshot().selected_index == -1);
-    sync_server_list(sample_payload(""));
-    assert(snapshot().selected_index == -1);
-
-    sync_server_list(sample_payload("7"));
-    assert(snapshot().selected_index == 0);
+    assert(state.chooser_open);
+    assert(state.chooser_open_count == 1);
+    assert(open_chooser());
+    assert(snapshot().chooser_open_count == 1);
 
     touch_began(3, 100.0f);
     assert(touch_ended(3, 110.0f, 2));
+    state = snapshot();
+    assert(state.selected_index == 2);
+    assert(!state.chooser_open);
+
+    // Rows are not selectable while the original overlay is closed.
+    touch_began(3, 100.0f);
+    assert(!touch_ended(3, 100.0f, 1));
     assert(snapshot().selected_index == 2);
 
+    assert(open_chooser());
     touch_began(3, 100.0f);
     assert(!touch_ended(3, 110.01f, 1));
     state = snapshot();
     assert(state.selected_index == 2);
+    assert(state.chooser_open);
     assert(state.rejected_drag_touches == 1);
 
     touch_began(4, 50.0f);
@@ -64,7 +72,16 @@ int main() {
     touch_began(6, 70.0f);
     assert(!touch_ended(6, 72.0f, -1));
     assert(snapshot().selected_index == 2);
+    assert(snapshot().chooser_open);
 
+    // Confirm is disabled while the modal chooser is open.
+    assert(!confirm_selection().valid);
+    assert(!snapshot().enter_request_pending);
+
+    // Selecting a valid row mirrors UpDataServerSelet: close overlay and
+    // reactivate the main confirm path.
+    assert(select_index(2));
+    assert(!snapshot().chooser_open);
     const EnterRequest request = confirm_selection();
     assert(request.valid);
     assert(request.server_id == 11);
@@ -93,12 +110,28 @@ int main() {
     state = snapshot();
     assert(state.selected_index == 2);
     assert(state.selected_server_id == 11);
+    assert(!state.chooser_open);
     assert(!state.enter_request_pending);
+
+    sync_server_list(sample_payload("999"));
+    state = snapshot();
+    assert(state.selected_index == -1);
+    assert(!state.chooser_open);
+    assert(open_chooser());
+    assert(snapshot().chooser_open);
+
+    sync_server_list(sample_payload("8x"));
+    assert(snapshot().selected_index == -1);
+    assert(!snapshot().chooser_open);
+    sync_server_list(sample_payload(""));
+    assert(snapshot().selected_index == -1);
 
     nevergone::login_callback_payload::ServerListPayload invalid;
     sync_server_list(invalid);
     assert(!snapshot().payload_valid);
     assert(snapshot().selected_index == -1);
+    assert(!snapshot().chooser_open);
+    assert(!open_chooser());
     assert(!confirm_selection().valid);
 
     return 0;

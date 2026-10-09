@@ -22,9 +22,10 @@ struct RowRect {
 };
 
 // Reconstruct the row placement from NewServerList::init. Row sprite size is
-// intentionally supplied by the caller because border1.png is not present in
-// the baseline APK. scroll_offset_y mirrors the content layer's Y translation
-// observed by NewServerList::GetDrawRectSp.
+// supplied by the caller so the same geometry works both with the recovered
+// expansion border2.png content size and with the project-owned fallback when
+// expansion assets have not been imported. scroll_offset_y mirrors the content
+// layer's Y translation observed by NewServerList::GetDrawRectSp.
 RowRect row_rect(
     std::size_t index,
     float row_width,

@@ -6,13 +6,17 @@
 
 namespace nevergone::server_selection_view {
 
-// Project-owned fallback dimensions used only while the original
-// gamescene_ui/ServerList row/button artwork is unavailable. The recovered
-// NewServerList placement math remains in server_selection_layout.
+// Project-owned fallback dimensions used only when user-imported expansion
+// assets do not provide the recovered NewServerList artwork. Selector/confirm
+// centers come from the original NewServerList::init path.
 constexpr float kFallbackRowWidth = 440.0f;
 constexpr float kFallbackRowHeight = 72.0f;
-constexpr float kFallbackConfirmLeft = 900.0f;
-constexpr float kFallbackConfirmBottom = 40.0f;
+constexpr float kSelectorCenterX = 568.0f;
+constexpr float kSelectorCenterY = 200.0f;
+constexpr float kFallbackSelectorWidth = 405.0f;
+constexpr float kFallbackSelectorHeight = 46.0f;
+constexpr float kConfirmCenterX = 568.0f;
+constexpr float kConfirmCenterY = 100.0f;
 constexpr float kFallbackConfirmWidth = 180.0f;
 constexpr float kFallbackConfirmHeight = 64.0f;
 
@@ -38,8 +42,23 @@ Point surface_to_design(
     float surface_x,
     float surface_y);
 
-server_selection_layout::RowRect confirm_rect();
-bool confirm_contains(float design_x, float design_y);
+server_selection_layout::RowRect selector_rect(
+    float width = kFallbackSelectorWidth,
+    float height = kFallbackSelectorHeight);
+bool selector_contains(
+    float design_x,
+    float design_y,
+    float width = kFallbackSelectorWidth,
+    float height = kFallbackSelectorHeight);
+
+server_selection_layout::RowRect confirm_rect(
+    float width = kFallbackConfirmWidth,
+    float height = kFallbackConfirmHeight);
+bool confirm_contains(
+    float design_x,
+    float design_y,
+    float width = kFallbackConfirmWidth,
+    float height = kFallbackConfirmHeight);
 
 int hit_test_surface(
     std::size_t server_count,

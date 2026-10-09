@@ -27,6 +27,8 @@ struct Snapshot {
     std::string selected_server_name;
     std::string selected_server_ip;
     std::string last_login_server;
+    bool chooser_open = false;
+    std::uint64_t chooser_open_count = 0;
     bool touch_active = false;
     int touch_pointer_id = -1;
     float touch_begin_y = 0.0f;
@@ -39,8 +41,14 @@ struct Snapshot {
 void reset();
 void sync_server_list(const login_callback_payload::ServerListPayload& payload);
 
+// Original button tag 10001 reveals the hidden server-list layer, raises it to
+// z-order 5, enables NewServerList touch handling and disables the main confirm
+// menu until a row is selected.
+bool open_chooser();
+
 // NewServerList tags selectable row sprites 1..N. Project-owned compositors may
-// work in zero-based indices and feed the resolved hit here.
+// work in zero-based indices and feed the resolved hit here. A successful
+// selection closes the chooser, matching UpDataServerSelet().
 bool select_index(int index);
 
 // The recovered ccTouchEnded path only treats a gesture as a row tap when the

@@ -14,6 +14,8 @@ std::mutex g_mutex;
 login_callback_payload::ServerListPayload g_payload;
 std::uint64_t g_payload_generation = 0;
 int g_selected_index = -1;
+bool g_chooser_open = false;
+std::uint64_t g_chooser_open_count = 0;
 bool g_touch_active = false;
 int g_touch_pointer_id = -1;
 float g_touch_begin_y = 0.0f;
@@ -51,6 +53,7 @@ bool select_index_locked(int index) {
         g_selected_index = index;
         ++g_selection_changes;
     }
+    g_chooser_open = false;
     clear_pending_locked();
     return true;
 }
@@ -62,6 +65,8 @@ Snapshot snapshot_locked() {
     result.server_count = g_payload.servers.size();
     result.selected_index = g_selected_index;
     result.last_login_server = g_payload.last_login_server;
+    result.chooser_open = g_chooser_open;
+    result.chooser_open_count = g_chooser_open_count;
     result.touch_active = g_touch_active;
     result.touch_pointer_id = g_touch_pointer_id;
     result.touch_begin_y = g_touch_begin_y;
@@ -87,6 +92,8 @@ void reset() {
     g_payload = login_callback_payload::ServerListPayload{};
     ++g_payload_generation;
     g_selected_index = -1;
+    g_chooser_open = false;
+    g_chooser_open_count = 0;
     clear_touch_locked();
     g_selection_changes = 0;
     g_rejected_drag_touches = 0;
@@ -99,6 +106,7 @@ void sync_server_list(const login_callback_payload::ServerListPayload& payload) 
     g_payload = payload;
     ++g_payload_generation;
     g_selected_index = -1;
+    g_chooser_open = false;
     clear_touch_locked();
     clear_pending_locked();
 
@@ -112,6 +120,17 @@ void sync_server_list(const login_callback_payload::ServerListPayload& payload) 
             return;
         }
     }
+}
+
+bool open_chooser() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_payload.valid || g_payload.servers.empty()) return false;
+    if (!g_chooser_open) {
+        g_chooser_open = true;
+        ++g_chooser_open_count;
+    }
+    clear_touch_locked();
+    return true;
 }
 
 bool select_index(int index) {
@@ -136,6 +155,7 @@ bool touch_ended(int pointer_id, float y, int hit_index) {
         ++g_rejected_drag_touches;
         return false;
     }
+    if (!g_chooser_open) return false;
     return select_index_locked(hit_index);
 }
 
@@ -147,7 +167,7 @@ void touch_cancelled(int pointer_id) {
 EnterRequest confirm_selection() {
     std::lock_guard<std::mutex> lock(g_mutex);
     EnterRequest request;
-    if (!g_payload.valid || g_selected_index < 0 ||
+    if (g_chooser_open || !g_payload.valid || g_selected_index < 0 ||
             static_cast<std::size_t>(g_selected_index) >= g_payload.servers.size()) {
         clear_pending_locked();
         return request;
@@ -193,6 +213,9 @@ std::string status_report() {
         << (state.payload_valid ? "valid" : "inactive")
         << " generation=" << state.payload_generation
         << " servers=" << state.server_count << "\n";
+    out << "server selection chooser: "
+        << (state.chooser_open ? "open" : "closed")
+        << " opens=" << state.chooser_open_count << "\n";
     out << "server selection index: " << state.selected_index;
     if (state.selected_index >= 0) {
         out << " id=" << state.selected_server_id
