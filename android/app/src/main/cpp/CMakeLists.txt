@@ -74,6 +74,7 @@ add_library(nevergone_recomp SHARED
     single_login_thunder_bridge.cpp
     single_select_hero_compositor.cpp
     single_select_hero_state.cpp
+    single_select_hero_transition_timeline.cpp
     splash_layer_renderer.cpp
     splash_sequence_state.cpp
     splash_timeline.cpp
@@ -136,17 +137,17 @@ if(EXISTS "${NEVERGONE_LUA_SOURCE_DIR}/lua.h")
         lzio.c
     )
     list(TRANSFORM LUA_SOURCES PREPEND "${NEVERGONE_LUA_SOURCE_DIR}/")
-
     add_library(nevergone_lua STATIC ${LUA_SOURCES})
     target_include_directories(nevergone_lua PUBLIC "${NEVERGONE_LUA_SOURCE_DIR}")
     target_compile_definitions(nevergone_recomp PRIVATE NEVERGONE_HAS_LUA=1)
-    target_link_libraries(nevergone_recomp PRIVATE nevergone_lua dl m)
+    target_include_directories(nevergone_recomp PRIVATE "${NEVERGONE_LUA_SOURCE_DIR}")
+    target_link_libraries(nevergone_recomp PRIVATE nevergone_lua)
 else()
-    message(STATUS "Lua 5.2.3 source not found; building bootstrap without Lua runtime")
+    message(WARNING "Verified Lua 5.2.3 sources not found; native Lua runtime disabled")
 endif()
 
-target_link_libraries(nevergone_recomp PRIVATE
-    android
-    GLESv2
-    log
-)
+find_library(log-lib log)
+find_library(android-lib android)
+find_library(gles-lib GLESv2)
+find_library(z-lib z)
+target_link_libraries(nevergone_recomp PRIVATE ${log-lib} ${android-lib} ${gles-lib} ${z-lib})
