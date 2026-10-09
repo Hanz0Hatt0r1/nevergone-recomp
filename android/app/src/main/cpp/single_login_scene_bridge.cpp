@@ -1,6 +1,7 @@
 #include <jni.h>
 
 #include "app_delegate_state.h"
+#include "choose_hero_action_state.h"
 #include "choose_hero_role_selection_state.h"
 #include "game_clock.h"
 #include "initial_ui_transition.h"
@@ -51,24 +52,22 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeResetRecoveredSceneSequence(JNIE
     nevergone::offline_startup_flow::reset();
     nevergone::tap_to_start_state::reset();
     nevergone::splash_sequence_state::reset();
-    nevergone::choose_hero_role_selection_state::reset(
-        nevergone::splash_sequence_state::generation());
+    const std::uint64_t generation = nevergone::splash_sequence_state::generation();
+    nevergone::choose_hero_role_selection_state::reset(generation);
+    nevergone::choose_hero_action_state::reset(generation);
     nevergone::app_delegate_state::on_surface_ready();
-    nevergone::app_delegate_state::on_scene_sequence_reset(
-        nevergone::splash_sequence_state::generation());
-    nevergone::initial_ui_transition::reset(
-        nevergone::splash_sequence_state::generation());
+    nevergone::app_delegate_state::on_scene_sequence_reset(generation);
+    nevergone::initial_ui_transition::reset(generation);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeBeginRecoveredSceneSequence(JNIEnv*, jclass) {
     const std::uint64_t tick = nevergone::game_clock::tick_count();
     nevergone::splash_sequence_state::begin(tick);
-    nevergone::app_delegate_state::on_scene_sequence_begin(
-        nevergone::splash_sequence_state::generation(),
-        tick);
-    nevergone::initial_ui_transition::reset(
-        nevergone::splash_sequence_state::generation());
+    const std::uint64_t generation = nevergone::splash_sequence_state::generation();
+    nevergone::choose_hero_action_state::reset(generation);
+    nevergone::app_delegate_state::on_scene_sequence_begin(generation, tick);
+    nevergone::initial_ui_transition::reset(generation);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
