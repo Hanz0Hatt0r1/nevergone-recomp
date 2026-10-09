@@ -5,6 +5,7 @@
 #include <mutex>
 #include <utility>
 
+#include "choose_hero_action_control_compositor.h"
 #include "choose_hero_background_assets.h"
 #include "choose_hero_background_compositor.h"
 #include "choose_hero_black_cloud_compositor.h"
@@ -233,11 +234,13 @@ Java_org_nevergone_recomp_ChooseHeroEffectStager_nativeEffectAssetsReady(
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeIsChooseHeroRouteActive(
         JNIEnv*, jclass) {
-    // Preserve recovered scene/UI ordering: scene effects first, role tiles,
-    // save-derived profile content, then the selected-item focus streaks.
+    // Preserve recovered scene/UI ordering. HeroInformation adds its fixed
+    // button menu at z=1 and standalone hero items at z=3, so controls draw
+    // before the role tiles/profile/focus layer.
     nevergone::choose_hero_background_compositor::draw();
     nevergone::choose_hero_thunder_effect_compositor::draw();
     nevergone::choose_hero_black_cloud_compositor::draw();
+    nevergone::choose_hero_action_control_compositor::draw();
     nevergone::choose_hero_role_item_compositor::draw();
     nevergone::choose_hero_profile_compositor::draw();
     nevergone::choose_hero_role_focus_compositor::draw();
