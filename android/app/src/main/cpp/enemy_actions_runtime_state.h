@@ -29,6 +29,7 @@ struct State {
     float field_15c = 0.0f;
     float field_160 = 0.0f;
     float field_278 = 0.0f;
+    float field_280 = 0.0f;
     std::int32_t current_frame_294 = 0;
     std::size_t boundary_index_2a0 = 0;
     std::size_t boundary_index_2a4 = 0;
@@ -157,11 +158,6 @@ UpdateDataFrameLookupResult apply_update_data_frame_lookup(
         const enemy_actions_wbg_document::Document& document,
         State state);
 
-// Reconstructs the control gate around the virtual call at vtable+0xcc.
-// Native performs this call before spriteFrameByName() and only when +0x250 ==
-// 0. The retained pointer is tested after the frame lookup: null bypasses only
-// the subsequent cut-processing slice and rejoins the common downstream path.
-// Nonzero +0x250 modes likewise retain null and bypass cut processing.
 inline UpdateDataObjectGateResult apply_update_data_object_gate(
         const enemy_actions_wbg_document::Document& document,
         State state,

@@ -187,3 +187,13 @@ jobs:
 
       - name: Run cut-selection smoke
         run: /tmp/enemy_actions_cut_selection_smoke
+
+      - name: Compile cut-rect smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/enemy_actions_cut_rect_smoke.cpp \
+            -o /tmp/enemy_actions_cut_rect_smoke
+
+      - name: Run cut-rect smoke
+        run: /tmp/enemy_actions_cut_rect_smoke
