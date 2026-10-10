@@ -87,6 +87,19 @@ The tail at `0x2ad71a..0x2ad738` compares previous-frame storage `system+0x154` 
 
 The reconstruction reports this as `previous_frame_changed` and `should_call_update_data` and updates the offset-named `previous_frame_154`. It does not invoke or speculate about `updateData()` internals.
 
+## `apply_wa_update_iteration()`
+
+The project now has one directly consumable bridge from a parsed Sections A-G action-data document to the recovered runtime state. `apply_wa_update_iteration()` takes `enemy_actions_wbg_document::Document`, a delta in seconds, and the current offset-named state.
+
+It performs exactly one composition step:
+
+1. `document.final_table` feeds the recovered timing gate, including the Section-G-derived `ActionFrameData+0x5c` value;
+2. when the timing gate does not permit frame processing, the function returns the timing-updated state without changing the frame/boundary state;
+3. when frame processing is permitted, `document.combo_block` and `document.prefix.action_frame_count` feed exactly one recovered frame step;
+4. the result exposes both the timing decision and the frame-step decision, including the `updateData()` call signal.
+
+This intentionally does **not** claim to be a full `waUpdate(float)` implementation. Native control flow jumps back to the accumulator/threshold comparison after a processed frame, so one original call may consume another frame when sufficient accumulated time remains. The single-iteration helper preserves that distinction: excess `+0x160` time remains in state for a subsequent iteration instead of being consumed by an invented loop policy.
+
 ## Explicitly outside scope
 
 This state layer still does not model or infer:
@@ -95,8 +108,8 @@ This state layer still does not model or infer:
 - animation, rendering, hit effects, or action dispatch;
 - resets of `+0x191/+0x290/+0x291` that are not yet proven;
 - gameplay-semantic names for any offset-named state;
-- a full looping `waUpdate(float)` wrapper that may consume more than one frame from the accumulator in a single call.
+- the full native back-edge/loop policy that may process more than one frame in one `waUpdate(float)` call.
 
-The host coverage now includes the continuous combo/boundary chain, the native timing gate, both frame-processing branches, exact ARM32 frame increment, `+0x98` fallback behavior, count-based reset, `+0x154` bookkeeping and the recovered `updateData()` call decision.
+The host coverage now includes the continuous combo/boundary chain, the native timing gate, both frame-processing branches, exact ARM32 frame increment, `+0x98` fallback behavior, count-based reset, `+0x154` bookkeeping, the recovered `updateData()` call decision, and one parsed-document-driven timing→frame-step iteration.
 
 No proprietary payload or decompiler-derived source is included.
