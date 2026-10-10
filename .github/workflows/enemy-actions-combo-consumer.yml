@@ -197,3 +197,13 @@ jobs:
 
       - name: Run cut-rect smoke
         run: /tmp/enemy_actions_cut_rect_smoke
+
+      - name: Compile new-cut materialization smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/enemy_actions_new_cut_smoke.cpp \
+            -o /tmp/enemy_actions_new_cut_smoke
+
+      - name: Run new-cut materialization smoke
+        run: /tmp/enemy_actions_new_cut_smoke
