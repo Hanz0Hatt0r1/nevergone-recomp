@@ -95,3 +95,15 @@ jobs:
 
       - name: Run waUpdate frame-step smoke
         run: /tmp/enemy_actions_wa_update_frame_step_smoke
+
+      - name: Compile waUpdate single-iteration smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/enemy_actions_combo_consumer.cpp \
+            android/app/src/main/cpp/enemy_actions_runtime_state.cpp \
+            tools/enemy_actions_wa_update_iteration_smoke.cpp \
+            -o /tmp/enemy_actions_wa_update_iteration_smoke
+
+      - name: Run waUpdate single-iteration smoke
+        run: /tmp/enemy_actions_wa_update_iteration_smoke
