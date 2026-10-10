@@ -15,7 +15,7 @@ void transform_corner(
         float* clip_y) {
     // CCNode::nodeToParentTransform() multiplies rotation degrees by
     // -pi/180, so positive Cocos rotation is clockwise in design space.
-    const float radians = -transform.rotation_degrees * kPi / 180.0f;
+    const float radians = -transform.rotation * kPi / 180.0f;
     const float cosine = std::cos(radians);
     const float sine = std::sin(radians);
     const float scaled_x = local_x * transform.scale_x;
