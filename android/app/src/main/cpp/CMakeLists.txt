@@ -47,6 +47,7 @@ add_library(nevergone_recomp SHARED
     game_levels_enter_transition.cpp
     game_levels_global_section.cpp
     game_levels_layer_tail.cpp
+    game_levels_model.cpp
     game_levels_port_node_graph.cpp
     game_levels_port_node_section.cpp
     game_levels_scene_prefix.cpp
