@@ -26,3 +26,14 @@ jobs:
 
       - name: Run combo-consumer smoke
         run: /tmp/enemy_actions_combo_consumer_smoke
+
+      - name: Compile waUpdate combo-state smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/enemy_actions_combo_consumer.cpp \
+            tools/enemy_actions_wa_update_combo_smoke.cpp \
+            -o /tmp/enemy_actions_wa_update_combo_smoke
+
+      - name: Run waUpdate combo-state smoke
+        run: /tmp/enemy_actions_wa_update_combo_smoke
