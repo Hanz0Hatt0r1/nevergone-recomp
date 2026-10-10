@@ -35,4 +35,11 @@ bool build_quad(
 std::vector<std::size_t> ordered_direct_sprite_indices(
         const game_scene_render_queue::Queue& queue);
 
+// The static type-0 renderer uses the same traversal order for both recovered
+// CCSprite::create(file) resources and spriteFrameByName resources. Atlas-backed
+// frames are reconstructed as standalone untrimmed textures before reaching
+// this geometry layer, so both resource kinds share the same quad contract.
+std::vector<std::size_t> ordered_texture_sprite_indices(
+        const game_scene_render_queue::Queue& queue);
+
 }  // namespace nevergone::game_scene_direct_geometry
