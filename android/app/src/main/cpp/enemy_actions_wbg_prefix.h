@@ -33,11 +33,12 @@ inline std::size_t versioned_group_count_for_header(std::int32_t header_word0) {
             : kLegacyVersionedGroupCount;
 }
 
-// Section E starts with a signed int32 count. Every positive iteration consumes
-// exactly int32 + 12 float32 + bool8 = 0x35 bytes before creating an AFD and
-// appending it to EnemyActionsData+0x84.
 constexpr std::size_t kFixedTailBlockHeaderBytes = 4u;
 constexpr std::size_t kFixedTailActionFrameBytes = 0x35u;
+
+// Section F has no serialized count. It repeats exactly the primary header's
+// action_frame_count and consumes four int32 plus two float32 values per tuple.
+constexpr std::size_t kPrimaryIndexedTupleBytes = 0x18u;
 
 constexpr std::size_t kMaxStringPayloadBytes = 0xffu;
 
@@ -138,9 +139,19 @@ struct FixedTailActionFrameRecord {
 };
 
 struct FixedTailActionFrameBlock {
-    // Native loop uses signed BGE: zero and negative values consume no records.
     std::int32_t count_i32 = 0;
     std::vector<FixedTailActionFrameRecord> records;
+    std::size_t bytes_consumed = 0;
+};
+
+struct PrimaryIndexedTupleRecord {
+    std::array<std::int32_t, 4> i32_values{};
+    std::array<float, 2> float_values{};
+};
+
+struct PrimaryIndexedTupleBlock {
+    std::uint32_t expected_record_count = 0;
+    std::vector<PrimaryIndexedTupleRecord> records;
     std::size_t bytes_consumed = 0;
 };
 
@@ -168,5 +179,10 @@ bool parse_fixed_tail_action_frame_block(
         const hp_data::Reader& reader,
         std::size_t start_offset,
         FixedTailActionFrameBlock* out);
+bool parse_primary_indexed_tuple_block(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        std::uint32_t action_frame_count,
+        PrimaryIndexedTupleBlock* out);
 
 }  // namespace nevergone::enemy_actions_wbg_prefix
