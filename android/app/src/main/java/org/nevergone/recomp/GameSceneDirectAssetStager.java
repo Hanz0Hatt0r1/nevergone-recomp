@@ -11,6 +11,11 @@ final class GameSceneDirectAssetStager {
 
     private GameSceneDirectAssetStager() {}
 
+    static boolean stageFromFilesDir(String filesDir) {
+        if (filesDir == null || filesDir.isEmpty()) return false;
+        return stageIfNeeded(new File(filesDir, "assets"));
+    }
+
     static boolean stageIfNeeded(File assetRoot) {
         long revision = GameSceneDirectAssetRequests.refresh();
         if (revision == 0L) {
