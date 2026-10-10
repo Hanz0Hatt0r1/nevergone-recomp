@@ -138,7 +138,7 @@ bool draw() {
     if (!queue.has_value()) return false;
 
     const auto requests = game_scene_direct_asset_requests::build(*queue);
-    const auto order = game_scene_direct_geometry::ordered_direct_sprite_indices(*queue);
+    const auto order = game_scene_direct_geometry::ordered_texture_sprite_indices(*queue);
     if (order.empty() || requests.requests.size() != order.size()) return false;
 
     const auto texture_state = game_scene_direct_texture_gl::snapshot();
@@ -147,9 +147,10 @@ bool draw() {
         return false;
     }
 
-    // Resolve and build every direct sprite before altering the framebuffer.
-    // This prevents a new scene queue from being partially rendered with stale
-    // texture handles from the previous scene revision.
+    // Resolve and build every static type-0 sprite before altering the
+    // framebuffer. Direct-file and spriteFrameByName resources share one
+    // transactional request revision, so a new scene cannot be partially
+    // rendered with stale texture handles or atlas metadata.
     std::vector<PreparedSprite> prepared;
     prepared.reserve(order.size());
     for (std::size_t index = 0; index < order.size(); ++index) {
@@ -223,12 +224,12 @@ Snapshot snapshot() {
 std::string status_report() {
     const Snapshot state = snapshot();
     std::ostringstream out;
-    out << "GameScene direct renderer\n";
+    out << "GameScene static renderer\n";
     out << "shader: " << (state.shader_ready ? "ready" : "unavailable") << "\n";
     out << "surface: " << state.surface_width << "x" << state.surface_height << "\n";
     out << "draw attempts: " << state.draw_attempt_count << "\n";
     out << "drawn frames: " << state.drawn_frame_count << "\n";
-    out << "last direct sprites: " << state.last_drawn_sprite_count << "\n";
+    out << "last static sprites: " << state.last_drawn_sprite_count << "\n";
     return out.str();
 }
 

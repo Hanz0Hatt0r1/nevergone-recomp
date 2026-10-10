@@ -88,17 +88,24 @@ int main() {
     queue.sprites.push_back(direct_sprite(0u, 10));  // index 1
     auto frame = direct_sprite(0u, -5);
     frame.resource.kind = nevergone::game_scene_type0_resource::Kind::kSpriteFrameByName;
+    frame.resource.resource_name = "atlas-frame.png";
     frame.direct_asset_relative_path.reset();
-    queue.sprites.push_back(frame);                   // index 2, excluded
+    queue.sprites.push_back(frame);                   // index 2, atlas-backed
     queue.sprites.push_back(direct_sprite(0u, -2));  // index 3
     queue.sprites.push_back(direct_sprite(0u, -2));  // index 4
     queue.direct_file_count = 4u;
+    queue.sprite_frame_lookup_count = 1u;
 
     // Queue order already reflects recovered layer/object traversal. The local
     // child Z belongs to the sprite inside each separate GameSceneObject and
     // must not reorder distinct objects globally.
-    const std::vector<std::size_t> order = geometry::ordered_direct_sprite_indices(queue);
-    assert((order == std::vector<std::size_t>{0u, 1u, 3u, 4u}));
+    const std::vector<std::size_t> direct_order = geometry::ordered_direct_sprite_indices(queue);
+    assert((direct_order == std::vector<std::size_t>{0u, 1u, 3u, 4u}));
+
+    // Atlas-backed spriteFrameByName resources join the same static traversal
+    // order after Java reconstructs them as standalone untrimmed textures.
+    const std::vector<std::size_t> static_order = geometry::ordered_texture_sprite_indices(queue);
+    assert((static_order == std::vector<std::size_t>{0u, 1u, 2u, 3u, 4u}));
 
     return 0;
 }

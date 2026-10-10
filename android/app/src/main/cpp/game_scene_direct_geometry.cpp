@@ -88,4 +88,23 @@ std::vector<std::size_t> ordered_direct_sprite_indices(
     return indexes;
 }
 
+std::vector<std::size_t> ordered_texture_sprite_indices(
+        const game_scene_render_queue::Queue& queue) {
+    std::vector<std::size_t> indexes;
+    indexes.reserve(queue.direct_file_count + queue.sprite_frame_lookup_count);
+    for (std::size_t index = 0; index < queue.sprites.size(); ++index) {
+        const auto& sprite = queue.sprites[index];
+        if (sprite.resource.kind == game_scene_type0_resource::Kind::kDirectFile &&
+            sprite.direct_asset_relative_path.has_value()) {
+            indexes.push_back(index);
+            continue;
+        }
+        if (sprite.resource.kind == game_scene_type0_resource::Kind::kSpriteFrameByName &&
+            !sprite.resource.resource_name.empty()) {
+            indexes.push_back(index);
+        }
+    }
+    return indexes;
+}
+
 }  // namespace nevergone::game_scene_direct_geometry
