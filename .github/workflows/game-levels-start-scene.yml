@@ -1,0 +1,34 @@
+name: GameLevels start scene
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_levels_start_scene.cpp'
+      - 'android/app/src/main/cpp/game_levels_start_scene.h'
+      - 'android/app/src/main/cpp/game_levels_layer_tail.h'
+      - 'android/app/src/main/cpp/game_levels_port_node_section.h'
+      - 'tools/game_levels_start_scene_smoke.cpp'
+      - '.github/workflows/game-levels-start-scene.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_levels_start_scene.cpp'
+      - 'android/app/src/main/cpp/game_levels_start_scene.h'
+      - 'android/app/src/main/cpp/game_levels_layer_tail.h'
+      - 'android/app/src/main/cpp/game_levels_port_node_section.h'
+      - 'tools/game_levels_start_scene_smoke.cpp'
+      - '.github/workflows/game-levels-start-scene.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run start-scene smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_levels_start_scene_smoke.cpp \
+            android/app/src/main/cpp/game_levels_start_scene.cpp \
+            -o /tmp/game_levels_start_scene_smoke
+          /tmp/game_levels_start_scene_smoke
