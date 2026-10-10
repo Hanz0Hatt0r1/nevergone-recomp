@@ -1,0 +1,27 @@
+name: EnemyActions armor entry
+
+on:
+  push:
+    paths:
+      - 'android/app/src/main/cpp/enemy_actions_armor_entry.h'
+      - 'tools/enemy_actions_armor_entry_smoke.cpp'
+      - '.github/workflows/enemy-actions-armor-entry.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/enemy_actions_armor_entry.h'
+      - 'tools/enemy_actions_armor_entry_smoke.cpp'
+      - '.github/workflows/enemy-actions-armor-entry.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile armor entry smoke
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -pedantic
+          -Iandroid/app/src/main/cpp
+          tools/enemy_actions_armor_entry_smoke.cpp
+          -o /tmp/enemy_actions_armor_entry_smoke
+      - name: Run armor entry smoke
+        run: /tmp/enemy_actions_armor_entry_smoke
