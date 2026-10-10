@@ -14,7 +14,9 @@ Boundary classify(const game_levels_asset_probe::Snapshot& probe) {
     if (!probe.regular_file || !probe.within_size_limit || !probe.loaded) return Boundary::kAssetRejected;
     if (!probe.scene_section_readable) return Boundary::kVerifiedPrefixIncomplete;
     if (!probe.actions_section_readable) return Boundary::kSceneSectionVerified;
-    return Boundary::kActionsSectionVerified;
+    if (!probe.global_section_readable) return Boundary::kActionsSectionVerified;
+    if (!probe.port_node_section_readable) return Boundary::kGlobalSectionVerified;
+    return Boundary::kPortNodeSectionVerified;
 }
 }  // namespace
 
@@ -34,7 +36,11 @@ void on_enter_game_with_probe(const game_levels_asset_probe::Snapshot& probe) {
     g_state.boundary = classify(probe);
     g_state.file_size = probe.file_size;
     g_state.reader_size = probe.reader_size;
-    if (probe.actions_section_readable) {
+    if (probe.port_node_section_readable) {
+        g_state.verified_bytes = probe.port_node_section_bytes_consumed;
+    } else if (probe.global_section_readable) {
+        g_state.verified_bytes = probe.global_section_bytes_consumed;
+    } else if (probe.actions_section_readable) {
         g_state.verified_bytes = probe.actions_section_bytes_consumed;
     } else if (probe.scene_section_readable) {
         g_state.verified_bytes = probe.scene_section_bytes_consumed;
@@ -57,6 +63,8 @@ const char* boundary_name(Boundary boundary) {
         case Boundary::kVerifiedPrefixIncomplete: return "verified-prefix-incomplete";
         case Boundary::kSceneSectionVerified: return "scene-section-verified";
         case Boundary::kActionsSectionVerified: return "actions-section-verified";
+        case Boundary::kGlobalSectionVerified: return "global-section-verified";
+        case Boundary::kPortNodeSectionVerified: return "port-node-section-verified";
     }
     return "unknown";
 }
