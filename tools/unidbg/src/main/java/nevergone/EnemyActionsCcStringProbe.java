@@ -63,10 +63,12 @@ final class EnemyActionsCcStringProbe {
             UnidbgPointer cString = UnidbgPointer.pointer(emulator, rawCString.longValue());
             if (cString == null)
                 throw new IllegalStateException("CCString::getCString returned null");
-            String roundTrip = cString.getString(0);
-            if (!INPUT.equals(roundTrip))
-                throw new IllegalStateException(
-                        "CCString round-trip mismatch: expected=" + INPUT + " actual=" + roundTrip);
+            byte[] roundTripBytes = cString.getByteArray(0, inputBytes.length + 1);
+            if (roundTripBytes[inputBytes.length] != 0 ||
+                    !Arrays.equals(inputBytes, Arrays.copyOf(roundTripBytes, inputBytes.length))) {
+                throw new IllegalStateException("CCString::getCString byte round-trip mismatch");
+            }
+            String roundTrip = new String(roundTripBytes, 0, inputBytes.length, StandardCharsets.UTF_8);
 
             // The accessor is proven by disassembly to load object+0x14 directly.
             long payloadPointer = object.getInt(0x14) & 0xffffffffL;
