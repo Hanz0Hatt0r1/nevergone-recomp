@@ -17,13 +17,42 @@ std::int32_t current_frame_power(
 
 // Evidence-backed data-dependent portion of EnemyActionsSystem::comboHit().
 // The original requires +0x94 to contain more than one value before testing the
-// selected range. External EnemyActionsSystem state flags remain outside this
-// helper. A value is returned only when the selected +0x94 range contains the
-// supplied frame inclusively; the result is ActionComboValue field +0x1c.
+// selected range. A value is returned only when the selected +0x94 range
+// contains the supplied frame inclusively; the result is ActionComboValue
+// field +0x1c.
 std::optional<std::int32_t> combo_hit_mode_for_frame(
         const enemy_actions_wbg_combo_section::Block& combo_block,
         std::size_t range_index,
         std::int32_t current_frame_index);
+
+// Offset-named byte state used by the proven comboHit() path. Values are kept
+// as bytes instead of semantic booleans because broader state meanings remain
+// unresolved; native gating treats any nonzero +0x190/+0x290 value as active.
+struct ComboHitState {
+    std::uint8_t flag_190 = 0;
+    std::uint8_t flag_191 = 0;
+    std::uint8_t flag_290 = 0;
+};
+
+struct ComboHitTransition {
+    ComboHitState state;
+    bool returned_true = false;
+};
+
+// Reconstructs the proven state-dependent portion of EnemyActionsSystem::comboHit().
+// Native behavior:
+//   - require +0x94 count > 1;
+//   - require system+0x190 == 0 and system+0x290 == 0;
+//   - require current frame inside selected [field_14, field_18];
+//   - on match write 1 to system+0x191;
+//   - when field_1c == 2 also write 1 to system+0x290;
+//   - return true only on that matched path.
+// Invalid project-owned indices are handled safely as a no-op/false result.
+ComboHitTransition apply_combo_hit_transition(
+        const enemy_actions_wbg_combo_section::Block& combo_block,
+        std::size_t range_index,
+        std::int32_t current_frame_index,
+        ComboHitState state);
 
 struct BoundaryCursorUpdate {
     std::size_t index = 0;
