@@ -328,4 +328,37 @@ bool parse_fixed_tail_action_frame_block(
     return true;
 }
 
+bool parse_primary_indexed_tuple_block(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        std::uint32_t action_frame_count,
+        PrimaryIndexedTupleBlock* out) {
+    if (out == nullptr || start_offset > reader.size()) return false;
+
+    hp_data::Cursor cursor(reader, start_offset);
+    PrimaryIndexedTupleBlock parsed;
+    parsed.expected_record_count = action_frame_count;
+
+    const std::size_t count = static_cast<std::size_t>(action_frame_count);
+    if (count > cursor.remaining() / kPrimaryIndexedTupleBytes) return false;
+    parsed.records.reserve(count);
+
+    for (std::size_t i = 0; i < count; ++i) {
+        PrimaryIndexedTupleRecord record;
+        for (std::int32_t& value : record.i32_values) {
+            if (!cursor.read_i32_le(&value)) return false;
+        }
+        for (float& value : record.float_values) {
+            if (!cursor.read_f32_le(&value)) return false;
+        }
+        parsed.records.push_back(record);
+    }
+
+    parsed.bytes_consumed = cursor.offset() - start_offset;
+    if (parsed.bytes_consumed != count * kPrimaryIndexedTupleBytes) return false;
+
+    *out = std::move(parsed);
+    return true;
+}
+
 }  // namespace nevergone::enemy_actions_wbg_prefix
