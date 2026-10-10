@@ -76,4 +76,22 @@ BoundaryCursorUpdate advance_boundary_cursor(
     return result;
 }
 
+WaUpdateComboTransition apply_wa_update_combo_transition(
+        const std::vector<enemy_actions_wbg_combo_section::DerivedActionComboValue>& array_94_values,
+        std::int32_t current_frame_index,
+        WaUpdateComboState state) {
+    WaUpdateComboTransition result;
+    result.state = state;
+    result.boundary.index = state.boundary_index_2a0;
+
+    if (state.flag_290 != 0u) result.state.flag_291 = 1u;
+
+    if (state.flag_191 == 0u) return result;
+
+    result.boundary = advance_boundary_cursor(
+            array_94_values, state.boundary_index_2a0, current_frame_index);
+    result.state.boundary_index_2a0 = result.boundary.index;
+    return result;
+}
+
 }  // namespace nevergone::enemy_actions_combo_consumer

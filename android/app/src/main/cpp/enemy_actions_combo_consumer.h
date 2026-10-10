@@ -70,4 +70,28 @@ BoundaryCursorUpdate advance_boundary_cursor(
         std::size_t current_index,
         std::int32_t current_frame_index);
 
+// Narrow offset-named state slice proven around the +0x94 path in waUpdate().
+// This deliberately excludes timing, action completion and the independent
+// +0x98 cursor so that unresolved meanings are not folded into one abstraction.
+struct WaUpdateComboState {
+    std::uint8_t flag_191 = 0;
+    std::uint8_t flag_290 = 0;
+    std::uint8_t flag_291 = 0;
+    std::size_t boundary_index_2a0 = 0;
+};
+
+struct WaUpdateComboTransition {
+    WaUpdateComboState state;
+    BoundaryCursorUpdate boundary;
+};
+
+// Reconstructs the bounded combo-related step after waUpdate() advances its
+// current frame: nonzero +0x290 writes byte 1 to +0x291; nonzero +0x191 enables
+// the already-proven +0x94 boundary cursor check. A zero +0x191 leaves +0x94
+// untouched. Empty/stale project-owned arrays remain safely unchanged.
+WaUpdateComboTransition apply_wa_update_combo_transition(
+        const std::vector<enemy_actions_wbg_combo_section::DerivedActionComboValue>& array_94_values,
+        std::int32_t current_frame_index,
+        WaUpdateComboState state);
+
 }  // namespace nevergone::enemy_actions_combo_consumer
