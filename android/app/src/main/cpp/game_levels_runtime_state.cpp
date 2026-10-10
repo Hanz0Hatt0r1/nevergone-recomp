@@ -11,6 +11,7 @@
 
 #include "game_levels_model.h"
 #include "game_levels_scene_instance.h"
+#include "game_scene_construction_plan.h"
 #include "hp_data_reader.h"
 
 namespace nevergone::game_levels_runtime_state {
@@ -19,10 +20,12 @@ namespace {
 std::mutex g_mutex;
 std::optional<game_levels_model::Model> g_model;
 std::optional<game_levels_scene_instance::SceneInstance> g_scene_instance;
+std::optional<game_scene_construction_plan::ScenePlan> g_scene_construction_plan;
 Snapshot g_state;
 
 void refresh_current_scene_locked() {
     g_scene_instance.reset();
+    g_scene_construction_plan.reset();
     g_state.current_port_node_index.reset();
     g_state.current_scene_index.reset();
     g_state.current_scene_guid.clear();
@@ -30,6 +33,10 @@ void refresh_current_scene_locked() {
     g_state.current_scene_instance_ready = false;
     g_state.current_scene_layer_count = 0u;
     g_state.current_scene_object_count = 0u;
+    g_state.current_scene_construction_plan_ready = false;
+    g_state.current_construction_layer_count = 0u;
+    g_state.current_construction_object_count = 0u;
+    g_state.current_construction_ignored_layer_count = 0u;
     if (!g_model.has_value()) return;
 
     const auto selection = game_levels_scene_navigation::resolve_current(
@@ -50,12 +57,19 @@ void refresh_current_scene_locked() {
     g_state.current_scene_instance_ready = true;
     g_state.current_scene_layer_count = g_scene_instance->layers.size();
     g_state.current_scene_object_count = g_scene_instance->object_count;
+
+    g_scene_construction_plan = game_scene_construction_plan::build(*g_scene_instance);
+    g_state.current_scene_construction_plan_ready = true;
+    g_state.current_construction_layer_count = g_scene_construction_plan->layers.size();
+    g_state.current_construction_object_count = g_scene_construction_plan->object_count;
+    g_state.current_construction_ignored_layer_count = g_scene_construction_plan->ignored_source_layer_count;
 }
 
 void begin_attempt_locked() {
     const std::uint64_t attempts = g_state.load_attempt_count + 1u;
     g_model.reset();
     g_scene_instance.reset();
+    g_scene_construction_plan.reset();
     g_state = Snapshot{};
     g_state.load_attempt_count = attempts;
 }
@@ -66,6 +80,7 @@ void reset() {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_model.reset();
     g_scene_instance.reset();
+    g_scene_construction_plan.reset();
     g_state = Snapshot{};
 }
 
@@ -146,6 +161,11 @@ std::optional<game_levels_scene_instance::SceneInstance> current_scene_instance(
     return g_scene_instance;
 }
 
+std::optional<game_scene_construction_plan::ScenePlan> current_scene_construction_plan() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_scene_construction_plan;
+}
+
 game_levels_scene_navigation::Transition step(std::uint32_t requested_event_port_type) {
     std::lock_guard<std::mutex> lock(g_mutex);
     game_levels_scene_navigation::Transition result;
@@ -189,6 +209,12 @@ std::string status_report() {
         out << "scene instance: ready\n";
         out << "scene layers: " << state.current_scene_layer_count << "\n";
         out << "scene objects: " << state.current_scene_object_count << "\n";
+    }
+    if (state.current_scene_construction_plan_ready) {
+        out << "scene construction plan: ready\n";
+        out << "construction layers: " << state.current_construction_layer_count << "\n";
+        out << "construction objects: " << state.current_construction_object_count << "\n";
+        out << "ignored source layers: " << state.current_construction_ignored_layer_count << "\n";
     }
     return out.str();
 }
