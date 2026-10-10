@@ -39,6 +39,8 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static native void nativeOnSurfaceChanged(int width, int height);
     private static native void nativeOnDrawFrame();
     private static native void nativeOnTouch(int action, int pointerId, float x, float y);
+    private static native void nativeOnGameSceneDirectTexturesSurfaceCreated();
+    private static native boolean nativeSyncGameSceneDirectTextures();
 
     private static native boolean nativeUploadSplashTexture(int width, int height, int[] argbPixels);
     private static native void nativeClearSplashTexture();
@@ -184,6 +186,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         GameSceneDirectAssetStager.resetFailure();
         nativeOnSurfaceCreated();
+        nativeOnGameSceneDirectTexturesSurfaceCreated();
         nativeOnSingleLoginSurfaceCreated();
         nativeOnServerSelectionSurfaceCreated();
         nativeOnSingleSelectHeroSurfaceCreated();
@@ -275,6 +278,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
 
     private void updateGameSceneDirectAssetsOnGlThread() {
         GameSceneDirectAssetStager.stageIfNeeded(assetRoot);
+        nativeSyncGameSceneDirectTextures();
     }
 
     private void updateImportedAudioStateOnGlThread() {
