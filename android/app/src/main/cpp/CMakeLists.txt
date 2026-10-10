@@ -52,6 +52,7 @@ add_library(nevergone_recomp SHARED
     game_levels_port_node_graph.cpp
     game_levels_port_node_section.cpp
     game_levels_runtime_state.cpp
+    game_levels_scene_instance.cpp
     game_levels_scene_navigation.cpp
     game_levels_scene_prefix.cpp
     game_levels_start_scene.cpp
