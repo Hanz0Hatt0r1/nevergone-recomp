@@ -4,7 +4,6 @@
 #include "enemy_actions_sprite_update.h"
 
 using nevergone::enemy_actions_base_sprite_update::SystemInputs;
-using nevergone::enemy_actions_sprite_update::build;
 using nevergone::enemy_actions_wbg_prefix::ActionFrameRecord;
 
 namespace {
@@ -36,7 +35,8 @@ int main() {
     system.field_280 = 1.0f;
 
     // Base point is (5, 13); flip geometry mirrors X around pivot X=10.
-    const auto flipped = build(frame, true, 2.0f, system);
+    const auto flipped = nevergone::enemy_actions_sprite_update::build(
+            frame, true, 2.0f, system);
     assert(flipped.should_set_display_frame);
     assert(flipped.sprite_frame_resolved);
     assert(flipped.frame_name_68 == "frame.png");
@@ -59,7 +59,8 @@ int main() {
     // system+0x16a inversion changes the final flip flag and therefore skips
     // the conditional geometry while retaining the common base plan.
     system.flag_16a = 1u;
-    const auto unflipped = build(frame, false, 2.0f, system);
+    const auto unflipped = nevergone::enemy_actions_sprite_update::build(
+            frame, false, 2.0f, system);
     assert(!unflipped.sprite_frame_resolved);
     assert(!unflipped.flip_x);
     assert(!unflipped.flip_geometry_applied);
