@@ -5,12 +5,16 @@ on:
     paths:
       - 'tools/ghidra/query_full_index.py'
       - 'tools/ghidra/test_query_full_index.py'
+      - 'tools/ghidra/player_spawn_evidence.py'
+      - 'tools/ghidra/test_player_spawn_evidence.py'
       - '.github/workflows/ghidra-index-query.yml'
   push:
     branches: [main]
     paths:
       - 'tools/ghidra/query_full_index.py'
       - 'tools/ghidra/test_query_full_index.py'
+      - 'tools/ghidra/player_spawn_evidence.py'
+      - 'tools/ghidra/test_player_spawn_evidence.py'
       - '.github/workflows/ghidra-index-query.yml'
 
 permissions:
@@ -24,12 +28,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile query tool
-        run: python -m py_compile tools/ghidra/query_full_index.py tools/ghidra/test_query_full_index.py
-      - name: Run query smoke test
-        run: python tools/ghidra/test_query_full_index.py
+      - name: Compile query tools
+        run: |
+          python -m py_compile \
+            tools/ghidra/query_full_index.py \
+            tools/ghidra/test_query_full_index.py \
+            tools/ghidra/player_spawn_evidence.py \
+            tools/ghidra/test_player_spawn_evidence.py
+      - name: Run query smoke tests
+        run: |
+          python tools/ghidra/test_query_full_index.py
+          python tools/ghidra/test_player_spawn_evidence.py
       - name: Query checked-in SingleLogin metadata
         run: |
           python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
           python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
           python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
+      - name: Correlate checked-in player-spawn metadata
+        run: python tools/ghidra/player_spawn_evidence.py
