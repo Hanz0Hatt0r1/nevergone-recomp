@@ -2,7 +2,7 @@
 
 Target: original Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256 `94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`.
 
-This note records the first downstream uses of the `ActionComboValue` arrays reconstructed from WBG Section F. It does not assign broader gameplay meanings to unresolved fields.
+This note records downstream uses of the `ActionComboValue` arrays reconstructed from WBG Section F. It does not assign broader gameplay meanings to unresolved fields.
 
 ## `EnemyActionsSystem::curFramePower()`
 
@@ -43,7 +43,7 @@ The state helper intentionally keeps raw byte names. It treats any nonzero `flag
 
 ## `EnemyActionsSystem::waUpdate()`
 
-The original `waUpdate(float)` at `0x2ad520` independently confirms that arrays `+0x94` and `+0x98` are ordered boundary streams: it selects the current objects using system indices `+0x2a0/+0x2a4`, compares current frame `+0x294` with each object's `+0x18`, and advances/clamps those array indices when the boundary is reached.
+The original `waUpdate(float)` at `0x2ad520` independently confirms that arrays `+0x94` and `+0x98` are ordered boundary streams: it selects current objects using system indices `+0x2a0/+0x2a4`, compares current frame `+0x294` with each object's `+0x18`, and advances/clamps those array indices when the boundary is reached.
 
 The exact boundary update is visible at `0x2ad622..0x2ad64e` for `+0x94` and `0x2ad652..0x2ad67c` for `+0x98`:
 
@@ -53,14 +53,22 @@ The exact boundary update is visible at `0x2ad622..0x2ad64e` for `+0x94` and `0x
 - if it equals count, immediately subtract one again, leaving the externally visible index on the final element;
 - for the `+0x94` path only, the function also distinguishes a real transition to a next element from the final-element clamp.
 
-`advance_boundary_cursor()` models this data-dependent operation. It reports the resulting index, whether a real next boundary was selected, and whether the update instead hit the final-boundary clamp. Empty arrays and stale project-owned indices are left unchanged safely; this is a reconstruction safety rule, not a claim about malformed native state.
+`advance_boundary_cursor()` models this shared data-dependent operation. It reports the resulting index, whether a real next boundary was selected, and whether the update instead hit the final-boundary clamp. Empty arrays and stale project-owned indices are left unchanged safely; this is a reconstruction safety rule, not a claim about malformed native state.
 
-A second bounded state slice is visible immediately around that path after the current-frame update:
+A bounded state slice around the same path is also proven:
 
 - if system byte `+0x290` is nonzero, native writes byte `1` to system `+0x291`;
-- system byte `+0x191` gates the `+0x94` endpoint/cursor update: zero skips that cursor path, nonzero enables the already-proven endpoint check.
+- system byte `+0x191` gates the `+0x94/+0x2a0` endpoint/cursor update;
+- the `+0x98/+0x2a4` endpoint/cursor update runs independently of `+0x191`.
 
-`apply_wa_update_combo_transition()` models only those two operations. Its neutral `WaUpdateComboState` carries `flag_191`, `flag_290`, `flag_291` and `boundary_index_2a0`. A nonzero `flag_290` normalizes `flag_291` to byte value `1`; `flag_191 == 0` preserves the +0x94 index, while nonzero `flag_191` delegates to `advance_boundary_cursor()`.
+`WaUpdateComboState` therefore carries `flag_191`, `flag_290`, `flag_291`, `boundary_index_2a0`, and `boundary_index_2a4`. `WaUpdateComboTransition::boundary` remains the `+0x94` result for compatibility, while `boundary_98` reports the independent `+0x98` result.
+
+There are two overloads of `apply_wa_update_combo_transition()`:
+
+- the original `+0x94`-only overload is retained and leaves `+0x98/+0x2a4` untouched;
+- the dual-boundary overload accepts both arrays, applies the same byte propagation and gated `+0x94` logic, then always applies the proven endpoint/advance/clamp operation to `+0x98/+0x2a4`.
+
+This preserves the observed asymmetry: `+0x191 == 0` can hold the `+0x94` index in place while `+0x98` continues to advance. A stale/empty reconstructed stream is isolated to its own cursor and does not prevent the other stream from updating.
 
 ### Late post-endpoint transition
 
@@ -74,8 +82,8 @@ Later in the same `waUpdate()` control flow, the local result of the `+0x94` cur
 
 The comparison is strict: `current_frame == endpoint` does not enter this late block. A real `+0x94` transition suppresses the block even when the frame is already beyond the previous endpoint.
 
-`apply_wa_update_completion_transition()` reconstructs exactly this offset-named write set in `WaUpdateCompletionState`. It preserves `+0x169` when `+0x292` is nonzero and models `endpoint - 1` with ARM32 wraparound. The independent `+0x98` stream, calls reached on the alternate `updateData()` path, animation/timing work and any gameplay interpretation of these state fields remain outside this contract.
+`apply_wa_update_completion_transition()` reconstructs exactly this offset-named write set in `WaUpdateCompletionState`. It preserves `+0x169` when `+0x292` is nonzero and models `endpoint - 1` with ARM32 wraparound. Calls reached on the alternate `updateData()` path, animation/timing work and any gameplay interpretation of these state fields remain outside this contract.
 
-Together these helpers establish a contiguous structural bridge from a `comboHit()` mode-2 match (`+0x290 = 1`) through the next `waUpdate()` byte propagation (`+0x291 = 1`), boundary progression, and the proven late post-endpoint reset writes without assigning speculative semantic names.
+Together these helpers establish a contiguous structural bridge from a `comboHit()` mode-2 match (`+0x290 = 1`) through `waUpdate()` byte propagation (`+0x291 = 1`), both recovered boundary streams, and the proven late post-endpoint reset writes without assigning speculative semantic names.
 
 No proprietary WBG data or original source code is included in this reconstruction.
