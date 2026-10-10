@@ -7,14 +7,18 @@ on:
       - 'android/app/src/main/cpp/game_scene_render_queue.h'
       - 'android/app/src/main/cpp/game_scene_construction_plan.h'
       - 'android/app/src/main/cpp/game_scene_type0_resource.h'
+      - 'android/app/src/main/cpp/game_scene_direct_asset.h'
       - 'tools/game_scene_render_queue_smoke.cpp'
+      - 'tools/game_scene_direct_asset_smoke.cpp'
       - '.github/workflows/game-scene-render-queue.yml'
   pull_request:
     paths:
       - 'android/app/src/main/cpp/game_scene_render_queue.h'
       - 'android/app/src/main/cpp/game_scene_construction_plan.h'
       - 'android/app/src/main/cpp/game_scene_type0_resource.h'
+      - 'android/app/src/main/cpp/game_scene_direct_asset.h'
       - 'tools/game_scene_render_queue_smoke.cpp'
+      - 'tools/game_scene_direct_asset_smoke.cpp'
       - '.github/workflows/game-scene-render-queue.yml'
 
 jobs:
@@ -29,3 +33,10 @@ jobs:
             tools/game_scene_render_queue_smoke.cpp \
             -o /tmp/game_scene_render_queue_smoke
           /tmp/game_scene_render_queue_smoke
+      - name: Build and run direct-asset smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_scene_direct_asset_smoke.cpp \
+            -o /tmp/game_scene_direct_asset_smoke
+          /tmp/game_scene_direct_asset_smoke
