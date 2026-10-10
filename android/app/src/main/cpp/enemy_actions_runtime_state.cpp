@@ -1,5 +1,7 @@
 #include "enemy_actions_runtime_state.h"
 
+#include <cmath>
+
 namespace nevergone::enemy_actions_runtime_state {
 
 ComboHitResult apply_combo_hit(
@@ -23,6 +25,50 @@ ComboHitResult apply_combo_hit(
     ComboHitResult result;
     result.state = state;
     result.returned_true = hit.returned_true;
+    return result;
+}
+
+WaUpdateTimingResult apply_wa_update_timing(
+        const enemy_actions_wbg_final_table::Table& final_table,
+        float delta_seconds,
+        State state) {
+    WaUpdateTimingResult result;
+    result.state = state;
+
+    // Native waUpdate() exits before touching the timing state when +0x1bc is
+    // already nonzero.
+    if (state.flag_1bc != 0u) {
+        result.blocked_by_flag_1bc = true;
+        return result;
+    }
+
+    if (state.flag_168 != 0u) {
+        result.state.flag_168 = 0u;
+        result.state.field_160 = 0.0f;
+    } else {
+        result.state.field_160 = state.field_160 + delta_seconds * 1000.0f;
+    }
+
+    if (state.current_frame_294 < 0) return result;
+    const std::size_t frame_index = static_cast<std::size_t>(state.current_frame_294);
+    if (frame_index >= final_table.entries.size()) return result;
+
+    result.had_valid_action_frame = true;
+    result.action_frame_5c = final_table.entries[frame_index].reciprocal_value;
+    result.state.field_158 = result.action_frame_5c + state.field_15c;
+
+    // ARM VCMPE followed by BLT also branches for unordered/NaN inputs. Mirror
+    // that behavior explicitly instead of relying on C++ NaN comparison rules.
+    if (std::isnan(result.state.field_160) || std::isnan(result.state.field_158) ||
+        result.state.field_160 < result.state.field_158) {
+        return result;
+    }
+
+    result.threshold_reached = true;
+    if (state.flag_169 == 0u) return result;
+
+    result.state.field_160 -= result.state.field_158;
+    result.frame_processing_allowed = true;
     return result;
 }
 
