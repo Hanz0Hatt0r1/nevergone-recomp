@@ -60,23 +60,38 @@ The common sprite-finalization block in `GameSceneObject::initWithData()` resolv
 
 The parser keeps its structural historical member names so binary parsing remains independent of gameplay/rendering interpretation. `game_scene_construction_plan::Type0SpriteTransform` is the renderer-facing structure that exposes these proven semantics. It is emitted only for type-0 branches that actually construct a sprite; the `klhuo-1.png` action-pair branch intentionally has no sprite transform.
 
-The second serialized boolean and later conditional/tail fields remain unresolved here.
+The second serialized boolean and later conditional/tail fields remain unresolved here. The second boolean is not used as `flipY` on the recovered type-0 sprite-finalization path; only the `+0x34` byte is copied into the field later passed to `CCSprite::setFlipX(bool)`.
+
+## Proven GameScene design-space geometry
+
+The original `AppDelegate::AddAllSearchPath()` obtains the shared `CCEGLView`, loads the literal floats `1136.0f` and `640.0f`, sets policy register `r3` to zero, and dispatches vtable slot `+0x28`. The shipped `CCEGLViewProtocol` vtable resolves that exact slot to `setDesignResolutionSize(float, float, ResolutionPolicy)`. In the implementation, policy values `1..4` take special scaling branches while policy `0` keeps independent X/Y scales, matching Cocos2d-x `ExactFit`. The project can therefore use a **1136×640 ExactFit design space** for this scene path without inferring it from asset dimensions.
+
+`CCDirector::init()` writes `1.0f` to its content-scale-factor field at `+0x94`, and no game call to `CCDirector::setContentScaleFactor(float)` is present. Direct-file texture pixel dimensions therefore remain 1:1 with design units on this path.
+
+`CCSprite::initWithTexture()` constructs `CCPoint(0.5f, 0.5f)` and dispatches sprite vtable slot `+0x6c`; that slot resolves to `CCSprite::setAnchorPoint(CCPoint const&)`. The default direct sprite anchor is consequently the center `(0.5, 0.5)`.
+
+`CCNode::nodeToParentTransform()` multiplies the stored rotation by `-pi/180` before its sine/cosine transform. Positive serialized/Cocos rotation is therefore clockwise. `game_scene_direct_sprite_geometry` reproduces that sign, applies scale in local sprite space, translates by the proven position, then maps 1136×640 ExactFit coordinates directly to clip space.
+
+Android `Bitmap.getPixels()` exposes the top source row first, while the project's GLES upload retains that row at texture coordinate `v=0`; direct sprite quads therefore use `v=0` for top vertices and `v=1` for bottom vertices. Proven `flipX` swaps only U coordinates, matching Cocos sprite behavior rather than negating geometry.
 
 ## `createGSObject()` is a separate boundary
 
 Despite its name, `GameScene::createGSObject()` is not the layer-object renderer loop above. Its recovered call path queries scene action data and creates enemy/NPC objects through battle/NPC managers. The first project-owned visual scene path should therefore be based on `loadingTex()` plus `GameSceneObject::createWithData()/initWithData()`, while action/enemy/NPC creation remains a later boundary.
 
-## Project-owned construction plan
+## Project-owned construction and direct render path
 
-`game_scene_construction_plan` now captures the proven traversal and type-0 construction contract:
+The project-owned GameScene path now captures the proven traversal, resource, transform, staging and direct rendering contract:
 
 - at most the first 11 ordered scene layers are visited, with `z_index` equal to their array index;
 - each visited layer keeps its original object order;
 - every object exposes the proven `type_code` derived from the parsed leading int32;
 - ordinary type-0 visual objects are classified as `type0-sprite-backed` and carry both a resource-selection contract and the proven sprite transform;
 - `klhuo-1.png` is classified separately as `type0-scene-action-pair` and does not receive a static sprite transform;
-- nonzero object construction remains unresolved;
-- the complete evidence-backed `ObjectRecord` remains available without renaming unresolved parser fields;
-- source layers beyond index 10 are counted as ignored because the original `loadingTex()` loop never requests them.
+- direct-file names resolve only beneath the imported `assets/gamescene/gs_res_image_file/` root;
+- Java stages the live direct-file request revision into an atomic native ARGB pixel store;
+- the GL texture cache transactionally replaces a texture revision only after every requested texture succeeds;
+- `game_scene_direct_sprite_geometry` builds centered, rotated, scaled and horizontally flipped quads in the recovered 1136×640 design space;
+- the direct renderer draws only when the current render-queue revision and active GL texture revision match completely, so a stale scene cannot be mixed with current textures;
+- frame-cache atlas sprites, action-pair playback and nonzero object construction remain unresolved and are not synthesized.
 
-The next renderer step can consume the recovered resource/transform contract and stage user-owned textures on the existing OpenGL bridge. Atlas/plist discovery for frame-cache names, action-pair playback, anchor-point semantics, and nonzero object-type construction remain separate milestones.
+The next visual milestone is recovering and staging the sprite-frame-cache atlas/plist resources so default type-0 objects can interleave with the already rendered direct-file sprites. Enemy/NPC/action construction remains the separate `createGSObject()` boundary.
