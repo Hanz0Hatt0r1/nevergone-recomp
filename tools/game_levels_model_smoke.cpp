@@ -32,9 +32,6 @@ void append_string(std::vector<std::uint8_t>* out, const std::string& value, std
 std::vector<std::uint8_t> make_fixture() {
     std::vector<std::uint8_t> out;
 
-    // LoadGL_Scene: gate=2, two scenes. Scene "one" has one empty layer;
-    // scene "two" has no layers. This is the same bounded shape used by the
-    // transition smoke and ends at byte 64.
     append_i32(&out, 2);
     append_u32(&out, 2u);
     append_string(&out, "one", 0x11u);
@@ -52,11 +49,9 @@ std::vector<std::uint8_t> make_fixture() {
     append_u32(&out, 0u);
     assert(out.size() == 64u);
 
-    // LoadGL_Actions: zero actions.
     append_u32(&out, 0u);
     assert(out.size() == 68u);
 
-    // LoadGL_Global: all variable loops empty.
     append_u32(&out, 0u);
     append_u32(&out, 11u);
     append_u32(&out, 12u);
@@ -65,7 +60,6 @@ std::vector<std::uint8_t> make_fixture() {
     append_u32(&out, 0u);
     assert(out.size() == 92u);
 
-    // LoadGL_PortNode: one start node referencing scene "two".
     append_u32(&out, 1u);
     append_string(&out, "two", 0x33u);
     append_string(&out, "", 0x44u);
@@ -80,7 +74,6 @@ std::vector<std::uint8_t> make_fixture() {
     append_string(&out, "", 0x55u);
     assert(out.size() == 137u);
 
-    // The original LoadGameLevels does not compare the final offset to EOF.
     out.push_back(0xaau);
     out.push_back(0xbbu);
     return out;
@@ -106,8 +99,9 @@ int main() {
     assert(parsed.start_scene.scene_index == 1u);
     assert(parsed.start_scene.scene_guid == "two");
     assert(!parsed.start_scene.used_first_port_fallback);
+    assert(parsed.navigation.current_port_node_index == 0u);
+    assert(parsed.navigation.stored_event_port_type == 0u);
 
-    // Truncating the final port-node string must fail transactionally.
     std::vector<std::uint8_t> truncated = bytes;
     truncated.resize(136u);
     nevergone::hp_data::Reader truncated_reader(truncated);

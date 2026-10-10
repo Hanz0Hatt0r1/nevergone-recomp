@@ -1,0 +1,34 @@
+name: GameLevels port navigation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.h'
+      - 'android/app/src/main/cpp/game_levels_port_node_graph.h'
+      - 'android/app/src/main/cpp/game_levels_start_scene.h'
+      - 'tools/game_levels_port_navigation_smoke.cpp'
+      - '.github/workflows/game-levels-port-navigation.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.h'
+      - 'android/app/src/main/cpp/game_levels_port_node_graph.h'
+      - 'android/app/src/main/cpp/game_levels_start_scene.h'
+      - 'tools/game_levels_port_navigation_smoke.cpp'
+      - '.github/workflows/game-levels-port-navigation.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run port-navigation smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_levels_port_navigation_smoke.cpp \
+            android/app/src/main/cpp/game_levels_port_navigation.cpp \
+            -o /tmp/game_levels_port_navigation_smoke
+          /tmp/game_levels_port_navigation_smoke

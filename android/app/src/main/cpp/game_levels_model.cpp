@@ -33,6 +33,7 @@ bool parse(const hp_data::Reader& reader, Model* out) {
 
     parsed.port_graph = game_levels_port_node_graph::link(parsed.port_nodes.port_nodes);
     parsed.start_scene = game_levels_start_scene::resolve(parsed.scenes, parsed.port_nodes);
+    parsed.navigation = game_levels_port_navigation::make_initial_state(parsed.start_scene);
     parsed.end_offset = parsed.port_nodes.end_offset;
     *out = std::move(parsed);
     return true;
