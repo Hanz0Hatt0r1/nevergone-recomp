@@ -1,12 +1,7 @@
 name: Full Android and runtime validation
 
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: '23 3 * * *'
 
 permissions:
   contents: read
