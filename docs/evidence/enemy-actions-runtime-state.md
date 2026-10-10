@@ -9,11 +9,12 @@ This layer composes recovered `EnemyActionsSystem::comboHit()` and bounded `waUp
 `enemy_actions_runtime_state::State` retains only offsets used by recovered contracts:
 
 - bytes `+0x168`, `+0x169`;
+- int32 `+0x154` previous-frame storage;
+- float32 `+0x158`, `+0x15c`, `+0x160`;
+- int32 `+0x18c`;
 - bytes `+0x190`, `+0x191`;
 - byte `+0x1bc`;
 - bytes `+0x290`, `+0x291`, `+0x292`;
-- int32 `+0x18c`;
-- float32 `+0x158`, `+0x15c`, `+0x160`;
 - current frame int32 `+0x294`;
 - `+0x94` boundary index `+0x2a0`;
 - `+0x98` boundary index `+0x2a4`.
@@ -47,7 +48,7 @@ Section G had already independently established that each per-primary serialized
 
 ## `apply_wa_update_after_frame_advance()`
 
-This helper consumes a `State.current_frame_294` value after frame increment/selection has occurred. It then:
+This lower-level helper consumes a `State.current_frame_294` value after frame increment/selection has occurred. It then:
 
 1. captures the selected pre-transition `+0x94` object's `field_18` endpoint when the current `+0x2a0` index is valid;
 2. applies the recovered `+0x290 -> +0x291` propagation;
@@ -55,18 +56,47 @@ This helper consumes a `State.current_frame_294` value after frame increment/sel
 4. applies the independent `+0x98/+0x2a4` boundary update;
 5. when the pre-transition `+0x94` endpoint was valid, applies the recovered strict post-endpoint completion/reset transition using that captured endpoint and the real-advance result from the `+0x94` cursor.
 
-If reconstructed `+0x94` state is invalid, the project-owned layer safely skips only the late completion/reset operation. `+0x290/+0x291` propagation and a valid independent `+0x98` cursor may still proceed. This is a safety divergence for malformed project-owned state, not a claim about original invalid-state handling.
+If reconstructed `+0x94` state is invalid, this lower-level project-owned layer safely skips only the late completion/reset operation. The public frame-step helper below additionally reconstructs the native no-`+0x94` fallback.
+
+## `apply_wa_update_frame_step()`
+
+The same native trace establishes the frame-processing step after the timing gate has allowed work to continue.
+
+For the normal path with a selected `EnemyActionsData+0x94` object, the current frame is incremented and stored at `system+0x294` around `0x2ad604..0x2ad612`; the already reconstructed `+0x94/+0x98` boundary and post-endpoint logic follows immediately.
+
+When no current `+0x94` object exists, the separate fallback at `0x2ad6b0..0x2ad716` is used:
+
+1. native reads the `EnemyActionsData+0x88` `ActionFrameData` array count;
+2. increments and stores `system+0x294`;
+3. still processes the independent `+0x98/+0x2a4` boundary stream;
+4. compares the incremented frame with the `+0x88` count;
+5. when `current_frame > count`, stores `count - 1` at `+0x18c`, sets `+0x190 = 1`, resets `+0x294 = 0`, sets `+0x1bc = 1`, and clears `+0x169` only when `+0x292 == 0`.
+
+`apply_wa_update_frame_step()` reconstructs both branches. The frame increment uses raw ARM32 wrapping semantics, so `INT32_MAX` advances to `INT32_MIN` rather than invoking signed-overflow behavior in C++.
+
+### `+0x154` / `updateData()` gate
+
+The tail at `0x2ad71a..0x2ad738` compares previous-frame storage `system+0x154` with current frame `system+0x294`.
+
+- if they are equal, native skips both `updateData()` and the redundant `+0x154` store path;
+- when they differ, a local native gate controls the `updateData()` call;
+- ordinary non-reset processing keeps the gate enabled;
+- a reset with `+0x292 != 0` also keeps it enabled;
+- a reset with `+0x292 == 0` disables the call;
+- after a changed-frame path, native stores the current frame into `+0x154` regardless of whether `updateData()` was called.
+
+The reconstruction reports this as `previous_frame_changed` and `should_call_update_data` and updates the offset-named `previous_frame_154`. It does not invoke or speculate about `updateData()` internals.
 
 ## Explicitly outside scope
 
 This state layer still does not model or infer:
 
-- the exact frame-increment/no-`+0x94` branch as one composed public operation;
-- the `updateData()` call path and `+0x154` previous-frame bookkeeping;
+- the internal behavior of `EnemyActionsSystem::updateData()`;
 - animation, rendering, hit effects, or action dispatch;
 - resets of `+0x191/+0x290/+0x291` that are not yet proven;
-- gameplay-semantic names for any offset-named state.
+- gameplay-semantic names for any offset-named state;
+- a full looping `waUpdate(float)` wrapper that may consume more than one frame from the accumulator in a single call.
 
-The host coverage now includes both the continuous combo/boundary chain and the native timing gate: top-level `+0x1bc`, one-shot `+0x168`, `delta*1000.0f` accumulation, Section-G `+0x5c` threshold composition, `+0x169` gating, threshold subtraction, invalid-index safety, and unordered floating-point behavior.
+The host coverage now includes the continuous combo/boundary chain, the native timing gate, both frame-processing branches, exact ARM32 frame increment, `+0x98` fallback behavior, count-based reset, `+0x154` bookkeeping and the recovered `updateData()` call decision.
 
 No proprietary payload or decompiler-derived source is included.
