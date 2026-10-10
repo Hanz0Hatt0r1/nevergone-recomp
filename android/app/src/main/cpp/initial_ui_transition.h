@@ -19,6 +19,7 @@ enum class ManagementRoute {
     kAwaitingRoleList,
     kRoleSelection,
     kRoleCreated,
+    kAwaitingEnterGame,
     kEnteringGame,
 };
 
@@ -36,6 +37,7 @@ void reset(std::uint64_t scene_generation);
 void sync(bool initial_ui_ready, std::uint64_t scene_generation);
 void on_management_callback(const std::string& callback_name);
 bool on_server_enter_dispatch_succeeded();
+bool on_role_enter_dispatch_succeeded();
 Snapshot snapshot();
 const char* phase_name(Phase phase);
 const char* management_route_name(ManagementRoute route);

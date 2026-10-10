@@ -14,6 +14,7 @@ int main() {
     assert(state.scene_generation == 4);
     assert(state.transition_count == 0);
     assert(!nevergone::initial_ui_transition::on_server_enter_dispatch_succeeded());
+    assert(!nevergone::initial_ui_transition::on_role_enter_dispatch_succeeded());
 
     // A callback may arrive before HelloWorld/ManagementLayer is ready. It
     // must be retained as pending, not exposed as an active UI route yet.
@@ -46,36 +47,54 @@ int main() {
     assert(!nevergone::initial_ui_transition::on_server_enter_dispatch_succeeded());
     assert(nevergone::initial_ui_transition::snapshot().management_route_transition_count == 2);
 
-    // Relevant callbacks drive the reconstructed ManagementLayer route in
-    // arrival order once the verified init boundary has been reached.
+    // The real role-list callback owns the transition into role-selection.
     nevergone::initial_ui_transition::on_management_callback("cpp_OnGetRoleList");
     state = nevergone::initial_ui_transition::snapshot();
     assert(state.management_route == ManagementRoute::kRoleSelection);
     assert(state.pending_management_route == ManagementRoute::kRoleSelection);
     assert(state.management_route_transition_count == 3);
 
-    nevergone::initial_ui_transition::on_management_callback("cpp_OnCreateTheRole");
+    // EnterGameWithCid success is observable immediately but does not invent
+    // cpp_OnEnterGame. Duplicate success notifications are rejected.
+    assert(nevergone::initial_ui_transition::on_role_enter_dispatch_succeeded());
+    state = nevergone::initial_ui_transition::snapshot();
+    assert(state.management_route == ManagementRoute::kAwaitingEnterGame);
+    assert(state.pending_management_route == ManagementRoute::kAwaitingEnterGame);
+    assert(state.management_route_transition_count == 4);
+    assert(!nevergone::initial_ui_transition::on_role_enter_dispatch_succeeded());
+    assert(nevergone::initial_ui_transition::snapshot().management_route_transition_count == 4);
+
     nevergone::initial_ui_transition::on_management_callback("cpp_OnEnterGame");
     state = nevergone::initial_ui_transition::snapshot();
     assert(state.management_route == ManagementRoute::kEnteringGame);
     assert(state.management_route_transition_count == 5);
+
+    // Created-role auto-enter uses the same waiting boundary, but only after
+    // cpp_OnCreateTheRole has made role-created the active route.
+    nevergone::initial_ui_transition::reset(5);
+    nevergone::initial_ui_transition::sync(true, 5);
+    nevergone::initial_ui_transition::on_management_callback("cpp_OnCreateTheRole");
+    state = nevergone::initial_ui_transition::snapshot();
+    assert(state.management_route == ManagementRoute::kRoleCreated);
+    assert(nevergone::initial_ui_transition::on_role_enter_dispatch_succeeded());
+    assert(nevergone::initial_ui_transition::snapshot().management_route ==
+        ManagementRoute::kAwaitingEnterGame);
+    nevergone::initial_ui_transition::on_management_callback("cpp_OnEnterGame");
+    state = nevergone::initial_ui_transition::snapshot();
+    assert(state.management_route == ManagementRoute::kEnteringGame);
 
     // Non-routing callbacks remain diagnostic and must not disturb login UI.
     nevergone::initial_ui_transition::on_management_callback("cpp_OnUpdateData");
     state = nevergone::initial_ui_transition::snapshot();
     assert(state.management_route == ManagementRoute::kEnteringGame);
 
-    nevergone::initial_ui_transition::sync(true, 4);
-    state = nevergone::initial_ui_transition::snapshot();
-    assert(state.transition_count == 2);
-
     // A new scene generation revokes the old UI route and pending callbacks.
-    nevergone::initial_ui_transition::sync(false, 5);
+    nevergone::initial_ui_transition::sync(false, 6);
     state = nevergone::initial_ui_transition::snapshot();
     assert(state.phase == Phase::kWaitingForAppDelegate);
     assert(state.management_route == ManagementRoute::kInactive);
     assert(state.pending_management_route == ManagementRoute::kInactive);
-    assert(state.scene_generation == 5);
+    assert(state.scene_generation == 6);
     assert(!state.initial_ui_ready_seen);
 
     const std::string report = nevergone::initial_ui_transition::status_report();

@@ -14,6 +14,7 @@ int main() {
     assert(state.selected_index == -1);
     assert(!state.enter_request_pending);
     assert(!state.create_request_pending);
+    assert(!state.enter_dispatch_committed);
 
     RoleListPayload payload;
     payload.valid = true;
@@ -28,6 +29,7 @@ int main() {
     assert(state.payload_valid);
     assert(state.role_count == 3);
     assert(state.selected_index == -1);
+    const auto payload_generation = state.payload_generation;
 
     // Recovered online UI tags roles by Career. Duplicate careers resolve to
     // the first matching role, matching the original start-path scan.
@@ -40,6 +42,7 @@ int main() {
 
     const auto enter = confirm_selection();
     assert(enter.valid);
+    assert(enter.payload_generation == payload_generation);
     assert(enter.character_id == 101);
     assert(enter.career == 1);
     assert(peek_pending_enter_request().valid);
@@ -53,11 +56,25 @@ int main() {
 
     const auto second_enter = confirm_selection();
     assert(second_enter.valid);
+    assert(second_enter.payload_generation == payload_generation);
     assert(second_enter.character_id == 202);
     const auto consumed_enter = take_pending_enter_request();
     assert(consumed_enter.valid);
     assert(consumed_enter.character_id == 202);
     assert(!take_pending_enter_request().valid);
+
+    // Only the request that actually crossed the Lua boundary is committed as
+    // the handoff snapshot. The same role-list generation is one-shot.
+    assert(commit_enter_dispatch(consumed_enter));
+    state = snapshot();
+    assert(state.enter_dispatch_committed);
+    assert(state.enter_dispatch_count == 1);
+    assert(state.dispatched_payload_generation == payload_generation);
+    assert(state.dispatched_character_id == 202);
+    assert(state.dispatched_career == 2);
+    assert(state.dispatched_character_name == "Bram");
+    assert(!commit_enter_dispatch(consumed_enter));
+    assert(snapshot().enter_dispatch_count == 1);
 
     assert(!select_career(99));
     assert(!select_index(-1));
@@ -75,7 +92,8 @@ int main() {
     assert(consumed_create.character_name == "Dara");
     assert(!take_pending_create_request().valid);
 
-    // A fresh callback payload invalidates stale selection and requests.
+    // A fresh callback payload invalidates stale selection, requests and the
+    // committed handoff. The old generation cannot be committed afterward.
     RoleListPayload empty;
     empty.valid = true;
     sync_role_list(empty);
@@ -83,6 +101,8 @@ int main() {
     assert(state.payload_valid);
     assert(state.role_count == 0);
     assert(state.selected_index == -1);
+    assert(!state.enter_dispatch_committed);
+    assert(!commit_enter_dispatch(consumed_enter));
     assert(!confirm_selection().valid);
 
     reset();
@@ -92,6 +112,8 @@ int main() {
     assert(state.selection_changes == 0);
     assert(state.confirm_count == 0);
     assert(state.create_request_count == 0);
+    assert(state.enter_dispatch_count == 0);
+    assert(!state.enter_dispatch_committed);
 
     std::cout << "role selection state smoke: ok\n";
     return 0;

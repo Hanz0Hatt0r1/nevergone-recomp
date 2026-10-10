@@ -1,5 +1,6 @@
 #include "created_role_transition.h"
 
+#include "initial_ui_transition.h"
 #include "login_lua_dispatch.h"
 #include "role_selection_state.h"
 
@@ -33,6 +34,14 @@ bool inline_dispatch(
     if (!consumed.valid || consumed.character_id != role.character_id ||
             consumed.career != role.career || consumed.character_name != role.character_name) {
         if (error != nullptr) *error = "created-role enter request changed during dispatch";
+        return false;
+    }
+    if (!role_selection_state::commit_enter_dispatch(consumed)) {
+        if (error != nullptr) *error = "created-role enter generation changed during dispatch";
+        return false;
+    }
+    if (!initial_ui_transition::on_role_enter_dispatch_succeeded()) {
+        if (error != nullptr) *error = "created-role enter completed outside role-created route";
         return false;
     }
 
