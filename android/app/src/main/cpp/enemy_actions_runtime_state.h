@@ -161,9 +161,24 @@ UpdateDataFrameLookupResult apply_update_data_frame_lookup(
 // value, or any nonzero +0x250 mode, bypasses the later large object-update
 // block. The caller supplies only the observed null/non-null result of the
 // external virtual call; the pointee and slot semantics remain unresolved.
-UpdateDataObjectGateResult apply_update_data_object_gate(
+inline UpdateDataObjectGateResult apply_update_data_object_gate(
         const enemy_actions_wbg_document::Document& document,
         State state,
-        bool virtual_slot_cc_result_nonnull);
+        bool virtual_slot_cc_result_nonnull) {
+    UpdateDataObjectGateResult result;
+    result.state = state;
+    result.entry = apply_update_data_entry(document, state);
+    if (!result.entry.would_enter_frame_update) return result;
+
+    result.should_call_virtual_slot_cc = state.field_250 == 0;
+    if (result.should_call_virtual_slot_cc) {
+        result.virtual_slot_cc_result_nonnull = virtual_slot_cc_result_nonnull;
+    }
+
+    result.would_enter_object_update_block =
+            result.should_call_virtual_slot_cc && result.virtual_slot_cc_result_nonnull;
+    result.would_bypass_object_update_block = !result.would_enter_object_update_block;
+    return result;
+}
 
 }  // namespace nevergone::enemy_actions_runtime_state
