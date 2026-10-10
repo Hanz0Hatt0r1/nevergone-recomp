@@ -11,16 +11,32 @@ const std::array<HeaderRead, 4> kHeaderReads{{
     {0x0cu, ReadKind::kUInt32, 0x0c4u, 0x28f4e2u},
 }};
 
+const std::array<std::size_t, 3> kDynamicVariableLengthReadInstructionOffsets{{
+    0x28fab0u, 0x28faeeu, 0x28fb38u,
+}};
+const std::array<std::size_t, 3> kDynamicVariablePayloadReadInstructionOffsets{{
+    0x28facau, 0x28fb12u, 0x28fb4eu,
+}};
+
+const std::array<std::size_t, 3> kVersionedVariableLengthReadInstructionOffsets{{
+    0x28fe46u, 0x28fe88u, 0x28fed2u,
+}};
+const std::array<std::size_t, 3> kVersionedVariablePayloadReadInstructionOffsets{{
+    0x28fe64u, 0x28feacu, 0x28fee8u,
+}};
+
 const std::array<std::size_t, 6> kComboTupleReadInstructionOffsets{{
     0x29027au, 0x29028eu, 0x2902acu, 0x2902ceu, 0x2902f8u, 0x290328u,
 }};
-
 const std::array<std::size_t, 3> kComboArrayObjectOffsets{{0x094u, 0x09cu, 0x098u}};
 const std::array<std::size_t, 3> kComboAddObjectInstructionOffsets{{
     0x290368u, 0x290384u, 0x2903b4u,
 }};
 
-bool primary_record_bytes(
+namespace {
+
+bool three_segment_record_bytes(
+        std::size_t fixed_bytes,
         std::size_t len0,
         std::size_t len1,
         std::size_t len2,
@@ -28,13 +44,52 @@ bool primary_record_bytes(
     if (out_bytes == nullptr) return false;
     constexpr std::size_t kMax = std::numeric_limits<std::size_t>::max();
     const std::array<std::size_t, 3> lengths{{len0, len1, len2}};
-    std::size_t total = kPrimaryRecordFixedBytesExcludingPayload;
+    std::size_t total = fixed_bytes;
     for (const std::size_t length : lengths) {
         if (length > kMax - total) return false;
         total += length;
     }
     *out_bytes = total;
     return true;
+}
+
+bool three_segment_calls_are_ordered(
+        const std::array<std::size_t, 3>& lengths,
+        const std::array<std::size_t, 3>& payloads) {
+    for (std::size_t i = 0; i < 3; ++i) {
+        if (lengths[i] >= payloads[i]) return false;
+        if (i > 0 && payloads[i - 1] >= lengths[i]) return false;
+    }
+    return true;
+}
+
+}  // namespace
+
+bool primary_record_bytes(
+        std::size_t len0,
+        std::size_t len1,
+        std::size_t len2,
+        std::size_t* out_bytes) {
+    return three_segment_record_bytes(
+            kPrimaryRecordFixedBytesExcludingPayload, len0, len1, len2, out_bytes);
+}
+
+bool dynamic_record_bytes(
+        std::size_t len0,
+        std::size_t len1,
+        std::size_t len2,
+        std::size_t* out_bytes) {
+    return three_segment_record_bytes(
+            kDynamicRecordFixedBytesExcludingPayload, len0, len1, len2, out_bytes);
+}
+
+bool versioned_record_bytes(
+        std::size_t len0,
+        std::size_t len1,
+        std::size_t len2,
+        std::size_t* out_bytes) {
+    return three_segment_record_bytes(
+            kVersionedRecordFixedBytesExcludingPayload, len0, len1, len2, out_bytes);
 }
 
 bool topology_is_consistent() {
@@ -63,12 +118,32 @@ bool topology_is_consistent() {
                 kPrimaryFirstVariableLengthOffset + kVariableSegmentFramingBytes ||
             kPrimaryRecordFixedBytesExcludingPayload !=
                 kPrimaryFirstVariablePayloadOffset +
-                    (kPrimaryVariableSegmentCount - 1u) * kVariableSegmentFramingBytes) return false;
+                    (kVariableSegmentCount - 1u) * kVariableSegmentFramingBytes ||
+            kDynamicRecordFirstVariablePayloadOffset !=
+                kDynamicRecordFirstVariableLengthOffset + kVariableSegmentFramingBytes ||
+            kDynamicRecordFixedBytesExcludingPayload !=
+                kDynamicRecordFirstVariablePayloadOffset +
+                    (kVariableSegmentCount - 1u) * kVariableSegmentFramingBytes ||
+            kVersionedRecordFirstVariablePayloadOffset !=
+                kVersionedRecordFirstVariableLengthOffset + kVariableSegmentFramingBytes ||
+            kVersionedRecordFixedBytesExcludingPayload !=
+                kVersionedRecordFirstVariablePayloadOffset +
+                    (kVariableSegmentCount - 1u) * kVariableSegmentFramingBytes) return false;
+
+    if (!three_segment_calls_are_ordered(
+                kDynamicVariableLengthReadInstructionOffsets,
+                kDynamicVariablePayloadReadInstructionOffsets) ||
+            !three_segment_calls_are_ordered(
+                kVersionedVariableLengthReadInstructionOffsets,
+                kVersionedVariablePayloadReadInstructionOffsets)) return false;
 
     std::size_t bytes = 0;
-    if (!primary_record_bytes(0u, 0u, 0u, &bytes) || bytes != 0x4cu ||
-            !primary_record_bytes(1u, 2u, 3u, &bytes) || bytes != 0x52u ||
-            primary_record_bytes(0u, 0u, 0u, nullptr)) return false;
+    if (!primary_record_bytes(1u, 2u, 3u, &bytes) || bytes != 0x52u ||
+            !dynamic_record_bytes(1u, 2u, 3u, &bytes) || bytes != 0x4eu ||
+            !versioned_record_bytes(1u, 2u, 3u, &bytes) || bytes != 0x56u ||
+            primary_record_bytes(0u, 0u, 0u, nullptr) ||
+            dynamic_record_bytes(0u, 0u, 0u, nullptr) ||
+            versioned_record_bytes(0u, 0u, 0u, nullptr)) return false;
 
     if (kSecondaryRecordBytes != 12u || kRootFixedRecordBytes != 53u ||
             kComboTupleBytes != 24u || kFinalTableEntryBytes != 4u) return false;
@@ -86,9 +161,6 @@ bool topology_is_consistent() {
             kComboAddObjectInstructionOffsets !=
                 std::array<std::size_t, 3>{{0x290368u, 0x290384u, 0x2903b4u}}) return false;
 
-    // initWithFile initializes exactly 100 dwords at each base. The topology
-    // contract does not claim the primary count is <=100; it only proves the
-    // parser's indexed destinations for values that are present.
     if (combo_first_float_destination(0u) != 0x0d8u ||
             combo_first_float_destination(99u) != 0x264u ||
             combo_second_float_destination(0u) != 0x268u ||
