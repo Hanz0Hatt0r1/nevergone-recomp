@@ -34,13 +34,16 @@ public final class NevergoneHarness {
         boolean deviceRuntime = true;
         boolean probeEgl = false;
         boolean probe = false;
-        for (String arg : args) {
+        String probePlan = null;
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
             if ("--smoke".equals(arg)) smoke = true;
             else if ("--no-jni-onload".equals(arg)) jniOnLoad = false;
             else if ("--device-runtime".equals(arg)) deviceRuntime = true;
             else if ("--sdk23-runtime".equals(arg)) deviceRuntime = false;
             else if ("--probe-egl".equals(arg)) probeEgl = true;
             else if ("--probe".equals(arg)) probe = true;
+            else if ("--probe-plan".equals(arg) && i + 1 < args.length) probePlan = args[++i];
             else throw new IllegalArgumentException("Unknown option: " + arg);
         }
         final boolean useDeviceRuntime = deviceRuntime;
@@ -151,6 +154,7 @@ public final class NevergoneHarness {
                 return;
             }
             if (probe) { EvidenceProbe.run(emulator, module); return; }
+            if (probePlan != null) { ProbeRunner.run(emulator, module, new File(probePlan)); return; }
             if (smoke) return;
 
             // Constructors are deferred. Some need app state; JNI_OnLoad is tested.

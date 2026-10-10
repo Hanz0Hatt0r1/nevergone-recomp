@@ -17,6 +17,8 @@ All five source libraries are ELF32 little-endian ARM EABI5 (armeabi-v7a). Their
 
 ## Native function evidence
 
+Stage 2 adds [GameSaveData Encode/Decode dynamic comparisons, a local call graph, EnemyActionsData dependency analysis and a Lua binding sample](reconstruction-stage-2.md). Its 36 structured native results are in [save-probes.jsonl](save-probes.jsonl).
+
 | Function | ELF symbol value (Thumb) | Instruction offset | Experiment |
 |---|---:|---:|---|
 | cocos2d::Decode | 0x534a41 | 0x534a40 | 100 synthetic cases |

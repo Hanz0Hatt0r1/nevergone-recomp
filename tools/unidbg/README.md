@@ -44,6 +44,16 @@ python3 -m unittest discover -s . -p 'test_*.py'
 
 `--probe` invokes the original exported decoder and two CCRect methods with synthetic data. Inspect the log for emulator faults as well as running the comparison: unidbg may swallow a native fault and return a register value. `--probe-egl` is an isolated diagnostic, currently expected to fail; do not treat that returned register as a successful EGL result.
 
+For the stage-2 GameSaveData leaf functions, generate a bounded JSON plan and run it through `--probe-plan`:
+
+```sh
+python3 save_probe_plan.py target/save-plan.json
+./run.sh --probe-plan target/save-plan.json > target/save-probe.log 2>&1
+python3 verify_save_probes.py target/save-probe.log
+```
+
+The runner is an API for declarative calls with source bytes, key, symbol and exact ELF instruction offset. Its allowlist currently contains only GameSaveData::Encode (0x33a766) and Decode (0x33a788), whose five-argument ABI and lack of object use were checked in Thumb disassembly. Each `EVIDENCE` JSON row records inputs, module base, registers before/after the unidbg call, memory before/after, return value and trace metadata. The before-call register snapshot is the prior emulator state, not the function-entry register state; `trace.mode=none` means no instruction trace was collected. See [stage-2 analysis](../../docs/evidence/unidbg-2026-10-10/reconstruction-stage-2.md) and [native results](../../docs/evidence/unidbg-2026-10-10/save-probes.jsonl).
+
 `relr_plan.py` decodes ELF32 DT_RELR into a local relocation plan. Before JNI_OnLoad, the harness checks source SHA-256 and target values and applies missing rebases in emulator memory only. Already rebased words are skipped. Unsupported ELF formats, non-file-backed targets and unexpected values fail closed. This compensates for missing DT_RELR support in the tested unidbg revision; it is not a general Android linker implementation. All RELR fixes happen after loading with constructors disabled. Do not enable constructors before these fixes.
 
 Dependencies returned by the custom resolver route their own nested dependencies through it, avoiding SDK resource lookup silently overriding the selected phone runtime. Root-file siblings are resolved by unidbg's ElfLibraryFile from the original library directory.
