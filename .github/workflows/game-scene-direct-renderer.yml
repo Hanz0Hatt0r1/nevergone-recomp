@@ -8,6 +8,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_direct_geometry.h'
       - 'android/app/src/main/cpp/game_scene_direct_renderer.cpp'
       - 'android/app/src/main/cpp/game_scene_direct_renderer.h'
+      - 'android/app/src/main/cpp/native_bootstrap.cpp'
       - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/game_scene_direct_geometry_smoke.cpp'
@@ -18,6 +19,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_direct_geometry.h'
       - 'android/app/src/main/cpp/game_scene_direct_renderer.cpp'
       - 'android/app/src/main/cpp/game_scene_direct_renderer.h'
+      - 'android/app/src/main/cpp/native_bootstrap.cpp'
       - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/game_scene_direct_geometry_smoke.cpp'
@@ -40,7 +42,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgles2-mesa-dev
-      - name: Syntax-check GLES renderer and frame hook
+      - name: Syntax-check GLES renderer, bootstrap and frame hook
         run: |
           JAVA_HOME_PATH="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
           g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
@@ -48,4 +50,5 @@ jobs:
             -I "$JAVA_HOME_PATH/include" \
             -I "$JAVA_HOME_PATH/include/linux" \
             android/app/src/main/cpp/game_scene_direct_renderer.cpp \
+            android/app/src/main/cpp/native_bootstrap.cpp \
             android/app/src/main/cpp/post_scene_overlay_jni.cpp

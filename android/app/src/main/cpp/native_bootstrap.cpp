@@ -18,6 +18,7 @@
 #include "client_callback_bridge.h"
 #include "game_levels_asset_probe.h"
 #include "game_levels_enter_transition.h"
+#include "game_scene_direct_renderer.h"
 #include "initial_ui_transition.h"
 #include "login_lua_session.h"
 #include "lua_runtime.h"
@@ -50,6 +51,38 @@ std::string jstring_to_utf8(JNIEnv* env, jstring value) {
     if (chars == nullptr) return {};
     std::string result(chars);
     env->ReleaseStringUTFChars(value, chars);
+    return result;
+}
+
+std::string java_static_string_report(
+        JNIEnv* env,
+        const char* class_name,
+        const char* method_name) {
+    if (env == nullptr || class_name == nullptr || method_name == nullptr) return {};
+    jclass klass = env->FindClass(class_name);
+    if (klass == nullptr) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        return {};
+    }
+    jmethodID method = env->GetStaticMethodID(
+            klass,
+            method_name,
+            "()Ljava/lang/String;");
+    if (method == nullptr) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        env->DeleteLocalRef(klass);
+        return {};
+    }
+    auto value = static_cast<jstring>(env->CallStaticObjectMethod(klass, method));
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        if (value != nullptr) env->DeleteLocalRef(value);
+        env->DeleteLocalRef(klass);
+        return {};
+    }
+    const std::string result = jstring_to_utf8(env, value);
+    if (value != nullptr) env->DeleteLocalRef(value);
+    env->DeleteLocalRef(klass);
     return result;
 }
 
@@ -137,9 +170,10 @@ std::string bootstrap_info() {
     out << nevergone::offline_startup_flow::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::game_levels_enter_transition::status_report();
+    out << nevergone::game_scene_direct_renderer::status_report();
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
-    out << "\nNext milestone: advance the entering-game boundary toward the first reconstructed GameScene without reading beyond verified scene fields.";
+    out << "\nNext milestone: prove the complete first static GameScene on Android and identify any remaining unsupported scene objects before player spawn.";
     return out.str();
 }
 
@@ -181,7 +215,15 @@ Java_org_nevergone_recomp_MainActivity_nativePollChooseHeroThunderSound(JNIEnv*,
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_nevergone_recomp_MainActivity_nativeBootstrapInfo(JNIEnv* env, jclass) {
     reload_runtime_assets(env);
-    const std::string info = bootstrap_info();
+    std::string info = bootstrap_info();
+    const std::string staging = java_static_string_report(
+            env,
+            "org/nevergone/recomp/GameSceneDirectAssetStager",
+            "statusReport");
+    if (!staging.empty()) {
+        info.append("\n");
+        info.append(staging);
+    }
     return env->NewStringUTF(info.c_str());
 }
 

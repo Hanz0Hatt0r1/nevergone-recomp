@@ -18,8 +18,10 @@ struct Snapshot {
 void on_surface_created();
 void on_surface_changed(int width, int height);
 
-// Draw all currently available direct-file GameScene sprites. Returns true only
-// when at least one textured quad was submitted for the live scene.
+// Draw the complete currently supported static type-0 GameScene sprite set:
+// direct-file resources plus spriteFrameByName resources reconstructed from the
+// imported atlas metadata/pixels. Returns true only when at least one textured
+// quad was submitted for the live scene revision.
 bool draw();
 
 Snapshot snapshot();
