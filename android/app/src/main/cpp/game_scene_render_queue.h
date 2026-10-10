@@ -1,11 +1,13 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "game_scene_construction_plan.h"
+#include "game_scene_direct_asset.h"
 
 namespace nevergone::game_scene_render_queue {
 
@@ -14,6 +16,9 @@ struct SpriteCommand {
     std::size_t source_layer_index = 0;
     std::size_t source_object_index = 0;
     game_scene_type0_resource::Selection resource;
+    // Present only for evidence-backed CCSprite::create(basename) resources.
+    // The path is relative to filesDir/assets, matching OriginalObbImporter.
+    std::optional<std::string> direct_asset_relative_path;
     game_scene_construction_plan::Type0SpriteTransform transform;
 };
 
@@ -56,10 +61,19 @@ inline Queue build(const game_scene_construction_plan::ScenePlan& plan) {
             command.transform = *object.type0_sprite_transform;
 
             if (command.resource.kind == game_scene_type0_resource::Kind::kDirectFile) {
+                command.direct_asset_relative_path =
+                        game_scene_direct_asset::imported_relative_path(command.resource);
+                if (!command.direct_asset_relative_path.has_value()) {
+                    ++queue.unresolved_object_count;
+                    continue;
+                }
                 ++queue.direct_file_count;
             } else if (command.resource.kind ==
                        game_scene_type0_resource::Kind::kSpriteFrameByName) {
                 ++queue.sprite_frame_lookup_count;
+            } else {
+                ++queue.unresolved_object_count;
+                continue;
             }
             queue.sprites.push_back(std::move(command));
         }

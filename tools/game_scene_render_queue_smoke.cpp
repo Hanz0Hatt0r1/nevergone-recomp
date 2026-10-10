@@ -84,6 +84,7 @@ int main() {
     assert(queue.sprites[0].source_object_index == 0u);
     assert(queue.sprites[0].resource.kind == resource_ns::Kind::kSpriteFrameByName);
     assert(queue.sprites[0].resource.resource_name == "atlas.png");
+    assert(!queue.sprites[0].direct_asset_relative_path.has_value());
     assert(queue.sprites[0].transform.position_x == 1.0f);
 
     assert(queue.sprites[1].layer_z_index == 1u);
@@ -91,6 +92,9 @@ int main() {
     assert(queue.sprites[1].source_object_index == 0u);
     assert(queue.sprites[1].resource.kind == resource_ns::Kind::kDirectFile);
     assert(queue.sprites[1].resource.resource_name == "gktianchong.png");
+    assert(queue.sprites[1].direct_asset_relative_path.has_value());
+    assert(*queue.sprites[1].direct_asset_relative_path ==
+           "gamescene/gs_res_image_file/gktianchong.png");
     assert(queue.sprites[1].transform.position_x == 10.0f);
 
     return 0;
