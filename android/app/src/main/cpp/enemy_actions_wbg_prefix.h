@@ -32,6 +32,21 @@ constexpr std::size_t kNestedBlockHeaderBytes = 4u;
 constexpr std::size_t kNestedGroupHeaderBytes = 4u;
 constexpr std::size_t kNestedActionFrameFixedBytes = 72u;
 
+// Section D has no serialized outer count. The first WBG header word selects
+// exactly 6 or 20 groups. Each group starts with one signed record count and
+// each record has 80 fixed bytes before its three variable payloads.
+constexpr std::int32_t kVersionedGroupGateValue = 0x68;
+constexpr std::size_t kLegacyVersionedGroupCount = 6u;
+constexpr std::size_t kModernVersionedGroupCount = 20u;
+constexpr std::size_t kVersionedGroupHeaderBytes = 4u;
+constexpr std::size_t kVersionedActionFrameFixedBytes = 80u;
+
+inline std::size_t versioned_group_count_for_header(std::int32_t header_word0) {
+    return header_word0 > kVersionedGroupGateValue
+            ? kModernVersionedGroupCount
+            : kLegacyVersionedGroupCount;
+}
+
 // Each original temporary char buffer occupies 0x100 bytes and receives an
 // explicit NUL at buffer[length]. The reconstructed parser rejects payloads
 // that would cross that observed stack-buffer boundary.
@@ -51,16 +66,12 @@ struct ActionFrameRecord {
     bool first_bool = false;
     std::int32_t second_i32 = 0;
     float trailing_float = 0.0f;
-
-    // The original reads these lengths through the signed-int HPData overload
-    // and then uses each value as the following char-copy byte count.
     std::int32_t first_string_length_i32 = 0;
     std::string first_string;
     std::int32_t second_string_length_i32 = 0;
     std::string second_string;
     std::int32_t third_string_length_i32 = 0;
     std::string third_string;
-
     std::size_t bytes_consumed = 0;
 };
 
@@ -71,8 +82,6 @@ struct CompactActionFrameRecord {
 };
 
 struct CompactActionFrameBlock {
-    // Native control flow uses a signed BGE test. Zero and negative values
-    // therefore consume no records and proceed to the following block.
     std::int32_t count_i32 = 0;
     std::vector<CompactActionFrameRecord> records;
     std::size_t bytes_consumed = 0;
@@ -99,11 +108,39 @@ struct NestedActionFrameGroup {
 };
 
 struct NestedActionFrameBlock {
-    // The original outer loop uses a signed BGE comparison. A nonpositive
-    // value consumes only this four-byte field. Positive groups each use one
-    // unsigned inner count and target EnemyActionsData + 0x14 + 4*group_index.
     std::int32_t group_count_i32 = 0;
     std::vector<NestedActionFrameGroup> groups;
+    std::size_t bytes_consumed = 0;
+};
+
+struct VersionedActionFrameRecord {
+    std::int32_t first_i32 = 0;
+    std::array<float, 12> float_values{};
+    bool first_bool = false;
+    std::int32_t second_i32 = 0;
+    std::uint32_t first_u32 = 0;
+    std::uint32_t second_u32 = 0;
+    std::int32_t first_string_length_i32 = 0;
+    std::string first_string;
+    std::int32_t second_string_length_i32 = 0;
+    std::string second_string;
+    std::int32_t third_string_length_i32 = 0;
+    std::string third_string;
+    std::size_t bytes_consumed = 0;
+};
+
+struct VersionedActionFrameGroup {
+    // Native inner guard uses signed BGE, so nonpositive counts consume no
+    // records but the group header is still present for all 6/20 groups.
+    std::int32_t record_count_i32 = 0;
+    std::vector<VersionedActionFrameRecord> records;
+    std::size_t bytes_consumed = 0;
+};
+
+struct VersionedActionFrameBlock {
+    std::int32_t header_word0 = 0;
+    std::size_t expected_group_count = 0;
+    std::vector<VersionedActionFrameGroup> groups;
     std::size_t bytes_consumed = 0;
 };
 
@@ -122,5 +159,10 @@ bool parse_nested_action_frame_block(
         const hp_data::Reader& reader,
         std::size_t start_offset,
         NestedActionFrameBlock* out);
+bool parse_versioned_action_frame_groups(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        std::int32_t header_word0,
+        VersionedActionFrameBlock* out);
 
 }  // namespace nevergone::enemy_actions_wbg_prefix
