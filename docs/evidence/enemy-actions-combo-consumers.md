@@ -34,14 +34,12 @@ It then selects `objectAtIndex(system+0x2a0)` and compares current frame `system
 
 When the frame is inside the range, the original writes byte `1` to system `+0x191`, reads `ActionComboValue+0x1c`, and when that value equals integer `2` also writes byte `1` to system `+0x290`. The function returns true on this matched path and false on the gated/miss paths.
 
-The project-owned reconstruction now has two layers:
+The project-owned reconstruction has two layers:
 
 - `combo_hit_mode_for_frame()` preserves the data-only `array.count() > 1`, index and inclusive range checks and returns `field_1c` on a match;
 - `apply_combo_hit_transition()` wraps that lookup with the proven byte-state gates and writes using offset-named `ComboHitState {flag_190, flag_191, flag_290}`.
 
 The state helper intentionally keeps raw byte names. It treats any nonzero `flag_190` or `flag_290` as gating the native path, copies state unchanged on misses, writes exactly byte value `1` to `flag_191` on a match, and additionally writes `1` to `flag_290` when `field_1c == 2`. Invalid project-owned range indices are a safe no-op/false result rather than an attempt to reproduce invalid `CCArray` access.
-
-No broader meaning is assigned to these bytes yet. In particular `+0x291`, which is touched later by `waUpdate()`, is still outside this `comboHit()` contract.
 
 ## `EnemyActionsSystem::waUpdate()`
 
@@ -57,6 +55,13 @@ The exact boundary update is visible at `0x2ad622..0x2ad64e` for `+0x94` and `0x
 
 `advance_boundary_cursor()` models this data-dependent operation. It reports the resulting index, whether a real next boundary was selected, and whether the update instead hit the final-boundary clamp. Empty arrays and stale project-owned indices are left unchanged safely; this is a reconstruction safety rule, not a claim about malformed native state.
 
-This establishes the structural role of `field_18` as an end-index boundary without yet assigning gameplay names to the two streams. The surrounding timing, `+0x291`, action-completion state and other `waUpdate()` transitions remain outside this pure helper.
+A second bounded state slice is visible immediately around that path after the current-frame update:
+
+- if system byte `+0x290` is nonzero, native writes byte `1` to system `+0x291`;
+- system byte `+0x191` gates the `+0x94` endpoint/cursor update: zero skips that cursor path, nonzero enables the already-proven endpoint check.
+
+`apply_wa_update_combo_transition()` models only those two operations. Its neutral `WaUpdateComboState` carries `flag_191`, `flag_290`, `flag_291` and `boundary_index_2a0`. A nonzero `flag_290` normalizes `flag_291` to byte value `1`; `flag_191 == 0` preserves the +0x94 index, while nonzero `flag_191` delegates to `advance_boundary_cursor()`. The independent +0x98 stream, timing accumulator, frame increment itself and later completion/reset writes are deliberately outside this helper.
+
+This establishes a small contiguous state bridge from a `comboHit()` mode-2 match (`+0x290 = 1`) into the next `waUpdate()` combo-related step (`+0x291 = 1`) without assigning gameplay names to either byte.
 
 No proprietary WBG data or original source code is included in this reconstruction.
