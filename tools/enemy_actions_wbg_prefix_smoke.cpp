@@ -50,6 +50,24 @@ void append_compact_record(
     append_f32(out, second_float);
 }
 
+void append_nested_record(
+        std::vector<std::uint8_t>* out,
+        std::int32_t first_i32,
+        float first_float,
+        bool first_bool,
+        std::int32_t second_i32,
+        const std::vector<std::uint8_t>& first_string,
+        const std::vector<std::uint8_t>& second_string,
+        const std::vector<std::uint8_t>& third_string) {
+    append_i32(out, first_i32);
+    for (int i = 0; i < 12; ++i) append_f32(out, first_float + static_cast<float>(i));
+    append_u8(out, first_bool ? 1u : 0u);
+    append_i32(out, second_i32);
+    append_string_field(out, first_string, 0xd1u);
+    append_string_field(out, second_string, 0xd2u);
+    append_string_field(out, third_string, 0xd3u);
+}
+
 std::vector<std::uint8_t> fixture() {
     std::vector<std::uint8_t> bytes;
     append_i32(&bytes, 105);
@@ -69,6 +87,13 @@ std::vector<std::uint8_t> fixture() {
     append_i32(&bytes, 2);
     append_compact_record(&bytes, 21, 1.5f, 2.5f);
     append_compact_record(&bytes, 22, 3.5f, 4.5f);
+
+    append_i32(&bytes, 2);  // two outer groups
+    append_u32(&bytes, 1u);
+    append_nested_record(
+            &bytes, 31, 10.25f, false, -9,
+            {'o', 'n', 'e'}, {'t', 'w', 'o'}, {'t', 'h', 'r', 'e', 'e'});
+    append_u32(&bytes, 0u);  // second group is intentionally empty
     return bytes;
 }
 
@@ -102,7 +127,11 @@ int main() {
     assert(record.second_string_length_i32 == 0);
     assert(record.second_string.empty());
     assert(record.third_string_length_i32 == 4);
-    assert(record.third_string == "d");
+    assert(record.third_string.size() == 4u);
+    assert(record.third_string[0] == 'd');
+    assert(record.third_string[1] == '\0');
+    assert(record.third_string[2] == 'f');
+    assert(record.third_string[3] == 'g');
     assert(record.bytes_consumed == wbg::kActionFrameFixedBytes + 7u);
 
     const std::size_t compact_offset = prefix.bytes_consumed + record.bytes_consumed;
@@ -118,7 +147,32 @@ int main() {
     assert(std::fabs(compact.records[1].second_float - 4.5f) < 0.0001f);
     assert(compact.bytes_consumed ==
            wbg::kCompactBlockHeaderBytes + 2u * wbg::kCompactActionFrameBytes);
-    assert(compact_offset + compact.bytes_consumed == bytes.size());
+
+    const std::size_t nested_offset = compact_offset + compact.bytes_consumed;
+    wbg::NestedActionFrameBlock nested;
+    assert(wbg::parse_nested_action_frame_block(reader, nested_offset, &nested));
+    assert(nested.group_count_i32 == 2);
+    assert(nested.groups.size() == 2u);
+    assert(nested.groups[0].record_count == 1u);
+    assert(nested.groups[0].records.size() == 1u);
+    const auto& nested_record = nested.groups[0].records[0];
+    assert(nested_record.first_i32 == 31);
+    for (int i = 0; i < 12; ++i) {
+        assert(std::fabs(nested_record.float_values[static_cast<std::size_t>(i)] -
+                         (10.25f + static_cast<float>(i))) < 0.0001f);
+    }
+    assert(!nested_record.first_bool);
+    assert(nested_record.second_i32 == -9);
+    assert(nested_record.first_string == "one");
+    assert(nested_record.second_string == "two");
+    assert(nested_record.third_string == "three");
+    assert(nested_record.bytes_consumed == wbg::kNestedActionFrameFixedBytes + 11u);
+    assert(nested.groups[0].bytes_consumed ==
+           wbg::kNestedGroupHeaderBytes + nested_record.bytes_consumed);
+    assert(nested.groups[1].record_count == 0u);
+    assert(nested.groups[1].records.empty());
+    assert(nested.groups[1].bytes_consumed == wbg::kNestedGroupHeaderBytes);
+    assert(nested_offset + nested.bytes_consumed == bytes.size());
 
     // Prefix parsing is transactional on truncation.
     wbg::Prefix unchanged_prefix;
@@ -169,8 +223,7 @@ int main() {
     assert(negative_count.records.empty());
     assert(negative_count.bytes_consumed == wbg::kCompactBlockHeaderBytes);
 
-    // A positive count is pre-bounded against the remaining 12-byte records,
-    // and failure must not mutate the caller's prior output.
+    // A positive compact count is pre-bounded against remaining 12-byte records.
     std::vector<std::uint8_t> truncated_compact;
     append_i32(&truncated_compact, 2);
     append_compact_record(&truncated_compact, 30, 6.0f, 7.0f);
@@ -182,6 +235,33 @@ int main() {
     assert(unchanged_compact.count_i32 == 77);
     assert(unchanged_compact.records.size() == 1u);
     assert(unchanged_compact.records[0].first_i32 == 88);
+
+    // Section C uses a signed outer guard: negative counts consume only the
+    // outer count field and create no groups.
+    std::vector<std::uint8_t> negative_outer_bytes;
+    append_i32(&negative_outer_bytes, -3);
+    wbg::NestedActionFrameBlock negative_outer;
+    assert(wbg::parse_nested_action_frame_block(
+            nevergone::hp_data::Reader(negative_outer_bytes), 0, &negative_outer));
+    assert(negative_outer.group_count_i32 == -3);
+    assert(negative_outer.groups.empty());
+    assert(negative_outer.bytes_consumed == wbg::kNestedBlockHeaderBytes);
+
+    // The unsigned inner count is pre-bounded by the 72-byte minimum record
+    // size, and failure leaves the previous result unchanged.
+    std::vector<std::uint8_t> truncated_nested;
+    append_i32(&truncated_nested, 1);
+    append_u32(&truncated_nested, 2u);
+    append_nested_record(
+            &truncated_nested, 40, 1.0f, true, 41,
+            {}, {}, {});  // only one of the declared two records
+    wbg::NestedActionFrameBlock unchanged_nested;
+    unchanged_nested.group_count_i32 = 55;
+    unchanged_nested.groups.push_back({0u, {}, 4u});
+    assert(!wbg::parse_nested_action_frame_block(
+            nevergone::hp_data::Reader(truncated_nested), 0, &unchanged_nested));
+    assert(unchanged_nested.group_count_i32 == 55);
+    assert(unchanged_nested.groups.size() == 1u);
 
     return 0;
 }
