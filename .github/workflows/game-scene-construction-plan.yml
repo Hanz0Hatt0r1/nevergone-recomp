@@ -6,6 +6,7 @@ on:
     paths:
       - 'android/app/src/main/cpp/game_scene_construction_plan.cpp'
       - 'android/app/src/main/cpp/game_scene_construction_plan.h'
+      - 'android/app/src/main/cpp/game_scene_type0_resource.h'
       - 'android/app/src/main/cpp/game_levels_scene_instance.h'
       - 'android/app/src/main/cpp/game_levels_scene_prefix.h'
       - 'android/app/src/main/cpp/game_levels_layer_tail.h'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'android/app/src/main/cpp/game_scene_construction_plan.cpp'
       - 'android/app/src/main/cpp/game_scene_construction_plan.h'
+      - 'android/app/src/main/cpp/game_scene_type0_resource.h'
       - 'android/app/src/main/cpp/game_levels_scene_instance.h'
       - 'android/app/src/main/cpp/game_levels_scene_prefix.h'
       - 'android/app/src/main/cpp/game_levels_layer_tail.h'

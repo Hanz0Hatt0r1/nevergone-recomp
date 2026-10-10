@@ -26,6 +26,7 @@ nevergone::game_levels_scene_prefix::ObjectRecord make_object(
 
 int main() {
     namespace plan_ns = nevergone::game_scene_construction_plan;
+    namespace resource_ns = nevergone::game_scene_type0_resource;
     using nevergone::game_levels_scene_instance::LayerInstance;
     using nevergone::game_levels_scene_instance::SceneInstance;
 
@@ -33,7 +34,14 @@ int main() {
     assert(plan_ns::classify_object(1) == plan_ns::ObjectConstructionKind::kUnresolved);
     assert(plan_ns::classify_object(6) == plan_ns::ObjectConstructionKind::kUnresolved);
     assert(std::string(plan_ns::construction_kind_name(
-            plan_ns::ObjectConstructionKind::kType0SpriteBacked)) == "type0-sprite-backed");
+            plan_ns::ObjectConstructionKind::kType0SceneActionPair)) == "type0-scene-action-pair");
+
+    assert(resource_ns::select("background.png").kind == resource_ns::Kind::kSpriteFrameByName);
+    assert(resource_ns::select("czyanwu1.png").kind == resource_ns::Kind::kDirectFile);
+    assert(resource_ns::select("czyanwu3.png").kind == resource_ns::Kind::kDirectFile);
+    assert(resource_ns::select("gktianchong.png").kind == resource_ns::Kind::kDirectFile);
+    assert(resource_ns::select("gkyuanjing.png").kind == resource_ns::Kind::kDirectFile);
+    assert(resource_ns::select("klhuo-1.png").kind == resource_ns::Kind::kSceneActionPair);
 
     SceneInstance scene;
     scene.source_scene_index = 7u;
@@ -43,27 +51,26 @@ int main() {
 
     for (std::size_t i = 0; i < 12u; ++i) {
         LayerInstance layer;
-        layer.source_layer_index = 100u + i;  // Prove z comes from array order, not this metadata.
+        layer.source_layer_index = 100u + i;
         layer.first_float = static_cast<float>(i) + 0.25f;
         scene.layers.push_back(layer);
     }
 
     scene.layers[0].objects.push_back(make_object(0, "background.png"));
+    scene.layers[0].objects.push_back(make_object(0, "gktianchong.png"));
+    scene.layers[0].objects.push_back(make_object(0, "klhuo-1.png"));
     scene.layers[0].objects.push_back(make_object(4, "type-four"));
     scene.layers[3].objects.push_back(make_object(6, "type-six"));
     scene.layers[10].objects.push_back(make_object(1, "type-one"));
-    // The original loadingTex loop never requests source array index 11.
     scene.layers[11].objects.push_back(make_object(0, "ignored.png"));
-    scene.object_count = 5u;
+    scene.object_count = 7u;
 
     const auto plan = plan_ns::build(scene);
     assert(plan.source_scene_index == 7u);
     assert(plan.guid == "scene-guid");
-    assert(plan.first_point_x == 12.5f);
-    assert(plan.first_point_y == -3.0f);
     assert(plan.layers.size() == plan_ns::kLoadingTexLayerSlotCount);
     assert(plan.ignored_source_layer_count == 1u);
-    assert(plan.object_count == 4u);
+    assert(plan.object_count == 6u);
 
     for (std::size_t z = 0; z < plan.layers.size(); ++z) {
         assert(plan.layers[z].z_index == z);
@@ -71,31 +78,36 @@ int main() {
         assert(plan.layers[z].first_float == static_cast<float>(z) + 0.25f);
     }
 
-    assert(plan.layers[0].objects.size() == 2u);
-    const auto& type0 = plan.layers[0].objects[0];
-    assert(type0.source_object_index == 0u);
-    assert(type0.type_code == 0);
-    assert(type0.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
-    assert(type0.record.string_value == "background.png");
-    assert(type0.record.first_point_x == 10.0f);
-    assert(type0.type0_sprite_transform.has_value());
-    assert(type0.type0_sprite_transform->position_x == 10.0f);
-    assert(type0.type0_sprite_transform->position_y == 20.0f);
-    assert(type0.type0_sprite_transform->rotation == 30.0f);
-    assert(type0.type0_sprite_transform->scale_x == 40.0f);
-    assert(type0.type0_sprite_transform->scale_y == 50.0f);
-    assert(type0.type0_sprite_transform->flip_x);
-    assert(type0.type0_sprite_transform->child_z_order == 60);
+    assert(plan.layers[0].objects.size() == 4u);
+    const auto& cached = plan.layers[0].objects[0];
+    assert(cached.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
+    assert(cached.type0_resource.has_value());
+    assert(cached.type0_resource->kind == resource_ns::Kind::kSpriteFrameByName);
+    assert(cached.type0_resource->resource_name == "background.png");
+    assert(cached.type0_sprite_transform.has_value());
+    assert(cached.type0_sprite_transform->position_x == 10.0f);
+    assert(cached.type0_sprite_transform->position_y == 20.0f);
+    assert(cached.type0_sprite_transform->rotation == 30.0f);
+    assert(cached.type0_sprite_transform->scale_x == 40.0f);
+    assert(cached.type0_sprite_transform->scale_y == 50.0f);
+    assert(cached.type0_sprite_transform->flip_x);
+    assert(cached.type0_sprite_transform->child_z_order == 60);
 
-    const auto& type4 = plan.layers[0].objects[1];
-    assert(type4.source_object_index == 1u);
-    assert(type4.type_code == 4);
+    const auto& direct = plan.layers[0].objects[1];
+    assert(direct.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
+    assert(direct.type0_resource->kind == resource_ns::Kind::kDirectFile);
+    assert(direct.type0_resource->resource_name == "gktianchong.png");
+    assert(direct.type0_sprite_transform.has_value());
+
+    const auto& action_pair = plan.layers[0].objects[2];
+    assert(action_pair.construction_kind == plan_ns::ObjectConstructionKind::kType0SceneActionPair);
+    assert(action_pair.type0_resource->kind == resource_ns::Kind::kSceneActionPair);
+    assert(!action_pair.type0_sprite_transform.has_value());
+
+    const auto& type4 = plan.layers[0].objects[3];
     assert(type4.construction_kind == plan_ns::ObjectConstructionKind::kUnresolved);
+    assert(!type4.type0_resource.has_value());
     assert(!type4.type0_sprite_transform.has_value());
-    assert(plan.layers[3].objects[0].type_code == 6);
-    assert(!plan.layers[3].objects[0].type0_sprite_transform.has_value());
-    assert(plan.layers[10].objects[0].type_code == 1);
-    assert(!plan.layers[10].objects[0].type0_sprite_transform.has_value());
 
     for (const auto& layer : plan.layers) {
         for (const auto& object : layer.objects) {

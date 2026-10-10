@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "game_levels_scene_instance.h"
+#include "game_scene_type0_resource.h"
 
 namespace nevergone::game_scene_construction_plan {
 
@@ -18,14 +19,16 @@ constexpr std::size_t kLoadingTexLayerSlotCount = 11u;
 
 enum class ObjectConstructionKind {
     kUnresolved = 0,
-    // GameSceneObject::initWithData() enters the sprite construction branch
-    // when GameSceneLayerObjectData + 0x14 (the parsed leading int32) is zero.
+    // GameSceneObject::initWithData() type 0 paths that create a CCSprite.
     kType0SpriteBacked,
+    // Exact type-0 klhuo-1.png branch. It creates paired SceneActionsSystem
+    // objects and does not create the ordinary static sprite at this boundary.
+    kType0SceneActionPair,
 };
 
 // These members are named semantically only at this renderer-facing boundary.
-// In the original 1.0.9 ARMv7 GameSceneObject::initWithData() path, the
-// corresponding source fields are passed directly to CCSprite::setPosition,
+// In the original 1.0.9 ARMv7 GameSceneObject::initWithData() sprite paths,
+// the corresponding source fields are passed directly to CCSprite::setPosition,
 // setRotation, setScaleX, setScaleY and setFlipX, then the sprite is attached
 // through CCNode::addChild(sprite, z_order).
 struct Type0SpriteTransform {
@@ -42,6 +45,7 @@ struct ObjectPlan {
     std::size_t source_object_index = 0;
     std::int32_t type_code = 0;
     ObjectConstructionKind construction_kind = ObjectConstructionKind::kUnresolved;
+    std::optional<game_scene_type0_resource::Selection> type0_resource;
     std::optional<Type0SpriteTransform> type0_sprite_transform;
     // Keep the complete evidence-backed serialized record available to later
     // project-owned adapters without renaming still-unresolved fields in the
@@ -119,8 +123,13 @@ inline ScenePlan build(const game_levels_scene_instance::SceneInstance& scene) {
             object.source_object_index = object_index;
             object.type_code = source_object.first_i32;
             object.construction_kind = classify_object(object.type_code);
-            if (object.construction_kind == ObjectConstructionKind::kType0SpriteBacked) {
-                object.type0_sprite_transform = build_type0_sprite_transform(source_object);
+            if (object.type_code == 0) {
+                object.type0_resource = game_scene_type0_resource::select(source_object.string_value);
+                if (object.type0_resource->kind == game_scene_type0_resource::Kind::kSceneActionPair) {
+                    object.construction_kind = ObjectConstructionKind::kType0SceneActionPair;
+                } else {
+                    object.type0_sprite_transform = build_type0_sprite_transform(source_object);
+                }
             }
             object.record = source_object;
             layer.objects.push_back(std::move(object));
