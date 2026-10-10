@@ -131,3 +131,15 @@ jobs:
 
       - name: Run updateData entry smoke
         run: /tmp/enemy_actions_update_data_entry_smoke
+
+      - name: Compile updateData resource smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/enemy_actions_combo_consumer.cpp \
+            android/app/src/main/cpp/enemy_actions_runtime_state.cpp \
+            tools/enemy_actions_update_data_resource_smoke.cpp \
+            -o /tmp/enemy_actions_update_data_resource_smoke
+
+      - name: Run updateData resource smoke
+        run: /tmp/enemy_actions_update_data_resource_smoke
