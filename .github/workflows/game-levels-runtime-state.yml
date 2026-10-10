@@ -7,8 +7,6 @@ on:
       - 'android/app/src/main/cpp/game_levels_runtime_state.cpp'
       - 'android/app/src/main/cpp/game_levels_runtime_state.h'
       - 'android/app/src/main/cpp/game_levels_model.cpp'
-      - 'android/app/src/main/cpp/game_levels_global_section.cpp'
-      - 'android/app/src/main/cpp/game_levels_global_section.h'
       - 'android/app/src/main/cpp/game_levels_scene_instance.cpp'
       - 'android/app/src/main/cpp/game_levels_scene_instance.h'
       - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
@@ -17,7 +15,6 @@ on:
       - 'android/app/src/main/cpp/game_scene_construction_plan.h'
       - 'android/app/src/main/cpp/game_scene_type0_resource.h'
       - 'android/app/src/main/cpp/game_scene_render_queue.h'
-      - 'android/app/src/main/cpp/game_scene_sprite_frame_plist_requests.h'
       - 'tools/game_levels_runtime_state_smoke.cpp'
       - '.github/workflows/game-levels-runtime-state.yml'
   pull_request:
@@ -25,8 +22,6 @@ on:
       - 'android/app/src/main/cpp/game_levels_runtime_state.cpp'
       - 'android/app/src/main/cpp/game_levels_runtime_state.h'
       - 'android/app/src/main/cpp/game_levels_model.cpp'
-      - 'android/app/src/main/cpp/game_levels_global_section.cpp'
-      - 'android/app/src/main/cpp/game_levels_global_section.h'
       - 'android/app/src/main/cpp/game_levels_scene_instance.cpp'
       - 'android/app/src/main/cpp/game_levels_scene_instance.h'
       - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
@@ -35,7 +30,6 @@ on:
       - 'android/app/src/main/cpp/game_scene_construction_plan.h'
       - 'android/app/src/main/cpp/game_scene_type0_resource.h'
       - 'android/app/src/main/cpp/game_scene_render_queue.h'
-      - 'android/app/src/main/cpp/game_scene_sprite_frame_plist_requests.h'
       - 'tools/game_levels_runtime_state_smoke.cpp'
       - '.github/workflows/game-levels-runtime-state.yml'
 
