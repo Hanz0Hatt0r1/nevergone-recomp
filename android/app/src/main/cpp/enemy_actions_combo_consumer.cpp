@@ -27,6 +27,26 @@ std::optional<std::int32_t> combo_hit_mode_for_frame(
     return range.field_1c;
 }
 
+ComboHitTransition apply_combo_hit_transition(
+        const enemy_actions_wbg_combo_section::Block& combo_block,
+        std::size_t range_index,
+        std::int32_t current_frame_index,
+        ComboHitState state) {
+    ComboHitTransition result;
+    result.state = state;
+
+    if (state.flag_190 != 0u || state.flag_290 != 0u) return result;
+
+    const auto mode = combo_hit_mode_for_frame(
+            combo_block, range_index, current_frame_index);
+    if (!mode.has_value()) return result;
+
+    result.state.flag_191 = 1u;
+    if (*mode == 2) result.state.flag_290 = 1u;
+    result.returned_true = true;
+    return result;
+}
+
 BoundaryCursorUpdate advance_boundary_cursor(
         const std::vector<enemy_actions_wbg_combo_section::DerivedActionComboValue>& values,
         std::size_t current_index,

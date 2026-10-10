@@ -24,23 +24,24 @@ The original function at `0x2abe16` consumes the array at `EnemyActionsData+0x94
 Before testing a range it requires:
 
 - `array.count() > 1`;
-- two external `EnemyActionsSystem` byte flags (`+0x190` and `+0x290`) to be zero.
+- system byte `+0x190 == 0`;
+- system byte `+0x290 == 0`.
 
 It then selects `objectAtIndex(system+0x2a0)` and compares current frame `system+0x294` against:
 
 - `ActionComboValue+0x14` as inclusive lower bound;
 - `ActionComboValue+0x18` as inclusive upper bound.
 
-When the frame is inside the range, the original sets an internal hit flag and reads `ActionComboValue+0x1c`; equality with integer `2` sets another system flag.
+When the frame is inside the range, the original writes byte `1` to system `+0x191`, reads `ActionComboValue+0x1c`, and when that value equals integer `2` also writes byte `1` to system `+0x290`. The function returns true on this matched path and false on the gated/miss paths.
 
-The project-owned helper `combo_hit_mode_for_frame()` intentionally models only this data-dependent portion:
+The project-owned reconstruction now has two layers:
 
-- it preserves the native `array.count() > 1` gate;
-- validates the requested reconstructed range index;
-- applies the inclusive `[field_14, field_18]` range check;
-- returns `field_1c` when the frame matches.
+- `combo_hit_mode_for_frame()` preserves the data-only `array.count() > 1`, index and inclusive range checks and returns `field_1c` on a match;
+- `apply_combo_hit_transition()` wraps that lookup with the proven byte-state gates and writes using offset-named `ComboHitState {flag_190, flag_191, flag_290}`.
 
-The two external system flags and their mutations remain outside this helper until the surrounding EnemyActionsSystem state machine is reconstructed.
+The state helper intentionally keeps raw byte names. It treats any nonzero `flag_190` or `flag_290` as gating the native path, copies state unchanged on misses, writes exactly byte value `1` to `flag_191` on a match, and additionally writes `1` to `flag_290` when `field_1c == 2`. Invalid project-owned range indices are a safe no-op/false result rather than an attempt to reproduce invalid `CCArray` access.
+
+No broader meaning is assigned to these bytes yet. In particular `+0x291`, which is touched later by `waUpdate()`, is still outside this `comboHit()` contract.
 
 ## `EnemyActionsSystem::waUpdate()`
 
@@ -56,6 +57,6 @@ The exact boundary update is visible at `0x2ad622..0x2ad64e` for `+0x94` and `0x
 
 `advance_boundary_cursor()` models this data-dependent operation. It reports the resulting index, whether a real next boundary was selected, and whether the update instead hit the final-boundary clamp. Empty arrays and stale project-owned indices are left unchanged safely; this is a reconstruction safety rule, not a claim about malformed native state.
 
-This establishes the structural role of `field_18` as an end-index boundary without yet assigning gameplay names to the two streams. The surrounding timing, hit flags and action-completion state in `waUpdate()` remain outside this pure helper.
+This establishes the structural role of `field_18` as an end-index boundary without yet assigning gameplay names to the two streams. The surrounding timing, `+0x291`, action-completion state and other `waUpdate()` transitions remain outside this pure helper.
 
 No proprietary WBG data or original source code is included in this reconstruction.
