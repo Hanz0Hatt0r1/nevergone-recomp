@@ -127,11 +127,8 @@ int main() {
     assert(record.second_string_length_i32 == 0);
     assert(record.second_string.empty());
     assert(record.third_string_length_i32 == 4);
-    assert(record.third_string.size() == 4u);
-    assert(record.third_string[0] == 'd');
-    assert(record.third_string[1] == '\0');
-    assert(record.third_string[2] == 'f');
-    assert(record.third_string[3] == 'g');
+    // Reader preserves the four-byte cursor advance but exposes C-string text.
+    assert(record.third_string == "d");
     assert(record.bytes_consumed == wbg::kActionFrameFixedBytes + 7u);
 
     const std::size_t compact_offset = prefix.bytes_consumed + record.bytes_consumed;
