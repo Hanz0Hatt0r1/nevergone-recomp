@@ -33,7 +33,12 @@ def verify() -> None:
             'constructor guard preservation check missing')
     require('Arrays.equals(guardBefore, guardAfterDtor)' in probe,
             'destructor guard preservation check missing')
-    require('INPUT.equals(roundTrip)' in probe, 'CCString round-trip check missing')
+    require('cString.getByteArray(0, inputBytes.length + 1)' in probe,
+            'bounded getCString byte read missing')
+    require('roundTripBytes[inputBytes.length] != 0' in probe,
+            'NUL-terminator validation missing')
+    require('Arrays.equals(inputBytes, Arrays.copyOf(roundTripBytes, inputBytes.length))' in probe,
+            'CCString byte round-trip check missing')
     require('UnidbgPointer.pointer(emulator, rawCString.longValue())' in probe,
             'getCString pointer conversion missing')
     require('& ~1L' in probe, 'Thumb offset normalization missing')
