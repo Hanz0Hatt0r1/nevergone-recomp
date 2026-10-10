@@ -12,6 +12,7 @@
 #include "game_levels_model.h"
 #include "game_levels_scene_instance.h"
 #include "game_scene_construction_plan.h"
+#include "game_scene_render_queue.h"
 #include "hp_data_reader.h"
 
 namespace nevergone::game_levels_runtime_state {
@@ -21,11 +22,13 @@ std::mutex g_mutex;
 std::optional<game_levels_model::Model> g_model;
 std::optional<game_levels_scene_instance::SceneInstance> g_scene_instance;
 std::optional<game_scene_construction_plan::ScenePlan> g_scene_construction_plan;
+std::optional<game_scene_render_queue::Queue> g_scene_render_queue;
 Snapshot g_state;
 
 void refresh_current_scene_locked() {
     g_scene_instance.reset();
     g_scene_construction_plan.reset();
+    g_scene_render_queue.reset();
     g_state.current_port_node_index.reset();
     g_state.current_scene_index.reset();
     g_state.current_scene_guid.clear();
@@ -37,6 +40,12 @@ void refresh_current_scene_locked() {
     g_state.current_construction_layer_count = 0u;
     g_state.current_construction_object_count = 0u;
     g_state.current_construction_ignored_layer_count = 0u;
+    g_state.current_scene_render_queue_ready = false;
+    g_state.current_render_sprite_count = 0u;
+    g_state.current_render_sprite_frame_lookup_count = 0u;
+    g_state.current_render_direct_file_count = 0u;
+    g_state.current_render_scene_action_pair_count = 0u;
+    g_state.current_render_unresolved_object_count = 0u;
     if (!g_model.has_value()) return;
 
     const auto selection = game_levels_scene_navigation::resolve_current(
@@ -63,6 +72,14 @@ void refresh_current_scene_locked() {
     g_state.current_construction_layer_count = g_scene_construction_plan->layers.size();
     g_state.current_construction_object_count = g_scene_construction_plan->object_count;
     g_state.current_construction_ignored_layer_count = g_scene_construction_plan->ignored_source_layer_count;
+
+    g_scene_render_queue = game_scene_render_queue::build(*g_scene_construction_plan);
+    g_state.current_scene_render_queue_ready = true;
+    g_state.current_render_sprite_count = g_scene_render_queue->sprites.size();
+    g_state.current_render_sprite_frame_lookup_count = g_scene_render_queue->sprite_frame_lookup_count;
+    g_state.current_render_direct_file_count = g_scene_render_queue->direct_file_count;
+    g_state.current_render_scene_action_pair_count = g_scene_render_queue->scene_action_pair_count;
+    g_state.current_render_unresolved_object_count = g_scene_render_queue->unresolved_object_count;
 }
 
 void begin_attempt_locked() {
@@ -70,6 +87,7 @@ void begin_attempt_locked() {
     g_model.reset();
     g_scene_instance.reset();
     g_scene_construction_plan.reset();
+    g_scene_render_queue.reset();
     g_state = Snapshot{};
     g_state.load_attempt_count = attempts;
 }
@@ -81,6 +99,7 @@ void reset() {
     g_model.reset();
     g_scene_instance.reset();
     g_scene_construction_plan.reset();
+    g_scene_render_queue.reset();
     g_state = Snapshot{};
 }
 
@@ -166,6 +185,11 @@ std::optional<game_scene_construction_plan::ScenePlan> current_scene_constructio
     return g_scene_construction_plan;
 }
 
+std::optional<game_scene_render_queue::Queue> current_scene_render_queue() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_scene_render_queue;
+}
+
 game_levels_scene_navigation::Transition step(std::uint32_t requested_event_port_type) {
     std::lock_guard<std::mutex> lock(g_mutex);
     game_levels_scene_navigation::Transition result;
@@ -215,6 +239,14 @@ std::string status_report() {
         out << "construction layers: " << state.current_construction_layer_count << "\n";
         out << "construction objects: " << state.current_construction_object_count << "\n";
         out << "ignored source layers: " << state.current_construction_ignored_layer_count << "\n";
+    }
+    if (state.current_scene_render_queue_ready) {
+        out << "scene render queue: ready\n";
+        out << "render sprites: " << state.current_render_sprite_count << "\n";
+        out << "frame-cache sprites: " << state.current_render_sprite_frame_lookup_count << "\n";
+        out << "direct-file sprites: " << state.current_render_direct_file_count << "\n";
+        out << "deferred scene-action pairs: " << state.current_render_scene_action_pair_count << "\n";
+        out << "unresolved render objects: " << state.current_render_unresolved_object_count << "\n";
     }
     return out.str();
 }
