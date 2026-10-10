@@ -6,22 +6,31 @@
 namespace nevergone::enemy_actions_wbg_prefix {
 namespace {
 
+static_assert(kStringFramingBytes == sizeof(std::uint8_t));
+
 bool read_string_field(
         hp_data::Cursor* cursor,
         std::int32_t* out_length,
+        std::uint8_t* out_framing,
         std::string* out_string) {
-    if (cursor == nullptr || out_length == nullptr || out_string == nullptr) return false;
+    if (cursor == nullptr || out_length == nullptr || out_framing == nullptr ||
+        out_string == nullptr) {
+        return false;
+    }
 
     std::int32_t length_i32 = 0;
     if (!cursor->read_i32_le(&length_i32) || length_i32 < 0) return false;
     const auto length = static_cast<std::size_t>(length_i32);
     if (length > kMaxStringPayloadBytes) return false;
-    if (!cursor->skip(kStringSeparatorBytes)) return false;
+
+    std::uint8_t framing_u8 = 0;
+    if (!cursor->read_bytes(kStringFramingBytes, &framing_u8)) return false;
 
     std::string value;
     if (!cursor->read_fixed_string(length, &value)) return false;
 
     *out_length = length_i32;
+    *out_framing = framing_u8;
     *out_string = std::move(value);
     return true;
 }
@@ -56,9 +65,21 @@ bool read_nested_record(hp_data::Cursor* cursor, NestedActionFrameRecord* out) {
     }
     if (!cursor->read_bool8(&parsed.first_bool) ||
         !cursor->read_i32_le(&parsed.second_i32) ||
-        !read_string_field(cursor, &parsed.first_string_length_i32, &parsed.first_string) ||
-        !read_string_field(cursor, &parsed.second_string_length_i32, &parsed.second_string) ||
-        !read_string_field(cursor, &parsed.third_string_length_i32, &parsed.third_string)) {
+        !read_string_field(
+                cursor,
+                &parsed.first_string_length_i32,
+                &parsed.first_string_framing_u8,
+                &parsed.first_string) ||
+        !read_string_field(
+                cursor,
+                &parsed.second_string_length_i32,
+                &parsed.second_string_framing_u8,
+                &parsed.second_string) ||
+        !read_string_field(
+                cursor,
+                &parsed.third_string_length_i32,
+                &parsed.third_string_framing_u8,
+                &parsed.third_string)) {
         return false;
     }
 
@@ -91,9 +112,21 @@ bool read_versioned_record(hp_data::Cursor* cursor, VersionedActionFrameRecord* 
         !cursor->read_i32_le(&parsed.second_i32) ||
         !cursor->read_u32_le(&parsed.first_u32) ||
         !cursor->read_u32_le(&parsed.second_u32) ||
-        !read_string_field(cursor, &parsed.first_string_length_i32, &parsed.first_string) ||
-        !read_string_field(cursor, &parsed.second_string_length_i32, &parsed.second_string) ||
-        !read_string_field(cursor, &parsed.third_string_length_i32, &parsed.third_string)) {
+        !read_string_field(
+                cursor,
+                &parsed.first_string_length_i32,
+                &parsed.first_string_framing_u8,
+                &parsed.first_string) ||
+        !read_string_field(
+                cursor,
+                &parsed.second_string_length_i32,
+                &parsed.second_string_framing_u8,
+                &parsed.second_string) ||
+        !read_string_field(
+                cursor,
+                &parsed.third_string_length_i32,
+                &parsed.third_string_framing_u8,
+                &parsed.third_string)) {
         return false;
     }
 
@@ -148,9 +181,21 @@ bool parse_action_frame_record(
     if (!cursor.read_bool8(&parsed.first_bool) ||
         !cursor.read_i32_le(&parsed.second_i32) ||
         !cursor.read_f32_le(&parsed.trailing_float) ||
-        !read_string_field(&cursor, &parsed.first_string_length_i32, &parsed.first_string) ||
-        !read_string_field(&cursor, &parsed.second_string_length_i32, &parsed.second_string) ||
-        !read_string_field(&cursor, &parsed.third_string_length_i32, &parsed.third_string)) {
+        !read_string_field(
+                &cursor,
+                &parsed.first_string_length_i32,
+                &parsed.first_string_framing_u8,
+                &parsed.first_string) ||
+        !read_string_field(
+                &cursor,
+                &parsed.second_string_length_i32,
+                &parsed.second_string_framing_u8,
+                &parsed.second_string) ||
+        !read_string_field(
+                &cursor,
+                &parsed.third_string_length_i32,
+                &parsed.third_string_framing_u8,
+                &parsed.third_string)) {
         return false;
     }
 
