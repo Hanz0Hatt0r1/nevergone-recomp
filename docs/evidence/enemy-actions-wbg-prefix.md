@@ -96,11 +96,40 @@ A Section D record consumes `80 + len1 + len2 + len3` bytes:
 
 The first payload begins at relative offset `70`, again proving `[int32 length][one skipped byte][payload]`. The first char copy is at `0x28fe64`; the second signed length/copy pair is at `0x28fe88` / `0x28feac`; the third is at `0x28fed2` / `0x28fee8`.
 
-`ActionFrameData::createAFD()` runs at `0x28fef4`. The reconstructed parser preserves serialized scalar order and does not assign gameplay names to the two unsigned fields or other unresolved values. Native destination offsets are used only as evidence that the record is consumed before insertion, not as semantic labels.
+`ActionFrameData::createAFD()` runs at `0x28fef4`. All 6 or 20 group-count fields are mandatory because the outer group count is derived from the header. Signed nonpositive per-group counts consume no records. The clean-room parser reserves bytes for all remaining group headers before accepting a positive record count and bounds that count by the 80-byte minimum record size.
 
-### Section D safety contract
+## Section E: fixed tail
 
-All 6 or 20 group-count fields are mandatory because the outer group count is derived from the header rather than serialized here. Signed nonpositive per-group counts consume no records. Before reserving records for a positive count, the clean-room parser reserves enough bytes for every remaining mandatory four-byte group header, then bounds the count against the remaining 80-byte minimum record size. The shared `0xff` string cap and transactional output rules remain in force.
+After the version-gated groups, the original enters one more signed counted ActionFrameData block:
+
+- `0x290018`: read signed `int32` count;
+- `0x29002a..0x29002e`: signed `BGE` loop guard;
+- each positive iteration consumes exactly `0x35` (53) bytes;
+- `ActionFrameData::createAFD()` runs at `0x29018c`;
+- the resulting object is appended to `EnemyActionsData + 0x84` at `0x29021c..0x290222`.
+
+The fixed 53-byte record is:
+
+| Relative offset | Native call site | Type |
+| ---: | ---: | --- |
+| `0` | `0x29006c` | `int32` |
+| `4` | `0x290080` | `float` |
+| `8` | `0x29009c` | `float` |
+| `12` | `0x2900b4` | `float` |
+| `16` | `0x2900c8` | `float` |
+| `20` | `0x2900dc` | `float` |
+| `24` | `0x2900f4` | `float` |
+| `28` | `0x290108` | `float` |
+| `32` | `0x290120` | `float` |
+| `36` | `0x290134` | `float` |
+| `40` | `0x290148` | `float` |
+| `44` | `0x29015c` | `float` |
+| `48` | `0x290170` | `float` |
+| `52` | `0x290188` | `bool` |
+
+The stream cursor advances by exactly `0x35` at `0x290182`. No serialized strings occur in this block. The original stores the loop index at `ActionFrameData + 0x70`, writes the serialized scalar values into the same broad ActionFrameData scalar region used by earlier sections, creates one fixed native string that is not sourced from the WBG payload, and sets an additional flag before insertion. Those downstream object fields are outside this stream parser; the reconstruction therefore keeps the serialized fields structurally named.
+
+Zero and negative counts consume only the four-byte count. Positive counts are pre-bounded against `remaining / 0x35` before vector allocation. Parse failure is transactional.
 
 ## Reconstructed implementation
 
@@ -111,10 +140,11 @@ All 6 or 20 group-count fields are mandatory because the outer group count is de
 - Section B fixed compact records;
 - Section C signed-outer/unsigned-inner nested groups;
 - Section D 6/20 version-gated groups and their complete variable-length records;
-- one-byte string separators, signed-length rejection, and the evidence-derived `0xff` payload cap;
+- Section E signed counted fixed 53-byte records;
+- one-byte string separators, signed-length rejection, and the evidence-derived `0xff` payload cap for string-bearing sections;
 - exact signed nonpositive-count behavior and pre-bounded positive allocations;
 - transactional outputs for truncation or malformed lengths.
 
 The implementation uses the project-owned bounds-checked `hp_data::Reader` / `Cursor`; it does not call the original library and does not require `CCFileUtils`, `AppParameters`, or Cocos object construction.
 
-The next bounded format step is Section E: a signed count at `0x290018`, followed by fixed `0x35`-byte records (`int32 + 12 float32 + bool8`) appended to `EnemyActionsData + 0x84` at `0x290222`. The topology contract already records that boundary; semantic field names remain unresolved.
+The next bounded stream step begins around `0x290234` and runs exactly `EnemyActionsData + 0xc4` times. Each iteration consumes 24 bytes (`4 × int32 + 2 × float`) before constructing `ActionComboValue` objects and updating two EnemyActionsData floats. The record shape is known, but its clean-room field names should remain structural until the array-selection behavior is represented without inventing gameplay semantics.
