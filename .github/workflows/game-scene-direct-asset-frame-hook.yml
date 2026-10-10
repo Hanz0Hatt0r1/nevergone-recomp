@@ -1,0 +1,42 @@
+name: GameScene direct asset frame hook
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_direct_asset_frame_gate.h'
+      - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
+      - 'tools/game_scene_direct_asset_frame_gate_smoke.cpp'
+      - '.github/workflows/game-scene-direct-asset-frame-hook.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_direct_asset_frame_gate.h'
+      - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
+      - 'tools/game_scene_direct_asset_frame_gate_smoke.cpp'
+      - '.github/workflows/game-scene-direct-asset-frame-hook.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build and run frame-gate smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_scene_direct_asset_frame_gate_smoke.cpp \
+            -o /tmp/game_scene_direct_asset_frame_gate_smoke
+          /tmp/game_scene_direct_asset_frame_gate_smoke
+      - name: Validate registered JNI frame hook translation unit
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+            -I android/app/src/main/cpp \
+            -I "$JAVA_HOME/include" \
+            -I "$JAVA_HOME/include/linux" \
+            android/app/src/main/cpp/post_scene_overlay_jni.cpp
