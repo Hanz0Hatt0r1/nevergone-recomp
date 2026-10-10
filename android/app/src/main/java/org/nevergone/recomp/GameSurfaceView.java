@@ -40,6 +40,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static native void nativeOnDrawFrame();
     private static native void nativeOnTouch(int action, int pointerId, float x, float y);
     private static native void nativeOnGameSceneDirectTexturesSurfaceCreated();
+    private static native void nativeClearGameSceneDirectTextures();
     private static native boolean nativeSyncGameSceneDirectTextures();
 
     private static native boolean nativeUploadSplashTexture(int width, int height, int[] argbPixels);
@@ -224,6 +225,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             lastSingleSelectHeroActive = false;
             chooseHeroBackgroundAssetsLoaded = false;
             nativeClearChooseHeroBackgroundAssets();
+            nativeClearGameSceneDirectTextures();
             GameSceneDirectAssetStager.invalidate();
             mainHandler.post(() -> {
                 startupLogoAudio.resetSequence();
