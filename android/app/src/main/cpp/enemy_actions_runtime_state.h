@@ -100,6 +100,15 @@ struct UpdateDataResourceResult {
     bool should_record_enemy_object_res = false;
 };
 
+struct UpdateDataFrameLookupResult {
+    State state;
+    UpdateDataEntryResult entry;
+    bool selected_frame_available = false;
+    std::string frame_name_68;
+    std::int32_t frame_name_length_6c = 0;
+    bool should_lookup_sprite_frame = false;
+};
+
 ComboHitResult apply_combo_hit(
         const enemy_actions_wbg_combo_section::Block& combo_block,
         State state);
@@ -129,12 +138,16 @@ UpdateDataEntryResult apply_update_data_entry(
         const enemy_actions_wbg_document::Document& document,
         State state);
 
-// Reconstructs the resource-selection slice immediately after updateData's
-// selected primary frame is obtained. The parsed ActionFrameRecord::first_string
-// is the native ActionFrameData+0x60 CCString. Offset +0x250 selects the proven
-// enemy/npc/pet path format and +0x268 supplies the decimal id. This helper only
-// reports addSpriteFrames/recordEnemyObjectRes requests; it performs no engine IO.
 UpdateDataResourceResult apply_update_data_resource_selection(
+        const enemy_actions_wbg_document::Document& document,
+        State state);
+
+// Reconstructs the sprite-frame-cache request made for the selected primary
+// ActionFrameData. Native Section-A construction stores the third serialized
+// string at AFD+0x68 and its signed serialized length at +0x6c. updateData then
+// passes +0x68 directly to CCSpriteFrameCache::spriteFrameByName(). This helper
+// reports the request only and performs no cocos2d cache access.
+UpdateDataFrameLookupResult apply_update_data_frame_lookup(
         const enemy_actions_wbg_document::Document& document,
         State state);
 

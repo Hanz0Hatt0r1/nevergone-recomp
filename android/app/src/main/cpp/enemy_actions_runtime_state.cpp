@@ -300,4 +300,20 @@ UpdateDataResourceResult apply_update_data_resource_selection(
     return result;
 }
 
+UpdateDataFrameLookupResult apply_update_data_frame_lookup(
+        const enemy_actions_wbg_document::Document& document,
+        State state) {
+    UpdateDataFrameLookupResult result;
+    result.state = state;
+    result.entry = apply_update_data_entry(document, state);
+    if (!result.entry.would_enter_frame_update) return result;
+
+    const auto& frame = document.primary_records[result.entry.selected_primary_index];
+    result.selected_frame_available = true;
+    result.frame_name_68 = frame.third_string;
+    result.frame_name_length_6c = frame.third_string_length_i32;
+    result.should_lookup_sprite_frame = true;
+    return result;
+}
+
 }  // namespace nevergone::enemy_actions_runtime_state
