@@ -15,7 +15,6 @@ struct Callsite {
     bool virtual_dispatch = false;
 };
 
-// Calls performed before loadWBGFile knows whether HPData could open the file.
 extern const std::array<Callsite, 7> kPreHpDataCallsites;
 
 constexpr std::size_t kItaniumVtableAddressPointBytes = 8u;
@@ -38,10 +37,6 @@ constexpr std::size_t kFileUtilsAndroidInitVtableEntryValue = 0x534ca9u;
 constexpr std::size_t kGetApkPathInstructionOffset = 0x535c88u;
 constexpr std::size_t kZipFileConstructorInstructionOffset = 0x5410e4u;
 
-// CCFileUtilsAndroid is the concrete singleton created by sharedFileUtils(). Its
-// vtable address point is the ABI vtable symbol + 8 bytes. loadWBGFile reads the
-// +0x18 virtual slot from that address point. The entry is the inherited
-// CCFileUtils::fullPathForFilename(char const*) Thumb symbol.
 constexpr std::size_t kFullPathForFilenameVirtualSlotOffset = 0x18u;
 constexpr std::size_t kFullPathForFilenameInstructionOffset = 0x532da4u;
 constexpr std::size_t kFullPathForFilenameVtableEntryValue = 0x532da5u;
@@ -50,21 +45,28 @@ constexpr std::size_t kCcStringGetCStringInstructionOffset = 0x519e8eu;
 constexpr std::size_t kCcStringCreateFromStdStringInstructionOffset = 0x519f8au;
 constexpr std::size_t kHpDataCreateWithContentsOfFileInstructionOffset = 0x2c652cu;
 
-// The null return from HPData::createWithContentsOfFile is checked immediately.
-// The taken branch reaches only stack-canary validation and the epilogue, so no
-// typed HPData getBytes call is made on this path.
 constexpr std::size_t kHpDataNullCompareInstructionOffset = 0x28f484u;
 constexpr std::size_t kHpDataNullBranchInstructionOffset = 0x28f486u;
 constexpr std::size_t kHpDataNullExitInstructionOffset = 0x290422u;
 constexpr std::size_t kFunctionReturnInstructionOffset = 0x290438u;
 
-// First typed HPData reads on the non-null path, retained to make the boundary
-// explicit. The target object offsets are separately covered by layout evidence.
 extern const std::array<Callsite, 4> kFirstNonNullHpDataCallsites;
 
 bool pre_hpdata_sequence_is_consistent();
 bool singleton_bootstrap_is_environment_dependent();
-bool virtual_dispatch_slots_are_consistent();
 bool hpdata_null_path_skips_typed_reads();
+
+inline bool virtual_dispatch_slots_are_consistent() {
+    const std::size_t app_address_point =
+            kAppParametersVtableSymbolValue + kItaniumVtableAddressPointBytes;
+    const std::size_t file_utils_address_point =
+            kFileUtilsAndroidVtableSymbolValue + kItaniumVtableAddressPointBytes;
+    return app_address_point + kAppParametersInitVirtualSlotOffset == 0x8e3f8cu &&
+            kAppParametersInitVtableEntryValue == kAppParametersInitInstructionOffset + 1u &&
+            file_utils_address_point + kFileUtilsAndroidInitVirtualSlotOffset == 0x926118u &&
+            kFileUtilsAndroidInitVtableEntryValue == kFileUtilsAndroidInitInstructionOffset + 1u &&
+            file_utils_address_point + kFullPathForFilenameVirtualSlotOffset == 0x9260b8u &&
+            kFullPathForFilenameVtableEntryValue == kFullPathForFilenameInstructionOffset + 1u;
+}
 
 }  // namespace nevergone::enemy_actions_load_wbg_evidence
