@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "game_levels_enter_transition.h"
+#include "game_levels_runtime_state.h"
 
 namespace {
 std::string make_temp_dir() {
@@ -45,12 +46,12 @@ std::vector<std::uint8_t> verified_actions_section_fixture() {
 }
 std::vector<std::uint8_t> verified_global_section_fixture() {
     auto out = verified_actions_section_fixture();
-    append_u32(out, 0u);   // string_count
-    append_u32(out, 11u);  // standalone u32
-    append_u32(out, 12u);  // standalone u32
-    append_u32(out, 0u);   // int/int/float record count
-    append_u32(out, 0u);   // uint-pair record count
-    append_u32(out, 0u);   // enemy count
+    append_u32(out, 0u);
+    append_u32(out, 11u);
+    append_u32(out, 12u);
+    append_u32(out, 0u);
+    append_u32(out, 0u);
+    append_u32(out, 0u);
     assert(out.size() == 92u);
     return out;
 }
@@ -70,6 +71,7 @@ void write_fixture(const std::filesystem::path& path) {
 
 int main() {
     namespace transition = nevergone::game_levels_enter_transition;
+    namespace runtime = nevergone::game_levels_runtime_state;
     using Boundary = transition::Boundary;
     using Probe = nevergone::game_levels_asset_probe::Snapshot;
 
@@ -119,7 +121,6 @@ int main() {
     state = transition::snapshot();
     assert(state.boundary == Boundary::kPortNodeSectionVerified);
     assert(state.verified_bytes == 96u);
-    assert(transition::status_report().find("port-node-section-verified") != std::string::npos);
 
     transition::reset();
     const std::filesystem::path root(make_temp_dir());
@@ -128,8 +129,16 @@ int main() {
     write_fixture(scene);
     transition::on_enter_game(root.string());
     state = transition::snapshot();
-    assert(state.boundary == Boundary::kPortNodeSectionVerified);
+    assert(state.boundary == Boundary::kRuntimeModelReady);
     assert(state.verified_bytes == 96u);
+    const auto retained = runtime::snapshot();
+    assert(retained.status == runtime::LoadStatus::kReady);
+    assert(retained.model_end_offset == 96u);
+    assert(transition::status_report().find("runtime-model-ready") != std::string::npos);
+    assert(transition::status_report().find("GameLevels runtime model") != std::string::npos);
+
+    transition::reset();
+    assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
     std::filesystem::remove_all(root);
     return 0;
 }

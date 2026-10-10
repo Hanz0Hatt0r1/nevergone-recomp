@@ -3,6 +3,8 @@
 #include <mutex>
 #include <sstream>
 
+#include "game_levels_runtime_state.h"
+
 namespace nevergone::game_levels_enter_transition {
 namespace {
 std::mutex g_mutex;
@@ -21,12 +23,27 @@ Boundary classify(const game_levels_asset_probe::Snapshot& probe) {
 }  // namespace
 
 void reset() {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    g_state = Snapshot{};
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_state = Snapshot{};
+    }
+    game_levels_runtime_state::reset();
 }
 
 void on_enter_game(const std::string& files_dir) {
-    on_enter_game_with_probe(game_levels_asset_probe::probe_pvp_scene(files_dir));
+    const auto probe = game_levels_asset_probe::probe_pvp_scene(files_dir);
+    on_enter_game_with_probe(probe);
+
+    if (!probe.port_node_section_readable) {
+        game_levels_runtime_state::reset();
+        return;
+    }
+
+    if (!game_levels_runtime_state::load_pvp_scene(files_dir)) return;
+    const auto runtime = game_levels_runtime_state::snapshot();
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state.boundary = Boundary::kRuntimeModelReady;
+    if (runtime.model_end_offset != 0u) g_state.verified_bytes = runtime.model_end_offset;
 }
 
 void on_enter_game_with_probe(const game_levels_asset_probe::Snapshot& probe) {
@@ -65,6 +82,7 @@ const char* boundary_name(Boundary boundary) {
         case Boundary::kActionsSectionVerified: return "actions-section-verified";
         case Boundary::kGlobalSectionVerified: return "global-section-verified";
         case Boundary::kPortNodeSectionVerified: return "port-node-section-verified";
+        case Boundary::kRuntimeModelReady: return "runtime-model-ready";
     }
     return "unknown";
 }
@@ -78,6 +96,10 @@ std::string status_report() {
     out << "probe attempts: " << state.probe_attempt_count << "\n";
     if (state.reader_size != 0) out << "scene bytes loaded: " << state.reader_size << "\n";
     if (state.verified_bytes != 0) out << "verified GameLevels stream bytes: " << state.verified_bytes << "\n";
+    const auto runtime = game_levels_runtime_state::snapshot();
+    if (runtime.status != game_levels_runtime_state::LoadStatus::kIdle) {
+        out << game_levels_runtime_state::status_report();
+    }
     return out.str();
 }
 
