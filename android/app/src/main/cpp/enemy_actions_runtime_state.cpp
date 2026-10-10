@@ -2,6 +2,8 @@
 
 #include <cmath>
 #include <cstring>
+#include <iomanip>
+#include <sstream>
 
 namespace nevergone::enemy_actions_runtime_state {
 namespace {
@@ -13,6 +15,16 @@ std::int32_t arm32_increment(std::int32_t value) {
     std::int32_t result = 0;
     std::memcpy(&result, &bits, sizeof(result));
     return result;
+}
+
+std::string format_resource_path(
+        const char* prefix,
+        std::int32_t id,
+        const std::string& resource_name) {
+    std::ostringstream stream;
+    stream << prefix << std::setfill('0') << std::setw(2) << id
+           << "/res/" << resource_name;
+    return stream.str();
 }
 
 }  // namespace
@@ -236,6 +248,55 @@ UpdateDataEntryResult apply_update_data_entry(
     result.current_frame_in_range = true;
     result.would_enter_frame_update = true;
     result.selected_primary_index = frame_index;
+    return result;
+}
+
+UpdateDataResourceResult apply_update_data_resource_selection(
+        const enemy_actions_wbg_document::Document& document,
+        State state) {
+    UpdateDataResourceResult result;
+    result.state = state;
+    result.entry = apply_update_data_entry(document, state);
+    if (!result.entry.would_enter_frame_update) return result;
+
+    const auto& frame = document.primary_records[result.entry.selected_primary_index];
+    result.selected_frame_available = true;
+    result.frame_resource_60 = frame.first_string;
+
+    const char* prefix = nullptr;
+    switch (state.field_250) {
+        case 0:
+            prefix = "enemy";
+            break;
+        case 1:
+            prefix = "npc";
+            break;
+        case 2:
+            prefix = "pet";
+            break;
+        default:
+            break;
+    }
+
+    if (prefix != nullptr) {
+        result.formatted_path_available = true;
+        result.formatted_path =
+                format_resource_path(prefix, state.field_268, result.frame_resource_60);
+    }
+
+    if (result.frame_resource_60 == "looping") {
+        result.should_add_sprite_frames = true;
+        result.sprite_frames_file = result.frame_resource_60;
+        return result;
+    }
+
+    if ((state.field_250 == 1 || state.field_250 == 2) &&
+        result.formatted_path_available) {
+        result.should_add_sprite_frames = true;
+        result.sprite_frames_file = result.formatted_path;
+        result.should_record_enemy_object_res = true;
+    }
+
     return result;
 }
 
