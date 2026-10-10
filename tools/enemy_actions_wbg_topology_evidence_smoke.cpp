@@ -31,6 +31,9 @@ int main() {
     assert(evidence::versioned_group_count(0x68) == 6u);
     assert(evidence::versioned_group_count(0x69) == 20u);
 
+    static_assert(evidence::kVariableSegmentFramingBytes == 5u);
+    static_assert(evidence::kVariableSegmentCount == 3u);
+
     static_assert(evidence::kPrimaryCountObjectOffset == 0x0c4u);
     static_assert(evidence::kPrimaryArrayObjectOffset == 0x088u);
     static_assert(evidence::kPrimaryAddObjectInstructionOffset == 0x28f820u);
@@ -40,18 +43,13 @@ int main() {
     static_assert(evidence::kPrimaryPostIntFloatSerializedOffset == 0x39u);
     static_assert(evidence::kPrimaryFirstVariableLengthOffset == 0x3du);
     static_assert(evidence::kPrimaryFirstVariablePayloadOffset == 0x42u);
-    static_assert(evidence::kVariableSegmentFramingBytes == 5u);
-    static_assert(evidence::kPrimaryVariableSegmentCount == 3u);
     static_assert(evidence::kPrimaryRecordFixedBytesExcludingPayload == 0x4cu);
 
     std::size_t record_bytes = 0;
-    assert(evidence::primary_record_bytes(0, 0, 0, &record_bytes));
-    assert(record_bytes == 0x4cu);
     assert(evidence::primary_record_bytes(3, 5, 7, &record_bytes));
     assert(record_bytes == 0x5bu);
     assert(!evidence::primary_record_bytes(
             std::numeric_limits<std::size_t>::max(), 0, 0, &record_bytes));
-    assert(!evidence::primary_record_bytes(0, 0, 0, nullptr));
 
     static_assert(evidence::kSecondaryCountReadInstructionOffset == 0x28f842u);
     static_assert(evidence::kSecondaryRecordBytes == 0x0cu);
@@ -62,12 +60,42 @@ int main() {
     static_assert(evidence::kDynamicInnerCountReadInstructionOffset == 0x28f904u);
     static_assert(evidence::kDynamicArrayBaseObjectOffset == 0x014u);
     static_assert(evidence::kDynamicAddObjectInstructionOffset == 0x28fc3eu);
+    static_assert(evidence::kDynamicRecordFloatCount == 12u);
+    static_assert(evidence::kDynamicRecordBoolSerializedOffset == 0x34u);
+    static_assert(evidence::kDynamicRecordSecondIntSerializedOffset == 0x35u);
+    static_assert(evidence::kDynamicRecordFirstVariableLengthOffset == 0x39u);
+    static_assert(evidence::kDynamicRecordFirstVariablePayloadOffset == 0x3eu);
+    static_assert(evidence::kDynamicRecordFixedBytesExcludingPayload == 0x48u);
+    assert((evidence::kDynamicVariableLengthReadInstructionOffsets ==
+            std::array<std::size_t, 3>{{0x28fab0u, 0x28faeeu, 0x28fb38u}}));
+    assert((evidence::kDynamicVariablePayloadReadInstructionOffsets ==
+            std::array<std::size_t, 3>{{0x28facau, 0x28fb12u, 0x28fb4eu}}));
+    assert(evidence::dynamic_record_bytes(3, 5, 7, &record_bytes));
+    assert(record_bytes == 0x57u);
+    assert(!evidence::dynamic_record_bytes(
+            std::numeric_limits<std::size_t>::max(), 0, 0, &record_bytes));
     assert(evidence::dynamic_array_object_offset(0u) == 0x14u);
     assert(evidence::dynamic_array_object_offset(7u) == 0x30u);
 
     static_assert(evidence::kVersionedGroupCountReadInstructionOffset == 0x28fc7cu);
     static_assert(evidence::kVersionedArrayBaseObjectOffset == 0x034u);
     static_assert(evidence::kVersionedAddObjectInstructionOffset == 0x28ffe8u);
+    static_assert(evidence::kVersionedRecordFloatCount == 12u);
+    static_assert(evidence::kVersionedRecordBoolSerializedOffset == 0x34u);
+    static_assert(evidence::kVersionedRecordSecondIntSerializedOffset == 0x35u);
+    static_assert(evidence::kVersionedRecordFirstUIntSerializedOffset == 0x39u);
+    static_assert(evidence::kVersionedRecordSecondUIntSerializedOffset == 0x3du);
+    static_assert(evidence::kVersionedRecordFirstVariableLengthOffset == 0x41u);
+    static_assert(evidence::kVersionedRecordFirstVariablePayloadOffset == 0x46u);
+    static_assert(evidence::kVersionedRecordFixedBytesExcludingPayload == 0x50u);
+    assert((evidence::kVersionedVariableLengthReadInstructionOffsets ==
+            std::array<std::size_t, 3>{{0x28fe46u, 0x28fe88u, 0x28fed2u}}));
+    assert((evidence::kVersionedVariablePayloadReadInstructionOffsets ==
+            std::array<std::size_t, 3>{{0x28fe64u, 0x28feacu, 0x28fee8u}}));
+    assert(evidence::versioned_record_bytes(3, 5, 7, &record_bytes));
+    assert(record_bytes == 0x5fu);
+    assert(!evidence::versioned_record_bytes(
+            std::numeric_limits<std::size_t>::max(), 0, 0, &record_bytes));
     assert(evidence::versioned_array_object_offset(0u) == 0x34u);
     assert(evidence::versioned_array_object_offset(5u) == 0x48u);
     assert(evidence::versioned_array_object_offset(19u) == 0x80u);
@@ -101,5 +129,8 @@ int main() {
     static_assert(evidence::kFinalActionFrameDestinationOffset == 0x05cu);
     static_assert(evidence::kFinalStoreInstructionOffset == 0x29041au);
 
+    assert(!evidence::primary_record_bytes(0, 0, 0, nullptr));
+    assert(!evidence::dynamic_record_bytes(0, 0, 0, nullptr));
+    assert(!evidence::versioned_record_bytes(0, 0, 0, nullptr));
     return 0;
 }
