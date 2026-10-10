@@ -75,4 +75,23 @@ That means hardcoding a guessed filename would not be clean-room evidence. The p
 - extract the `gsresfile04` array in original order;
 - reject traversal resource names, oversized inputs, excessive entry counts, and ambiguous multiple matching scene-list files.
 
-This resolves the imported atlas preload list without assigning an unproven filename or redistributing any game resources. The next renderer milestone can consume that ordered list to locate imported TexturePacker plists and satisfy `spriteFrameByName` commands.
+This resolves the imported atlas preload list without assigning an unproven filename or redistributing any game resources.
+
+## Sprite-frame atlas texture resolution
+
+`cocos2d::CCSpriteFrameCache::addSpriteFramesWithFile(char const*)` starts at aligned Thumb address `0x0053bccc`. After `CCFileUtils` resolves and loads the plist dictionary, the original reads the top-level `metadata` dictionary and asks it directly for the key `textureFileName`.
+
+When direct `metadata.textureFileName` is non-empty, the function resolves that texture name against the resolved plist path through `CCFileUtils` before passing the resulting image path to `CCTextureCache::addImage()`. When the direct metadata key is absent or empty, it derives the image name by replacing the plist extension with `.png` and loads that sibling image instead.
+
+This direct lookup is significant for TexturePacker variants that also contain a nested `metadata/target/textureFileName`: the recovered loader does not consult that nested target value at this boundary. If the direct key is absent, the sibling `.png` fallback remains the original behavior.
+
+`GameSceneAtlasResolver` reproduces only those proven rules for user-imported assets:
+
+- resolve each ordered `gsresfile04` plist beneath the recovered GameScene search roots;
+- require a unique existing plist match rather than inventing precedence when multiple imported files match one resource name;
+- honor direct `metadata.textureFileName` relative to the plist directory;
+- otherwise use the same plist basename with a `.png` extension;
+- require the resulting texture file to remain under the imported asset root and to exist;
+- reject traversal and malformed resource paths.
+
+With this boundary, the next staging step can combine the live `spriteFrameByName` request snapshot with the ordered atlas list, locate the requested frame metadata, decode only user-owned atlas pixels, and retain the frame's TexturePacker source-size/offset information for rendering.
