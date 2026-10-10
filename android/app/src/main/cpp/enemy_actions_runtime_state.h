@@ -21,6 +21,7 @@ struct State {
     std::uint8_t flag_290 = 0;
     std::uint8_t flag_291 = 0;
     std::uint8_t flag_292 = 0;
+    std::int32_t previous_frame_154 = 0;
     std::int32_t field_18c = 0;
     float field_158 = 0.0f;
     float field_15c = 0.0f;
@@ -53,6 +54,17 @@ struct WaUpdateAfterFrameResult {
     bool reset_applied = false;
 };
 
+struct WaUpdateFrameStepResult {
+    State state;
+    enemy_actions_combo_consumer::BoundaryCursorUpdate boundary_94;
+    enemy_actions_combo_consumer::BoundaryCursorUpdate boundary_98;
+    bool had_valid_boundary_94 = false;
+    bool used_no_boundary_94_fallback = false;
+    bool reset_applied = false;
+    bool previous_frame_changed = false;
+    bool should_call_update_data = false;
+};
+
 // Uses State+0x2a0 and State+0x294 as the recovered native selection/frame
 // inputs, then applies the already-proven comboHit byte transition.
 ComboHitResult apply_combo_hit(
@@ -62,17 +74,6 @@ ComboHitResult apply_combo_hit(
 // Reconstructs the proven waUpdate() timing gate before the current frame is
 // incremented. Section G's reciprocal_value is the exact reconstructed value
 // stored at ActionFrameData+0x5c for each primary frame.
-//
-// Native sequence:
-//   - nonzero +0x1bc exits immediately;
-//   - nonzero +0x168 clears +0x168 and zeroes +0x160;
-//   - otherwise +0x160 += delta_seconds * 1000.0f;
-//   - +0x158 = ActionFrameData+0x5c + +0x15c;
-//   - if +0x160 is below +0x158, exit;
-//   - if +0x169 == 0, exit;
-//   - otherwise +0x160 -= +0x158 and frame processing may continue.
-// Invalid project-owned frame indices are a safe no-op after the accumulator
-// update/reset step rather than reproducing invalid CCArray access.
 WaUpdateTimingResult apply_wa_update_timing(
         const enemy_actions_wbg_final_table::Table& final_table,
         float delta_seconds,
@@ -83,6 +84,17 @@ WaUpdateTimingResult apply_wa_update_timing(
 // the frame, consume AFD+0x5c timing, call updateData(), or model animation.
 WaUpdateAfterFrameResult apply_wa_update_after_frame_advance(
         const enemy_actions_wbg_combo_section::Block& combo_block,
+        State state);
+
+// Reconstructs one native frame-processing iteration after the timing gate has
+// allowed processing. It performs the exact ARM32 +0x294 increment, both
+// boundary streams, the no-+0x94 fallback based on EnemyActionsData+0x88 count,
+// and the +0x154/updateData bookkeeping decision. action_frame_count is the
+// already-parsed primary ActionFrameData count (bounded to <=100 by the current
+// document reconstruction).
+WaUpdateFrameStepResult apply_wa_update_frame_step(
+        const enemy_actions_wbg_combo_section::Block& combo_block,
+        std::uint32_t action_frame_count,
         State state);
 
 }  // namespace nevergone::enemy_actions_runtime_state

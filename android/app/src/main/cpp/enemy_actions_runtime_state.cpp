@@ -1,8 +1,21 @@
 #include "enemy_actions_runtime_state.h"
 
 #include <cmath>
+#include <cstring>
 
 namespace nevergone::enemy_actions_runtime_state {
+namespace {
+
+std::int32_t arm32_increment(std::int32_t value) {
+    std::uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    bits += 1u;
+    std::int32_t result = 0;
+    std::memcpy(&result, &bits, sizeof(result));
+    return result;
+}
+
+}  // namespace
 
 ComboHitResult apply_combo_hit(
         const enemy_actions_wbg_combo_section::Block& combo_block,
@@ -35,8 +48,6 @@ WaUpdateTimingResult apply_wa_update_timing(
     WaUpdateTimingResult result;
     result.state = state;
 
-    // Native waUpdate() exits before touching the timing state when +0x1bc is
-    // already nonzero.
     if (state.flag_1bc != 0u) {
         result.blocked_by_flag_1bc = true;
         return result;
@@ -57,8 +68,6 @@ WaUpdateTimingResult apply_wa_update_timing(
     result.action_frame_5c = final_table.entries[frame_index].reciprocal_value;
     result.state.field_158 = result.action_frame_5c + state.field_15c;
 
-    // ARM VCMPE followed by BLT also branches for unordered/NaN inputs. Mirror
-    // that behavior explicitly instead of relying on C++ NaN comparison rules.
     if (std::isnan(result.state.field_160) || std::isnan(result.state.field_158) ||
         result.state.field_160 < result.state.field_158) {
         return result;
@@ -78,9 +87,6 @@ WaUpdateAfterFrameResult apply_wa_update_after_frame_advance(
     WaUpdateAfterFrameResult result;
     result.state = state;
 
-    // Native later reuses the +0x94 object's pre-transition +0x18 endpoint.
-    // Capture it before either cursor is advanced. Invalid reconstructed state
-    // safely skips only the late completion transition.
     if (state.boundary_index_2a0 < combo_block.array_94_values.size()) {
         result.had_valid_boundary_94 = true;
         result.boundary_94_endpoint_18 =
@@ -132,6 +138,59 @@ WaUpdateAfterFrameResult apply_wa_update_after_frame_advance(
     result.state.flag_292 = completion.state.flag_292;
     result.state.current_frame_294 = completion.state.current_frame_294;
     result.reset_applied = completion.reset_applied;
+    return result;
+}
+
+WaUpdateFrameStepResult apply_wa_update_frame_step(
+        const enemy_actions_wbg_combo_section::Block& combo_block,
+        std::uint32_t action_frame_count,
+        State state) {
+    WaUpdateFrameStepResult result;
+    result.state = state;
+    result.state.current_frame_294 = arm32_increment(state.current_frame_294);
+
+    const bool valid_boundary_94 =
+            state.boundary_index_2a0 < combo_block.array_94_values.size();
+
+    if (valid_boundary_94) {
+        const auto after = apply_wa_update_after_frame_advance(combo_block, result.state);
+        result.state = after.state;
+        result.boundary_94 = after.boundary_94;
+        result.boundary_98 = after.boundary_98;
+        result.had_valid_boundary_94 = after.had_valid_boundary_94;
+        result.reset_applied = after.reset_applied;
+    } else {
+        result.used_no_boundary_94_fallback = true;
+
+        result.boundary_98 = enemy_actions_combo_consumer::advance_boundary_cursor(
+                combo_block.array_98_values,
+                state.boundary_index_2a4,
+                result.state.current_frame_294);
+        result.state.boundary_index_2a4 = result.boundary_98.index;
+
+        // The reconstructed document bounds primary_record_count to <=100, so
+        // the native signed comparison against CCArray::count() is represented
+        // directly as int32 here.
+        const std::int32_t count_i32 = static_cast<std::int32_t>(action_frame_count);
+        if (result.state.current_frame_294 > count_i32) {
+            result.state.field_18c = count_i32 - 1;
+            result.state.flag_190 = 1u;
+            result.state.current_frame_294 = 0;
+            result.state.flag_1bc = 1u;
+            if (result.state.flag_292 == 0u) result.state.flag_169 = 0u;
+            result.reset_applied = true;
+        }
+    }
+
+    const bool update_data_gate =
+            !result.reset_applied || result.state.flag_292 != 0u;
+
+    if (result.state.previous_frame_154 != result.state.current_frame_294) {
+        result.previous_frame_changed = true;
+        result.should_call_update_data = update_data_gate;
+        result.state.previous_frame_154 = result.state.current_frame_294;
+    }
+
     return result;
 }
 
