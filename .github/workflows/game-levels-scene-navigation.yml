@@ -1,0 +1,39 @@
+name: GameLevels scene navigation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_navigation.h'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.h'
+      - 'android/app/src/main/cpp/game_levels_layer_tail.h'
+      - 'android/app/src/main/cpp/game_levels_port_node_section.h'
+      - 'tools/game_levels_scene_navigation_smoke.cpp'
+      - '.github/workflows/game-levels-scene-navigation.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_navigation.h'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.h'
+      - 'android/app/src/main/cpp/game_levels_layer_tail.h'
+      - 'android/app/src/main/cpp/game_levels_port_node_section.h'
+      - 'tools/game_levels_scene_navigation_smoke.cpp'
+      - '.github/workflows/game-levels-scene-navigation.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run scene-navigation smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_levels_scene_navigation_smoke.cpp \
+            android/app/src/main/cpp/game_levels_scene_navigation.cpp \
+            android/app/src/main/cpp/game_levels_port_navigation.cpp \
+            -o /tmp/game_levels_scene_navigation_smoke
+          /tmp/game_levels_scene_navigation_smoke
