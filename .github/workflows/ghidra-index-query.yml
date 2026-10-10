@@ -45,4 +45,6 @@ jobs:
           python tools/ghidra/query_full_index.py strings zjmshandian --limit 7
           python tools/ghidra/query_full_index.py atlases zjmshandian --limit 7
       - name: Correlate checked-in player-spawn metadata
-        run: python tools/ghidra/player_spawn_evidence.py
+        run: |
+          python tools/ghidra/player_spawn_evidence.py
+          python tools/ghidra/query_full_index.py callees GameScene::loadGameSceneList --limit 100
