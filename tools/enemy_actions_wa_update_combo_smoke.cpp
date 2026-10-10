@@ -7,6 +7,7 @@ int main() {
     using nevergone::enemy_actions_combo_consumer::WaUpdateComboState;
     using nevergone::enemy_actions_wbg_combo_section::DerivedActionComboValue;
     using nevergone::enemy_actions_wbg_combo_section::kArray94Offset;
+    using nevergone::enemy_actions_wbg_combo_section::kArray98Offset;
 
     std::vector<DerivedActionComboValue> values;
 
@@ -24,7 +25,6 @@ int main() {
     second.field_1c = 2;
     values.push_back(second);
 
-    // Nonzero +0x290 writes exact byte 1 to +0x291 independently of +0x191.
     WaUpdateComboState propagate;
     propagate.flag_290 = 7u;
     propagate.flag_291 = 9u;
@@ -36,13 +36,11 @@ int main() {
     assert(!propagated.boundary.advanced_to_next);
     assert(!propagated.boundary.reached_last_boundary);
 
-    // Zero +0x290 preserves +0x291 exactly.
     WaUpdateComboState no_propagate;
     no_propagate.flag_291 = 0x55u;
     const auto preserved = apply_wa_update_combo_transition(values, 1, no_propagate);
     assert(preserved.state.flag_291 == 0x55u);
 
-    // Zero +0x191 gates the +0x94 cursor even after the endpoint is reached.
     WaUpdateComboState cursor_gated;
     cursor_gated.boundary_index_2a0 = 0u;
     const auto gated = apply_wa_update_combo_transition(values, 2, cursor_gated);
@@ -51,7 +49,6 @@ int main() {
     assert(!gated.boundary.advanced_to_next);
     assert(!gated.boundary.reached_last_boundary);
 
-    // Nonzero +0x191 enables the proven endpoint check and normal advance.
     WaUpdateComboState cursor_enabled;
     cursor_enabled.flag_191 = 3u;
     cursor_enabled.boundary_index_2a0 = 0u;
@@ -62,13 +59,11 @@ int main() {
     assert(advanced.boundary.advanced_to_next);
     assert(!advanced.boundary.reached_last_boundary);
 
-    // Before the endpoint the enabled path still leaves the index unchanged.
     const auto before_endpoint = apply_wa_update_combo_transition(values, 1, cursor_enabled);
     assert(before_endpoint.state.boundary_index_2a0 == 0u);
     assert(!before_endpoint.boundary.advanced_to_next);
     assert(!before_endpoint.boundary.reached_last_boundary);
 
-    // At the final endpoint native increment->count->decrement clamps to last.
     WaUpdateComboState final_state;
     final_state.flag_191 = 1u;
     final_state.boundary_index_2a0 = 1u;
@@ -78,7 +73,6 @@ int main() {
     assert(!final_clamp.boundary.advanced_to_next);
     assert(final_clamp.boundary.reached_last_boundary);
 
-    // The two proven operations happen in the same bounded step.
     WaUpdateComboState combined;
     combined.flag_191 = 1u;
     combined.flag_290 = 1u;
@@ -88,7 +82,6 @@ int main() {
     assert(both.state.boundary_index_2a0 == 1u);
     assert(both.boundary.advanced_to_next);
 
-    // Empty/stale project-owned inputs do not reproduce invalid CCArray access.
     WaUpdateComboState stale;
     stale.flag_191 = 1u;
     stale.boundary_index_2a0 = 9u;
@@ -102,6 +95,68 @@ int main() {
     const auto empty_result = apply_wa_update_combo_transition(empty, 99, cursor_enabled);
     assert(empty_result.state.boundary_index_2a0 == 0u);
     assert(empty_result.boundary.index == 0u);
+
+    // +0x98 is an independent boundary stream selected by +0x2a4. It uses
+    // the same endpoint/advance/clamp operation but is not gated by +0x191.
+    std::vector<DerivedActionComboValue> values_98;
+    DerivedActionComboValue first_98;
+    first_98.target_array_offset = kArray98Offset;
+    first_98.field_18 = 1;
+    values_98.push_back(first_98);
+
+    DerivedActionComboValue second_98;
+    second_98.target_array_offset = kArray98Offset;
+    second_98.field_18 = 4;
+    values_98.push_back(second_98);
+
+    WaUpdateComboState independent_98;
+    independent_98.boundary_index_2a0 = 0u;
+    independent_98.boundary_index_2a4 = 0u;
+    const auto advanced_98 = apply_wa_update_combo_transition(
+            values, values_98, 1, independent_98);
+    assert(advanced_98.state.boundary_index_2a0 == 0u);
+    assert(!advanced_98.boundary.advanced_to_next);
+    assert(advanced_98.state.boundary_index_2a4 == 1u);
+    assert(advanced_98.boundary_98.index == 1u);
+    assert(advanced_98.boundary_98.advanced_to_next);
+    assert(!advanced_98.boundary_98.reached_last_boundary);
+
+    WaUpdateComboState final_98;
+    final_98.boundary_index_2a4 = 1u;
+    const auto clamp_98 = apply_wa_update_combo_transition(
+            values, values_98, 4, final_98);
+    assert(clamp_98.state.boundary_index_2a4 == 1u);
+    assert(clamp_98.boundary_98.index == 1u);
+    assert(!clamp_98.boundary_98.advanced_to_next);
+    assert(clamp_98.boundary_98.reached_last_boundary);
+
+    // Both streams may advance during the same update when +0x191 enables
+    // +0x94 and the frame has reached both current endpoints.
+    WaUpdateComboState dual;
+    dual.flag_191 = 1u;
+    dual.boundary_index_2a0 = 0u;
+    dual.boundary_index_2a4 = 0u;
+    const auto dual_advance = apply_wa_update_combo_transition(
+            values, values_98, 2, dual);
+    assert(dual_advance.state.boundary_index_2a0 == 1u);
+    assert(dual_advance.boundary.advanced_to_next);
+    assert(dual_advance.state.boundary_index_2a4 == 1u);
+    assert(dual_advance.boundary_98.advanced_to_next);
+
+    // Stale +0x98 state is isolated: it remains unchanged without affecting a
+    // valid +0x94 transition in the same call.
+    WaUpdateComboState stale_98;
+    stale_98.flag_191 = 1u;
+    stale_98.boundary_index_2a0 = 0u;
+    stale_98.boundary_index_2a4 = 9u;
+    const auto isolated_stale_98 = apply_wa_update_combo_transition(
+            values, values_98, 2, stale_98);
+    assert(isolated_stale_98.state.boundary_index_2a0 == 1u);
+    assert(isolated_stale_98.boundary.advanced_to_next);
+    assert(isolated_stale_98.state.boundary_index_2a4 == 9u);
+    assert(isolated_stale_98.boundary_98.index == 9u);
+    assert(!isolated_stale_98.boundary_98.advanced_to_next);
+    assert(!isolated_stale_98.boundary_98.reached_last_boundary);
 
     return 0;
 }
