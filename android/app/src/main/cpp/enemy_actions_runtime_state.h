@@ -109,6 +109,15 @@ struct UpdateDataFrameLookupResult {
     bool should_lookup_sprite_frame = false;
 };
 
+struct UpdateDataObjectGateResult {
+    State state;
+    UpdateDataEntryResult entry;
+    bool should_call_virtual_slot_cc = false;
+    bool virtual_slot_cc_result_nonnull = false;
+    bool would_enter_object_update_block = false;
+    bool would_bypass_object_update_block = false;
+};
+
 ComboHitResult apply_combo_hit(
         const enemy_actions_wbg_combo_section::Block& combo_block,
         State state);
@@ -142,13 +151,34 @@ UpdateDataResourceResult apply_update_data_resource_selection(
         const enemy_actions_wbg_document::Document& document,
         State state);
 
-// Reconstructs the sprite-frame-cache request made for the selected primary
-// ActionFrameData. Native Section-A construction stores the third serialized
-// string at AFD+0x68 and its signed serialized length at +0x6c. updateData then
-// passes +0x68 directly to CCSpriteFrameCache::spriteFrameByName(). This helper
-// reports the request only and performs no cocos2d cache access.
 UpdateDataFrameLookupResult apply_update_data_frame_lookup(
         const enemy_actions_wbg_document::Document& document,
         State state);
+
+// Reconstructs the control gate around the virtual call at vtable+0xcc. For a
+// valid updateData frame, native calls that slot only when +0x250 == 0. The
+// returned pointer is retained across the spriteFrameByName request; a null
+// value, or any nonzero +0x250 mode, bypasses the later large object-update
+// block. The caller supplies only the observed null/non-null result of the
+// external virtual call; the pointee and slot semantics remain unresolved.
+inline UpdateDataObjectGateResult apply_update_data_object_gate(
+        const enemy_actions_wbg_document::Document& document,
+        State state,
+        bool virtual_slot_cc_result_nonnull) {
+    UpdateDataObjectGateResult result;
+    result.state = state;
+    result.entry = apply_update_data_entry(document, state);
+    if (!result.entry.would_enter_frame_update) return result;
+
+    result.should_call_virtual_slot_cc = state.field_250 == 0;
+    if (result.should_call_virtual_slot_cc) {
+        result.virtual_slot_cc_result_nonnull = virtual_slot_cc_result_nonnull;
+    }
+
+    result.would_enter_object_update_block =
+            result.should_call_virtual_slot_cc && result.virtual_slot_cc_result_nonnull;
+    result.would_bypass_object_update_block = !result.would_enter_object_update_block;
+    return result;
+}
 
 }  // namespace nevergone::enemy_actions_runtime_state
