@@ -1,0 +1,37 @@
+name: GameScene atlas resolution
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasListDiscovery.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasResolver.java'
+      - 'tools/GameSceneAtlasResolverSmoke.java'
+      - '.github/workflows/game-scene-atlas-resolution.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasListDiscovery.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasResolver.java'
+      - 'tools/GameSceneAtlasResolverSmoke.java'
+      - '.github/workflows/game-scene-atlas-resolution.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile and run atlas resolver smoke
+        run: |
+          rm -rf /tmp/nevergone-atlas-resolver-classes
+          mkdir -p /tmp/nevergone-atlas-resolver-classes
+          javac -Xlint:all -Werror \
+            -d /tmp/nevergone-atlas-resolver-classes \
+            android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasListDiscovery.java \
+            android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasResolver.java \
+            tools/GameSceneAtlasResolverSmoke.java
+          java -ea -cp /tmp/nevergone-atlas-resolver-classes \
+            org.nevergone.recomp.GameSceneAtlasResolverSmoke
