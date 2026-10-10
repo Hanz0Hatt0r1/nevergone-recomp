@@ -9,6 +9,7 @@
 #include "game_levels_scene_navigation.h"
 #include "game_scene_construction_plan.h"
 #include "game_scene_render_queue.h"
+#include "game_scene_sprite_frame_plist_requests.h"
 
 namespace nevergone::game_levels_runtime_state {
 
@@ -31,6 +32,9 @@ struct Snapshot {
     std::uint64_t file_size = 0;
     std::size_t reader_size = 0;
     std::size_t model_end_offset = 0;
+    bool sprite_frame_plist_requests_ready = false;
+    std::uint64_t sprite_frame_plist_revision = 0;
+    std::size_t sprite_frame_plist_count = 0;
     std::optional<std::size_t> current_port_node_index;
     std::optional<std::size_t> current_scene_index;
     std::string current_scene_guid;
@@ -54,6 +58,7 @@ void reset();
 bool load_file(const std::string& path, std::size_t max_bytes = kMaxRuntimeSceneBytes);
 bool load_pvp_scene(const std::string& files_dir, std::size_t max_bytes = kMaxRuntimeSceneBytes);
 Snapshot snapshot();
+std::optional<game_scene_sprite_frame_plist_requests::Snapshot> sprite_frame_plist_requests();
 std::optional<game_levels_scene_instance::SceneInstance> current_scene_instance();
 std::optional<game_scene_construction_plan::ScenePlan> current_scene_construction_plan();
 std::optional<game_scene_render_queue::Queue> current_scene_render_queue();
