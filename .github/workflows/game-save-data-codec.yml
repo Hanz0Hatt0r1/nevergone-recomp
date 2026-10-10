@@ -1,0 +1,32 @@
+name: GameSaveData codec
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate native-backed GameSaveData transforms
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_save_data_codec_smoke.cpp \
+            android/app/src/main/cpp/game_save_data_codec.cpp \
+            -o /tmp/game_save_data_codec_smoke
+          /tmp/game_save_data_codec_smoke
+
+      - name: Validate committed unidbg save probes
+        shell: bash
+        run: |
+          python3 -m unittest discover -s tools/unidbg -p 'test_save_probes.py'
