@@ -47,7 +47,9 @@ public final class GameSceneAtlasResolverSmoke {
 
         GameSceneAtlasListDiscovery.Result discovery = new GameSceneAtlasListDiscovery.Result(
                 "gamescene/list.plist",
-                Arrays.asList("l01/res/explicit.plist", "fallback.plist"));
+                Arrays.asList("l01/res/explicit.plist", "fallback.plist"),
+                123.5f,
+                -42.25f);
         List<GameSceneAtlasResolver.Atlas> atlases = GameSceneAtlasResolver.resolve(assets, discovery);
         assert atlases != null;
         assert atlases.size() == 2;
@@ -56,6 +58,11 @@ public final class GameSceneAtlasResolverSmoke {
                 "gamescene/l01/res/textures/explicit-atlas.png");
         assert atlases.get(1).plistRelativePath.equals("gamescene/fallback.plist");
         assert atlases.get(1).textureRelativePath.equals("gamescene/fallback.png");
+
+        // Resolver behavior remains driven only by the ordered atlas list; the
+        // retained player-start metadata is evidence for a later player boundary.
+        assert Float.compare(discovery.playerStartXPos, 123.5f) == 0;
+        assert Float.compare(discovery.playerStartYPos, -42.25f) == 0;
 
         // A nested metadata/target textureFileName is intentionally ignored:
         // the recovered cocos2d-x loader asks metadata directly and falls back
@@ -69,14 +76,14 @@ public final class GameSceneAtlasResolverSmoke {
         write(duplicateGameScene, plist(null, false));
         write(new File(assets, "gamescene/duplicate.png"), "png");
         GameSceneAtlasListDiscovery.Result ambiguous = new GameSceneAtlasListDiscovery.Result(
-                "gamescene/list.plist", Arrays.asList("duplicate.plist"));
+                "gamescene/list.plist", Arrays.asList("duplicate.plist"), 0.0f, 0.0f);
         assert GameSceneAtlasResolver.resolve(assets, ambiguous) == null;
 
         File traversalPlist = new File(assets, "gamescene/traversal.plist");
         write(traversalPlist, plist("../outside.png", false));
         write(new File(assets, "outside.png"), "png");
         GameSceneAtlasListDiscovery.Result traversal = new GameSceneAtlasListDiscovery.Result(
-                "gamescene/list.plist", Arrays.asList("traversal.plist"));
+                "gamescene/list.plist", Arrays.asList("traversal.plist"), 0.0f, 0.0f);
         assert GameSceneAtlasResolver.resolve(assets, traversal) == null;
 
         deleteTree(root);
