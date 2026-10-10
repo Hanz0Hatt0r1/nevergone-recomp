@@ -167,3 +167,13 @@ jobs:
 
       - name: Run updateData object-gate smoke
         run: /tmp/enemy_actions_update_data_object_gate_smoke
+
+      - name: Compile default-cut table smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/enemy_actions_default_cut_table_smoke.cpp \
+            -o /tmp/enemy_actions_default_cut_table_smoke
+
+      - name: Run default-cut table smoke
+        run: /tmp/enemy_actions_default_cut_table_smoke
