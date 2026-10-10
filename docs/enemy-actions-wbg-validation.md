@@ -40,6 +40,39 @@ Successful output is line-oriented `key=value` data suitable for diffing or atta
 
 The tool deliberately does not print parsed strings, proprietary payload bytes, or complete record contents.
 
+## Batch validation of an imported asset tree
+
+`tools/validate_enemy_actions_wbg_tree.py` recursively finds files whose suffix is `.wbg` case-insensitively, invokes the compiled validator for each file, and prints one compact JSON object per file. Only the relative path, validator exit code, and structural counters are emitted.
+
+The Android importer activates user-owned resources beneath the app-private `filesDir/assets` tree. For a host-side extracted/imported copy of that asset tree, run:
+
+```sh
+python tools/validate_enemy_actions_wbg_tree.py \
+  --validator /tmp/enemy_actions_wbg_validate \
+  /path/to/imported/assets \
+  > /tmp/nevergone-wbg-validation.jsonl
+```
+
+The scanner sorts relative paths for deterministic reports and recognizes names such as both `action.wbg` and `ACTION.WBG`.
+
+Batch exit codes:
+
+- `0`: at least one WBG file was found and every validator invocation succeeded;
+- `1`: invalid root/validator arguments;
+- `4`: no WBG files were found beneath the supplied root;
+- `5`: one or more WBG files failed the selected validator policy.
+
+For the experimental strict-EOF policy across the whole tree:
+
+```sh
+python tools/validate_enemy_actions_wbg_tree.py \
+  --validator /tmp/enemy_actions_wbg_validate \
+  --require-eof \
+  /path/to/imported/assets
+```
+
+A failed file remains in the JSONL report with its `validator_exit` and any structural metadata emitted before the validator rejected the selected policy. The batch tool does not copy, decode, upload, or print WBG payload contents.
+
 ## EOF policy
 
 By default, trailing bytes are reported rather than rejected because the original parser's EOF policy has not been proven:
@@ -56,7 +89,7 @@ For a local experiment that requires the recovered Sections A-G to consume the w
 
 That mode exits with code `3` when `trailing_bytes != 0`. This is a validation option only; it is not a claim about the original game's malformed-file behavior.
 
-Exit codes:
+Single-file exit codes:
 
 - `0`: parsed successfully and the selected EOF policy passed;
 - `1`: usage or file-read failure;
