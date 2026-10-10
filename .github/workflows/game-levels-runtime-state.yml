@@ -1,0 +1,47 @@
+name: GameLevels runtime state
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_levels_runtime_state.cpp'
+      - 'android/app/src/main/cpp/game_levels_runtime_state.h'
+      - 'android/app/src/main/cpp/game_levels_model.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
+      - 'tools/game_levels_runtime_state_smoke.cpp'
+      - '.github/workflows/game-levels-runtime-state.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_levels_runtime_state.cpp'
+      - 'android/app/src/main/cpp/game_levels_runtime_state.h'
+      - 'android/app/src/main/cpp/game_levels_model.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
+      - 'tools/game_levels_runtime_state_smoke.cpp'
+      - '.github/workflows/game-levels-runtime-state.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run runtime-state smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_levels_runtime_state_smoke.cpp \
+            android/app/src/main/cpp/game_levels_runtime_state.cpp \
+            android/app/src/main/cpp/game_levels_model.cpp \
+            android/app/src/main/cpp/game_levels_actions_section.cpp \
+            android/app/src/main/cpp/game_levels_global_section.cpp \
+            android/app/src/main/cpp/game_levels_layer_tail.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
+            android/app/src/main/cpp/game_levels_port_node_section.cpp \
+            android/app/src/main/cpp/game_levels_port_node_graph.cpp \
+            android/app/src/main/cpp/game_levels_port_navigation.cpp \
+            android/app/src/main/cpp/game_levels_start_scene.cpp \
+            android/app/src/main/cpp/game_levels_scene_navigation.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/game_levels_runtime_state_smoke
+          /tmp/game_levels_runtime_state_smoke
