@@ -55,13 +55,13 @@ def verify() -> None:
     require('EnemyActionsCcStringProbe.run(emulator, module)' in harness,
             'harness CCString dispatch missing')
 
-    # This prerequisite probe must stay independent of game filesystem/parser state.
+    # Executable native calls are allowlisted above. EnemyActionsData parser
+    # symbols may not enter this prerequisite probe even if dependency names are
+    # mentioned in documentation comments.
     require('_ZN16EnemyActionsData11loadWBGFile' not in probe,
             'loadWBGFile must not enter CCString prerequisite probe')
     require('_ZN16EnemyActionsData12initWithFile' not in probe,
             'initWithFile must not enter CCString prerequisite probe')
-    require('HPData' not in probe, 'HPData must not enter CCString prerequisite probe')
-    require('CCFileUtils' not in probe, 'CCFileUtils must not enter CCString prerequisite probe')
 
 
 if __name__ == '__main__':
