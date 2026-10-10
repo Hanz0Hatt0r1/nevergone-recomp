@@ -37,11 +37,13 @@ As of **2026-10-10**, `main` includes:
 - sprite-frame asset request snapshots for `spriteFrameByName` paths;
 - safe imported plist/atlas texture resolution, including the recovered direct `metadata.textureFileName` rule and sibling `.png` fallback;
 - a reconstructed project-owned `GameSaveData::Encode/Decode` leaf codec validated against bounded unidbg probes;
-- a bounded `EnemyActionsData` object-layout evidence map for future parser/combat reconstruction;
+- a bounded `EnemyActionsData` layout/dependency evidence map and a transactional project-owned parser for the recovered WBG Sections A-G (header, primary records, compact/nested/gated groups, fixed-tail records, combo tuples and final table);
 - a repaired unidbg evidence harness that can load the original native dependency set far enough to complete `JNI_OnLoad` and run isolated synthetic native probes;
-- focused host/Android CI for startup/login, ChooseHero, scene parsing/construction, render state, asset bridges, GameSaveData transforms, native evidence contracts and platform/build checks.
+- focused host/Android CI for startup/login, ChooseHero, scene parsing/construction, render state, asset bridges, GameSaveData transforms, EnemyActions WBG structural parsing, native evidence contracts and platform/build checks.
 
 The renderer can now submit **direct-file** GameScene sprites with reconstructed geometry. This does **not** yet mean P7 is complete: most ordinary type-0 objects use `CCSpriteFrameCache::spriteFrameByName()`, so frame metadata/extraction from the resolved imported atlases still has to be connected to rendering, and the complete first offline scene still requires real-device validation through the contiguous runtime path.
+
+Likewise, the newly composed EnemyActions WBG parser is **structural parsing**, not combat: it has synthetic test coverage, but genuine user-owned WBG payload validation, action interpretation, enemy instantiation and combat behavior are still outstanding.
 
 ## Delivery readiness
 
@@ -80,7 +82,7 @@ Tracking issue: [#151 — M4 -> First Offline Scene / Technical Alpha path](http
 | GameLevels/scene model | 65% | First object boundary and retained model are strong; full first-scene sufficiency is not closed |
 | First-scene rendering | 65% | Direct sprites render; atlas/frame-cache sprite extraction and device proof remain |
 | Player spawn/input | 15% | Evidence exists around downstream systems, but P8/P9 are not implemented end-to-end |
-| Offline combat/gameplay | 10% | `EnemyActionsData` evidence has started; no playable combat loop |
+| Offline combat/gameplay | 10% | Bounded EnemyActions WBG A-G structural parser exists, but real-payload validation and any playable enemy/combat loop remain open |
 | Persistence | 25% | `GameSaveData` leaf codec is recovered; full save/write/restart/restore is not |
 | Modern Android runtime validation | 25% | Build/page checks exist; Android 15/16, arm64 and 16 KiB runtime proof is pending |
 
@@ -94,7 +96,7 @@ These percentages are engineering estimates, not compatibility guarantees. The a
 4. Parse resolved TexturePacker plist frame metadata and connect `spriteFrameByName` requests to atlas-backed textures/quads.
 5. Prove the complete first offline GameScene on a real Android device using user-owned imported data.
 6. Recover and spawn the minimal player visual/state, then expose one visible input path.
-7. Use the new `EnemyActionsData` evidence only when the first gameplay slice requires enemy/action data; avoid speculative full combat reconstruction.
+7. Validate the recovered EnemyActions WBG A-G parser against user-owned files and connect it to actual enemy/action consumers only when the first gameplay slice needs it; avoid speculative combat semantics.
 8. Build minimal save/restart/restore on top of the recovered GameSaveData codec after the first playable slice is stable.
 9. Validate Android 15/16, arm64 and 16 KiB page-size behavior at runtime, not only at build time.
 
@@ -129,7 +131,8 @@ The reconstruction has established that:
 - recovered plist loading uses direct top-level `metadata.textureFileName` when present and falls back to a sibling `.png` name when absent/empty;
 - `GameSaveData::Encode/Decode` use the recovered byte transform with a counter cycling `0..126`; the project-owned implementation is regression-tested against native probes;
 - bounded unidbg work validated the existing asset decoder and selected Cocos geometry helpers on synthetic inputs after loading 48 runtime modules with zero unresolved symbols and completing explicit `JNI_OnLoad`;
-- `EnemyActionsData::loadWBGFile` is confirmed as an HPData-backed parser dependency, and the reconstructed evidence module records its observed constructor/layout geometry without pretending unresolved fields are understood;
+- `EnemyActionsData::loadWBGFile` is confirmed as an HPData-backed parser dependency; its constructor/layout and Sections A-G stream topology are now recorded and parsed structurally with bounded, transactional project-owned readers;
+- the recovered WBG structure has a 16-byte header, a primary counted record stream, compact/nested and header-gated groups, fixed-tail records, 24-byte combo tuples and a final int table; field semantics and real-file compatibility are not yet proven;
 - nonzero GameScene object construction, atlas frame extraction/TexturePacker semantics, scene-action playback, player creation, combat and full persistence remain unresolved or incomplete boundaries.
 
 ## Project status
@@ -167,7 +170,8 @@ The reconstruction has established that:
 | First complete visible offline scene | Not yet device-proven |
 | `GameSaveData` Encode/Decode leaf codec | Implemented from native probe evidence |
 | Minimal save/restart/restore | Not yet |
-| `EnemyActionsData` layout evidence | Implemented as bounded evidence contract |
+| `EnemyActionsData` layout/dependency evidence | Implemented as bounded evidence contract |
+| EnemyActions WBG Sections A-G parser | Implemented for recovered stream topology; synthetic host smoke, no genuine-file or gameplay proof |
 | Player spawn/input | Not yet |
 | Offline combat/gameplay | Not yet functional |
 | `arm64-v8a` build target | Done |
@@ -293,6 +297,27 @@ See:
 - [`docs/game-scene-resource-loading.md`](docs/game-scene-resource-loading.md)
 - [`docs/playable-path.md`](docs/playable-path.md)
 
+## EnemyActionsData WBG structural reconstruction
+
+The clean-room `enemy_actions_wbg_document` parser now composes all **currently recovered** sections of `EnemyActionsData::loadWBGFile` in native read order:
+
+| Stream part | Reconstructed boundary |
+| --- | --- |
+| Header | Fixed 16-byte prefix and primary-record count |
+| A | Counted variable-length primary `ActionFrameData` records |
+| B | Counted 12-byte compact records |
+| C | Nested counted variable-length action-frame groups |
+| D | Six or twenty groups selected by the first header word (`> 0x68` selects twenty) |
+| E | Counted fixed 53-byte action-frame records |
+| F | One 24-byte combo tuple per primary record |
+| G | One 4-byte final-table integer per primary record; recovered reciprocal transform |
+
+All child parsers use the bounds-checked project-owned `HPData` reader, validate cursor advancement and publish output transactionally. The composed parser reports `bytes_consumed` and `trailing_bytes` rather than inventing an EOF rejection rule. A focused synthetic smoke verifies a 156-byte A-G stream, two trailing bytes and unchanged output on truncation; the parser is compiled into the Android native target.
+
+**Boundary:** no original WBG payload is stored in this repository. The composed format has not been verified against genuine user-owned WBG files; unresolved string/tuple meanings, `ActionFrameData` semantics, native malformed-file behavior and integration with combat remain open. Completing this parser does **not** advance P3-P9.
+
+Evidence: [`docs/evidence/enemy-actions-wbg-document.md`](docs/evidence/enemy-actions-wbg-document.md), [`docs/evidence/unidbg-2026-10-10/enemy-actions-wbg-topology.md`](docs/evidence/unidbg-2026-10-10/enemy-actions-wbg-topology.md).
+
 ## Native dynamic evidence / unidbg
 
 The repository contains a bounded unidbg harness and committed evidence from the 2026-10-10 native probe work.
@@ -306,7 +331,7 @@ Current evidence includes:
 - synthetic validation of the recovered `cocos2d::Decode` transform;
 - isolated `CCRect::containsPoint` / `intersectsRect` behavior samples;
 - `GameSaveData::Encode/Decode` dynamic comparisons and the project-owned matching codec;
-- static/dynamic preparation around `EnemyActionsData` and selected Lua/native bindings.
+- bounded `EnemyActionsData` constructor/CCString/HPData probe preparation and static stream topology evidence, alongside selected Lua/native bindings; these prerequisites do not constitute a successful end-to-end native WBG parse.
 
 This is **not** proof that the original graphics/game runtime boots under unidbg. EGL initialization is still an explicit boundary, and native probes are kept isolated so an individual result is not overgeneralized into a runtime-compatibility claim.
 
@@ -384,11 +409,11 @@ Coverage includes:
 - recovered ExactFit/direct-sprite geometry;
 - GameScene atlas-list discovery and imported plist/texture resolution;
 - GameSaveData codec regression against committed native probe evidence;
-- EnemyActionsData layout-evidence consistency;
+- EnemyActionsData layout/dependency evidence and transactional WBG Sections A-G parsing (synthetic host smoke);
 - Android Java compilation;
 - NDK/build and page-size validation.
 
-Full validation requiring a user-owned original APK remains manual-only; ordinary PR checks are designed to stay reproducible without proprietary inputs.
+At the reviewed base revision `97e8b418494c01493035947f17c8e12efe6e427f` (2026-10-10), 21 visible GitHub Actions runs for that commit completed successfully. This is a **CI snapshot**, not a claim that device gameplay or real WBG inputs were tested. Full validation requiring a user-owned original APK remains manual-only; ordinary PR checks are designed to stay reproducible without proprietary inputs.
 
 ## Major milestones
 
@@ -449,7 +474,9 @@ Full validation requiring a user-owned original APK remains manual-only; ordinar
 ### M5 — Offline gameplay
 
 - [x] GameSaveData Encode/Decode leaf transform recovered
-- [x] bounded EnemyActionsData layout/dependency evidence started
+- [x] bounded EnemyActionsData layout/dependency evidence
+- [x] recovered EnemyActions WBG Sections A-G composed into a transactional parser with synthetic host tests
+- [ ] validate the composed WBG parser against genuine user-owned files and connect it to runtime consumers
 - [ ] first enemy interaction
 - [ ] damage/death loop
 - [ ] combat systems
@@ -478,6 +505,8 @@ Key documents:
 - [`docs/game-scene-object-construction.md`](docs/game-scene-object-construction.md) — layer traversal, type-0 construction/resource/transform evidence
 - [`docs/game-scene-resource-loading.md`](docs/game-scene-resource-loading.md) — atlas preload and sprite-frame resource-loading evidence
 - [`docs/evidence/unidbg-2026-10-10/README.md`](docs/evidence/unidbg-2026-10-10/README.md) — bounded native dynamic evidence and reproduction metadata
+- [`docs/evidence/enemy-actions-wbg-document.md`](docs/evidence/enemy-actions-wbg-document.md) — recovered WBG A-G document parser, validation and unresolved semantics
+- [`docs/evidence/unidbg-2026-10-10/enemy-actions-wbg-topology.md`](docs/evidence/unidbg-2026-10-10/enemy-actions-wbg-topology.md) — native read order and destination offsets
 - [`docs/android-bootstrap.md`](docs/android-bootstrap.md) — Android/native bootstrap and lifecycle research
 - [`docs/initial-ui-transition.md`](docs/initial-ui-transition.md) — `HelloWorld` -> `ManagementLayer`
 - [`docs/server-selection-runtime.md`](docs/server-selection-runtime.md) — `NewServerList` behavior
