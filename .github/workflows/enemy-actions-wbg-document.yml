@@ -1,0 +1,33 @@
+name: EnemyActions WBG document
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile composed WBG smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            android/app/src/main/cpp/enemy_actions_layout_evidence.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_prefix.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_combo_section.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_final_table.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_document.cpp \
+            tools/enemy_actions_wbg_document_smoke.cpp \
+            -o /tmp/enemy_actions_wbg_document_smoke
+
+      - name: Run composed WBG smoke
+        run: /tmp/enemy_actions_wbg_document_smoke
