@@ -82,3 +82,55 @@ jobs:
           grep -Fx 'eof_policy=failed' /tmp/strict.txt
           test "$truncated_status" -eq 2
           grep -Fx 'parse_status=error' /tmp/truncated.txt
+
+      - name: Validate batch scanner syntax
+        run: python -m py_compile tools/validate_enemy_actions_wbg_tree.py
+
+      - name: Build synthetic imported asset trees
+        run: |
+          mkdir -p /tmp/wbg-tree/gamescene/a /tmp/wbg-tree/gamescene/b
+          mkdir -p /tmp/invalid-wbg-tree /tmp/empty-wbg-tree
+          cp /tmp/synthetic.wbg /tmp/wbg-tree/gamescene/a/first.wbg
+          cp /tmp/synthetic.wbg /tmp/wbg-tree/gamescene/b/SECOND.WBG
+          cp /tmp/truncated.wbg /tmp/invalid-wbg-tree/bad.wbg
+
+      - name: Validate batch scanner success
+        run: |
+          python tools/validate_enemy_actions_wbg_tree.py \
+            --validator /tmp/enemy_actions_wbg_validate \
+            /tmp/wbg-tree \
+            > /tmp/batch.jsonl 2> /tmp/batch.summary
+          test "$(wc -l < /tmp/batch.jsonl)" -eq 2
+          grep -F '"relative_path":"gamescene/a/first.wbg"' /tmp/batch.jsonl
+          grep -F '"relative_path":"gamescene/b/SECOND.WBG"' /tmp/batch.jsonl
+          grep -F '"parse_status":"ok"' /tmp/batch.jsonl
+          grep -Fx 'summary files=2 passed=2 failed=0' /tmp/batch.summary
+
+      - name: Validate batch scanner failure codes
+        run: |
+          set +e
+          python tools/validate_enemy_actions_wbg_tree.py \
+            --validator /tmp/enemy_actions_wbg_validate \
+            /tmp/empty-wbg-tree \
+            > /tmp/empty.jsonl 2> /tmp/empty.summary
+          empty_status=$?
+          python tools/validate_enemy_actions_wbg_tree.py \
+            --validator /tmp/enemy_actions_wbg_validate \
+            /tmp/invalid-wbg-tree \
+            > /tmp/invalid.jsonl 2> /tmp/invalid.summary
+          invalid_status=$?
+          python tools/validate_enemy_actions_wbg_tree.py \
+            --validator /tmp/enemy_actions_wbg_validate \
+            --require-eof \
+            /tmp/wbg-tree \
+            > /tmp/strict-batch.jsonl 2> /tmp/strict-batch.summary
+          strict_status=$?
+          set -e
+          test "$empty_status" -eq 4
+          grep -Fx 'summary files=0 passed=0 failed=0' /tmp/empty.summary
+          test "$invalid_status" -eq 5
+          grep -F '"validator_exit":2' /tmp/invalid.jsonl
+          grep -Fx 'summary files=1 passed=0 failed=1' /tmp/invalid.summary
+          test "$strict_status" -eq 5
+          grep -F '"validator_exit":3' /tmp/strict-batch.jsonl
+          grep -Fx 'summary files=2 passed=0 failed=2' /tmp/strict-batch.summary
