@@ -46,6 +46,9 @@ add_library(nevergone_recomp SHARED
     game_scene_direct_asset_bridge.cpp
     game_scene_direct_asset_store.cpp
     game_scene_direct_asset_store_bridge.cpp
+    game_scene_direct_texture_bridge.cpp
+    game_scene_direct_texture_cache.cpp
+    game_scene_direct_texture_gl.cpp
     game_levels_actions_section.cpp
     game_levels_asset_probe.cpp
     game_levels_enter_transition.cpp
