@@ -24,6 +24,7 @@ struct Snapshot {
 namespace detail {
 constexpr std::uint64_t kFnvOffsetBasis = 14695981039346656037ull;
 constexpr std::uint64_t kFnvPrime = 1099511628211ull;
+constexpr std::uint64_t kJavaLongPositiveMask = 0x7fffffffffffffffull;
 
 inline void hash_byte(std::uint64_t* hash, std::uint8_t value) {
     *hash ^= value;
@@ -62,7 +63,9 @@ inline Snapshot build(const game_scene_render_queue::Queue& queue) {
         detail::hash_size(&hash, request.sprite_command_index);
         detail::hash_string(&hash, request.relative_path);
     }
-    // Revision zero is reserved for "no live render queue" at the JNI boundary.
+    // Java receives this as a signed long. Keep the revision positive and
+    // reserve zero for "no live render queue" at the JNI boundary.
+    hash &= detail::kJavaLongPositiveMask;
     snapshot.revision = hash == 0 ? 1 : hash;
     return snapshot;
 }
