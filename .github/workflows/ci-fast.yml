@@ -195,6 +195,7 @@ jobs:
             android/app/src/main/cpp/game_levels_port_node_graph.cpp \
             android/app/src/main/cpp/game_levels_port_navigation.cpp \
             android/app/src/main/cpp/game_levels_scene_navigation.cpp \
+            android/app/src/main/cpp/game_levels_scene_instance.cpp \
             android/app/src/main/cpp/game_levels_start_scene.cpp \
             android/app/src/main/cpp/game_levels_layer_tail.cpp \
             android/app/src/main/cpp/game_levels_scene_prefix.cpp \

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "game_levels_model.h"
+#include "game_levels_scene_instance.h"
 #include "hp_data_reader.h"
 
 namespace nevergone::game_levels_runtime_state {
@@ -17,13 +18,16 @@ namespace {
 
 std::mutex g_mutex;
 std::optional<game_levels_model::Model> g_model;
+std::optional<game_levels_scene_instance::SceneInstance> g_scene_instance;
 Snapshot g_state;
 
 void refresh_current_scene_locked() {
+    g_scene_instance.reset();
     g_state.current_port_node_index.reset();
     g_state.current_scene_index.reset();
     g_state.current_scene_guid.clear();
     g_state.stored_event_port_type = 0u;
+    g_state.current_scene_instance_ready = false;
     g_state.current_scene_layer_count = 0u;
     g_state.current_scene_object_count = 0u;
     if (!g_model.has_value()) return;
@@ -37,20 +41,21 @@ void refresh_current_scene_locked() {
     g_state.current_scene_guid = selection.scene_guid;
     g_state.stored_event_port_type = g_model->navigation.stored_event_port_type;
 
-    if (!selection.scene_index.has_value() ||
-            *selection.scene_index >= g_model->scenes.scenes.size()) {
-        return;
-    }
-    const auto& scene = g_model->scenes.scenes[*selection.scene_index];
-    g_state.current_scene_layer_count = scene.layers.size();
-    std::size_t object_count = 0u;
-    for (const auto& layer : scene.layers) object_count += layer.objects.size();
-    g_state.current_scene_object_count = object_count;
+    if (!selection.scene_index.has_value()) return;
+    g_scene_instance = game_levels_scene_instance::build(
+            *g_model,
+            *selection.scene_index);
+    if (!g_scene_instance.has_value()) return;
+
+    g_state.current_scene_instance_ready = true;
+    g_state.current_scene_layer_count = g_scene_instance->layers.size();
+    g_state.current_scene_object_count = g_scene_instance->object_count;
 }
 
 void begin_attempt_locked() {
     const std::uint64_t attempts = g_state.load_attempt_count + 1u;
     g_model.reset();
+    g_scene_instance.reset();
     g_state = Snapshot{};
     g_state.load_attempt_count = attempts;
 }
@@ -60,6 +65,7 @@ void begin_attempt_locked() {
 void reset() {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_model.reset();
+    g_scene_instance.reset();
     g_state = Snapshot{};
 }
 
@@ -135,6 +141,11 @@ Snapshot snapshot() {
     return g_state;
 }
 
+std::optional<game_levels_scene_instance::SceneInstance> current_scene_instance() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_scene_instance;
+}
+
 game_levels_scene_navigation::Transition step(std::uint32_t requested_event_port_type) {
     std::lock_guard<std::mutex> lock(g_mutex);
     game_levels_scene_navigation::Transition result;
@@ -174,6 +185,11 @@ std::string status_report() {
     if (state.current_port_node_index.has_value()) out << "current port index: " << *state.current_port_node_index << "\n";
     if (state.current_scene_index.has_value()) out << "current scene index: " << *state.current_scene_index << "\n";
     if (!state.current_scene_guid.empty()) out << "current scene guid: " << state.current_scene_guid << "\n";
+    if (state.current_scene_instance_ready) {
+        out << "scene instance: ready\n";
+        out << "scene layers: " << state.current_scene_layer_count << "\n";
+        out << "scene objects: " << state.current_scene_object_count << "\n";
+    }
     return out.str();
 }
 
