@@ -14,6 +14,11 @@ nevergone::game_levels_scene_prefix::ObjectRecord make_object(
     object.string_value = value;
     object.first_point_x = static_cast<float>(type_code + 10);
     object.first_point_y = static_cast<float>(type_code + 20);
+    object.middle_float = static_cast<float>(type_code + 30);
+    object.second_point_x = static_cast<float>(type_code + 40);
+    object.second_point_y = static_cast<float>(type_code + 50);
+    object.trailing_i32 = type_code + 60;
+    object.first_bool = type_code == 0;
     return object;
 }
 
@@ -67,19 +72,30 @@ int main() {
     }
 
     assert(plan.layers[0].objects.size() == 2u);
-    assert(plan.layers[0].objects[0].source_object_index == 0u);
-    assert(plan.layers[0].objects[0].type_code == 0);
-    assert(plan.layers[0].objects[0].construction_kind ==
-            plan_ns::ObjectConstructionKind::kType0SpriteBacked);
-    assert(plan.layers[0].objects[0].record.string_value == "background.png");
-    assert(plan.layers[0].objects[0].record.first_point_x == 10.0f);
+    const auto& type0 = plan.layers[0].objects[0];
+    assert(type0.source_object_index == 0u);
+    assert(type0.type_code == 0);
+    assert(type0.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
+    assert(type0.record.string_value == "background.png");
+    assert(type0.record.first_point_x == 10.0f);
+    assert(type0.type0_sprite_transform.has_value());
+    assert(type0.type0_sprite_transform->position_x == 10.0f);
+    assert(type0.type0_sprite_transform->position_y == 20.0f);
+    assert(type0.type0_sprite_transform->rotation == 30.0f);
+    assert(type0.type0_sprite_transform->scale_x == 40.0f);
+    assert(type0.type0_sprite_transform->scale_y == 50.0f);
+    assert(type0.type0_sprite_transform->flip_x);
+    assert(type0.type0_sprite_transform->child_z_order == 60);
 
-    assert(plan.layers[0].objects[1].source_object_index == 1u);
-    assert(plan.layers[0].objects[1].type_code == 4);
-    assert(plan.layers[0].objects[1].construction_kind ==
-            plan_ns::ObjectConstructionKind::kUnresolved);
+    const auto& type4 = plan.layers[0].objects[1];
+    assert(type4.source_object_index == 1u);
+    assert(type4.type_code == 4);
+    assert(type4.construction_kind == plan_ns::ObjectConstructionKind::kUnresolved);
+    assert(!type4.type0_sprite_transform.has_value());
     assert(plan.layers[3].objects[0].type_code == 6);
+    assert(!plan.layers[3].objects[0].type0_sprite_transform.has_value());
     assert(plan.layers[10].objects[0].type_code == 1);
+    assert(!plan.layers[10].objects[0].type0_sprite_transform.has_value());
 
     for (const auto& layer : plan.layers) {
         for (const auto& object : layer.objects) {

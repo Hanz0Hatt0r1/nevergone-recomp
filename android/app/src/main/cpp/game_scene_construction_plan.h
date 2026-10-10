@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -22,12 +23,29 @@ enum class ObjectConstructionKind {
     kType0SpriteBacked,
 };
 
+// These members are named semantically only at this renderer-facing boundary.
+// In the original 1.0.9 ARMv7 GameSceneObject::initWithData() path, the
+// corresponding source fields are passed directly to CCSprite::setPosition,
+// setRotation, setScaleX, setScaleY and setFlipX, then the sprite is attached
+// through CCNode::addChild(sprite, z_order).
+struct Type0SpriteTransform {
+    float position_x = 0.0f;
+    float position_y = 0.0f;
+    float rotation = 0.0f;
+    float scale_x = 1.0f;
+    float scale_y = 1.0f;
+    bool flip_x = false;
+    std::int32_t child_z_order = 0;
+};
+
 struct ObjectPlan {
     std::size_t source_object_index = 0;
     std::int32_t type_code = 0;
     ObjectConstructionKind construction_kind = ObjectConstructionKind::kUnresolved;
+    std::optional<Type0SpriteTransform> type0_sprite_transform;
     // Keep the complete evidence-backed serialized record available to later
-    // project-owned adapters without assigning speculative field semantics.
+    // project-owned adapters without renaming still-unresolved fields in the
+    // binary parser itself.
     game_levels_scene_prefix::ObjectRecord record;
 };
 
@@ -55,6 +73,19 @@ struct ScenePlan {
 inline ObjectConstructionKind classify_object(std::int32_t type_code) {
     if (type_code == 0) return ObjectConstructionKind::kType0SpriteBacked;
     return ObjectConstructionKind::kUnresolved;
+}
+
+inline Type0SpriteTransform build_type0_sprite_transform(
+        const game_levels_scene_prefix::ObjectRecord& record) {
+    Type0SpriteTransform transform;
+    transform.position_x = record.first_point_x;
+    transform.position_y = record.first_point_y;
+    transform.rotation = record.middle_float;
+    transform.scale_x = record.second_point_x;
+    transform.scale_y = record.second_point_y;
+    transform.flip_x = record.first_bool;
+    transform.child_z_order = record.trailing_i32;
+    return transform;
 }
 
 // This is intentionally a pure project-owned value transformation. Keep it
@@ -88,6 +119,9 @@ inline ScenePlan build(const game_levels_scene_instance::SceneInstance& scene) {
             object.source_object_index = object_index;
             object.type_code = source_object.first_i32;
             object.construction_kind = classify_object(object.type_code);
+            if (object.construction_kind == ObjectConstructionKind::kType0SpriteBacked) {
+                object.type0_sprite_transform = build_type0_sprite_transform(source_object);
+            }
             object.record = source_object;
             layer.objects.push_back(std::move(object));
             ++plan.object_count;
