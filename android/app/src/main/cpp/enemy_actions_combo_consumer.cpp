@@ -94,4 +94,26 @@ WaUpdateComboTransition apply_wa_update_combo_transition(
     return result;
 }
 
+WaUpdateCompletionTransition apply_wa_update_completion_transition(
+        std::int32_t boundary_endpoint_18,
+        bool advanced_to_next_boundary,
+        std::int32_t current_frame_index,
+        WaUpdateCompletionState state) {
+    WaUpdateCompletionTransition result;
+    result.state = state;
+
+    if (advanced_to_next_boundary || current_frame_index <= boundary_endpoint_18) {
+        return result;
+    }
+
+    const std::uint32_t endpoint_bits = static_cast<std::uint32_t>(boundary_endpoint_18);
+    result.state.field_18c = static_cast<std::int32_t>(endpoint_bits - 1u);
+    result.state.flag_190 = 1u;
+    result.state.current_frame_294 = 0;
+    result.state.flag_1bc = 1u;
+    if (state.flag_292 == 0u) result.state.flag_169 = 0u;
+    result.reset_applied = true;
+    return result;
+}
+
 }  // namespace nevergone::enemy_actions_combo_consumer
