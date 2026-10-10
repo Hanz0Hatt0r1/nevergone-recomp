@@ -1,0 +1,27 @@
+name: EnemyActions armor sprite update
+
+on:
+  push:
+    paths:
+      - 'android/app/src/main/cpp/enemy_actions_armor_sprite_update.h'
+      - 'tools/enemy_actions_armor_sprite_update_smoke.cpp'
+      - '.github/workflows/enemy-actions-armor-sprite-update.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/enemy_actions_armor_sprite_update.h'
+      - 'tools/enemy_actions_armor_sprite_update_smoke.cpp'
+      - '.github/workflows/enemy-actions-armor-sprite-update.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile armor sprite update smoke
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -pedantic
+          -Iandroid/app/src/main/cpp
+          tools/enemy_actions_armor_sprite_update_smoke.cpp
+          -o /tmp/enemy_actions_armor_sprite_update_smoke
+      - name: Run armor sprite update smoke
+        run: /tmp/enemy_actions_armor_sprite_update_smoke
