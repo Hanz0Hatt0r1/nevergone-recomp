@@ -45,53 +45,67 @@ For each record, the first fixed portion is read in this exact serialized order 
 
 The first char copy starts at relative offset `66`: after the length field the stream position advances by five bytes, proving one additional skipped byte between the four-byte length and the payload. `getBytes(char*, HPRange)` runs at `0x28f6a6`.
 
-After the first payload, the same shape repeats twice:
-
-1. read one signed `int32` length (`0x28f6ce`), advance five bytes from the length-field start, then copy that many chars at `0x28f6f4`;
-2. read another signed `int32` length (`0x28f71a`), advance five bytes, then copy that many chars at `0x28f736`.
-
-Thus one complete first-loop record consumes `76 + len1 + len2 + len3` bytes. All three lengths are read through the signed-int overload and then reused as byte counts. The reconstructed parser rejects negative lengths.
+After the first payload, the same shape repeats twice: signed lengths are read at `0x28f6ce` and `0x28f71a`, each followed by one skipped byte and char copies at `0x28f6f4` and `0x28f736`. Thus one complete first-loop record consumes `76 + len1 + len2 + len3` bytes.
 
 ## Temporary string-buffer bound
 
-The three original destination buffers begin at `sp+0xa4`, `sp+0x1a4`, and `sp+0x2a4`. Each is followed by an explicit NUL write at `buffer[length]`; the adjacent starts are exactly `0x100` bytes apart. The clean-room parser therefore caps each payload at `0xff` bytes so its terminating NUL would remain inside the corresponding observed 256-byte original buffer. This is a safety bound in the reconstruction, not evidence that the original file parser validated hostile lengths.
-
-## First object-construction boundary
-
-After all three strings have been consumed, the original creates an `ActionFrameData`, copies the scalar locals into it, creates/retains Cocos strings for selected payloads, and appends the object to the array at `EnemyActionsData + 0x88`. Some serialized locals are reordered before storage and one string buffer is not retained on the inspected path. The clean-room stream parser intentionally preserves serialized order rather than inventing field names from destination offsets.
+The three original destination buffers begin at `sp+0xa4`, `sp+0x1a4`, and `sp+0x2a4`. Each is followed by an explicit NUL write at `buffer[length]`; the adjacent starts are exactly `0x100` bytes apart. The clean-room parser caps each payload at `0xff` bytes so its terminating NUL stays inside the observed 256-byte original buffer. This is a reconstruction safety bound, not evidence that the original parser validated hostile lengths.
 
 ## Second compact ActionFrameData block
 
-When the first loop completes, the current stream offset is preserved in `r5`. The next native block is fully bounded:
+When the first loop completes, the current stream offset is preserved in `r5`. The next block is fully bounded:
 
 1. `0x28f842`: read one signed `int32` count;
-2. initialize a zero-based signed loop index;
-3. `0x28f84c..0x28f854`: compare the index against that signed count with `BGE`;
-4. for each positive iteration read exactly:
-   - `int32` at `0x28f870`;
-   - `float` at `0x28f882`;
-   - `float` at `0x28f896`;
-5. `0x28f89c`: create one `ActionFrameData`;
-6. store those three values at `ActionFrameData + 0x74`, `+0x14`, and `+0x18` respectively;
-7. `0x28f8b8..0x28f8be`: append the object to the `CCArray*` at `EnemyActionsData + 0x8c`;
-8. advance by exactly 12 serialized bytes per iteration and repeat.
+2. `0x28f84c..0x28f854`: signed `BGE` loop guard;
+3. each positive iteration reads `int32` at `0x28f870`, `float` at `0x28f882`, and `float` at `0x28f896`;
+4. `0x28f89c`: create one `ActionFrameData`;
+5. store the three values at `ActionFrameData + 0x74`, `+0x14`, and `+0x18`;
+6. append it to `EnemyActionsData + 0x8c` at `0x28f8b8..0x28f8be`.
 
-Because the branch is signed, zero or negative counts execute no iterations and consume only the four-byte count. Positive counts consume `4 + count * 12` bytes. The reconstructed parser pre-bounds a positive count against the remaining byte length before reserving its vector, preventing hostile allocation sizes while preserving the original signed-loop behavior for nonpositive counts.
+Zero or negative counts execute no iterations and consume only the four-byte count. Positive counts consume `4 + count * 12` bytes.
 
-Immediately after this compact block, the original advances to the next signed count read at `0x28f8dc`. That begins a different, nested record shape and is deliberately outside the current parser boundary.
+## Section C nested counted block
+
+Immediately afterward the original enters a two-level counted structure:
+
+- `0x28f8dc`: read a signed `int32` outer/group count;
+- `0x28f8e6..0x28f8ec`: signed `BGE` outer guard, so a nonpositive value consumes only the four-byte outer count;
+- `0x28f904`: for each positive outer index, read an unsigned `uint32` inner record count;
+- `0x28f91c..0x28f922`: unsigned `BHS` inner guard;
+- `0x28fc3c..0x28fc3e`: append every constructed record to the `CCArray*` selected from `EnemyActionsData + 0x14 + 4*outer_index`.
+
+The inner record stream is fully recovered and consumes `72 + len1 + len2 + len3` bytes:
+
+| Relative offset | Native call site | Type |
+| ---: | ---: | --- |
+| `0` | `0x28f962` | `int32` |
+| `4..48` | `0x28f978..0x28fa66` | 12 × `float` |
+| `52` | `0x28fa84` | `bool` |
+| `53` | `0x28fa9c` | `int32` |
+| `57` | `0x28fab0` | first signed string length |
+
+The first payload starts at relative offset `62`, proving the same `[int32 length][one skipped byte][payload]` framing. The first char copy is at `0x28faca`; the second and third signed lengths are read at `0x28faee` and `0x28fb38`, with char copies at `0x28fb12` and `0x28fb4e`.
+
+After the three strings, `ActionFrameData::createAFD()` runs at `0x28fb5a`. The inspected path writes the serialized scalar values into several `ActionFrameData` offsets, including `+0x74`, `+0x14..+0x48`, `+0x40`, and `+0x50`, and stores selected Cocos strings at later offsets. The clean-room parser deliberately preserves serialized order instead of assigning gameplay names from those destinations.
+
+The repository's independent `enemy_actions_wbg_topology_evidence` contract proves the same container topology: Section C uses the file-provided outer count, an unsigned inner count per group, and array pointer `EnemyActionsData + 0x14 + 4*i`.
+
+### Reconstruction safety
+
+The parser preserves the original signed outer-loop behavior and unsigned inner count. For positive values it pre-bounds allocations against the remaining serialized bytes before `reserve`: every outer group requires at least its four-byte inner count and every inner record requires at least 72 bytes before variable payloads. The shared `0xff` string-payload cap applies to all three nested temporary buffers. Parse failure is transactional and leaves the caller's previous output unchanged.
 
 ## Reconstructed implementation
 
-`enemy_actions_wbg_prefix.{h,cpp}` implements:
+`enemy_actions_wbg_prefix.{h,cpp}` now implements:
 
 - the 16-byte prefix;
-- one complete first-loop `ActionFrameData` stream record from an explicit start offset;
-- the three one-byte string separators;
-- signed-length rejection and the evidence-derived `0xff` payload cap;
-- the following compact counted `ActionFrameData` block (`int32 + float + float` per positive iteration);
-- exact signed nonpositive-count behavior for that compact block;
-- transactional outputs: truncation or malformed lengths leave caller output unchanged.
+- one complete primary `ActionFrameData` stream record;
+- the compact counted `int32 + float + float` block;
+- the Section C signed-outer/unsigned-inner nested block and its complete variable-length inner record;
+- one-byte string separators, negative signed-length rejection, and the evidence-derived `0xff` payload cap;
+- exact nonpositive signed-count behavior and pre-bounded positive allocations;
+- transactional outputs for truncation or malformed lengths.
 
-The implementation uses the existing project-owned bounds-checked `hp_data::Reader` / `Cursor`; it does not call the original library and does not require `CCFileUtils`, `AppParameters`, or Cocos object construction.
+The implementation uses the project-owned bounds-checked `hp_data::Reader` / `Cursor`; it does not call the original library and does not require `CCFileUtils`, `AppParameters`, or Cocos object construction.
 
-The next format step is the nested counted block beginning with the signed count at `0x28f8dc` and the per-outer-record unsigned count at `0x28f904`. Its inner record shape must be recovered completely before it is added to the clean-room parser.
+The next format step begins after Section C at `0x28fc52`: the first header word is compared against `0x68`, selecting 6 or 20 count-prefixed groups. The independent topology contract identifies their destination array base as `EnemyActionsData + 0x34 + 4*i`; the per-record serialized shape must remain evidence-bounded when that Section D parser is added.
