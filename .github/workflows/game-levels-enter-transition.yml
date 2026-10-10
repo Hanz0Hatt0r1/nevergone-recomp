@@ -7,12 +7,24 @@ on:
       - 'android/app/src/main/cpp/game_levels_enter_transition.h'
       - 'android/app/src/main/cpp/game_levels_asset_probe.cpp'
       - 'android/app/src/main/cpp/game_levels_asset_probe.h'
+      - 'android/app/src/main/cpp/game_levels_runtime_state.cpp'
+      - 'android/app/src/main/cpp/game_levels_runtime_state.h'
+      - 'android/app/src/main/cpp/game_levels_model.cpp'
+      - 'android/app/src/main/cpp/game_levels_model.h'
       - 'android/app/src/main/cpp/game_levels_actions_section.cpp'
       - 'android/app/src/main/cpp/game_levels_actions_section.h'
       - 'android/app/src/main/cpp/game_levels_global_section.cpp'
       - 'android/app/src/main/cpp/game_levels_global_section.h'
       - 'android/app/src/main/cpp/game_levels_port_node_section.cpp'
       - 'android/app/src/main/cpp/game_levels_port_node_section.h'
+      - 'android/app/src/main/cpp/game_levels_port_node_graph.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_node_graph.h'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.h'
+      - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_navigation.h'
+      - 'android/app/src/main/cpp/game_levels_start_scene.cpp'
+      - 'android/app/src/main/cpp/game_levels_start_scene.h'
       - 'android/app/src/main/cpp/game_levels_layer_tail.cpp'
       - 'android/app/src/main/cpp/game_levels_layer_tail.h'
       - 'android/app/src/main/cpp/game_levels_scene_prefix.cpp'
@@ -28,12 +40,24 @@ on:
       - 'android/app/src/main/cpp/game_levels_enter_transition.h'
       - 'android/app/src/main/cpp/game_levels_asset_probe.cpp'
       - 'android/app/src/main/cpp/game_levels_asset_probe.h'
+      - 'android/app/src/main/cpp/game_levels_runtime_state.cpp'
+      - 'android/app/src/main/cpp/game_levels_runtime_state.h'
+      - 'android/app/src/main/cpp/game_levels_model.cpp'
+      - 'android/app/src/main/cpp/game_levels_model.h'
       - 'android/app/src/main/cpp/game_levels_actions_section.cpp'
       - 'android/app/src/main/cpp/game_levels_actions_section.h'
       - 'android/app/src/main/cpp/game_levels_global_section.cpp'
       - 'android/app/src/main/cpp/game_levels_global_section.h'
       - 'android/app/src/main/cpp/game_levels_port_node_section.cpp'
       - 'android/app/src/main/cpp/game_levels_port_node_section.h'
+      - 'android/app/src/main/cpp/game_levels_port_node_graph.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_node_graph.h'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_navigation.h'
+      - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_navigation.h'
+      - 'android/app/src/main/cpp/game_levels_start_scene.cpp'
+      - 'android/app/src/main/cpp/game_levels_start_scene.h'
       - 'android/app/src/main/cpp/game_levels_layer_tail.cpp'
       - 'android/app/src/main/cpp/game_levels_layer_tail.h'
       - 'android/app/src/main/cpp/game_levels_scene_prefix.cpp'
@@ -55,9 +79,15 @@ jobs:
             tools/game_levels_enter_transition_smoke.cpp \
             android/app/src/main/cpp/game_levels_enter_transition.cpp \
             android/app/src/main/cpp/game_levels_asset_probe.cpp \
+            android/app/src/main/cpp/game_levels_runtime_state.cpp \
+            android/app/src/main/cpp/game_levels_model.cpp \
             android/app/src/main/cpp/game_levels_actions_section.cpp \
             android/app/src/main/cpp/game_levels_global_section.cpp \
             android/app/src/main/cpp/game_levels_port_node_section.cpp \
+            android/app/src/main/cpp/game_levels_port_node_graph.cpp \
+            android/app/src/main/cpp/game_levels_port_navigation.cpp \
+            android/app/src/main/cpp/game_levels_scene_navigation.cpp \
+            android/app/src/main/cpp/game_levels_start_scene.cpp \
             android/app/src/main/cpp/game_levels_layer_tail.cpp \
             android/app/src/main/cpp/game_levels_scene_prefix.cpp \
             android/app/src/main/cpp/hp_data_reader.cpp \
