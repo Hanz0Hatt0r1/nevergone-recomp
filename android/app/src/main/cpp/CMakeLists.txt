@@ -38,6 +38,7 @@ add_library(nevergone_recomp SHARED
     client_callback_bridge.cpp
     created_role_transition.cpp
     created_role_transition_runtime.cpp
+    enemy_actions_layout_evidence.cpp
     filesystem_bindings.cpp
     fresh_role_compat_jni.cpp
     fresh_role_compat_state.cpp
