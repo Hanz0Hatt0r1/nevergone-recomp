@@ -5,7 +5,7 @@ Experimental clean-room reverse-engineering and recompilation project for the An
 The goal is to reconstruct the original game runtime as maintainable source code for modern Android, including `arm64-v8a`, without depending on the obsolete original Android toolchain and without redistributing proprietary game binaries or assets.
 
 > [!IMPORTANT]
-> The project is **not yet a playable recompilation**. It is beyond the research/bootstrap stage: the repository already contains a modern Android/NDK runtime, embedded Lua 5.2.3, user-owned APK/OBB import, reconstructed startup/login/ChooseHero state, bounded GameLevels parsing, a project-owned scene construction pipeline, and the first renderer-facing GameScene asset staging path. The remaining blocker is connecting these pieces into one contiguous on-device path that visibly renders the first offline scene and then spawns a controllable player.
+> The project is **not yet a playable recompilation**. It is well beyond bootstrap/research: the repository now has a modern Android/NDK runtime, embedded Lua 5.2.3, user-owned APK/OBB import, reconstructed startup/login/ChooseHero state, bounded GameLevels parsing, retained scene state, a live GameScene render queue, GLES2 texture upload and direct-sprite drawing, atlas/plist discovery and texture resolution, plus bounded native evidence for save/combat-related systems. The main blocker is no longer basic rendering infrastructure; it is closing the **contiguous on-device path** from server selection through ChooseHero/enter-game into a first scene whose default sprite-frame resources, player spawn and input all work together.
 
 ## Current state
 
@@ -16,8 +16,8 @@ As of **2026-10-10**, `main` includes:
 - embedded **Lua 5.2.3**, matching the runtime identified in the original binary;
 - deterministic decoding for transformed Lua/PNG/HPC/CSV resources;
 - Android import flows for user-owned original APK and OBB data;
-- reconstructed Android → JNI → startup state and lifecycle forwarding;
-- reconstructed `AppDelegate`, splash/scene-generation and `HelloWorld` → `ManagementLayer` behavior;
+- reconstructed Android -> JNI -> startup state and lifecycle forwarding;
+- reconstructed `AppDelegate`, splash/scene-generation and `HelloWorld` -> `ManagementLayer` behavior;
 - structured server/role payload models and reconstructed `NewServerList` selection semantics;
 - a substantial clean-room `ChooseHero` presentation: background/clouds, thunder/lightning state, role items, selection/focus behavior, save-derived hero metadata and localized profile labels;
 - a bounds-checked `HPData` replacement with verified `HPRange {byte_offset, byte_length}` semantics;
@@ -29,10 +29,19 @@ As of **2026-10-10**, `main` includes:
 - direct imported-asset resolution for evidence-backed type-0 sprite commands;
 - stable JNI snapshots of direct GameScene asset requests;
 - an atomic native pixel store for decoded direct GameScene assets;
-- a Java-side `BitmapFactory` stager that resolves imported PNGs beneath the app-private asset root, converts them to ARGB_8888, bounds allocations and publishes a complete revision transactionally;
-- focused host/Android CI for startup/login, ChooseHero, scene parsing/construction, render-queue state, asset bridges and platform/build checks.
+- Java-side `BitmapFactory` staging of imported direct PNGs to bounded ARGB_8888 revisions;
+- transactional upload of staged direct pixels into GLES2 texture handles;
+- live direct-file GameScene sprite drawing from the renderer after frame clear;
+- evidence-backed direct-sprite geometry using the original 1136x640 ExactFit design space, centered sprite anchor and clockwise Cocos rotation convention;
+- discovery of the ordered GameScene atlas preload list used by the original runtime;
+- sprite-frame asset request snapshots for `spriteFrameByName` paths;
+- safe imported plist/atlas texture resolution, including the recovered direct `metadata.textureFileName` rule and sibling `.png` fallback;
+- a reconstructed project-owned `GameSaveData::Encode/Decode` leaf codec validated against bounded unidbg probes;
+- a bounded `EnemyActionsData` object-layout evidence map for future parser/combat reconstruction;
+- a repaired unidbg evidence harness that can load the original native dependency set far enough to complete `JNI_OnLoad` and run isolated synthetic native probes;
+- focused host/Android CI for startup/login, ChooseHero, scene parsing/construction, render state, asset bridges, GameSaveData transforms, native evidence contracts and platform/build checks.
 
-The newest direct-asset stager is intentionally still isolated: it is **not yet called from the GLSurfaceView frame/reload path**. Therefore the repository has renderer-ready state and asset pixels, but it does not yet claim a visibly rendered first offline GameScene on a real device.
+The renderer can now submit **direct-file** GameScene sprites with reconstructed geometry. This does **not** yet mean P7 is complete: most ordinary type-0 objects use `CCSpriteFrameCache::spriteFrameByName()`, so frame metadata/extraction from the resolved imported atlases still has to be connected to rendering, and the complete first offline scene still requires real-device validation through the contiguous runtime path.
 
 ## Delivery readiness
 
@@ -47,27 +56,47 @@ The primary delivery metric is [`docs/playable-path.md`](docs/playable-path.md).
 | P4 | ChooseHero end-to-end | In progress, substantial |
 | P5 | Deterministic enter-game transition | In progress |
 | P6 | GameLevels data sufficient for first scene | In progress; parser/model/construction work is substantial |
-| P7 | First offline scene instantiated and visibly rendered | Not yet |
+| P7 | First offline scene instantiated and visibly rendered | In progress; direct-file draw works, frame-cache path/device proof remain |
 | P8 | Player spawned | Not yet |
 | P9 | Input visibly changes player state | Not yet |
-| P10 | Minimal save → restart → restore | Not yet |
+| P10 | Minimal save -> restart -> restore | Not yet; leaf save codec recovered |
 
-By the project's strict contiguous metric, the highest completed checkpoint is currently **P2**: **3 of the 10 technical-alpha checkpoints P0-P9 are contiguous-complete (30%)**. This deliberately understates downstream engineering progress; substantial P4-P7 support already exists, but it does not count as playable-path completion until P3 and the intervening transitions are connected end-to-end.
+By the project's strict contiguous metric, the highest completed checkpoint is still **P2**: **3 of the 10 technical-alpha checkpoints P0-P9 are contiguous-complete (30%)**. That intentionally understates downstream engineering: P6/P7 have significant implementation behind them, but none of it advances the strict marker until P3-P5 are closed in the same on-device route.
+
+For planning, a second metric is useful: **engineering readiness toward technical alpha is approximately 55%**. This is not a release claim; it reflects how much enabling infrastructure already exists outside the contiguous checkpoint chain. The largest remaining concentration of risk is now in runtime integration, sprite-frame atlas consumption, player creation/input and device validation rather than in project/bootstrap tooling.
 
 **Technical alpha** requires P0-P9 on a real Android runtime with user-owned imported data. **Early playable alpha** additionally requires at least one enemy interaction, a damage/death loop, minimal persistence and no blocking crash in the first gameplay slice.
 
-Tracking issue: [#151 — M4 → First Offline Scene / Technical Alpha path](https://github.com/Hanz0Hatt0r1/nevergone-recomp/issues/151).
+Tracking issue: [#151 — M4 -> First Offline Scene / Technical Alpha path](https://github.com/Hanz0Hatt0r1/nevergone-recomp/issues/151).
+
+## Readiness by area
+
+| Area | Estimated readiness | Notes |
+| --- | ---: | --- |
+| Build/tooling/clean runtime | 90% | Modern app, JNI/native runtime, Lua, dual ABI and broad CI exist |
+| Original-data import/resource recovery | 90% | APK/OBB import and core resource transforms are established |
+| Startup/login/management UI | 75% | Substantial reconstruction; contiguous P3 transition still open |
+| ChooseHero/enter-game route | 65% | Presentation/state are strong; end-to-end one-shot route remains open |
+| GameLevels/scene model | 65% | First object boundary and retained model are strong; full first-scene sufficiency is not closed |
+| First-scene rendering | 65% | Direct sprites render; atlas/frame-cache sprite extraction and device proof remain |
+| Player spawn/input | 15% | Evidence exists around downstream systems, but P8/P9 are not implemented end-to-end |
+| Offline combat/gameplay | 10% | `EnemyActionsData` evidence has started; no playable combat loop |
+| Persistence | 25% | `GameSaveData` leaf codec is recovered; full save/write/restart/restore is not |
+| Modern Android runtime validation | 25% | Build/page checks exist; Android 15/16, arm64 and 16 KiB runtime proof is pending |
+
+These percentages are engineering estimates, not compatibility guarantees. The authoritative delivery gate remains the contiguous P0-P10 path.
 
 ## Immediate critical path
 
-1. Finish visible server-selection rendering/input/confirmation and close the contiguous P3 transition.
-2. Finish ChooseHero → reconstructed login Lua → enter-game as one generation-safe, one-shot P4/P5 route.
-3. Remove the remaining artificial GameLevels limitations only where binary evidence supports the next fields/records.
-4. Connect `GameSceneDirectAssetStager` to the GL frame/reload path and consume the live render queue/pixel store.
-5. Render the first evidence-backed static GameScene layer from user-owned imported data without `libcocos2dcpp.so`.
+1. Finish visible server-selection rendering/input/confirmation and close contiguous P3.
+2. Finish ChooseHero -> reconstructed login Lua -> enter-game as one generation-safe, one-shot P4/P5 route.
+3. Generalize GameLevels only as far as the real first scene requires and only where binary evidence supports the next fields/records.
+4. Parse resolved TexturePacker plist frame metadata and connect `spriteFrameByName` requests to atlas-backed textures/quads.
+5. Prove the complete first offline GameScene on a real Android device using user-owned imported data.
 6. Recover and spawn the minimal player visual/state, then expose one visible input path.
-7. Add minimal save/restart/restore only after the first playable slice is stable.
-8. Validate Android 15/16, arm64 and 16 KiB page-size behavior at runtime, not only at build time.
+7. Use the new `EnemyActionsData` evidence only when the first gameplay slice requires enemy/action data; avoid speculative full combat reconstruction.
+8. Build minimal save/restart/restore on top of the recovered GameSaveData codec after the first playable slice is stable.
+9. Validate Android 15/16, arm64 and 16 KiB page-size behavior at runtime, not only at build time.
 
 ## Established findings
 
@@ -90,10 +119,18 @@ The reconstruction has established that:
 - the shipped ChooseHero `PartThree()` / `BalckCloud()` path and thunder scheduling behavior are substantially reconstructed;
 - the original 32-bit `HPRange` is `{byte_offset, byte_length}`;
 - `GameLevels::LoadGameLevels()` loads scene, action, global and port-node sections in a recovered fixed order;
-- the first GameScene object record is now parsed through its complete evidence-backed record boundary rather than only the old int32/uint32 prefix;
+- the first GameScene object record is parsed through its complete current evidence-backed record boundary rather than only the old int32/uint32 prefix;
 - the original visual scene path visits at most ordered layer slots `0..10`;
-- type-0 objects now have evidence-backed resource-selection and sprite-transform contracts where proven;
-- nonzero object construction, frame-cache atlas/plist loading, scene-action playback, anchor semantics and later gameplay objects remain separate unresolved boundaries.
+- type-0 objects have evidence-backed resource-selection and sprite-transform contracts where proven;
+- the original design resolution path is 1136x640 with Cocos ExactFit behavior; direct-file sprite rendering now follows that mapping;
+- ordinary sprite anchor behavior is centered at `(0.5, 0.5)` and positive Cocos rotation is clockwise in the recovered path;
+- direct-file GameScene pixels can be staged, uploaded to GLES2 and drawn from the live render queue without linking the original native library;
+- the original GameScene atlas preload list can be discovered from imported data;
+- recovered plist loading uses direct top-level `metadata.textureFileName` when present and falls back to a sibling `.png` name when absent/empty;
+- `GameSaveData::Encode/Decode` use the recovered byte transform with a counter cycling `0..126`; the project-owned implementation is regression-tested against native probes;
+- bounded unidbg work validated the existing asset decoder and selected Cocos geometry helpers on synthetic inputs after loading 48 runtime modules with zero unresolved symbols and completing explicit `JNI_OnLoad`;
+- `EnemyActionsData::loadWBGFile` is confirmed as an HPData-backed parser dependency, and the reconstructed evidence module records its observed constructor/layout geometry without pretending unresolved fields are understood;
+- nonzero GameScene object construction, atlas frame extraction/TexturePacker semantics, scene-action playback, player creation, combat and full persistence remain unresolved or incomplete boundaries.
 
 ## Project status
 
@@ -109,9 +146,9 @@ The reconstruction has established that:
 | Server-selection semantics | Implemented and host-tested |
 | Visible server-selection path | In progress |
 | ChooseHero presentation/state | Substantially reconstructed |
-| ChooseHero → enter-game end-to-end | In progress |
+| ChooseHero -> enter-game end-to-end | In progress |
 | `HPData` foundation | Done for current parser needs |
-| First GameScene object record | Evidence-backed complete record parser |
+| First GameScene object record | Evidence-backed complete current record parser |
 | Generic/full GameLevels scene parsing | In progress |
 | Retained scene instance | Implemented |
 | GameScene construction plan | Implemented for proven traversal/type-0 semantics |
@@ -119,8 +156,18 @@ The reconstruction has established that:
 | Direct imported sprite path resolution | Implemented |
 | Direct asset JNI request bridge | Implemented |
 | Atomic decoded-pixel store | Implemented |
-| Java direct-asset staging | Implemented, not yet wired into GL frame/reload |
-| First visible offline scene | Not yet |
+| Java direct-asset staging | Implemented |
+| Direct GLES2 texture upload/cache | Implemented |
+| Direct GameScene sprite renderer | Implemented for proven direct-file type-0 branches |
+| ExactFit/anchor/rotation geometry | Implemented for direct sprites |
+| GameScene atlas preload discovery | Implemented |
+| Sprite-frame request snapshot | Implemented |
+| Imported atlas plist/texture resolution | Implemented |
+| Atlas frame metadata -> rendered sprite | Next renderer blocker |
+| First complete visible offline scene | Not yet device-proven |
+| `GameSaveData` Encode/Decode leaf codec | Implemented from native probe evidence |
+| Minimal save/restart/restore | Not yet |
+| `EnemyActionsData` layout evidence | Implemented as bounded evidence contract |
 | Player spawn/input | Not yet |
 | Offline combat/gameplay | Not yet functional |
 | `arm64-v8a` build target | Done |
@@ -140,10 +187,11 @@ The current strategy is dependency-driven and evidence-driven:
 4. reconstruct state machines at verified semantic boundaries instead of copying the old ABI;
 5. convert callback/save/resource payloads into bounded project-owned models before attaching them to renderer state;
 6. reconstruct binary readers only through proven field widths/order and stop when evidence runs out;
-7. preserve recovered traversal, transforms and resource-selection semantics separately from still-unknown gameplay meaning;
-8. build project-owned scene/runtime state from those proven models;
-9. recreate only the native/game behavior required by the reachable offline path;
-10. preserve offline behavior while replacing or stubbing obsolete service integrations where necessary.
+7. use bounded native execution (including unidbg probes) to validate isolated leaf behavior where static analysis alone is insufficient;
+8. preserve recovered traversal, transforms and resource-selection semantics separately from still-unknown gameplay meaning;
+9. build project-owned scene/runtime state from those proven models;
+10. recreate only the native/game behavior required by the reachable offline path;
+11. preserve offline behavior while replacing or stubbing obsolete service integrations where necessary.
 
 ## Repository layout
 
@@ -154,7 +202,8 @@ nevergone-recomp/
 │   ├── app/
 │   └── README.md
 ├── docs/                 # reverse-engineering evidence and reconstruction notes
-├── tools/                # decoders, probes, Ghidra helpers and validation tools
+│   └── evidence/         # bounded reproducible native/static evidence
+├── tools/                # decoders, unidbg probes, Ghidra helpers and validation tools
 ├── third_party/_local/   # ignored locally fetched dependencies
 └── .github/              # CI workflows
 ```
@@ -194,14 +243,18 @@ ManagementLayer::initLoginLayer()
                  |
                  v
           render queue
-                 |
-                 v
- direct imported asset requests
-                 |
-                 v
-   decoded ARGB pixel store
-                 |
-                 `--> GL integration still pending
+           /          \
+          v            v
+ direct-file requests  sprite-frame requests
+          |            |
+          v            v
+   ARGB pixel store    atlas-list/plist/texture resolution
+          |            |
+          v            `--> frame metadata/render hookup pending
+   GLES2 texture cache
+          |
+          v
+ direct sprite renderer
 ```
 
 The runtime does **not** link against the original `libcocos2dcpp.so`.
@@ -225,15 +278,39 @@ Renderer-facing reconstruction adds a separate semantic layer:
 - type-0 visual objects carry proven resource-selection and transform information;
 - special direct-file sprite names are resolved beneath the imported asset root;
 - the retained scene/construction plan is transformed into a live render queue;
-- Java can snapshot direct-file requests, decode the corresponding PNGs and atomically stage bounded ARGB pixels into native memory.
+- Java snapshots direct-file requests, decodes corresponding imported PNGs and atomically stages bounded ARGB pixels;
+- native code synchronizes complete staged revisions into GLES2 texture handles;
+- the direct renderer draws validated direct-file sprites using recovered ExactFit/anchor/rotation semantics;
+- default `spriteFrameByName` objects expose ordered frame requests;
+- the imported GameScene atlas list, plist paths and backing texture paths can now be resolved without guessing resource names.
 
-The next important boundary is no longer "discover the first object prefix". It is to **connect the staged asset pixels and render queue to the Android GL renderer and visibly instantiate the first offline scene**, while continuing parser generalization only where required by that real scene.
+The next visual boundary is to **parse the resolved atlas frame dictionaries and reproduce the TexturePacker frame/source-size/offset semantics needed by the live `spriteFrameByName` requests**. After that, the first scene must be proven through the real P3-P7 device route rather than only by isolated renderer/runtime tests.
 
 See:
 
 - [`docs/hpdata-gamelevels.md`](docs/hpdata-gamelevels.md)
 - [`docs/game-scene-object-construction.md`](docs/game-scene-object-construction.md)
+- [`docs/game-scene-resource-loading.md`](docs/game-scene-resource-loading.md)
 - [`docs/playable-path.md`](docs/playable-path.md)
+
+## Native dynamic evidence / unidbg
+
+The repository contains a bounded unidbg harness and committed evidence from the 2026-10-10 native probe work.
+
+Current evidence includes:
+
+- DT_RELR handling needed by the tested Android runtime dependencies;
+- nested dependency resolution fixes to keep the intended runtime libc++ dependency set;
+- 48 loaded modules with zero unresolved symbols for the recorded harness run;
+- explicit `JNI_OnLoad` completion;
+- synthetic validation of the recovered `cocos2d::Decode` transform;
+- isolated `CCRect::containsPoint` / `intersectsRect` behavior samples;
+- `GameSaveData::Encode/Decode` dynamic comparisons and the project-owned matching codec;
+- static/dynamic preparation around `EnemyActionsData` and selected Lua/native bindings.
+
+This is **not** proof that the original graphics/game runtime boots under unidbg. EGL initialization is still an explicit boundary, and native probes are kept isolated so an individual result is not overgeneralized into a runtime-compatibility claim.
+
+See [`docs/evidence/unidbg-2026-10-10/README.md`](docs/evidence/unidbg-2026-10-10/README.md).
 
 ## Resource recovery
 
@@ -302,9 +379,12 @@ Coverage includes:
 - retained GameLevels model/scene state;
 - GameScene construction-plan semantics;
 - render-queue ordering/state;
-- direct-asset path resolution;
-- JNI request snapshots;
-- atomic direct-asset pixel-store behavior;
+- direct-asset path resolution, JNI snapshots and pixel-store transactions;
+- direct GLES2 texture-cache behavior and renderer syntax/contracts;
+- recovered ExactFit/direct-sprite geometry;
+- GameScene atlas-list discovery and imported plist/texture resolution;
+- GameSaveData codec regression against committed native probe evidence;
+- EnemyActionsData layout-evidence consistency;
 - Android Java compilation;
 - NDK/build and page-size validation.
 
@@ -340,27 +420,36 @@ Full validation requiring a user-owned original APK remains manual-only; ordinar
 - [x] early filesystem/search-path compatibility recreated
 - [x] reconstructed `AppDelegate` state implemented
 - [x] bounded HPData/GameLevels foundation implemented
+- [x] isolated native dynamic-evidence harness established
 - [ ] close remaining contiguous login/runtime blockers
 
 ### M4 — First offline scene / technical-alpha path
 
 - [x] splash/initial-scene sequencing
-- [x] `HelloWorld` → `ManagementLayer`
+- [x] `HelloWorld` -> `ManagementLayer`
 - [x] Management server/role models and callbacks
 - [x] substantial ChooseHero presentation/state reconstruction
 - [x] complete first-object record parser
 - [x] retained scene instance + construction plan
 - [x] live render queue
 - [x] direct imported asset request/pixel staging pipeline
+- [x] direct staged-pixel -> GLES2 texture synchronization
+- [x] direct-file GameScene sprite renderer
+- [x] recovered direct-sprite ExactFit/anchor/rotation semantics
+- [x] GameScene atlas preload discovery
+- [x] sprite-frame request bridge/snapshot
+- [x] imported atlas plist/texture resolution
 - [ ] finish server-selection end-to-end
-- [ ] finish ChooseHero → enter-game end-to-end
-- [ ] connect direct asset staging to GL frame/reload
-- [ ] visibly render first offline scene
+- [ ] finish ChooseHero -> enter-game end-to-end
+- [ ] parse atlas frame metadata and render `spriteFrameByName` objects
+- [ ] visibly prove the complete first offline scene on device
 - [ ] spawn player
 - [ ] expose visible player input
 
 ### M5 — Offline gameplay
 
+- [x] GameSaveData Encode/Decode leaf transform recovered
+- [x] bounded EnemyActionsData layout/dependency evidence started
 - [ ] first enemy interaction
 - [ ] damage/death loop
 - [ ] combat systems
@@ -387,8 +476,10 @@ Key documents:
 - [`docs/roadmap.md`](docs/roadmap.md) — phased reconstruction plan
 - [`docs/hpdata-gamelevels.md`](docs/hpdata-gamelevels.md) — HPRange and binary scene parsing evidence
 - [`docs/game-scene-object-construction.md`](docs/game-scene-object-construction.md) — layer traversal, type-0 construction/resource/transform evidence
+- [`docs/game-scene-resource-loading.md`](docs/game-scene-resource-loading.md) — atlas preload and sprite-frame resource-loading evidence
+- [`docs/evidence/unidbg-2026-10-10/README.md`](docs/evidence/unidbg-2026-10-10/README.md) — bounded native dynamic evidence and reproduction metadata
 - [`docs/android-bootstrap.md`](docs/android-bootstrap.md) — Android/native bootstrap and lifecycle research
-- [`docs/initial-ui-transition.md`](docs/initial-ui-transition.md) — `HelloWorld` → `ManagementLayer`
+- [`docs/initial-ui-transition.md`](docs/initial-ui-transition.md) — `HelloWorld` -> `ManagementLayer`
 - [`docs/server-selection-runtime.md`](docs/server-selection-runtime.md) — `NewServerList` behavior
 - [`docs/choose-hero-background.md`](docs/choose-hero-background.md) — ChooseHero background/cloud path
 - [`docs/choose-hero-thunder-scheduler.md`](docs/choose-hero-thunder-scheduler.md) — thunder RNG/timing contract
@@ -402,7 +493,7 @@ Key documents:
 
 ## Contributing
 
-Reverse-engineering findings are useful even before they become reconstructed source code. Helpful contributions include function identification, Ghidra analysis, Java/JNI mapping, Cocos2d-x matching, script/resource format research, clean-room runtime implementations, Android compatibility work and behavior comparison against the original game.
+Reverse-engineering findings are useful even before they become reconstructed source code. Helpful contributions include function identification, Ghidra analysis, Java/JNI mapping, Cocos2d-x matching, script/resource format research, bounded native experiments, clean-room runtime implementations, Android compatibility work and behavior comparison against the original game.
 
 When documenting reconstructed behavior, include evidence whenever practical: binary hash/version, symbol/address, strings, xrefs, imports, call relationships or runtime observations.
 
