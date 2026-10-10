@@ -59,3 +59,15 @@ jobs:
 
       - name: Run combo runtime-chain smoke
         run: /tmp/enemy_actions_combo_runtime_chain_smoke
+
+      - name: Compile composed runtime-state smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/enemy_actions_combo_consumer.cpp \
+            android/app/src/main/cpp/enemy_actions_runtime_state.cpp \
+            tools/enemy_actions_runtime_state_smoke.cpp \
+            -o /tmp/enemy_actions_runtime_state_smoke
+
+      - name: Run composed runtime-state smoke
+        run: /tmp/enemy_actions_runtime_state_smoke
