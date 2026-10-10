@@ -94,4 +94,35 @@ WaUpdateComboTransition apply_wa_update_combo_transition(
         std::int32_t current_frame_index,
         WaUpdateComboState state);
 
+// Later in waUpdate(), native code has a strict post-endpoint branch that runs
+// only when the +0x94 path did not make a real transition to a next boundary.
+// Names remain offset-based because the gameplay meanings of these fields are
+// not yet proven.
+struct WaUpdateCompletionState {
+    std::int32_t field_18c = 0;
+    std::uint8_t flag_190 = 0;
+    std::uint8_t flag_169 = 0;
+    std::uint8_t flag_1bc = 0;
+    std::uint8_t flag_292 = 0;
+    std::int32_t current_frame_294 = 0;
+};
+
+struct WaUpdateCompletionTransition {
+    WaUpdateCompletionState state;
+    bool reset_applied = false;
+};
+
+// Evidence-backed late waUpdate() transition:
+//   - do nothing when a real +0x94 next-boundary transition occurred;
+//   - do nothing while current_frame <= current field_18 endpoint;
+//   - otherwise store endpoint-1 at +0x18c, write 1 to +0x190, reset +0x294
+//     to 0, write 1 to +0x1bc, and clear +0x169 only when +0x292 is zero.
+// The independent updateData() path and surrounding animation/timing behavior
+// remain outside this helper.
+WaUpdateCompletionTransition apply_wa_update_completion_transition(
+        std::int32_t boundary_endpoint_18,
+        bool advanced_to_next_boundary,
+        std::int32_t current_frame_index,
+        WaUpdateCompletionState state);
+
 }  // namespace nevergone::enemy_actions_combo_consumer

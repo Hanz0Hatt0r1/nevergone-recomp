@@ -60,8 +60,22 @@ A second bounded state slice is visible immediately around that path after the c
 - if system byte `+0x290` is nonzero, native writes byte `1` to system `+0x291`;
 - system byte `+0x191` gates the `+0x94` endpoint/cursor update: zero skips that cursor path, nonzero enables the already-proven endpoint check.
 
-`apply_wa_update_combo_transition()` models only those two operations. Its neutral `WaUpdateComboState` carries `flag_191`, `flag_290`, `flag_291` and `boundary_index_2a0`. A nonzero `flag_290` normalizes `flag_291` to byte value `1`; `flag_191 == 0` preserves the +0x94 index, while nonzero `flag_191` delegates to `advance_boundary_cursor()`. The independent +0x98 stream, timing accumulator, frame increment itself and later completion/reset writes are deliberately outside this helper.
+`apply_wa_update_combo_transition()` models only those two operations. Its neutral `WaUpdateComboState` carries `flag_191`, `flag_290`, `flag_291` and `boundary_index_2a0`. A nonzero `flag_290` normalizes `flag_291` to byte value `1`; `flag_191 == 0` preserves the +0x94 index, while nonzero `flag_191` delegates to `advance_boundary_cursor()`.
 
-This establishes a small contiguous state bridge from a `comboHit()` mode-2 match (`+0x290 = 1`) into the next `waUpdate()` combo-related step (`+0x291 = 1`) without assigning gameplay names to either byte.
+### Late post-endpoint transition
+
+Later in the same `waUpdate()` control flow, the local result of the `+0x94` cursor path gates a second branch. When no real next-boundary transition occurred and the current frame is strictly greater than the selected `ActionComboValue+0x18` endpoint, native performs the following writes:
+
+- `system+0x18c = endpoint - 1`;
+- `system+0x190 = 1`;
+- `system+0x294 = 0`;
+- `system+0x1bc = 1`;
+- if byte `system+0x292 == 0`, also `system+0x169 = 0`.
+
+The comparison is strict: `current_frame == endpoint` does not enter this late block. A real `+0x94` transition suppresses the block even when the frame is already beyond the previous endpoint.
+
+`apply_wa_update_completion_transition()` reconstructs exactly this offset-named write set in `WaUpdateCompletionState`. It preserves `+0x169` when `+0x292` is nonzero and models `endpoint - 1` with ARM32 wraparound. The independent `+0x98` stream, calls reached on the alternate `updateData()` path, animation/timing work and any gameplay interpretation of these state fields remain outside this contract.
+
+Together these helpers establish a contiguous structural bridge from a `comboHit()` mode-2 match (`+0x290 = 1`) through the next `waUpdate()` byte propagation (`+0x291 = 1`), boundary progression, and the proven late post-endpoint reset writes without assigning speculative semantic names.
 
 No proprietary WBG data or original source code is included in this reconstruction.
