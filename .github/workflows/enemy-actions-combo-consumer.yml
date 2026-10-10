@@ -177,3 +177,13 @@ jobs:
 
       - name: Run default-cut table smoke
         run: /tmp/enemy_actions_default_cut_table_smoke
+
+      - name: Compile cut-selection smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/enemy_actions_cut_selection_smoke.cpp \
+            -o /tmp/enemy_actions_cut_selection_smoke
+
+      - name: Run cut-selection smoke
+        run: /tmp/enemy_actions_cut_selection_smoke

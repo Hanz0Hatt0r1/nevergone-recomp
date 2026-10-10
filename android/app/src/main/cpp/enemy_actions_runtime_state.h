@@ -28,6 +28,7 @@ struct State {
     float field_158 = 0.0f;
     float field_15c = 0.0f;
     float field_160 = 0.0f;
+    float field_278 = 0.0f;
     std::int32_t current_frame_294 = 0;
     std::size_t boundary_index_2a0 = 0;
     std::size_t boundary_index_2a4 = 0;
@@ -114,8 +115,9 @@ struct UpdateDataObjectGateResult {
     UpdateDataEntryResult entry;
     bool should_call_virtual_slot_cc = false;
     bool virtual_slot_cc_result_nonnull = false;
-    bool would_enter_object_update_block = false;
-    bool would_bypass_object_update_block = false;
+    bool cut_processing_gate_open = false;
+    bool cut_processing_bypassed = false;
+    bool continues_to_common_downstream = false;
 };
 
 ComboHitResult apply_combo_hit(
@@ -155,12 +157,11 @@ UpdateDataFrameLookupResult apply_update_data_frame_lookup(
         const enemy_actions_wbg_document::Document& document,
         State state);
 
-// Reconstructs the control gate around the virtual call at vtable+0xcc. For a
-// valid updateData frame, native calls that slot only when +0x250 == 0. The
-// returned pointer is retained across the spriteFrameByName request; a null
-// value, or any nonzero +0x250 mode, bypasses the later large object-update
-// block. The caller supplies only the observed null/non-null result of the
-// external virtual call; the pointee and slot semantics remain unresolved.
+// Reconstructs the control gate around the virtual call at vtable+0xcc.
+// Native performs this call before spriteFrameByName() and only when +0x250 ==
+// 0. The retained pointer is tested after the frame lookup: null bypasses only
+// the subsequent cut-processing slice and rejoins the common downstream path.
+// Nonzero +0x250 modes likewise retain null and bypass cut processing.
 inline UpdateDataObjectGateResult apply_update_data_object_gate(
         const enemy_actions_wbg_document::Document& document,
         State state,
@@ -175,9 +176,10 @@ inline UpdateDataObjectGateResult apply_update_data_object_gate(
         result.virtual_slot_cc_result_nonnull = virtual_slot_cc_result_nonnull;
     }
 
-    result.would_enter_object_update_block =
+    result.cut_processing_gate_open =
             result.should_call_virtual_slot_cc && result.virtual_slot_cc_result_nonnull;
-    result.would_bypass_object_update_block = !result.would_enter_object_update_block;
+    result.cut_processing_bypassed = !result.cut_processing_gate_open;
+    result.continues_to_common_downstream = true;
     return result;
 }
 
