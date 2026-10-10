@@ -1,0 +1,27 @@
+name: EnemyActionsData layout evidence
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate EnemyActionsData evidence contract
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 \
+            -I android/app/src/main/cpp \
+            tools/enemy_actions_layout_evidence_smoke.cpp \
+            android/app/src/main/cpp/enemy_actions_layout_evidence.cpp \
+            -o /tmp/enemy_actions_layout_evidence_smoke
+          /tmp/enemy_actions_layout_evidence_smoke
