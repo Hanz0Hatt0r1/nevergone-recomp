@@ -10,16 +10,9 @@ namespace nevergone::enemy_actions_wbg_topology_evidence {
 // offsets describe the source binary only and are not runtime addresses in the
 // reconstructed application.
 constexpr std::size_t kLoadWbgFileInstructionOffset = 0x28f430u;
-
 constexpr std::size_t kNoObjectOffset = static_cast<std::size_t>(-1);
 
-enum class ReadKind {
-    kInt32,
-    kUInt32,
-    kFloat32,
-    kBool8,
-    kBytes,
-};
+enum class ReadKind { kInt32, kUInt32, kFloat32, kBool8, kBytes };
 
 struct HeaderRead {
     std::size_t serialized_offset = 0;
@@ -28,7 +21,6 @@ struct HeaderRead {
     std::size_t call_instruction_offset = 0;
 };
 
-// The non-null HPData path begins with four fixed reads totaling 16 bytes.
 extern const std::array<HeaderRead, 4> kHeaderReads;
 constexpr std::size_t kHeaderBytes = 0x10u;
 
@@ -60,8 +52,7 @@ constexpr std::size_t kPrimaryAddObjectInstructionOffset = 0x28f820u;
 //   int32 @ +0x35
 //   float32 @ +0x39
 //   first variable segment length int32 @ +0x3d
-// The payload of that first segment starts at +0x42. Three variable segments
-// use [int32 length][one skipped byte][length bytes].
+// Three variable segments use [int32 length][one skipped byte][length bytes].
 constexpr std::size_t kPrimaryFloatCount = 12u;
 constexpr std::size_t kPrimaryBoolSerializedOffset = 0x34u;
 constexpr std::size_t kPrimarySecondIntSerializedOffset = 0x35u;
@@ -72,7 +63,6 @@ constexpr std::size_t kVariableSegmentFramingBytes = 5u;
 constexpr std::size_t kPrimaryVariableSegmentCount = 3u;
 constexpr std::size_t kPrimaryRecordFixedBytesExcludingPayload = 0x4cu;
 
-// Computes 0x4c + len0 + len1 + len2 with overflow checking.
 bool primary_record_bytes(
         std::size_t len0,
         std::size_t len1,
@@ -117,12 +107,25 @@ constexpr std::size_t kRootFixedArrayObjectOffset = 0x084u;
 constexpr std::size_t kRootFixedAddObjectInstructionOffset = 0x290222u;
 
 // Section F repeats once per primary record. Each serialized tuple is four
-// int32 values followed by two float32 values, exactly 0x18 bytes. Derived
-// ActionComboValue objects may be appended to these three arrays.
+// int32 values followed by two float32 values, exactly 0x18 bytes. The first
+// float is written to this+0xd8+4*i and the second to this+0x268+4*i, linking
+// the file data to the two 100-entry regions initialized by initWithFile.
 constexpr std::size_t kComboTupleBytes = 0x18u;
+constexpr std::size_t kComboFirstFloatSerializedOffset = 0x10u;
+constexpr std::size_t kComboSecondFloatSerializedOffset = 0x14u;
+constexpr std::size_t kComboFirstFloatDestinationBase = 0x0d8u;
+constexpr std::size_t kComboSecondFloatDestinationBase = 0x268u;
 extern const std::array<std::size_t, 6> kComboTupleReadInstructionOffsets;
 extern const std::array<std::size_t, 3> kComboArrayObjectOffsets;
 extern const std::array<std::size_t, 3> kComboAddObjectInstructionOffsets;
+
+inline std::size_t combo_first_float_destination(std::size_t index) {
+    return kComboFirstFloatDestinationBase + index * 4u;
+}
+
+inline std::size_t combo_second_float_destination(std::size_t index) {
+    return kComboSecondFloatDestinationBase + index * 4u;
+}
 
 // Section G is a final table of one int32 per primary record. For each entry,
 // when the primary array is nonempty, the original code stores
