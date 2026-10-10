@@ -7,11 +7,16 @@
 
 #include "character_name_compositor.h"
 #include "character_name_state.h"
+#include "game_levels_runtime_state.h"
+#include "game_scene_direct_asset_requests.h"
+#include "game_scene_direct_asset_store.h"
+#include "render_bridge.h"
 #include "server_selection_compositor.h"
 #include "single_select_hero_confirm_compositor.h"
 #include "startup_contract.h"
 
 namespace nevergone::splash_layer_renderer {
+void clear_frames();
 void draw();
 }
 
@@ -19,6 +24,13 @@ namespace {
 
 std::uint64_t g_last_character_name_asset_attempt_generation =
     std::numeric_limits<std::uint64_t>::max();
+std::uint64_t g_last_game_scene_direct_asset_attempt_revision =
+    std::numeric_limits<std::uint64_t>::max();
+
+void reset_game_scene_direct_asset_attempt() {
+    g_last_game_scene_direct_asset_attempt_revision =
+        std::numeric_limits<std::uint64_t>::max();
+}
 
 void maybe_stage_character_name_assets(JNIEnv* env) {
     if (env == nullptr) return;
@@ -56,6 +68,65 @@ void maybe_stage_character_name_assets(JNIEnv* env) {
     env->DeleteLocalRef(loader);
 }
 
+void maybe_stage_game_scene_direct_assets(JNIEnv* env) {
+    if (env == nullptr) return;
+
+    const auto queue =
+        nevergone::game_levels_runtime_state::current_scene_render_queue();
+    if (!queue.has_value()) {
+        const auto store = nevergone::game_scene_direct_asset_store::snapshot();
+        if (store.active_revision != 0 || store.pending_revision != 0) {
+            nevergone::game_scene_direct_asset_store::clear();
+        }
+        reset_game_scene_direct_asset_attempt();
+        return;
+    }
+
+    const auto requests = nevergone::game_scene_direct_asset_requests::build(*queue);
+    const auto store = nevergone::game_scene_direct_asset_store::snapshot();
+    if (store.active_revision == requests.revision) return;
+    if (g_last_game_scene_direct_asset_attempt_revision == requests.revision) return;
+
+    const std::string& files_dir = nevergone::startup::config().files_dir;
+    if (files_dir.empty()) return;
+    g_last_game_scene_direct_asset_attempt_revision = requests.revision;
+
+    jclass stager = env->FindClass(
+        "org/nevergone/recomp/GameSceneDirectAssetStager");
+    if (stager == nullptr) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        return;
+    }
+    jmethodID stage = env->GetStaticMethodID(
+        stager,
+        "stageFromFilesDir",
+        "(Ljava/lang/String;)Z");
+    if (stage == nullptr) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        env->DeleteLocalRef(stager);
+        return;
+    }
+
+    jstring path = env->NewStringUTF(files_dir.c_str());
+    if (path != nullptr) {
+        (void)env->CallStaticBooleanMethod(stager, stage, path);
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        env->DeleteLocalRef(path);
+    }
+    env->DeleteLocalRef(stager);
+}
+
+void wrapped_on_draw_frame(JNIEnv* env, jclass) {
+    nevergone::render::on_draw_frame();
+    maybe_stage_game_scene_direct_assets(env);
+}
+
+void wrapped_clear_splash_frames(JNIEnv*, jclass) {
+    nevergone::splash_layer_renderer::clear_frames();
+    nevergone::game_scene_direct_asset_store::clear();
+    reset_game_scene_direct_asset_attempt();
+}
+
 void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::server_selection_compositor::on_surface_created();
     nevergone::character_name_compositor::on_surface_created();
@@ -88,6 +159,16 @@ bool register_frame_layers(JNIEnv* env) {
     }
 
     JNINativeMethod methods[] = {
+        {
+            const_cast<char*>("nativeOnDrawFrame"),
+            const_cast<char*>("()V"),
+            reinterpret_cast<void*>(&wrapped_on_draw_frame),
+        },
+        {
+            const_cast<char*>("nativeClearSplashFrames"),
+            const_cast<char*>("()V"),
+            reinterpret_cast<void*>(&wrapped_clear_splash_frames),
+        },
         {
             const_cast<char*>("nativeOnServerSelectionSurfaceCreated"),
             const_cast<char*>("()V"),
