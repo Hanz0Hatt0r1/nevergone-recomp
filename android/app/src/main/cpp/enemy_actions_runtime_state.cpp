@@ -168,9 +168,6 @@ WaUpdateFrameStepResult apply_wa_update_frame_step(
                 result.state.current_frame_294);
         result.state.boundary_index_2a4 = result.boundary_98.index;
 
-        // The reconstructed document bounds primary_record_count to <=100, so
-        // the native signed comparison against CCArray::count() is represented
-        // directly as int32 here.
         const std::int32_t count_i32 = static_cast<std::int32_t>(action_frame_count);
         if (result.state.current_frame_294 > count_i32) {
             result.state.field_18c = count_i32 - 1;
@@ -191,6 +188,25 @@ WaUpdateFrameStepResult apply_wa_update_frame_step(
         result.state.previous_frame_154 = result.state.current_frame_294;
     }
 
+    return result;
+}
+
+WaUpdateIterationResult apply_wa_update_iteration(
+        const enemy_actions_wbg_document::Document& document,
+        float delta_seconds,
+        State state) {
+    WaUpdateIterationResult result;
+    result.timing = apply_wa_update_timing(document.final_table, delta_seconds, state);
+    result.state = result.timing.state;
+
+    if (!result.timing.frame_processing_allowed) return result;
+
+    result.frame_step = apply_wa_update_frame_step(
+            document.combo_block,
+            document.prefix.action_frame_count,
+            result.timing.state);
+    result.state = result.frame_step.state;
+    result.frame_step_applied = true;
     return result;
 }
 

@@ -5,6 +5,7 @@
 
 #include "enemy_actions_combo_consumer.h"
 #include "enemy_actions_wbg_combo_section.h"
+#include "enemy_actions_wbg_document.h"
 #include "enemy_actions_wbg_final_table.h"
 
 namespace nevergone::enemy_actions_runtime_state {
@@ -65,36 +66,38 @@ struct WaUpdateFrameStepResult {
     bool should_call_update_data = false;
 };
 
-// Uses State+0x2a0 and State+0x294 as the recovered native selection/frame
-// inputs, then applies the already-proven comboHit byte transition.
+struct WaUpdateIterationResult {
+    State state;
+    WaUpdateTimingResult timing;
+    WaUpdateFrameStepResult frame_step;
+    bool frame_step_applied = false;
+};
+
 ComboHitResult apply_combo_hit(
         const enemy_actions_wbg_combo_section::Block& combo_block,
         State state);
 
-// Reconstructs the proven waUpdate() timing gate before the current frame is
-// incremented. Section G's reciprocal_value is the exact reconstructed value
-// stored at ActionFrameData+0x5c for each primary frame.
 WaUpdateTimingResult apply_wa_update_timing(
         const enemy_actions_wbg_final_table::Table& final_table,
         float delta_seconds,
         State state);
 
-// Composes only the proven waUpdate operations that occur after native timing
-// logic has already produced current_frame_294. This function does NOT advance
-// the frame, consume AFD+0x5c timing, call updateData(), or model animation.
 WaUpdateAfterFrameResult apply_wa_update_after_frame_advance(
         const enemy_actions_wbg_combo_section::Block& combo_block,
         State state);
 
-// Reconstructs one native frame-processing iteration after the timing gate has
-// allowed processing. It performs the exact ARM32 +0x294 increment, both
-// boundary streams, the no-+0x94 fallback based on EnemyActionsData+0x88 count,
-// and the +0x154/updateData bookkeeping decision. action_frame_count is the
-// already-parsed primary ActionFrameData count (bounded to <=100 by the current
-// document reconstruction).
 WaUpdateFrameStepResult apply_wa_update_frame_step(
         const enemy_actions_wbg_combo_section::Block& combo_block,
         std::uint32_t action_frame_count,
+        State state);
+
+// Composes exactly one recovered waUpdate iteration using a parsed Sections A-G
+// document: timing gate first, then one frame-processing step only when the
+// native gate allows it. This intentionally does not reproduce the native
+// back-edge that may consume additional accumulated frames in the same call.
+WaUpdateIterationResult apply_wa_update_iteration(
+        const enemy_actions_wbg_document::Document& document,
+        float delta_seconds,
         State state);
 
 }  // namespace nevergone::enemy_actions_runtime_state
