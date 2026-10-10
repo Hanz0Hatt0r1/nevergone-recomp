@@ -80,6 +80,8 @@ The float at tuple `+0x10` is stored to `this+0xd8+4*i`; the float at `+0x14` is
 
 The loop can create `ActionComboValue` objects and append them to arrays at `this+0x94`, `this+0x9c`, and `this+0x98` (`addObject` callsites `0x290368`, `0x290384`, `0x2903b4`). The branch conditions that decide which derived values are emitted remain structural and are not assigned gameplay meanings.
 
+The project-owned `enemy_actions_wbg_combo_section` parser now reconstructs this fixed 24-byte tuple stream transactionally and carries the two proven destination offsets without naming the unresolved integer fields.
+
 ## Section G — final per-primary int table
 
 Finally, the parser reads one `int32` per primary record at `0x2903f2`. If the primary array `this+0x88` is nonempty, it obtains `objectAtIndex(i)` and stores:
@@ -88,6 +90,8 @@ Finally, the parser reads one `int32` per primary record at `0x2903f2`. If the p
 
 at `ActionFrameData+0x5c`; the store is at `0x29041a`. Each final-table entry is exactly 4 serialized bytes.
 
+The project-owned `enemy_actions_wbg_final_table` parser reconstructs this final table from the already-parsed primary-record count, preserves the serialized integer, computes the proven reciprocal value (including IEEE floating behavior for zero), and records the `ActionFrameData+0x5c` destination offset. It performs no gameplay renaming and leaves output unchanged on truncation.
+
 ## Current boundary
 
-This topology is enough to build bounded cursor accounting and section-order validation without fabricating field names. The project still does not claim a complete WBG schema: detailed records in Sections C and D, string meanings, combo-branch semantics, malformed-input behavior, and real-file validation remain unresolved until genuine user-owned WBG data is available for the bounded probe path.
+Sections A through G now have bounded project-owned parsing coverage for the currently recovered stream topology. The project still does not claim a complete semantic WBG schema: string meanings, combo-branch meanings, higher-level `ActionFrameData` gameplay semantics, exact malformed-input behavior of the original, and validation against genuine user-owned WBG files remain unresolved until those inputs are available to the bounded probe path.
