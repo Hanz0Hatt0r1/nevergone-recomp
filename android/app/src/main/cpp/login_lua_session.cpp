@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "client_callback_bridge.h"
+#include "initial_ui_transition.h"
 #include "login_lua_dispatch.h"
 #include "lua_startup_bindings.h"
 #include "native_binding_registry.h"
@@ -217,9 +218,21 @@ bool dispatch_pending_role_enter_request() {
     }
 
     const auto consumed = role_selection_state::take_pending_enter_request();
-    if (!consumed.valid || consumed.character_id != request.character_id ||
-            consumed.career != request.career || consumed.character_name != request.character_name) {
+    if (!consumed.valid || consumed.payload_generation != request.payload_generation ||
+            consumed.character_id != request.character_id || consumed.career != request.career ||
+            consumed.character_name != request.character_name) {
         g_last_error = "pending role enter request changed during dispatch";
+        ++g_dispatch_failure_count;
+        return false;
+    }
+
+    if (!role_selection_state::commit_enter_dispatch(consumed)) {
+        g_last_error = "role enter request generation changed during dispatch";
+        ++g_dispatch_failure_count;
+        return false;
+    }
+    if (!initial_ui_transition::on_role_enter_dispatch_succeeded()) {
+        g_last_error = "role enter dispatch completed outside role route";
         ++g_dispatch_failure_count;
         return false;
     }
