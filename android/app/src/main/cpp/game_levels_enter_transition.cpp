@@ -42,9 +42,13 @@ void on_enter_game(const std::string& files_dir) {
     if (!game_levels_runtime_state::load_pvp_scene(files_dir)) return;
     const auto runtime = game_levels_runtime_state::snapshot();
     std::lock_guard<std::mutex> lock(g_mutex);
-    g_state.boundary = runtime.current_scene_instance_ready
-        ? Boundary::kRuntimeSceneInstanceReady
-        : Boundary::kRuntimeModelReady;
+    if (runtime.current_scene_construction_plan_ready) {
+        g_state.boundary = Boundary::kRuntimeSceneConstructionPlanReady;
+    } else if (runtime.current_scene_instance_ready) {
+        g_state.boundary = Boundary::kRuntimeSceneInstanceReady;
+    } else {
+        g_state.boundary = Boundary::kRuntimeModelReady;
+    }
     if (runtime.model_end_offset != 0u) g_state.verified_bytes = runtime.model_end_offset;
 }
 
@@ -86,6 +90,7 @@ const char* boundary_name(Boundary boundary) {
         case Boundary::kPortNodeSectionVerified: return "port-node-section-verified";
         case Boundary::kRuntimeModelReady: return "runtime-model-ready";
         case Boundary::kRuntimeSceneInstanceReady: return "runtime-scene-instance-ready";
+        case Boundary::kRuntimeSceneConstructionPlanReady: return "runtime-scene-construction-plan-ready";
     }
     return "unknown";
 }
