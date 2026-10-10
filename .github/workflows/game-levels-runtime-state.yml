@@ -13,6 +13,8 @@ on:
       - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
       - 'android/app/src/main/cpp/game_scene_construction_plan.cpp'
       - 'android/app/src/main/cpp/game_scene_construction_plan.h'
+      - 'android/app/src/main/cpp/game_scene_type0_resource.h'
+      - 'android/app/src/main/cpp/game_scene_render_queue.h'
       - 'tools/game_levels_runtime_state_smoke.cpp'
       - '.github/workflows/game-levels-runtime-state.yml'
   pull_request:
@@ -26,6 +28,8 @@ on:
       - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
       - 'android/app/src/main/cpp/game_scene_construction_plan.cpp'
       - 'android/app/src/main/cpp/game_scene_construction_plan.h'
+      - 'android/app/src/main/cpp/game_scene_type0_resource.h'
+      - 'android/app/src/main/cpp/game_scene_render_queue.h'
       - 'tools/game_levels_runtime_state_smoke.cpp'
       - '.github/workflows/game-levels-runtime-state.yml'
 

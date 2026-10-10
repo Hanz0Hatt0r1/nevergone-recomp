@@ -63,6 +63,7 @@ int main() {
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
+    assert(!runtime::current_scene_render_queue().has_value());
     assert(runtime::load_pvp_scene(root.string()));
     auto state = runtime::snapshot();
     assert(state.status == runtime::LoadStatus::kReady);
@@ -80,6 +81,13 @@ int main() {
     assert(state.current_construction_layer_count == 1u);
     assert(state.current_construction_object_count == 0u);
     assert(state.current_construction_ignored_layer_count == 0u);
+    assert(state.current_scene_render_queue_ready);
+    assert(state.current_render_sprite_count == 0u);
+    assert(state.current_render_sprite_frame_lookup_count == 0u);
+    assert(state.current_render_direct_file_count == 0u);
+    assert(state.current_render_scene_action_pair_count == 0u);
+    assert(state.current_render_unresolved_object_count == 0u);
+
     auto scene = runtime::current_scene_instance();
     assert(scene.has_value());
     assert(scene->source_scene_index == 0u);
@@ -88,6 +96,7 @@ int main() {
     assert(scene->first_point_y == 2.0f);
     assert(scene->layers.size() == 1u);
     assert(scene->layers[0].first_float == 0.5f);
+
     auto plan = runtime::current_scene_construction_plan();
     assert(plan.has_value());
     assert(plan->source_scene_index == scene->source_scene_index);
@@ -97,6 +106,12 @@ int main() {
     assert(plan->layers[0].source_layer_index == scene->layers[0].source_layer_index);
     assert(plan->object_count == 0u);
     assert(plan->ignored_source_layer_count == 0u);
+
+    auto queue = runtime::current_scene_render_queue();
+    assert(queue.has_value());
+    assert(queue->source_scene_index == 0u);
+    assert(queue->guid == "a");
+    assert(queue->sprites.empty());
 
     auto transition = runtime::step(1u);
     assert(transition.port_step.status == port_nav::StepStatus::kTraversed);
@@ -109,6 +124,7 @@ int main() {
     assert(state.current_scene_layer_count == 0u);
     assert(state.current_scene_construction_plan_ready);
     assert(state.current_construction_layer_count == 0u);
+    assert(state.current_scene_render_queue_ready);
     scene = runtime::current_scene_instance();
     assert(scene.has_value());
     assert(scene->source_scene_index == 1u);
@@ -118,6 +134,11 @@ int main() {
     assert(plan->source_scene_index == 1u);
     assert(plan->guid == "b");
     assert(plan->layers.empty());
+    queue = runtime::current_scene_render_queue();
+    assert(queue.has_value());
+    assert(queue->source_scene_index == 1u);
+    assert(queue->guid == "b");
+    assert(queue->sprites.empty());
 
     transition = runtime::step(0u);
     assert(transition.port_step.status == port_nav::StepStatus::kTraversed);
@@ -128,32 +149,38 @@ int main() {
     assert(state.stored_event_port_type == 1u);
     assert(state.current_scene_instance_ready);
     assert(state.current_scene_construction_plan_ready);
+    assert(state.current_scene_render_queue_ready);
     assert(runtime::current_scene_instance()->layers.size() == 1u);
     assert(runtime::current_scene_construction_plan()->layers.size() == 1u);
+    assert(runtime::current_scene_render_queue()->guid == "a");
 
     transition = runtime::step(9u);
     assert(transition.port_step.status == port_nav::StepStatus::kUnsupportedEventType);
     assert(runtime::snapshot().current_scene_guid == "a");
     assert(runtime::current_scene_instance()->guid == "a");
     assert(runtime::current_scene_construction_plan()->guid == "a");
+    assert(runtime::current_scene_render_queue()->guid == "a");
 
     assert(!runtime::load_file(path.string(), 1u));
     assert(runtime::snapshot().status == runtime::LoadStatus::kTooLarge);
     assert(runtime::snapshot().load_attempt_count == 2u);
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
-    assert(!runtime::snapshot().current_scene_construction_plan_ready);
+    assert(!runtime::current_scene_render_queue().has_value());
+    assert(!runtime::snapshot().current_scene_render_queue_ready);
 
     assert(!runtime::load_pvp_scene((root / "missing-root").string()));
     assert(runtime::snapshot().status == runtime::LoadStatus::kMissing);
     assert(runtime::snapshot().load_attempt_count == 3u);
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
+    assert(!runtime::current_scene_render_queue().has_value());
 
     std::filesystem::remove_all(root);
     runtime::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
+    assert(!runtime::current_scene_render_queue().has_value());
     return 0;
 }
