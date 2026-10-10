@@ -78,6 +78,41 @@ bool read_nested_record(hp_data::Cursor* cursor, NestedActionFrameRecord* out) {
     return true;
 }
 
+bool read_versioned_record(hp_data::Cursor* cursor, VersionedActionFrameRecord* out) {
+    if (cursor == nullptr || out == nullptr) return false;
+    const std::size_t start_offset = cursor->offset();
+
+    VersionedActionFrameRecord parsed;
+    if (!cursor->read_i32_le(&parsed.first_i32)) return false;
+    for (float& value : parsed.float_values) {
+        if (!cursor->read_f32_le(&value)) return false;
+    }
+    if (!cursor->read_bool8(&parsed.first_bool) ||
+        !cursor->read_i32_le(&parsed.second_i32) ||
+        !cursor->read_u32_le(&parsed.first_u32) ||
+        !cursor->read_u32_le(&parsed.second_u32) ||
+        !read_string_field(cursor, &parsed.first_string_length_i32, &parsed.first_string) ||
+        !read_string_field(cursor, &parsed.second_string_length_i32, &parsed.second_string) ||
+        !read_string_field(cursor, &parsed.third_string_length_i32, &parsed.third_string)) {
+        return false;
+    }
+
+    parsed.bytes_consumed = cursor->offset() - start_offset;
+    std::size_t expected_bytes = 0;
+    if (!checked_three_payload_bytes(
+                parsed.first_string_length_i32,
+                parsed.second_string_length_i32,
+                parsed.third_string_length_i32,
+                kVersionedActionFrameFixedBytes,
+                &expected_bytes) ||
+        parsed.bytes_consumed != expected_bytes) {
+        return false;
+    }
+
+    *out = std::move(parsed);
+    return true;
+}
+
 }  // namespace
 
 bool parse_prefix(const hp_data::Reader& reader, Prefix* out) {
@@ -181,7 +216,6 @@ bool parse_nested_action_frame_block(
 
     if (parsed.group_count_i32 > 0) {
         const auto group_count = static_cast<std::size_t>(parsed.group_count_i32);
-        // Every outer group needs at least its four-byte unsigned inner count.
         if (group_count > cursor.remaining() / kNestedGroupHeaderBytes) return false;
         parsed.groups.reserve(group_count);
 
@@ -191,7 +225,6 @@ bool parse_nested_action_frame_block(
             if (!cursor.read_u32_le(&group.record_count)) return false;
 
             const auto record_count = static_cast<std::size_t>(group.record_count);
-            // Each record consumes at least 72 bytes before variable payloads.
             if (record_count > cursor.remaining() / kNestedActionFrameFixedBytes) return false;
             group.records.reserve(record_count);
             for (std::size_t record_index = 0; record_index < record_count; ++record_index) {
@@ -203,6 +236,56 @@ bool parse_nested_action_frame_block(
             group.bytes_consumed = cursor.offset() - group_start;
             parsed.groups.push_back(std::move(group));
         }
+    }
+
+    parsed.bytes_consumed = cursor.offset() - start_offset;
+    *out = std::move(parsed);
+    return true;
+}
+
+bool parse_versioned_action_frame_groups(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        std::int32_t header_word0,
+        VersionedActionFrameBlock* out) {
+    if (out == nullptr || start_offset > reader.size()) return false;
+
+    hp_data::Cursor cursor(reader, start_offset);
+    VersionedActionFrameBlock parsed;
+    parsed.header_word0 = header_word0;
+    parsed.expected_group_count = versioned_group_count_for_header(header_word0);
+
+    if (parsed.expected_group_count > cursor.remaining() / kVersionedGroupHeaderBytes) {
+        return false;
+    }
+    parsed.groups.reserve(parsed.expected_group_count);
+
+    for (std::size_t group_index = 0;
+         group_index < parsed.expected_group_count;
+         ++group_index) {
+        const std::size_t group_start = cursor.offset();
+        VersionedActionFrameGroup group;
+        if (!cursor.read_i32_le(&group.record_count_i32)) return false;
+
+        if (group.record_count_i32 > 0) {
+            const std::size_t record_count = static_cast<std::size_t>(group.record_count_i32);
+            const std::size_t groups_after = parsed.expected_group_count - group_index - 1u;
+            const std::size_t reserved_header_bytes =
+                    groups_after * kVersionedGroupHeaderBytes;
+            if (cursor.remaining() < reserved_header_bytes) return false;
+            const std::size_t record_budget = cursor.remaining() - reserved_header_bytes;
+            if (record_count > record_budget / kVersionedActionFrameFixedBytes) return false;
+
+            group.records.reserve(record_count);
+            for (std::size_t record_index = 0; record_index < record_count; ++record_index) {
+                VersionedActionFrameRecord record;
+                if (!read_versioned_record(&cursor, &record)) return false;
+                group.records.push_back(std::move(record));
+            }
+        }
+
+        group.bytes_consumed = cursor.offset() - group_start;
+        parsed.groups.push_back(std::move(group));
     }
 
     parsed.bytes_consumed = cursor.offset() - start_offset;
