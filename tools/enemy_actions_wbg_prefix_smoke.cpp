@@ -34,9 +34,9 @@ void append_f32(std::vector<std::uint8_t>* out, float value) {
 void append_string_field(
         std::vector<std::uint8_t>* out,
         const std::vector<std::uint8_t>& bytes,
-        std::uint8_t separator) {
+        std::uint8_t framing) {
     append_i32(out, static_cast<std::int32_t>(bytes.size()));
-    append_u8(out, separator);
+    append_u8(out, framing);
     out->insert(out->end(), bytes.begin(), bytes.end());
 }
 
@@ -123,10 +123,13 @@ int main() {
     assert(record.second_i32 == -3);
     assert(std::fabs(record.trailing_float - 9.25f) < 0.0001f);
     assert(record.first_string_length_i32 == 3);
+    assert(record.first_string_framing_u8 == 0xaau);
     assert(record.first_string == "abc");
     assert(record.second_string_length_i32 == 0);
+    assert(record.second_string_framing_u8 == 0xbbu);
     assert(record.second_string.empty());
     assert(record.third_string_length_i32 == 4);
+    assert(record.third_string_framing_u8 == 0xccu);
     // Reader preserves the four-byte cursor advance but exposes C-string text.
     assert(record.third_string == "d");
     assert(record.bytes_consumed == wbg::kActionFrameFixedBytes + 7u);
@@ -160,8 +163,11 @@ int main() {
     }
     assert(!nested_record.first_bool);
     assert(nested_record.second_i32 == -9);
+    assert(nested_record.first_string_framing_u8 == 0xd1u);
     assert(nested_record.first_string == "one");
+    assert(nested_record.second_string_framing_u8 == 0xd2u);
     assert(nested_record.second_string == "two");
+    assert(nested_record.third_string_framing_u8 == 0xd3u);
     assert(nested_record.third_string == "three");
     assert(nested_record.bytes_consumed == wbg::kNestedActionFrameFixedBytes + 11u);
     assert(nested.groups[0].bytes_consumed ==
@@ -184,10 +190,12 @@ int main() {
             std::vector<std::uint8_t>(bytes.begin(), bytes.begin() + compact_offset - 1));
     wbg::ActionFrameRecord unchanged_record;
     unchanged_record.first_i32 = 99;
+    unchanged_record.first_string_framing_u8 = 0x5au;
     unchanged_record.first_string = "keep";
     assert(!wbg::parse_action_frame_record(
             truncated_record, wbg::kPrefixBytes, &unchanged_record));
     assert(unchanged_record.first_i32 == 99);
+    assert(unchanged_record.first_string_framing_u8 == 0x5au);
     assert(unchanged_record.first_string == "keep");
 
     // Negative signed lengths and payloads that would cross the original
