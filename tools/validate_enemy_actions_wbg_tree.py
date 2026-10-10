@@ -7,6 +7,9 @@ import sys
 from pathlib import Path
 
 
+SUPPORTED_SUFFIXES = {".wbg", ".actdata"}
+
+
 def parse_key_values(text: str) -> dict[str, str]:
     values: dict[str, str] = {}
     for raw_line in text.splitlines():
@@ -18,9 +21,13 @@ def parse_key_values(text: str) -> dict[str, str]:
     return values
 
 
-def find_wbg_files(root: Path) -> list[Path]:
+def find_action_data_files(root: Path) -> list[Path]:
     return sorted(
-        (path for path in root.rglob("*") if path.is_file() and path.suffix.lower() == ".wbg"),
+        (
+            path
+            for path in root.rglob("*")
+            if path.is_file() and path.suffix.lower() in SUPPORTED_SUFFIXES
+        ),
         key=lambda path: path.relative_to(root).as_posix().lower(),
     )
 
@@ -74,7 +81,10 @@ def validate_one(validator: Path, root: Path, path: Path, require_eof: bool) -> 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Recursively validate user-owned EnemyActions WBG files without printing payload contents."
+        description=(
+            "Recursively validate user-owned EnemyActions action-data files "
+            "(.actData and legacy/research .wbg names) without printing payload contents."
+        )
     )
     parser.add_argument("root", type=Path, help="Imported asset root to scan recursively")
     parser.add_argument(
@@ -99,7 +109,7 @@ def main() -> int:
         print(f"error: validator is not a file: {validator}", file=sys.stderr)
         return 1
 
-    files = find_wbg_files(root)
+    files = find_action_data_files(root)
     if not files:
         print("summary files=0 passed=0 failed=0", file=sys.stderr)
         return 4
