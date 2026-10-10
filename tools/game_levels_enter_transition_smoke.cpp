@@ -155,8 +155,6 @@ int main() {
     const auto scene = root / "assets" / "gamescene" / "gs_list" / "pvp_scene.glData";
     std::filesystem::create_directories(scene.parent_path());
 
-    // A complete GameLevels model with no PortNode can be retained, but it has
-    // no resolvable current scene. Preserve the model-ready fallback boundary.
     const auto model_only = verified_port_node_section_fixture();
     write_fixture(scene, model_only);
     transition::on_enter_game(root.string());
@@ -168,18 +166,18 @@ int main() {
     assert(retained.model_end_offset == model_only.size());
     assert(!retained.current_scene_instance_ready);
     assert(!retained.current_scene_construction_plan_ready);
+    assert(!retained.current_scene_render_queue_ready);
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
+    assert(!runtime::current_scene_render_queue().has_value());
     assert(transition::status_report().find("runtime-model-ready") != std::string::npos);
 
-    // A recovered start PortNode that resolves to the first parsed scene now
-    // promotes the real EnterGame path to the evidence-backed construction-plan boundary.
     transition::reset();
     const auto with_start_scene = start_scene_fixture();
     write_fixture(scene, with_start_scene);
     transition::on_enter_game(root.string());
     state = transition::snapshot();
-    assert(state.boundary == Boundary::kRuntimeSceneConstructionPlanReady);
+    assert(state.boundary == Boundary::kRuntimeRenderQueueReady);
     assert(state.verified_bytes == with_start_scene.size());
     retained = runtime::snapshot();
     assert(retained.status == runtime::LoadStatus::kReady);
@@ -188,23 +186,34 @@ int main() {
     assert(retained.current_scene_guid == "one");
     assert(retained.current_scene_instance_ready);
     assert(retained.current_scene_construction_plan_ready);
+    assert(retained.current_scene_render_queue_ready);
+
     const auto live_scene = runtime::current_scene_instance();
     assert(live_scene.has_value());
     assert(live_scene->source_scene_index == 0u);
     assert(live_scene->guid == "one");
     assert(live_scene->layers.size() == 1u);
+
     const auto live_plan = runtime::current_scene_construction_plan();
     assert(live_plan.has_value());
     assert(live_plan->source_scene_index == live_scene->source_scene_index);
     assert(live_plan->guid == "one");
     assert(live_plan->layers.size() == 1u);
     assert(live_plan->layers[0].z_index == 0u);
-    assert(transition::status_report().find("runtime-scene-construction-plan-ready") != std::string::npos);
-    assert(transition::status_report().find("scene construction plan: ready") != std::string::npos);
+
+    const auto live_queue = runtime::current_scene_render_queue();
+    assert(live_queue.has_value());
+    assert(live_queue->source_scene_index == live_scene->source_scene_index);
+    assert(live_queue->guid == "one");
+    assert(live_queue->sprites.empty());
+
+    assert(transition::status_report().find("runtime-render-queue-ready") != std::string::npos);
+    assert(transition::status_report().find("scene render queue: ready") != std::string::npos);
 
     transition::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
     assert(!runtime::current_scene_construction_plan().has_value());
+    assert(!runtime::current_scene_render_queue().has_value());
     std::filesystem::remove_all(root);
     return 0;
 }
