@@ -54,8 +54,6 @@ BoundaryCursorUpdate advance_boundary_cursor(
     BoundaryCursorUpdate result;
     result.index = current_index;
 
-    // The original only looks up an object when count != 0. Project-owned code
-    // also rejects a stale index rather than reproducing CCArray undefined use.
     if (values.empty() || current_index >= values.size()) return result;
 
     const auto& current = values[current_index];
@@ -63,9 +61,6 @@ BoundaryCursorUpdate advance_boundary_cursor(
 
     const std::size_t incremented = current_index + 1u;
     if (incremented == values.size()) {
-        // waUpdate stores incremented first, observes index == count, then
-        // subtracts one. The final externally visible index stays on the last
-        // boundary and the +0x94 path treats this as not advancing to a new run.
         result.index = current_index;
         result.reached_last_boundary = true;
         return result;
@@ -83,14 +78,29 @@ WaUpdateComboTransition apply_wa_update_combo_transition(
     WaUpdateComboTransition result;
     result.state = state;
     result.boundary.index = state.boundary_index_2a0;
+    result.boundary_98.index = state.boundary_index_2a4;
 
     if (state.flag_290 != 0u) result.state.flag_291 = 1u;
 
-    if (state.flag_191 == 0u) return result;
+    if (state.flag_191 != 0u) {
+        result.boundary = advance_boundary_cursor(
+                array_94_values, state.boundary_index_2a0, current_frame_index);
+        result.state.boundary_index_2a0 = result.boundary.index;
+    }
+    return result;
+}
 
-    result.boundary = advance_boundary_cursor(
-            array_94_values, state.boundary_index_2a0, current_frame_index);
-    result.state.boundary_index_2a0 = result.boundary.index;
+WaUpdateComboTransition apply_wa_update_combo_transition(
+        const std::vector<enemy_actions_wbg_combo_section::DerivedActionComboValue>& array_94_values,
+        const std::vector<enemy_actions_wbg_combo_section::DerivedActionComboValue>& array_98_values,
+        std::int32_t current_frame_index,
+        WaUpdateComboState state) {
+    WaUpdateComboTransition result = apply_wa_update_combo_transition(
+            array_94_values, current_frame_index, state);
+
+    result.boundary_98 = advance_boundary_cursor(
+            array_98_values, state.boundary_index_2a4, current_frame_index);
+    result.state.boundary_index_2a4 = result.boundary_98.index;
     return result;
 }
 
