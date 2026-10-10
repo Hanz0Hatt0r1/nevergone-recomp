@@ -43,6 +43,7 @@ add_library(nevergone_recomp SHARED
     fresh_role_compat_state.cpp
     game_clock.cpp
     game_scene_construction_plan.cpp
+    game_scene_direct_asset_bridge.cpp
     game_levels_actions_section.cpp
     game_levels_asset_probe.cpp
     game_levels_enter_transition.cpp

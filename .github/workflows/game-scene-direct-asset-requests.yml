@@ -1,0 +1,46 @@
+name: GameScene direct asset requests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_direct_asset_requests.h'
+      - 'android/app/src/main/cpp/game_scene_direct_asset_bridge.cpp'
+      - 'android/app/src/main/cpp/game_scene_render_queue.h'
+      - 'android/app/src/main/cpp/game_levels_runtime_state.h'
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetRequests.java'
+      - 'tools/game_scene_direct_asset_requests_smoke.cpp'
+      - '.github/workflows/game-scene-direct-asset-requests.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_direct_asset_requests.h'
+      - 'android/app/src/main/cpp/game_scene_direct_asset_bridge.cpp'
+      - 'android/app/src/main/cpp/game_scene_render_queue.h'
+      - 'android/app/src/main/cpp/game_levels_runtime_state.h'
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetRequests.java'
+      - 'tools/game_scene_direct_asset_requests_smoke.cpp'
+      - '.github/workflows/game-scene-direct-asset-requests.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build and run request snapshot smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_scene_direct_asset_requests_smoke.cpp \
+            -o /tmp/game_scene_direct_asset_requests_smoke
+          /tmp/game_scene_direct_asset_requests_smoke
+      - name: Validate JNI bridge translation unit
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+            -I android/app/src/main/cpp \
+            -I "$JAVA_HOME/include" \
+            -I "$JAVA_HOME/include/linux" \
+            android/app/src/main/cpp/game_scene_direct_asset_bridge.cpp
