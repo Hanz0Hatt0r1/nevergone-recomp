@@ -10,6 +10,7 @@ namespace nevergone::role_selection_state {
 
 struct EnterRoleRequest {
     bool valid = false;
+    std::uint64_t payload_generation = 0;
     std::int64_t character_id = 0;
     std::int64_t career = 0;
     std::string character_name;
@@ -35,6 +36,12 @@ struct Snapshot {
     std::uint64_t create_request_count = 0;
     bool enter_request_pending = false;
     bool create_request_pending = false;
+    bool enter_dispatch_committed = false;
+    std::uint64_t enter_dispatch_count = 0;
+    std::uint64_t dispatched_payload_generation = 0;
+    std::int64_t dispatched_character_id = 0;
+    std::int64_t dispatched_career = 0;
+    std::string dispatched_character_name;
 };
 
 void reset();
@@ -55,6 +62,12 @@ bool request_enter_role(const login_callback_payload::RoleEntry& role);
 
 EnterRoleRequest peek_pending_enter_request();
 EnterRoleRequest take_pending_enter_request();
+
+// Records the request that actually crossed the Lua EnterGameWithCid boundary.
+// The generation tag prevents a stale request from being committed after a
+// newer role-list payload has replaced the selection domain. A generation may
+// commit at most one enter handoff.
+bool commit_enter_dispatch(const EnterRoleRequest& request);
 
 // Recovered online create-role call shape:
 // g_UILogin.CreateCharacter(name, career).
