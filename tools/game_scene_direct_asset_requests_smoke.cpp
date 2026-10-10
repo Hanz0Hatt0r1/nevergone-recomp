@@ -15,6 +15,17 @@ nevergone::game_scene_render_queue::SpriteCommand direct_command(
     command.direct_asset_relative_path = path;
     return command;
 }
+
+nevergone::game_scene_render_queue::SpriteCommand frame_command(
+        const std::string& name,
+        std::size_t object_index) {
+    nevergone::game_scene_render_queue::SpriteCommand command;
+    command.source_object_index = object_index;
+    command.resource = {
+        nevergone::game_scene_type0_resource::Kind::kSpriteFrameByName,
+        name};
+    return command;
+}
 }  // namespace
 
 int main() {
@@ -25,12 +36,9 @@ int main() {
     queue.source_scene_index = 7u;
     queue.guid = "scene-a";
     queue.direct_file_count = 2u;
+    queue.sprite_frame_lookup_count = 1u;
 
-    queue_ns::SpriteCommand frame;
-    frame.resource = {
-        nevergone::game_scene_type0_resource::Kind::kSpriteFrameByName,
-        "atlas-frame.png"};
-    queue.sprites.push_back(frame);
+    queue.sprites.push_back(frame_command("atlas-frame.png", 0u));
     queue.sprites.push_back(direct_command(
         "gamescene/gs_res_image_file/gktianchong.png", 1u));
     queue.sprites.push_back(direct_command(
@@ -42,12 +50,19 @@ int main() {
     assert(first.guid == "scene-a");
     assert(first.revision != 0u);
     assert(first.revision == second.revision);
-    assert(first.requests.size() == 2u);
-    assert(first.requests[0].sprite_command_index == 1u);
-    assert(first.requests[0].relative_path ==
-           "gamescene/gs_res_image_file/gktianchong.png");
-    assert(first.requests[1].sprite_command_index == 2u);
+    assert(first.requests.size() == 3u);
+    assert(first.requests[0].kind == requests::Kind::kSpriteFrameByName);
+    assert(first.requests[0].sprite_command_index == 0u);
+    assert(first.requests[0].frame_name == "atlas-frame.png");
+    assert(first.requests[0].relative_path.empty());
+    assert(first.requests[1].kind == requests::Kind::kDirectFile);
+    assert(first.requests[1].sprite_command_index == 1u);
     assert(first.requests[1].relative_path ==
+           "gamescene/gs_res_image_file/gktianchong.png");
+    assert(first.requests[1].frame_name.empty());
+    assert(first.requests[2].kind == requests::Kind::kDirectFile);
+    assert(first.requests[2].sprite_command_index == 2u);
+    assert(first.requests[2].relative_path ==
            "gamescene/gs_res_image_file/gkyuanjing.png");
 
     auto changed_path = queue;
@@ -55,17 +70,22 @@ int main() {
         "gamescene/gs_res_image_file/czyanwu1.png";
     assert(requests::build(changed_path).revision != first.revision);
 
+    auto changed_frame = queue;
+    changed_frame.sprites[0].resource.resource_name = "atlas-frame-2.png";
+    assert(requests::build(changed_frame).revision != first.revision);
+
     auto changed_scene = queue;
     changed_scene.guid = "scene-b";
     assert(requests::build(changed_scene).revision != first.revision);
 
     auto changed_index = queue;
-    changed_index.sprites.insert(changed_index.sprites.begin(), frame);
+    changed_index.sprites.insert(changed_index.sprites.begin(), frame_command("prefix.png", 9u));
+    ++changed_index.sprite_frame_lookup_count;
     assert(requests::build(changed_index).revision != first.revision);
 
     queue_ns::Queue empty;
     empty.source_scene_index = 9u;
-    empty.guid = "no-direct-assets";
+    empty.guid = "no-static-assets";
     const auto empty_snapshot = requests::build(empty);
     assert(empty_snapshot.revision != 0u);
     assert(empty_snapshot.requests.empty());
