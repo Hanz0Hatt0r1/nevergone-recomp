@@ -1,0 +1,29 @@
+name: EnemyActions WBG primary tuples
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile primary tuple smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_prefix.cpp \
+            tools/enemy_actions_wbg_primary_tuples_smoke.cpp \
+            -o /tmp/enemy_actions_wbg_primary_tuples_smoke
+
+      - name: Run primary tuple smoke
+        run: /tmp/enemy_actions_wbg_primary_tuples_smoke
