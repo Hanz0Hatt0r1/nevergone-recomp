@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 #include "enemy_actions_combo_consumer.h"
 #include "enemy_actions_wbg_combo_section.h"
@@ -22,6 +23,8 @@ struct State {
     std::uint8_t flag_292 = 0;
     std::int32_t previous_frame_154 = 0;
     std::int32_t field_18c = 0;
+    std::int32_t field_250 = 0;
+    std::int32_t field_268 = 0;
     float field_158 = 0.0f;
     float field_15c = 0.0f;
     float field_160 = 0.0f;
@@ -85,6 +88,18 @@ struct UpdateDataEntryResult {
     std::size_t selected_primary_index = 0;
 };
 
+struct UpdateDataResourceResult {
+    State state;
+    UpdateDataEntryResult entry;
+    bool selected_frame_available = false;
+    std::string frame_resource_60;
+    bool formatted_path_available = false;
+    std::string formatted_path;
+    bool should_add_sprite_frames = false;
+    std::string sprite_frames_file;
+    bool should_record_enemy_object_res = false;
+};
+
 ComboHitResult apply_combo_hit(
         const enemy_actions_wbg_combo_section::Block& combo_block,
         State state);
@@ -108,18 +123,18 @@ WaUpdateIterationResult apply_wa_update_iteration(
         float delta_seconds,
         State state);
 
-// Exact state write performed by EnemyActionsSystem::showActionLastFrame():
-// copy +0x18c to +0x294, then call updateData() unconditionally. The call is
-// surfaced as a signal; updateData() internals remain outside this layer.
 ShowActionLastFrameResult apply_show_action_last_frame(State state);
 
-// Bounded entry contract for EnemyActionsSystem::updateData(). Native first
-// tests byte +0x26c and returns immediately when it is zero. When nonzero it
-// tail-enters updateActionFrameMoveValue()+0xda, whose first reachable checks
-// require EnemyActionsData+0x88 to exist and contain at least one frame before
-// selecting objectAtIndex(+0x294). A malformed project-owned frame index is
-// rejected safely here rather than reproducing unchecked native access.
 UpdateDataEntryResult apply_update_data_entry(
+        const enemy_actions_wbg_document::Document& document,
+        State state);
+
+// Reconstructs the resource-selection slice immediately after updateData's
+// selected primary frame is obtained. The parsed ActionFrameRecord::first_string
+// is the native ActionFrameData+0x60 CCString. Offset +0x250 selects the proven
+// enemy/npc/pet path format and +0x268 supplies the decimal id. This helper only
+// reports addSpriteFrames/recordEnemyObjectRes requests; it performs no engine IO.
+UpdateDataResourceResult apply_update_data_resource_selection(
         const enemy_actions_wbg_document::Document& document,
         State state);
 
