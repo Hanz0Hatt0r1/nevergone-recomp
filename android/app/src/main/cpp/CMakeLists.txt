@@ -44,6 +44,8 @@ add_library(nevergone_recomp SHARED
     game_clock.cpp
     game_scene_construction_plan.cpp
     game_scene_direct_asset_bridge.cpp
+    game_scene_direct_asset_store.cpp
+    game_scene_direct_asset_store_bridge.cpp
     game_levels_actions_section.cpp
     game_levels_asset_probe.cpp
     game_levels_enter_transition.cpp
