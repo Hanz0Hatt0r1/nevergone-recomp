@@ -100,6 +100,18 @@ It performs exactly one composition step:
 
 This intentionally does **not** claim to be a full `waUpdate(float)` implementation. Native control flow jumps back to the accumulator/threshold comparison after a processed frame, so one original call may consume another frame when sufficient accumulated time remains. The single-iteration helper preserves that distinction: excess `+0x160` time remains in state for a subsequent iteration instead of being consumed by an invented loop policy.
 
+## `showActionLastFrame()`
+
+The native `EnemyActionsSystem::showActionLastFrame()` entry at `0x2ad748` is a small independent transition. It loads int32 `system+0x18c`, stores that value directly to current frame `system+0x294`, and then transfers to `EnemyActionsSystem::updateData()` unconditionally.
+
+`apply_show_action_last_frame()` mirrors exactly the state-visible part:
+
+- `current_frame_294 = field_18c` with no range check or normalization;
+- all other reconstructed fields are preserved, including previous-frame storage `+0x154`;
+- `should_call_update_data` is always true.
+
+The downstream call remains a signal because `updateData()` internals are not yet reconstructed.
+
 ## Explicitly outside scope
 
 This state layer still does not model or infer:
@@ -110,6 +122,6 @@ This state layer still does not model or infer:
 - gameplay-semantic names for any offset-named state;
 - the full native back-edge/loop policy that may process more than one frame in one `waUpdate(float)` call.
 
-The host coverage now includes the continuous combo/boundary chain, the native timing gate, both frame-processing branches, exact ARM32 frame increment, `+0x98` fallback behavior, count-based reset, `+0x154` bookkeeping, the recovered `updateData()` call decision, and one parsed-document-driven timing→frame-step iteration.
+The host coverage now includes the continuous combo/boundary chain, the native timing gate, both frame-processing branches, exact ARM32 frame increment, `+0x98` fallback behavior, count-based reset, `+0x154` bookkeeping, the recovered `updateData()` call decision, one parsed-document-driven timing→frame-step iteration, and `showActionLastFrame()`.
 
 No proprietary payload or decompiler-derived source is included.

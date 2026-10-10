@@ -10,9 +10,6 @@
 
 namespace nevergone::enemy_actions_runtime_state {
 
-// Offset-named EnemyActionsSystem state composed only from fields already
-// proven by comboHit()/waUpdate() evidence. Broader gameplay meanings remain
-// intentionally unresolved.
 struct State {
     std::uint8_t flag_168 = 0;
     std::uint8_t flag_169 = 0;
@@ -73,6 +70,11 @@ struct WaUpdateIterationResult {
     bool frame_step_applied = false;
 };
 
+struct ShowActionLastFrameResult {
+    State state;
+    bool should_call_update_data = true;
+};
+
 ComboHitResult apply_combo_hit(
         const enemy_actions_wbg_combo_section::Block& combo_block,
         State state);
@@ -91,13 +93,14 @@ WaUpdateFrameStepResult apply_wa_update_frame_step(
         std::uint32_t action_frame_count,
         State state);
 
-// Composes exactly one recovered waUpdate iteration using a parsed Sections A-G
-// document: timing gate first, then one frame-processing step only when the
-// native gate allows it. This intentionally does not reproduce the native
-// back-edge that may consume additional accumulated frames in the same call.
 WaUpdateIterationResult apply_wa_update_iteration(
         const enemy_actions_wbg_document::Document& document,
         float delta_seconds,
         State state);
+
+// Exact state write performed by EnemyActionsSystem::showActionLastFrame():
+// copy +0x18c to +0x294, then call updateData() unconditionally. The call is
+// surfaced as a signal; updateData() internals remain outside this layer.
+ShowActionLastFrameResult apply_show_action_last_frame(State state);
 
 }  // namespace nevergone::enemy_actions_runtime_state

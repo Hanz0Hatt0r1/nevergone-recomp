@@ -210,4 +210,11 @@ WaUpdateIterationResult apply_wa_update_iteration(
     return result;
 }
 
+ShowActionLastFrameResult apply_show_action_last_frame(State state) {
+    ShowActionLastFrameResult result;
+    result.state = state;
+    result.state.current_frame_294 = state.field_18c;
+    return result;
+}
+
 }  // namespace nevergone::enemy_actions_runtime_state
