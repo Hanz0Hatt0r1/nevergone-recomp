@@ -60,6 +60,7 @@ int main() {
 
     runtime::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
+    assert(!runtime::current_scene_instance().has_value());
     assert(runtime::load_pvp_scene(root.string()));
     auto state = runtime::snapshot();
     assert(state.status == runtime::LoadStatus::kReady);
@@ -72,6 +73,12 @@ int main() {
     assert(state.stored_event_port_type == 0u);
     assert(state.current_scene_layer_count == 0u);
     assert(state.current_scene_object_count == 0u);
+    auto scene = runtime::current_scene_instance();
+    assert(scene.has_value());
+    assert(scene->source_scene_index == 0u);
+    assert(scene->guid == "a");
+    assert(scene->first_point_x == 1.0f);
+    assert(scene->first_point_y == 2.0f);
 
     auto transition = runtime::step(1u);
     assert(transition.port_step.status == port_nav::StepStatus::kTraversed);
@@ -80,6 +87,12 @@ int main() {
     assert(state.current_scene_index == 1u);
     assert(state.current_scene_guid == "b");
     assert(state.stored_event_port_type == 0u);
+    scene = runtime::current_scene_instance();
+    assert(scene.has_value());
+    assert(scene->source_scene_index == 1u);
+    assert(scene->guid == "b");
+    assert(scene->first_point_x == 3.0f);
+    assert(scene->first_point_y == 4.0f);
 
     transition = runtime::step(0u);
     assert(transition.port_step.status == port_nav::StepStatus::kTraversed);
@@ -88,21 +101,28 @@ int main() {
     assert(state.current_scene_index == 0u);
     assert(state.current_scene_guid == "a");
     assert(state.stored_event_port_type == 1u);
+    scene = runtime::current_scene_instance();
+    assert(scene.has_value());
+    assert(scene->guid == "a");
 
     transition = runtime::step(9u);
     assert(transition.port_step.status == port_nav::StepStatus::kUnsupportedEventType);
     assert(runtime::snapshot().current_scene_guid == "a");
+    assert(runtime::current_scene_instance()->guid == "a");
 
     assert(!runtime::load_file(path.string(), 1u));
     assert(runtime::snapshot().status == runtime::LoadStatus::kTooLarge);
     assert(runtime::snapshot().load_attempt_count == 2u);
+    assert(!runtime::current_scene_instance().has_value());
 
     assert(!runtime::load_pvp_scene((root / "missing-root").string()));
     assert(runtime::snapshot().status == runtime::LoadStatus::kMissing);
     assert(runtime::snapshot().load_attempt_count == 3u);
+    assert(!runtime::current_scene_instance().has_value());
 
     std::filesystem::remove_all(root);
     runtime::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
+    assert(!runtime::current_scene_instance().has_value());
     return 0;
 }
