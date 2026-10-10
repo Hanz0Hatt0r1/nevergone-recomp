@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-10",
+  "repository_base": "55f2abe",
+  "unidbg_commit": "2ba8156eef31501ebd35194adb5795ef3e01a285",
+  "unidbg_local_changes": "tools/unidbg/prepare_unidbg.py",
+  "backend": "Unicorn2 ARM32",
+  "constructors": false,
+  "jni_onload": true,
+  "device_runtime": true,
+  "native_cases": 112,
+  "relr_writes": 4960,
+  "original_libraries_unchanged": true
+}

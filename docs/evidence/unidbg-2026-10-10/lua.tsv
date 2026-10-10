@@ -1,0 +1,597 @@
+value_hex	code_offset_hex	size	thumb	name	demangled
+0x0028e9c3	0x0028e9c2	10	1	_ZN7cocos2d8CCObject6retainEP9lua_State	cocos2d::CCObject::retain(lua_State*)
+0x0028e9cd	0x0028e9cc	10	1	_ZN7cocos2d8CCObject7releaseEP9lua_State	cocos2d::CCObject::release(lua_State*)
+0x0028e9d7	0x0028e9d6	24	1	_ZN7cocos2d8CCObject11autoreleaseEP9lua_State	cocos2d::CCObject::autorelease(lua_State*)
+0x00519815	0x00519814	12	1	_ZN7cocos2d8CCObject11pushMeToLuaEP9lua_State	cocos2d::CCObject::pushMeToLua(lua_State*)
+0x002e8af1	0x002e8af0	12	1	_ZN9LUA_LOGIN24lua_C_DidEnterBackgroundEv	LUA_LOGIN::lua_C_DidEnterBackground()
+0x002e8afd	0x002e8afc	12	1	_ZN9LUA_LOGIN25lua_C_WillEnterBackgroundEv	LUA_LOGIN::lua_C_WillEnterBackground()
+0x002e8b31	0x002e8b30	40	1	_ZN9LUA_LOGIN20lua_GetNowServerTimeEv	LUA_LOGIN::lua_GetNowServerTime()
+0x002e8b09	0x002e8b08	40	1	_ZN9LUA_LOGIN22lua_GetOnlineTimeCountEv	LUA_LOGIN::lua_GetOnlineTimeCount()
+0x002925e3	0x002925e2	84	1	_ZN13AppParameters20addEnemyAILuaToArrayEPKc	AppParameters::addEnemyAILuaToArray(char const*)
+0x004b13fd	0x004b13fc	32	1	luaL_loadstring	luaL_loadstring
+0x004b02b1	0x004b02b0	172	1	lua_pcallk	lua_pcallk
+0x004afe51	0x004afe50	64	1	lua_getglobal	lua_getglobal
+0x004afca3	0x004afca2	18	1	lua_pushnumber	lua_pushnumber
+0x004afa89	0x004afa88	50	1	lua_tonumberx	lua_tonumberx
+0x004afcb5	0x004afcb4	26	1	lua_pushinteger	lua_pushinteger
+0x004afabb	0x004afaba	58	1	lua_tointegerx	lua_tointegerx
+0x004af7f7	0x004af7f6	46	1	lua_settop	lua_settop
+0x002e7789	0x002e7788	100	1	_ZN10LUA_FRIEND18lua_ApplyForFriendEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_FRIEND::lua_ApplyForFriend(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e7a19	0x002e7a18	204	1	_ZN10LUA_FRIEND23lua_SendMessageToFriendEiSs	LUA_FRIEND::lua_SendMessageToFriend(int, std::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+0x002e78c1	0x002e78c0	100	1	_ZN10LUA_FRIEND20lua_AgreeFriendApplyEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_FRIEND::lua_AgreeFriendApply(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e796d	0x002e796c	100	1	_ZN10LUA_FRIEND21lua_RefuseFriendApplyEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_FRIEND::lua_RefuseFriendApply(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002eddfd	0x002eddfc	232	1	_ZN13LUA_WAREHOUSE18lua_SetAchieveDataERSt6vectorIiSaIiEES3_	LUA_WAREHOUSE::lua_SetAchieveData(std::vector<int, std::allocator<int> >&, std::vector<int, std::allocator<int> >&)
+0x002ec581	0x002ec580	80	1	_ZN13LUA_WAREHOUSE26lua_GetAllAchieveHonorListEv	LUA_WAREHOUSE::lua_GetAllAchieveHonorList()
+0x002edee5	0x002edee4	240	1	_ZN13LUA_WAREHOUSE19lua_AchieveCompleteERSt6vectorIiSaIiEEPN7cocos2d8CCObjectEMS5_FvS3_E	LUA_WAREHOUSE::lua_AchieveComplete(std::vector<int, std::allocator<int> >&, cocos2d::CCObject*, void (cocos2d::CCObject::*)(std::vector<int, std::allocator<int> >&))
+0x002ec6d5	0x002ec6d4	68	1	_ZN13LUA_WAREHOUSE28lua_ClientSetGuideStringDataEN7cocos2d8CCStringE	LUA_WAREHOUSE::lua_ClientSetGuideStringData(cocos2d::CCString)
+0x002ec719	0x002ec718	100	1	_ZN13LUA_WAREHOUSE20lua_GetAchieveRewardEjPN7cocos2d8CCObjectEMS1_FviE	LUA_WAREHOUSE::lua_GetAchieveReward(unsigned int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int))
+0x002e89d9	0x002e89d8	92	1	_ZN9LUA_LOGIN32lua_SelectCharactersStartTheGameEi	LUA_LOGIN::lua_SelectCharactersStartTheGame(int)
+0x002e89a5	0x002e89a4	24	1	_ZN9LUA_LOGIN16Lua_QuicklyLoginEv	LUA_LOGIN::Lua_QuicklyLogin()
+0x002e6199	0x002e6198	52	1	_ZN12CallLuaCalssD2Ev	CallLuaCalss::~CallLuaCalss()
+0x002e6199	0x002e6198	52	1	_ZN12CallLuaCalssD1Ev	CallLuaCalss::~CallLuaCalss()
+0x002e61cd	0x002e61cc	8	1	_ZThn224_N12CallLuaCalssD1Ev	non-virtual thunk to CallLuaCalss::~CallLuaCalss()
+0x002e61d5	0x002e61d4	18	1	_ZN12CallLuaCalssD0Ev	CallLuaCalss::~CallLuaCalss()
+0x002e61e7	0x002e61e6	6	1	_ZThn224_N12CallLuaCalssD0Ev	non-virtual thunk to CallLuaCalss::~CallLuaCalss()
+0x002e61ed	0x002e61ec	136	1	_ZN12CallLuaCalss12luaLogStringERKSsS1_i	CallLuaCalss::luaLogString(std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, int)
+0x004afd29	0x004afd28	60	1	lua_pushstring	lua_pushstring
+0x004afb81	0x004afb80	80	1	lua_tolstring	lua_tolstring
+0x002e6275	0x002e6274	156	1	_ZN12CallLuaCalss4initEv	CallLuaCalss::init()
+0x004b127d	0x004b127c	352	1	luaL_loadfilex	luaL_loadfilex
+0x002e6311	0x002e6310	88	1	_ZN5LunarI12lua_ProtoRPCE5thunkEP9lua_State	Lunar<lua_ProtoRPC>::thunk(lua_State*)
+0x004b0e75	0x004b0e74	30	1	luaL_checkudata	luaL_checkudata
+0x004b0c11	0x004b0c10	192	1	luaL_argerror	luaL_argerror
+0x004af825	0x004af824	40	1	lua_remove	lua_remove
+0x004afc1f	0x004afc1e	34	1	lua_touserdata	lua_touserdata
+0x002e6369	0x002e6368	100	1	_ZN5LunarI12lua_ProtoRPCE4gc_TEP9lua_State	Lunar<lua_ProtoRPC>::gc_T(lua_State*)
+0x004b141d	0x004b141c	72	1	luaL_getmetafield	luaL_getmetafield
+0x004af8b3	0x004af8b2	30	1	lua_pushvalue	lua_pushvalue
+0x004afe91	0x004afe90	26	1	lua_gettable	lua_gettable
+0x004af8d1	0x004af8d0	32	1	lua_type	lua_type
+0x002e63cd	0x002e63cc	92	1	_ZN5LunarI12lua_ProtoRPCE10tostring_TEP9lua_State	Lunar<lua_ProtoRPC>::tostring_T(lua_State*)
+0x004afd87	0x004afd86	40	1	lua_pushfstring	lua_pushfstring
+0x002e649d	0x002e649c	192	1	_ZN10LUA_CHAPTR16lua_ChapterBeginE18ChapterComleteDataPN7cocos2d8CCObjectEMS2_FvvE	LUA_CHAPTR::lua_ChapterBegin(ChapterComleteData, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x004c9d05	0x004c9d04	368	1	_Z32lua_callTableFunctionWithMultArgPKcS0_iSsz	lua_callTableFunctionWithMultArg(char const*, char const*, int, std::basic_string<char, std::char_traits<char>, std::allocator<char> >, ...)
+0x002e655d	0x002e655c	72	1	_ZN10LUA_CHAPTR18cpp_OnChapterBeginEP9lua_State	LUA_CHAPTR::cpp_OnChapterBegin(lua_State*)
+0x002e65a5	0x002e65a4	152	1	_ZN10LUA_CHAPTR24lua_ChapterCompleteFaildEi18ChapterComleteData	LUA_CHAPTR::lua_ChapterCompleteFaild(int, ChapterComleteData)
+0x002e663d	0x002e663c	4	1	_ZN10LUA_CHAPTR26cpp_OnChapterCompleteFaildEP9lua_State	LUA_CHAPTR::cpp_OnChapterCompleteFaild(lua_State*)
+0x002e6641	0x002e6640	180	1	_ZN10LUA_CHAPTR26lua_ChapterCompleteSuccessE18ChapterComleteData	LUA_CHAPTR::lua_ChapterCompleteSuccess(ChapterComleteData)
+0x002e66f5	0x002e66f4	72	1	_ZN10LUA_CHAPTR24lua_GetLastBattleChapterEv	LUA_CHAPTR::lua_GetLastBattleChapter()
+0x004c9a19	0x004c9a18	100	1	_Z21lua_callTableFunctionPKcS0_i	lua_callTableFunction(char const*, char const*, int)
+0x004c9c15	0x004c9c14	52	1	_Z21lua_getFunctionReturnPi	lua_getFunctionReturn(int*)
+0x002e6775	0x002e6774	160	1	_ZN5LunarI12lua_ProtoRPCE8subtableEP9lua_StateiPKcS5_	Lunar<lua_ProtoRPC>::subtable(lua_State*, int, char const*, char const*)
+0x004af71d	0x004af71c	84	1	lua_checkstack	lua_checkstack
+0x004aff61	0x004aff60	68	1	lua_createtable	lua_createtable
+0x004b0195	0x004b0194	126	1	lua_setmetatable	lua_setmetatable
+0x004afcf3	0x004afcf2	54	1	lua_pushlstring	lua_pushlstring
+0x004b0045	0x004b0044	32	1	lua_settable	lua_settable
+0x002e6815	0x002e6814	316	1	_ZN5LunarI12lua_ProtoRPCE4pushEP9lua_StatePS0_b	Lunar<lua_ProtoRPC>::push(lua_State*, lua_ProtoRPC*, bool)
+0x004afc95	0x004afc94	14	1	lua_pushnil	lua_pushnil
+0x004afeab	0x004afeaa	56	1	lua_getfield	lua_getfield
+0x004b0bd9	0x004b0bd8	54	1	luaL_error	luaL_error
+0x004af7e9	0x004af7e8	14	1	lua_gettop	lua_gettop
+0x004afe25	0x004afe24	16	1	lua_pushlightuserdata	lua_pushlightuserdata
+0x004b057f	0x004b057e	46	1	lua_newuserdata	lua_newuserdata
+0x004afe0d	0x004afe0c	24	1	lua_pushboolean	lua_pushboolean
+0x004af885	0x004af884	22	1	lua_replace	lua_replace
+0x002e6951	0x002e6950	40	1	_ZN5LunarI12lua_ProtoRPCE10new_T_noGcEP9lua_State	Lunar<lua_ProtoRPC>::new_T_noGc(lua_State*)
+0x004cf4d1	0x004cf4d0	292	1	_ZN12lua_ProtoRPCC1EP9lua_State	lua_ProtoRPC::lua_ProtoRPC(lua_State*)
+0x002e6979	0x002e6978	34	1	_ZN5LunarI12lua_ProtoRPCE3setEP9lua_StateiPKc	Lunar<lua_ProtoRPC>::set(lua_State*, int, char const*)
+0x004af84d	0x004af84c	56	1	lua_insert	lua_insert
+0x002e699d	0x002e699c	336	1	_ZN5LunarI12lua_ProtoRPCE13Register_noGcEP9lua_State	Lunar<lua_ProtoRPC>::Register_noGc(lua_State*)
+0x004b0db5	0x004b0db4	80	1	luaL_newmetatable	luaL_newmetatable
+0x004b0001	0x004b0000	68	1	lua_setglobal	lua_setglobal
+0x004afdaf	0x004afdae	94	1	lua_pushcclosure	lua_pushcclosure
+0x002e6e45	0x002e6e44	132	1	_ZN10LUA_CHAPTR24lua_GetBattleReportsListEv	LUA_CHAPTR::lua_GetBattleReportsList()
+0x004c9be1	0x004c9be0	52	1	_Z27lua_getFunctionReturnStringv	lua_getFunctionReturnString()
+0x002e6ec9	0x002e6ec8	120	1	_ZN10LUA_CHAPTR28cpp_OnChapterCompleteSuccessEP9lua_State	LUA_CHAPTR::cpp_OnChapterCompleteSuccess(lua_State*)
+0x004c98f1	0x004c98f0	44	1	_ZN13lua_managerEx4initEv	lua_managerEx::init()
+0x002e7001	0x002e7000	76	1	_ZN13LUA_EMRANKING18Lua_GetRankingDataEv	LUA_EMRANKING::Lua_GetRankingData()
+0x002e704d	0x002e704c	56	1	_ZN13LUA_EMRANKING20Lua_RankedDataUploadEii	LUA_EMRANKING::Lua_RankedDataUpload(int, int)
+0x002e7411	0x002e7410	356	1	_ZN13LUA_EMRANKING18CAddGetRankingDataEP9lua_State	LUA_EMRANKING::CAddGetRankingData(lua_State*)
+0x002e7739	0x002e7738	24	1	_ZN10LUA_FRIEND25lua_GetFriendRelationListEv	LUA_FRIEND::lua_GetFriendRelationList()
+0x002e7751	0x002e7750	56	1	_ZN10LUA_FRIEND26lua_SearchUserWithUserNameESs	LUA_FRIEND::lua_SearchUserWithUserName(std::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+0x002e77ed	0x002e77ec	54	1	_ZN10LUA_FRIEND20cpp_OnApplyForFriendEP9lua_State	LUA_FRIEND::cpp_OnApplyForFriend(lua_State*)
+0x002e7825	0x002e7824	100	1	_ZN10LUA_FRIEND24lua_RemoveFriendRelationEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_FRIEND::lua_RemoveFriendRelation(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e7889	0x002e7888	54	1	_ZN10LUA_FRIEND26cpp_OnRemoveFriendRelationEP9lua_State	LUA_FRIEND::cpp_OnRemoveFriendRelation(lua_State*)
+0x002e7925	0x002e7924	72	1	_ZN10LUA_FRIEND22cpp_OnAgreeFriendApplyEP9lua_State	LUA_FRIEND::cpp_OnAgreeFriendApply(lua_State*)
+0x002e79d1	0x002e79d0	72	1	_ZN10LUA_FRIEND23cpp_OnRefuseFriendApplyEP9lua_State	LUA_FRIEND::cpp_OnRefuseFriendApply(lua_State*)
+0x002e7ae5	0x002e7ae4	64	1	_ZN10LUA_FRIEND20Lua_CallEnterChannelEii	LUA_FRIEND::Lua_CallEnterChannel(int, int)
+0x002e7b25	0x002e7b24	60	1	_ZN10LUA_FRIEND19Lua_CallExitChannelEi	LUA_FRIEND::Lua_CallExitChannel(int)
+0x002e7bf1	0x002e7bf0	116	1	_ZN10LUA_FRIEND19cpp_OnGetFriendListEP9lua_State	LUA_FRIEND::cpp_OnGetFriendList(lua_State*)
+0x002e7ce9	0x002e7ce8	116	1	_ZN9LUA_GUILD15lua_CreateGuildEN7cocos2d8CCStringEiS1_PNS0_8CCObjectEMS2_FvvE	LUA_GUILD::lua_CreateGuild(cocos2d::CCString, int, cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e7d9d	0x002e7d9c	72	1	_ZN9LUA_GUILD15lua_SearchGuildEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_GUILD::lua_SearchGuild(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e7de5	0x002e7de4	100	1	_ZN9LUA_GUILD14lua_ApplyGuildEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_GUILD::lua_ApplyGuild(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e7e49	0x002e7e48	62	1	_ZN9LUA_GUILD16cpp_OnApplyGuildEP9lua_State	LUA_GUILD::cpp_OnApplyGuild(lua_State*)
+0x002e7e89	0x002e7e88	60	1	_ZN9LUA_GUILD15lua_CancelApplyEi	LUA_GUILD::lua_CancelApply(int)
+0x002e7ec5	0x002e7ec4	14	1	_ZN9LUA_GUILD17cpp_OnCancelApplyEP9lua_State	LUA_GUILD::cpp_OnCancelApply(lua_State*)
+0x002e7ed5	0x002e7ed4	100	1	_ZN9LUA_GUILD13lua_JoinGuildEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_GUILD::lua_JoinGuild(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e7f39	0x002e7f38	62	1	_ZN9LUA_GUILD15cpp_OnJoinGuildEP9lua_State	LUA_GUILD::cpp_OnJoinGuild(lua_State*)
+0x002e7f79	0x002e7f78	92	1	_ZN9LUA_GUILD15lua_AcceptApplyEiiPN7cocos2d8CCObjectEMS1_FvvE	LUA_GUILD::lua_AcceptApply(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e7fd5	0x002e7fd4	74	1	_ZN9LUA_GUILD17cpp_OnAcceptApplyEP9lua_State	LUA_GUILD::cpp_OnAcceptApply(lua_State*)
+0x002e8021	0x002e8020	92	1	_ZN9LUA_GUILD15lua_RejectApplyEiiPN7cocos2d8CCObjectEMS1_FvvE	LUA_GUILD::lua_RejectApply(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e807d	0x002e807c	74	1	_ZN9LUA_GUILD17cpp_OnRejectApplyEP9lua_State	LUA_GUILD::cpp_OnRejectApply(lua_State*)
+0x002e80c9	0x002e80c8	100	1	_ZN9LUA_GUILD13lua_ExitGuildEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_GUILD::lua_ExitGuild(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e812d	0x002e812c	70	1	_ZN9LUA_GUILD15cpp_OnExitGuildEP9lua_State	LUA_GUILD::cpp_OnExitGuild(lua_State*)
+0x002e8175	0x002e8174	92	1	_ZN9LUA_GUILD13lua_KickGuildEiiPN7cocos2d8CCObjectEMS1_FvvE	LUA_GUILD::lua_KickGuild(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e81d1	0x002e81d0	74	1	_ZN9LUA_GUILD15cpp_OnKickGuildEP9lua_State	LUA_GUILD::cpp_OnKickGuild(lua_State*)
+0x002e821d	0x002e821c	100	1	_ZN9LUA_GUILD16lua_GetGuildInfoEiPN7cocos2d8CCObjectEMS1_Fv20GetGuildInfoDataListE	LUA_GUILD::lua_GetGuildInfo(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(GetGuildInfoDataList))
+0x002e82c1	0x002e82c0	68	1	_ZN9LUA_GUILD19lua_ModifyGuildInfoEN7cocos2d8CCStringEi	LUA_GUILD::lua_ModifyGuildInfo(cocos2d::CCString, int)
+0x002e8305	0x002e8304	60	1	_ZN9LUA_GUILD14lua_SetManagerEi	LUA_GUILD::lua_SetManager(int)
+0x002e8341	0x002e8340	14	1	_ZN9LUA_GUILD16cpp_OnSetManagerEP9lua_State	LUA_GUILD::cpp_OnSetManager(lua_State*)
+0x002e8351	0x002e8350	60	1	_ZN9LUA_GUILD18lua_DismissManagerEi	LUA_GUILD::lua_DismissManager(int)
+0x002e838d	0x002e838c	14	1	_ZN9LUA_GUILD20cpp_OnDismissManagerEP9lua_State	LUA_GUILD::cpp_OnDismissManager(lua_State*)
+0x002e839d	0x002e839c	60	1	_ZN9LUA_GUILD20lua_GetRandGuildListEPN7cocos2d8CCObjectEMS1_Fv15SocietyDataListE	LUA_GUILD::lua_GetRandGuildList(cocos2d::CCObject*, void (cocos2d::CCObject::*)(SocietyDataList))
+0x002e8499	0x002e8498	122	1	_ZN9LUA_GUILD17cpp_OnCreateGuildEP9lua_State	LUA_GUILD::cpp_OnCreateGuild(lua_State*)
+0x002e8513	0x002e8512	32	1	_ZN9LUA_GUILD17cpp_OnSearchGuildEP9lua_State	LUA_GUILD::cpp_OnSearchGuild(lua_State*)
+0x002e85a9	0x002e85a8	316	1	_ZN9LUA_GUILD18cpp_OnGetGuildInfoEP9lua_State	LUA_GUILD::cpp_OnGetGuildInfo(lua_State*)
+0x002e86e5	0x002e86e4	44	1	_ZN9LUA_GUILD21cpp_OnModifyGuildInfoEP9lua_State	LUA_GUILD::cpp_OnModifyGuildInfo(lua_State*)
+0x002e8711	0x002e8710	228	1	_ZN9LUA_GUILD22cpp_OnGetRandGuildListEP9lua_State	LUA_GUILD::cpp_OnGetRandGuildList(lua_State*)
+0x002e87f5	0x002e87f4	124	1	_ZN9LUA_GUILD20lua_GetHeroGuildDataEv	LUA_GUILD::lua_GetHeroGuildData()
+0x002e8905	0x002e8904	24	1	_ZN9LUA_LOGIN17lua_GetTalentListEv	LUA_LOGIN::lua_GetTalentList()
+0x002e8a35	0x002e8a34	68	1	_ZN9LUA_LOGIN15lua_CallGameRPCEN7cocos2d8CCStringEi	LUA_LOGIN::lua_CallGameRPC(cocos2d::CCString, int)
+0x002e8ab5	0x002e8ab4	60	1	_ZN9LUA_LOGIN16lua_SignInRewardEPN7cocos2d8CCObjectEMS1_FvvE	LUA_LOGIN::lua_SignInReward(cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x004c9ba5	0x004c9ba4	60	1	_Z22lua_callGlobalFunctionPKc	lua_callGlobalFunction(char const*)
+0x002e8b91	0x002e8b90	114	1	_ZN9LUA_LOGIN19cpp_OnGetTalentListEP9lua_State	LUA_LOGIN::cpp_OnGetTalentList(lua_State*)
+0x002e8c05	0x002e8c04	220	1	_ZN9LUA_LOGIN17cpp_OnGetRoleListEP9lua_State	LUA_LOGIN::cpp_OnGetRoleList(lua_State*)
+0x002e8ce1	0x002e8ce0	92	1	_ZN9LUA_LOGIN19cpp_OnCreateTheRoleEP9lua_State	LUA_LOGIN::cpp_OnCreateTheRole(lua_State*)
+0x002e8e7d	0x002e8e7c	176	1	_ZN9LUA_LOGIN21cpp_OnGameAnnoucementEP9lua_State	LUA_LOGIN::cpp_OnGameAnnoucement(lua_State*)
+0x002e9115	0x002e9114	44	1	_ZN9LUA_LOGIN12CAddnErrCodeEP9lua_State	LUA_LOGIN::CAddnErrCode(lua_State*)
+0x002e9141	0x002e9140	112	1	_ZN9LUA_LOGIN23lua_GetSignInRewardDataEv	LUA_LOGIN::lua_GetSignInRewardData()
+0x002fac51	0x002fac50	380	1	_ZN22ServerInteractionLayer20lua_GetCharacterInfoEv	ServerInteractionLayer::lua_GetCharacterInfo()
+0x002e9515	0x002e9514	24	1	_ZN8LUA_MAIL15Lua_GetMailListEv	LUA_MAIL::Lua_GetMailList()
+0x002ee571	0x002ee570	216	1	_ZN13LUA_WAREHOUSE20lua_GetEquipmentListEv	LUA_WAREHOUSE::lua_GetEquipmentList()
+0x002ebaa5	0x002ebaa4	140	1	_ZN13LUA_WAREHOUSE16lua_GetAtlasListEv	LUA_WAREHOUSE::lua_GetAtlasList()
+0x002edb69	0x002edb68	112	1	_ZN13LUA_WAREHOUSE19lua_GetMaterialListEv	LUA_WAREHOUSE::lua_GetMaterialList()
+0x002edbd9	0x002edbd8	112	1	_ZN13LUA_WAREHOUSE15lua_GetItemListEv	LUA_WAREHOUSE::lua_GetItemList()
+0x002edc49	0x002edc48	112	1	_ZN13LUA_WAREHOUSE19lua_GetBackpackListEv	LUA_WAREHOUSE::lua_GetBackpackList()
+0x002edfd5	0x002edfd4	152	1	_ZN13LUA_WAREHOUSE18lua_GetWraithsListEv	LUA_WAREHOUSE::lua_GetWraithsList()
+0x002eef01	0x002eef00	192	1	_ZN13LUA_WAREHOUSE17lua_GetTalentListEv	LUA_WAREHOUSE::lua_GetTalentList()
+0x002ee121	0x002ee120	296	1	_ZN13LUA_WAREHOUSE31lua_GetSaveDataAllChallengeModeEv	LUA_WAREHOUSE::lua_GetSaveDataAllChallengeMode()
+0x002ed40b	0x002ed40a	2	1	_ZN13LUA_WAREHOUSE20lua_GetAllHouseLevelEv	LUA_WAREHOUSE::lua_GetAllHouseLevel()
+0x002ea915	0x002ea914	292	1	_ZN13LUA_MERCENARY20lua_GetEquipmentListEv	LUA_MERCENARY::lua_GetEquipmentList()
+0x002e9311	0x002e9310	24	1	_ZN9LUA_LOGIN20cpp_OnUpdataAlllDataEP9lua_State	LUA_LOGIN::cpp_OnUpdataAlllData(lua_State*)
+0x002e93a1	0x002e93a0	104	1	_ZN9LUA_LOGIN15cpp_OnEnterGameEP9lua_State	LUA_LOGIN::cpp_OnEnterGame(lua_State*)
+0x002e9409	0x002e9408	72	1	_ZN9LUA_LOGIN18cpp_OnSignInRewardEP9lua_State	LUA_LOGIN::cpp_OnSignInReward(lua_State*)
+0x002e952d	0x002e952c	68	1	_ZN8LUA_MAIL27Lua_SaveMailPrizeWithMailIDEN7cocos2d8CCStringE	LUA_MAIL::Lua_SaveMailPrizeWithMailID(cocos2d::CCString)
+0x002e9571	0x002e9570	68	1	_ZN8LUA_MAIL21Lua_SendEmailToFriendEN7cocos2d8CCStringEiS1_S1_S1_i	LUA_MAIL::Lua_SendEmailToFriend(cocos2d::CCString, int, cocos2d::CCString, cocos2d::CCString, cocos2d::CCString, int)
+0x002e95b5	0x002e95b4	68	1	_ZN8LUA_MAIL25Lua_SetMailReadWithMailIDEN7cocos2d8CCStringE	LUA_MAIL::Lua_SetMailReadWithMailID(cocos2d::CCString)
+0x002e95f9	0x002e95f8	40	1	_ZN8LUA_MAIL30Lua_checkCacheNotReadMailCountEv	LUA_MAIL::Lua_checkCacheNotReadMailCount()
+0x002e9729	0x002e9728	32	1	_ZN8LUA_MAIL19cpp_OnMailOperationEP9lua_State	LUA_MAIL::cpp_OnMailOperation(lua_State*)
+0x002e9749	0x002e9748	242	1	_ZN8LUA_MAIL17cpp_OnGetMailListEP9lua_State	LUA_MAIL::cpp_OnGetMailList(lua_State*)
+0x002e98e1	0x002e98e0	104	1	_ZN13LUA_MERCENARY25Lua_UpgradeMercenaryStageE21MercenaryCallbackDataPN7cocos2d8CCObjectEMS2_FvS0_E	LUA_MERCENARY::Lua_UpgradeMercenaryStage(MercenaryCallbackData, cocos2d::CCObject*, void (cocos2d::CCObject::*)(MercenaryCallbackData))
+0x002e99a1	0x002e99a0	108	1	_ZN13LUA_MERCENARY20Lua_RecastSkillBeginE21MercenaryCallbackDataPN7cocos2d8CCObjectEMS2_FvS0_E	LUA_MERCENARY::Lua_RecastSkillBegin(MercenaryCallbackData, cocos2d::CCObject*, void (cocos2d::CCObject::*)(MercenaryCallbackData))
+0x002e9a0d	0x002e9a0c	64	1	_ZN13LUA_MERCENARY18Lua_RecastSkillEndE21MercenaryCallbackDataPN7cocos2d8CCObjectEMS2_FvS0_E	LUA_MERCENARY::Lua_RecastSkillEnd(MercenaryCallbackData, cocos2d::CCObject*, void (cocos2d::CCObject::*)(MercenaryCallbackData))
+0x002e9a4d	0x002e9a4c	40	1	_ZN13LUA_MERCENARY12Lua_nReceiveE21MercenaryCallbackDataPN7cocos2d8CCObjectEMS2_FvS0_E	LUA_MERCENARY::Lua_nReceive(MercenaryCallbackData, cocos2d::CCObject*, void (cocos2d::CCObject::*)(MercenaryCallbackData))
+0x002e9a75	0x002e9a74	120	1	_ZN13LUA_MERCENARY29Lua_MercenarySweepNormalBeginE21MercenaryCallbackDataPN7cocos2d8CCObjectEMS2_FvS0_E	LUA_MERCENARY::Lua_MercenarySweepNormalBegin(MercenaryCallbackData, cocos2d::CCObject*, void (cocos2d::CCObject::*)(MercenaryCallbackData))
+0x002e9aed	0x002e9aec	120	1	_ZN13LUA_MERCENARY32Lua_MercenarySweepNormalCompleteE21MercenaryCallbackDataPN7cocos2d8CCObjectEMS2_FvS0_E	LUA_MERCENARY::Lua_MercenarySweepNormalComplete(MercenaryCallbackData, cocos2d::CCObject*, void (cocos2d::CCObject::*)(MercenaryCallbackData))
+0x002e9b65	0x002e9b64	116	1	_ZN13LUA_MERCENARY25Lua_MercenanryRandomBeginE21MercenaryCallbackDataPN7cocos2d8CCObjectEMS2_FvS0_E	LUA_MERCENARY::Lua_MercenanryRandomBegin(MercenaryCallbackData, cocos2d::CCObject*, void (cocos2d::CCObject::*)(MercenaryCallbackData))
+0x002e9bd9	0x002e9bd8	116	1	_ZN13LUA_MERCENARY26Lua_MercenaryRandomReceiveE21MercenaryCallbackDataPN7cocos2d8CCObjectEMS2_FvS0_E	LUA_MERCENARY::Lua_MercenaryRandomReceive(MercenaryCallbackData, cocos2d::CCObject*, void (cocos2d::CCObject::*)(MercenaryCallbackData))
+0x002e9c4d	0x002e9c4c	104	1	_ZN13LUA_MERCENARY23Lua_MercenaryRandomBackE21MercenaryCallbackDataPN7cocos2d8CCObjectEMS2_FvS0_E	LUA_MERCENARY::Lua_MercenaryRandomBack(MercenaryCallbackData, cocos2d::CCObject*, void (cocos2d::CCObject::*)(MercenaryCallbackData))
+0x002e9cb5	0x002e9cb4	112	1	_ZN13LUA_MERCENARY19Lua_SelectEquipmentE21MercenaryCallbackDataPN7cocos2d8CCObjectEMS2_FvvE	LUA_MERCENARY::Lua_SelectEquipment(MercenaryCallbackData, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002e9d25	0x002e9d24	54	1	_ZN13LUA_MERCENARY19cpp_SelectEquipmentEP9lua_State	LUA_MERCENARY::cpp_SelectEquipment(lua_State*)
+0x002e9d5d	0x002e9d5c	108	1	_ZN13LUA_MERCENARY34lua_MercenaryEquipEquipmentAddHoleEN7cocos2d8CCStringEPNS0_8CCObjectEMS2_FvP15WeaponsItemDataE	LUA_MERCENARY::lua_MercenaryEquipEquipmentAddHole(cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)(WeaponsItemData*))
+0x002e9dc9	0x002e9dc8	108	1	_ZN13LUA_MERCENARY25lua_UpgradeMercenaryEquipEN7cocos2d8CCStringEPNS0_8CCObjectEMS2_FvP15WeaponsItemDataE	LUA_MERCENARY::lua_UpgradeMercenaryEquip(cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)(WeaponsItemData*))
+0x002e9e35	0x002e9e34	82	1	_ZN13LUA_MERCENARY29cpp_OnMercenaryEquipDecomposeEP9lua_State	LUA_MERCENARY::cpp_OnMercenaryEquipDecompose(lua_State*)
+0x002e9e89	0x002e9e88	112	1	_ZN13LUA_MERCENARY30lua_MercenaryEquipInlayWraithsEN7cocos2d8CCStringES1_iiPNS0_8CCObjectEMS2_FvP11wp_PropertyE	LUA_MERCENARY::lua_MercenaryEquipInlayWraiths(cocos2d::CCString, cocos2d::CCString, int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(wp_Property*))
+0x002e9ef9	0x002e9ef8	108	1	_ZN13LUA_MERCENARY31lua_MercenaryEquipFusionWraithsEN7cocos2d8CCStringEPNS0_8CCObjectEMS2_FvP11wp_MixPowerE	LUA_MERCENARY::lua_MercenaryEquipFusionWraiths(cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)(wp_MixPower*))
+0x002e9f65	0x002e9f64	116	1	_ZN13LUA_MERCENARY32lua_MercenaryEquipTakeOutWraithsEN7cocos2d8CCStringES1_bPNS0_8CCObjectEMS2_FviiE	LUA_MERCENARY::lua_MercenaryEquipTakeOutWraiths(cocos2d::CCString, cocos2d::CCString, bool, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int, int))
+0x002e9ffd	0x002e9ffc	116	1	_ZN13LUA_MERCENARY27cpp_OnUpgradeMercenaryStageEP9lua_State	LUA_MERCENARY::cpp_OnUpgradeMercenaryStage(lua_State*)
+0x002ea071	0x002ea070	168	1	_ZN13LUA_MERCENARY22cpp_OnRecastSkillBeginEP9lua_State	LUA_MERCENARY::cpp_OnRecastSkillBegin(lua_State*)
+0x002ea119	0x002ea118	116	1	_ZN13LUA_MERCENARY20cpp_OnRecastSkillEndEP9lua_State	LUA_MERCENARY::cpp_OnRecastSkillEnd(lua_State*)
+0x002ea18d	0x002ea18c	104	1	_ZN13LUA_MERCENARY14cpp_OnnReceiveEP9lua_State	LUA_MERCENARY::cpp_OnnReceive(lua_State*)
+0x002ea1f5	0x002ea1f4	116	1	_ZN13LUA_MERCENARY31cpp_OnMercenarySweepNormalBeginEP9lua_State	LUA_MERCENARY::cpp_OnMercenarySweepNormalBegin(lua_State*)
+0x002ea269	0x002ea268	116	1	_ZN13LUA_MERCENARY25cpp_MercenanryRandomBeginEP9lua_State	LUA_MERCENARY::cpp_MercenanryRandomBegin(lua_State*)
+0x002ea2dd	0x002ea2dc	116	1	_ZN13LUA_MERCENARY23cpp_MercenaryRandomBackEP9lua_State	LUA_MERCENARY::cpp_MercenaryRandomBack(lua_State*)
+0x002ea351	0x002ea350	194	1	_ZN13LUA_MERCENARY34cpp_OnMercenarySweepNormalCompleteEP9lua_State	LUA_MERCENARY::cpp_OnMercenarySweepNormalComplete(lua_State*)
+0x002ea413	0x002ea412	194	1	_ZN13LUA_MERCENARY26cpp_MercenaryRandomReceiveEP9lua_State	LUA_MERCENARY::cpp_MercenaryRandomReceive(lua_State*)
+0x002ea4d5	0x002ea4d4	96	1	_ZN13LUA_MERCENARY36cpp_OnMercenaryEquipEquipmentAddHoleEP9lua_State	LUA_MERCENARY::cpp_OnMercenaryEquipEquipmentAddHole(lua_State*)
+0x002ea535	0x002ea534	96	1	_ZN13LUA_MERCENARY27cpp_OnUpgradeMercenaryEquipEP9lua_State	LUA_MERCENARY::cpp_OnUpgradeMercenaryEquip(lua_State*)
+0x002ea595	0x002ea594	144	1	_ZN13LUA_MERCENARY27lua_MercenaryEquipDecomposeEN7cocos2d8CCStringEPNS0_8CCObjectEMS2_FviiE	LUA_MERCENARY::lua_MercenaryEquipDecompose(cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int, int))
+0x002ea625	0x002ea624	110	1	_ZN13LUA_MERCENARY32cpp_OnMercenaryEquipInlayWraithsEP9lua_State	LUA_MERCENARY::cpp_OnMercenaryEquipInlayWraiths(lua_State*)
+0x002ea693	0x002ea692	96	1	_ZN13LUA_MERCENARY33cpp_OnMercenaryEquipFusionWraithsEP9lua_State	LUA_MERCENARY::cpp_OnMercenaryEquipFusionWraiths(lua_State*)
+0x002ea6f3	0x002ea6f2	116	1	_ZN13LUA_MERCENARY34cpp_OnMercenaryEquipTakeOutWraithsEP9lua_State	LUA_MERCENARY::cpp_OnMercenaryEquipTakeOutWraiths(lua_State*)
+0x004afb61	0x004afb60	32	1	lua_toboolean	lua_toboolean
+0x002eaa5d	0x002eaa5c	48	1	_ZN15LUA_SENDAUCTION18lua_GetAuctionListEv	LUA_SENDAUCTION::lua_GetAuctionList()
+0x002eaa8d	0x002eaa8c	188	1	_ZN15LUA_SENDAUCTION15lua_SendAuctionEiN7cocos2d8CCStringES1_S1_S1_S1_iS1_	LUA_SENDAUCTION::lua_SendAuction(int, cocos2d::CCString, cocos2d::CCString, cocos2d::CCString, cocos2d::CCString, cocos2d::CCString, int, cocos2d::CCString)
+0x002eab49	0x002eab48	108	1	_ZN15LUA_SENDAUCTION16lua_BeginAuctionEN7cocos2d8CCStringES1_S1_	LUA_SENDAUCTION::lua_BeginAuction(cocos2d::CCString, cocos2d::CCString, cocos2d::CCString)
+0x002eabb5	0x002eabb4	156	1	_ZN15LUA_SENDAUCTION14lua_EndAuctionEN7cocos2d8CCStringES1_iS1_S1_S1_	LUA_SENDAUCTION::lua_EndAuction(cocos2d::CCString, cocos2d::CCString, int, cocos2d::CCString, cocos2d::CCString, cocos2d::CCString)
+0x002eb10d	0x002eb10c	916	1	_ZN15LUA_SENDAUCTION17CAddOnSendAuctionEP9lua_State	LUA_SENDAUCTION::CAddOnSendAuction(lua_State*)
+0x002eb531	0x002eb530	76	1	_ZN8LUA_TEAM22lua_BattleChatToFriendEiN7cocos2d8CCStringE	LUA_TEAM::lua_BattleChatToFriend(int, cocos2d::CCString)
+0x002eb581	0x002eb580	24	1	_ZN8LUA_TEAM20CAddCreateRoomSucessEP9lua_State	LUA_TEAM::CAddCreateRoomSucess(lua_State*)
+0x002eb59d	0x002eb59c	24	1	_ZN8LUA_TEAM9CAddBeginEP9lua_State	LUA_TEAM::CAddBegin(lua_State*)
+0x002eb5b5	0x002eb5b4	64	1	_ZN8LUA_TEAM23lua_AutoFindMatchBattleEN7cocos2d8CCStringE	LUA_TEAM::lua_AutoFindMatchBattle(cocos2d::CCString)
+0x002eb5f5	0x002eb5f4	64	1	_ZN8LUA_TEAM25lua_CancelFindMatchBattleEN7cocos2d8CCStringE	LUA_TEAM::lua_CancelFindMatchBattle(cocos2d::CCString)
+0x002eb635	0x002eb634	64	1	_ZN8LUA_TEAM19lua_SendReadyBattleEN7cocos2d8CCStringE	LUA_TEAM::lua_SendReadyBattle(cocos2d::CCString)
+0x002eb675	0x002eb674	64	1	_ZN8LUA_TEAM24lua_SendReadyBattleBeginEN7cocos2d8CCStringE	LUA_TEAM::lua_SendReadyBattleBegin(cocos2d::CCString)
+0x002eb6b5	0x002eb6b4	76	1	_ZN8LUA_TEAM35lua_InvitePlayersToRoomWithFriendIDEiN7cocos2d8CCStringE	LUA_TEAM::lua_InvitePlayersToRoomWithFriendID(int, cocos2d::CCString)
+0x002eb701	0x002eb700	68	1	_ZN8LUA_TEAM37lua_ISInvitePlayersToRoomWithFriendIDEib	LUA_TEAM::lua_ISInvitePlayersToRoomWithFriendID(int, bool)
+0x002eb745	0x002eb744	48	1	_ZN8LUA_TEAM17lua_SendEndBattleEv	LUA_TEAM::lua_SendEndBattle()
+0x002eb775	0x002eb774	76	1	_ZN8LUA_TEAM16lua_OutOfTheRoomEN7cocos2d8CCStringEi	LUA_TEAM::lua_OutOfTheRoom(cocos2d::CCString, int)
+0x002eb7c1	0x002eb7c0	240	1	_ZN8LUA_TEAM9CAddReadyEP9lua_State	LUA_TEAM::CAddReady(lua_State*)
+0x002eb8e5	0x002eb8e4	124	1	_ZN8LUA_TEAM22CAddInviteFriendsStateEP9lua_State	LUA_TEAM::CAddInviteFriendsState(lua_State*)
+0x002ebb31	0x002ebb30	116	1	_ZN13LUA_WAREHOUSE13lua_EquipItemEiiPN7cocos2d8CCObjectEMS1_FvvEPNS0_8CCStringE	LUA_WAREHOUSE::lua_EquipItem(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(), cocos2d::CCString*)
+0x002ebba5	0x002ebba4	86	1	_ZN13LUA_WAREHOUSE15cpp_OnEquipItemEP9lua_State	LUA_WAREHOUSE::cpp_OnEquipItem(lua_State*)
+0x002ebbfd	0x002ebbfc	64	1	_ZN13LUA_WAREHOUSE11lua_UseItemEi	LUA_WAREHOUSE::lua_UseItem(int)
+0x002ebc3d	0x002ebc3c	4	1	_ZN13LUA_WAREHOUSE13cpp_OnUseItemEP9lua_State	LUA_WAREHOUSE::cpp_OnUseItem(lua_State*)
+0x002ebc41	0x002ebc40	120	1	_ZN13LUA_WAREHOUSE26lua_RemoveItemFromBackpackEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_RemoveItemFromBackpack(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ebcb9	0x002ebcb8	86	1	_ZN13LUA_WAREHOUSE28cpp_OnRemoveItemFromBackpackEP9lua_State	LUA_WAREHOUSE::cpp_OnRemoveItemFromBackpack(lua_State*)
+0x002ebd11	0x002ebd10	116	1	_ZN13LUA_WAREHOUSE23lua_ReplaceBackpackItemEiiPN7cocos2d8CCObjectEMS1_FvvEPNS0_8CCStringE	LUA_WAREHOUSE::lua_ReplaceBackpackItem(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(), cocos2d::CCString*)
+0x002ebd85	0x002ebd84	86	1	_ZN13LUA_WAREHOUSE25cpp_OnReplaceBackpackItemEP9lua_State	LUA_WAREHOUSE::cpp_OnReplaceBackpackItem(lua_State*)
+0x002ebddd	0x002ebddc	144	1	_ZN13LUA_WAREHOUSE15lua_EquipWeaponEN7cocos2d8CCStringEPNS0_8CCObjectEMS2_FvvE	LUA_WAREHOUSE::lua_EquipWeapon(cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ebe6d	0x002ebe6c	86	1	_ZN13LUA_WAREHOUSE17cpp_OnEquipWeaponEP9lua_State	LUA_WAREHOUSE::cpp_OnEquipWeapon(lua_State*)
+0x002ebec5	0x002ebec4	100	1	_ZN13LUA_WAREHOUSE18lua_ForgeEquipmentEiPN7cocos2d8CCObjectEMS1_FvP15WeaponsItemDataE	LUA_WAREHOUSE::lua_ForgeEquipment(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(WeaponsItemData*))
+0x002ebf29	0x002ebf28	124	1	_ZN13LUA_WAREHOUSE20lua_UpgradeEquipmentEN7cocos2d8CCStringEPNS0_8CCObjectEMS2_FvP15WeaponsItemDataE	LUA_WAREHOUSE::lua_UpgradeEquipment(cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)(WeaponsItemData*))
+0x002ebfa5	0x002ebfa4	144	1	_ZN13LUA_WAREHOUSE22lua_EquipmentDecomposeEN7cocos2d8CCStringEPNS0_8CCObjectEMS2_FviiE	LUA_WAREHOUSE::lua_EquipmentDecompose(cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int, int))
+0x002ec035	0x002ec034	82	1	_ZN13LUA_WAREHOUSE24cpp_OnEquipmentDecomposeEP9lua_State	LUA_WAREHOUSE::cpp_OnEquipmentDecompose(lua_State*)
+0x002ec089	0x002ec088	112	1	_ZN13LUA_WAREHOUSE16lua_InlayWraithsEN7cocos2d8CCStringES1_iiPNS0_8CCObjectEMS2_FvP11wp_PropertyE	LUA_WAREHOUSE::lua_InlayWraiths(cocos2d::CCString, cocos2d::CCString, int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(wp_Property*))
+0x002ec0f9	0x002ec0f8	110	1	_ZN13LUA_WAREHOUSE18cpp_OnInlayWraithsEP9lua_State	LUA_WAREHOUSE::cpp_OnInlayWraiths(lua_State*)
+0x002ec169	0x002ec168	108	1	_ZN13LUA_WAREHOUSE17lua_FusionWraithsEN7cocos2d8CCStringEPNS0_8CCObjectEMS2_FvP11wp_MixPowerE	LUA_WAREHOUSE::lua_FusionWraiths(cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)(wp_MixPower*))
+0x002ec1d5	0x002ec1d4	116	1	_ZN13LUA_WAREHOUSE18lua_TakeOutWraithsEN7cocos2d8CCStringES1_bPNS0_8CCObjectEMS2_FviiE	LUA_WAREHOUSE::lua_TakeOutWraiths(cocos2d::CCString, cocos2d::CCString, bool, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int, int))
+0x002ec249	0x002ec248	116	1	_ZN13LUA_WAREHOUSE20cpp_OnTakeOutWraithsEP9lua_State	LUA_WAREHOUSE::cpp_OnTakeOutWraiths(lua_State*)
+0x002ec2bd	0x002ec2bc	120	1	_ZN13LUA_WAREHOUSE18lua_WraithsUpgradeEiiiPN7cocos2d8CCObjectEMS1_FviiE	LUA_WAREHOUSE::lua_WraithsUpgrade(int, int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int, int))
+0x002ec335	0x002ec334	82	1	_ZN13LUA_WAREHOUSE20cpp_OnWraithsUpgradeEP9lua_State	LUA_WAREHOUSE::cpp_OnWraithsUpgrade(lua_State*)
+0x002ec389	0x002ec388	124	1	_ZN13LUA_WAREHOUSE20lua_EquipmentAddHoleEN7cocos2d8CCStringEPNS0_8CCObjectEMS2_FvP15WeaponsItemDataE	LUA_WAREHOUSE::lua_EquipmentAddHole(cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)(WeaponsItemData*))
+0x002ec405	0x002ec404	96	1	_ZN13LUA_WAREHOUSE20lua_BuyGoodsWithTypeEiiPN7cocos2d8CCObjectEMS1_Fv20DropMaterialDataListE	LUA_WAREHOUSE::lua_BuyGoodsWithType(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(DropMaterialDataList))
+0x002ec465	0x002ec464	96	1	_ZN13LUA_WAREHOUSE27lua_EndlessBuyGoodsWithTypeEiiPN7cocos2d8CCObjectEMS1_Fv20DropMaterialDataListE	LUA_WAREHOUSE::lua_EndlessBuyGoodsWithType(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(DropMaterialDataList))
+0x002ec4c5	0x002ec4c4	96	1	_ZN13LUA_WAREHOUSE22lua_SSBuyGoodsWithTypeEiiPN7cocos2d8CCObjectEMS1_Fv20DropMaterialDataListE	LUA_WAREHOUSE::lua_SSBuyGoodsWithType(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(DropMaterialDataList))
+0x002ec525	0x002ec524	92	1	_ZN13LUA_WAREHOUSE25lua_SSTenBuyGoodsWithTypeEiiPN7cocos2d8CCObjectEMS1_Fv20DropMaterialDataListE	LUA_WAREHOUSE::lua_SSTenBuyGoodsWithType(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(DropMaterialDataList))
+0x002ec5d1	0x002ec5d0	72	1	_ZN13LUA_WAREHOUSE14lua_BuyDiamondEi	LUA_WAREHOUSE::lua_BuyDiamond(int)
+0x002ec619	0x002ec618	20	1	_ZN13LUA_WAREHOUSE22cpp_OnServerBuyDiamondEP9lua_State	LUA_WAREHOUSE::cpp_OnServerBuyDiamond(lua_State*)
+0x002ec62d	0x002ec62c	92	1	_ZN13LUA_WAREHOUSE11lua_BuyGoldEi	LUA_WAREHOUSE::lua_BuyGold(int)
+0x002ec689	0x002ec688	20	1	_ZN13LUA_WAREHOUSE19cpp_OnServerBuyGoldEP9lua_State	LUA_WAREHOUSE::cpp_OnServerBuyGold(lua_State*)
+0x002ec77d	0x002ec77c	66	1	_ZN13LUA_WAREHOUSE22cpp_OnGetAchieveRewardEP9lua_State	LUA_WAREHOUSE::cpp_OnGetAchieveReward(lua_State*)
+0x002ec7bf	0x002ec7be	4	1	_ZN13LUA_WAREHOUSE20cpp_OnSetAchieveDataEP9lua_State	LUA_WAREHOUSE::cpp_OnSetAchieveData(lua_State*)
+0x002ec7c5	0x002ec7c4	92	1	_ZN13LUA_WAREHOUSE29lua_ClientAddTalentSkillCountEiiPN7cocos2d8CCObjectEMS1_FviE	LUA_WAREHOUSE::lua_ClientAddTalentSkillCount(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int))
+0x002ec821	0x002ec820	66	1	_ZN13LUA_WAREHOUSE31cpp_OnClientAddTalentSkillCountEP9lua_State	LUA_WAREHOUSE::cpp_OnClientAddTalentSkillCount(lua_State*)
+0x002ec865	0x002ec864	92	1	_ZN13LUA_WAREHOUSE25lua_ResetTalentSkillCountEiiPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_ResetTalentSkillCount(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ec8c1	0x002ec8c0	54	1	_ZN13LUA_WAREHOUSE27cpp_OnResetTalentSkillCountEP9lua_State	LUA_WAREHOUSE::cpp_OnResetTalentSkillCount(lua_State*)
+0x002ec8f9	0x002ec8f8	100	1	_ZN13LUA_WAREHOUSE18lua_ActivateTalentEiPN7cocos2d8CCObjectEMS1_FviE	LUA_WAREHOUSE::lua_ActivateTalent(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int))
+0x002ec95d	0x002ec95c	66	1	_ZN13LUA_WAREHOUSE20cpp_OnActivateTalentEP9lua_State	LUA_WAREHOUSE::cpp_OnActivateTalent(lua_State*)
+0x002ec9a1	0x002ec9a0	92	1	_ZN13LUA_WAREHOUSE26lua_EndlessAddHeroPropertyEiiPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_EndlessAddHeroProperty(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ec9fd	0x002ec9fc	104	1	_ZN13LUA_WAREHOUSE20lua_ResetEndlessBossEiibPN7cocos2d8CCObjectEMS1_FviiE	LUA_WAREHOUSE::lua_ResetEndlessBoss(int, int, bool, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int, int))
+0x002eca65	0x002eca64	60	1	_ZN13LUA_WAREHOUSE24lua_ResetAddHeroPropertyEPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_ResetAddHeroProperty(cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ecaa1	0x002ecaa0	156	1	_ZN13LUA_WAREHOUSE18lua_EMChapterBeginE18ChapterComleteDataPN7cocos2d8CCObjectEMS2_FvvE	LUA_WAREHOUSE::lua_EMChapterBegin(ChapterComleteData, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ecb3d	0x002ecb3c	104	1	_ZN13LUA_WAREHOUSE20cpp_OnEMChapterBeginEP9lua_State	LUA_WAREHOUSE::cpp_OnEMChapterBegin(lua_State*)
+0x002ecba5	0x002ecba4	124	1	_ZN13LUA_WAREHOUSE26lua_EMChapterCompleteFaildEi18ChapterComleteData	LUA_WAREHOUSE::lua_EMChapterCompleteFaild(int, ChapterComleteData)
+0x002ecc21	0x002ecc20	88	1	_ZN13LUA_WAREHOUSE28cpp_OnEMChapterCompleteFaildEP9lua_State	LUA_WAREHOUSE::cpp_OnEMChapterCompleteFaild(lua_State*)
+0x002ecc79	0x002ecc78	160	1	_ZN13LUA_WAREHOUSE28lua_EMChapterCompleteSuccessE18ChapterComleteDataPN7cocos2d8CCObjectEMS2_FvbE	LUA_WAREHOUSE::lua_EMChapterCompleteSuccess(ChapterComleteData, cocos2d::CCObject*, void (cocos2d::CCObject::*)(bool))
+0x002ecd19	0x002ecd18	100	1	_ZN13LUA_WAREHOUSE18lua_GetEndlessRankEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_GetEndlessRank(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ecd7d	0x002ecd7c	104	1	_ZN13LUA_WAREHOUSE15lua_ChapterOmenEiiiPN7cocos2d8CCObjectEMS1_FviiE	LUA_WAREHOUSE::lua_ChapterOmen(int, int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int, int))
+0x002ecde5	0x002ecde4	82	1	_ZN13LUA_WAREHOUSE17cpp_OnChapterOmenEP9lua_State	LUA_WAREHOUSE::cpp_OnChapterOmen(lua_State*)
+0x002ece39	0x002ece38	60	1	_ZN13LUA_WAREHOUSE14lua_HeroReviveEPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_HeroRevive(cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ece75	0x002ece74	54	1	_ZN13LUA_WAREHOUSE16cpp_OnHeroReviveEP9lua_State	LUA_WAREHOUSE::cpp_OnHeroRevive(lua_State*)
+0x002ecead	0x002eceac	100	1	_ZN13LUA_WAREHOUSE14lua_BuyClothesEiPN7cocos2d8CCObjectEMS1_FviE	LUA_WAREHOUSE::lua_BuyClothes(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int))
+0x002ecf11	0x002ecf10	66	1	_ZN13LUA_WAREHOUSE16cpp_OnBuyClothesEP9lua_State	LUA_WAREHOUSE::cpp_OnBuyClothes(lua_State*)
+0x002ecf55	0x002ecf54	100	1	_ZN13LUA_WAREHOUSE12lua_BuyColorEiPN7cocos2d8CCObjectEMS1_FviE	LUA_WAREHOUSE::lua_BuyColor(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int))
+0x002ecfb9	0x002ecfb8	66	1	_ZN13LUA_WAREHOUSE14cpp_OnBuyColorEP9lua_State	LUA_WAREHOUSE::cpp_OnBuyColor(lua_State*)
+0x002ecffd	0x002ecffc	100	1	_ZN13LUA_WAREHOUSE15lua_ChangeColorEiPN7cocos2d8CCObjectEMS1_FviE	LUA_WAREHOUSE::lua_ChangeColor(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int))
+0x002ed061	0x002ed060	66	1	_ZN13LUA_WAREHOUSE17cpp_OnChangeColorEP9lua_State	LUA_WAREHOUSE::cpp_OnChangeColor(lua_State*)
+0x002ed0a5	0x002ed0a4	100	1	_ZN13LUA_WAREHOUSE17lua_ChangeClothesEiPN7cocos2d8CCObjectEMS1_FviE	LUA_WAREHOUSE::lua_ChangeClothes(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int))
+0x002ed109	0x002ed108	66	1	_ZN13LUA_WAREHOUSE19cpp_OnChangeClothesEP9lua_State	LUA_WAREHOUSE::cpp_OnChangeClothes(lua_State*)
+0x002ed21d	0x002ed21c	100	1	_ZN13LUA_WAREHOUSE23lua_RestoreBackpackItemEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_RestoreBackpackItem(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ed281	0x002ed280	62	1	_ZN13LUA_WAREHOUSE25cpp_OnRestoreBackpackItemEP9lua_State	LUA_WAREHOUSE::cpp_OnRestoreBackpackItem(lua_State*)
+0x002ed2c1	0x002ed2c0	100	1	_ZN13LUA_WAREHOUSE24lua_RestoreWarehouseItemEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_RestoreWarehouseItem(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ed325	0x002ed324	62	1	_ZN13LUA_WAREHOUSE26cpp_OnRestoreWarehouseItemEP9lua_State	LUA_WAREHOUSE::cpp_OnRestoreWarehouseItem(lua_State*)
+0x002ed365	0x002ed364	100	1	_ZN13LUA_WAREHOUSE21lua_GetDailyTaskPrizeEiPN7cocos2d8CCObjectEMS1_FviE	LUA_WAREHOUSE::lua_GetDailyTaskPrize(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int))
+0x002ed3c9	0x002ed3c8	66	1	_ZN13LUA_WAREHOUSE23cpp_OnGetDailyTaskPrizeEP9lua_State	LUA_WAREHOUSE::cpp_OnGetDailyTaskPrize(lua_State*)
+0x002ed40d	0x002ed40c	64	1	_ZN13LUA_WAREHOUSE17lua_RandomFailureEii	LUA_WAREHOUSE::lua_RandomFailure(int, int)
+0x002ed44d	0x002ed44c	100	1	_ZN13LUA_WAREHOUSE16Lua_StartMissionEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::Lua_StartMission(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ed4b1	0x002ed4b0	54	1	_ZN13LUA_WAREHOUSE18cpp_OnStartMissionEP9lua_State	LUA_WAREHOUSE::cpp_OnStartMission(lua_State*)
+0x002ed4e9	0x002ed4e8	100	1	_ZN13LUA_WAREHOUSE14Lua_EndMissionEiPN7cocos2d8CCObjectEMS1_FvbE	LUA_WAREHOUSE::Lua_EndMission(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(bool))
+0x002ed54d	0x002ed54c	100	1	_ZN13LUA_WAREHOUSE15Lua_OpenMissionEiPN7cocos2d8CCObjectEMS1_FviE	LUA_WAREHOUSE::Lua_OpenMission(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int))
+0x002ed5b1	0x002ed5b0	66	1	_ZN13LUA_WAREHOUSE17cpp_OnOpenMissionEP9lua_State	LUA_WAREHOUSE::cpp_OnOpenMission(lua_State*)
+0x002ed5f5	0x002ed5f4	100	1	_ZN13LUA_WAREHOUSE27Lua_RandomMissionRemoveBuffEiPN7cocos2d8CCObjectEMS1_FviE	LUA_WAREHOUSE::Lua_RandomMissionRemoveBuff(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)(int))
+0x002ed659	0x002ed658	66	1	_ZN13LUA_WAREHOUSE27cpp_RandomMissionRemoveBuffEP9lua_State	LUA_WAREHOUSE::cpp_RandomMissionRemoveBuff(lua_State*)
+0x002ed69d	0x002ed69c	60	1	_ZN13LUA_WAREHOUSE13lua_ForgeLvUpEPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_ForgeLvUp(cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ed6d9	0x002ed6d8	54	1	_ZN13LUA_WAREHOUSE15cpp_OnForgeLvUpEP9lua_State	LUA_WAREHOUSE::cpp_OnForgeLvUp(lua_State*)
+0x002ed711	0x002ed710	60	1	_ZN13LUA_WAREHOUSE20lua_WraithsHouseLvUpEPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_WraithsHouseLvUp(cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ed74d	0x002ed74c	54	1	_ZN13LUA_WAREHOUSE22cpp_OnWraithsHouseLvUpEP9lua_State	LUA_WAREHOUSE::cpp_OnWraithsHouseLvUp(lua_State*)
+0x002ed785	0x002ed784	24	1	_ZN13LUA_WAREHOUSE14lua_RemoveBuffEi	LUA_WAREHOUSE::lua_RemoveBuff(int)
+0x002ed79d	0x002ed79c	100	1	_ZN13LUA_WAREHOUSE22lua_BuyFatigueWithTypeEiPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_BuyFatigueWithType(int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ed801	0x002ed800	54	1	_ZN13LUA_WAREHOUSE22cpp_BuyFatigueWithTypeEP9lua_State	LUA_WAREHOUSE::cpp_BuyFatigueWithType(lua_State*)
+0x002ed839	0x002ed838	80	1	_ZN13LUA_WAREHOUSE21lua_LvUpArmbandEffectEPN7cocos2d8CCObjectEMS1_FviiE	LUA_WAREHOUSE::lua_LvUpArmbandEffect(cocos2d::CCObject*, void (cocos2d::CCObject::*)(int, int))
+0x002ed889	0x002ed888	72	1	_ZN13LUA_WAREHOUSE23cpp_OnLvUpArmbandEffectEP9lua_State	LUA_WAREHOUSE::cpp_OnLvUpArmbandEffect(lua_State*)
+0x002ed8d1	0x002ed8d0	80	1	_ZN13LUA_WAREHOUSE22lua_ResetArmbandEffectEPN7cocos2d8CCObjectEMS1_FviiE	LUA_WAREHOUSE::lua_ResetArmbandEffect(cocos2d::CCObject*, void (cocos2d::CCObject::*)(int, int))
+0x002ed921	0x002ed920	82	1	_ZN13LUA_WAREHOUSE24cpp_OnResetArmbandEffectEP9lua_State	LUA_WAREHOUSE::cpp_OnResetArmbandEffect(lua_State*)
+0x002ed975	0x002ed974	84	1	_ZN13LUA_WAREHOUSE26lua_SureResetArmbandEffectEiiPN7cocos2d8CCObjectEMS1_FvvE	LUA_WAREHOUSE::lua_SureResetArmbandEffect(int, int, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002ed9c9	0x002ed9c8	54	1	_ZN13LUA_WAREHOUSE28cpp_OnSureResetArmbandEffectEP9lua_State	LUA_WAREHOUSE::cpp_OnSureResetArmbandEffect(lua_State*)
+0x002eda01	0x002eda00	144	1	_ZN13LUA_WAREHOUSE14lua_EquipEquipEN7cocos2d8CCStringEPNS0_8CCObjectEMS2_FvvE	LUA_WAREHOUSE::lua_EquipEquip(cocos2d::CCString, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002eda91	0x002eda90	86	1	_ZN13LUA_WAREHOUSE15cpp_OnEquipPartEP9lua_State	LUA_WAREHOUSE::cpp_OnEquipPart(lua_State*)
+0x002edae7	0x002edae6	70	1	_ZN13LUA_WAREHOUSE15lua_UpDownEquipE10EQUIP_PARTPN7cocos2d8CCObjectEMS2_FvvE	LUA_WAREHOUSE::lua_UpDownEquip(EQUIP_PART, cocos2d::CCObject*, void (cocos2d::CCObject::*)())
+0x002edb2d	0x002edb2c	4	1	_ZN13LUA_WAREHOUSE21cpp_OnUpDownEquipPartEP9lua_State	LUA_WAREHOUSE::cpp_OnUpDownEquipPart(lua_State*)
+0x002edd29	0x002edd28	212	1	_ZN13LUA_WAREHOUSE20cpp_OnGetEndlessRankEP9lua_State	LUA_WAREHOUSE::cpp_OnGetEndlessRank(lua_State*)
+0x002ee249	0x002ee248	70	1	_ZN13LUA_WAREHOUSE28cpp_OnEndlessAddHeroPropertyEP9lua_State	LUA_WAREHOUSE::cpp_OnEndlessAddHeroProperty(lua_State*)
+0x002ee28f	0x002ee28e	100	1	_ZN13LUA_WAREHOUSE22cpp_OnResetEndlessBossEP9lua_State	LUA_WAREHOUSE::cpp_OnResetEndlessBoss(lua_State*)
+0x002ee2f3	0x002ee2f2	70	1	_ZN13LUA_WAREHOUSE26cpp_OnResetAddHeroPropertyEP9lua_State	LUA_WAREHOUSE::cpp_OnResetAddHeroProperty(lua_State*)
+0x002ee339	0x002ee338	156	1	_ZN13LUA_WAREHOUSE19cpp_OnFusionWraithsEP9lua_State	LUA_WAREHOUSE::cpp_OnFusionWraiths(lua_State*)
+0x002ee3d5	0x002ee3d4	140	1	_ZN13LUA_WAREHOUSE20cpp_OnForgeEquipmentEP9lua_State	LUA_WAREHOUSE::cpp_OnForgeEquipment(lua_State*)
+0x002ee461	0x002ee460	140	1	_ZN13LUA_WAREHOUSE22cpp_OnUpgradeEquipmentEP9lua_State	LUA_WAREHOUSE::cpp_OnUpgradeEquipment(lua_State*)
+0x002ee4ed	0x002ee4ec	132	1	_ZN13LUA_WAREHOUSE22cpp_OnEquipmentAddHoleEP9lua_State	LUA_WAREHOUSE::cpp_OnEquipmentAddHole(lua_State*)
+0x002ee89d	0x002ee89c	136	1	_ZN13LUA_WAREHOUSE24cpp_OnSSBuyGoodsWithTypeEP9lua_State	LUA_WAREHOUSE::cpp_OnSSBuyGoodsWithType(lua_State*)
+0x002ee925	0x002ee924	136	1	_ZN13LUA_WAREHOUSE22cpp_OnBuyGoodsWithTypeEP9lua_State	LUA_WAREHOUSE::cpp_OnBuyGoodsWithType(lua_State*)
+0x002eec01	0x002eec00	138	1	_ZN13LUA_WAREHOUSE30cpp_OnEMChapterCompleteSuccessEP9lua_State	LUA_WAREHOUSE::cpp_OnEMChapterCompleteSuccess(lua_State*)
+0x002eec8b	0x002eec8a	138	1	_ZN13LUA_WAREHOUSE16cpp_OnComMissionEP9lua_State	LUA_WAREHOUSE::cpp_OnComMission(lua_State*)
+0x002eefc1	0x002eefc0	260	1	_ZN13LUA_WAREHOUSE21ccp_OnAchieveCompleteEP9lua_State	LUA_WAREHOUSE::ccp_OnAchieveComplete(lua_State*)
+0x002fa3e9	0x002fa3e8	14	1	_Z16Lua_OnServerBackP9lua_State	Lua_OnServerBack(lua_State*)
+0x002fa3f9	0x002fa3f8	36	1	_Z21cpp_ShowErrorDialogUIP9lua_State	cpp_ShowErrorDialogUI(lua_State*)
+0x002fa41d	0x002fa41c	284	1	_Z12CAddDoStringP9lua_State	CAddDoString(lua_State*)
+0x002fa885	0x002fa884	34	1	_Z22CAddBattleChatToFriendP9lua_State	CAddBattleChatToFriend(lua_State*)
+0x002fa8e5	0x002fa8e4	24	1	_Z17cpp_ShowLoadingUIP9lua_State	cpp_ShowLoadingUI(lua_State*)
+0x002fa8fd	0x002fa8fc	24	1	_Z17cpp_HideLoadingUIP9lua_State	cpp_HideLoadingUI(lua_State*)
+0x002faa6d	0x002faa6c	80	1	_Z20cpp_ShowMessageBoxUIP9lua_State	cpp_ShowMessageBoxUI(lua_State*)
+0x002fab79	0x002fab78	216	1	_Z26cpp_OnReceivedChatMessagesP9lua_State	cpp_OnReceivedChatMessages(lua_State*)
+0x002faedd	0x002faedc	184	1	_Z19cpp_OnGetServerListP9lua_State	cpp_OnGetServerList(lua_State*)
+0x002faf95	0x002faf94	764	1	_Z16cpp_OnUpdateDataP9lua_State	cpp_OnUpdateData(lua_State*)
+0x004ca17d	0x004ca17c	236	1	_ZN10lua_system7initLuaEv	lua_system::initLua()
+0x0030a071	0x0030a070	100	1	_ZN9NetSystem15cpp_connect_pveEP9lua_State	NetSystem::cpp_connect_pve(lua_State*)
+0x0030a0d5	0x0030a0d4	28	1	_ZN9NetSystem20cpp_cancel_match_pveEP9lua_State	NetSystem::cpp_cancel_match_pve(lua_State*)
+0x004c8251	0x004c8250	48	1	_ZN13lua_LGGDevice13getDeviceUUIDEv	lua_LGGDevice::getDeviceUUID()
+0x0040a451	0x0040a450	2	1	_ZN14NWHRightLayout19lua_callbackForSaleEv	NWHRightLayout::lua_callbackForSale()
+0x0042b675	0x0042b674	18	1	_ZN13SocietyGrowUp15Onlua_ExitGuildEv	SocietyGrowUp::Onlua_ExitGuild()
+0x0042b7ad	0x0042b7ac	18	1	_ZN13SocietyGrowUp17Onlua_AcceptApplyEv	SocietyGrowUp::Onlua_AcceptApply()
+0x0042b7bf	0x0042b7be	18	1	_ZN13SocietyGrowUp17Onlua_RejectApplyEv	SocietyGrowUp::Onlua_RejectApply()
+0x0042b7d1	0x0042b7d0	18	1	_ZN13SocietyGrowUp15Onlua_KickGuildEv	SocietyGrowUp::Onlua_KickGuild()
+0x00536cdd	0x00536cdc	36	1	_ZN7cocos2d21CCScriptEngineManager13sharedManagerEv	cocos2d::CCScriptEngineManager::sharedManager()
+0x004af771	0x004af770	52	1	lua_xmove	lua_xmove
+0x004af7a5	0x004af7a4	12	1	lua_atpanic	lua_atpanic
+0x004af7b1	0x004af7b0	20	1	lua_version	lua_version
+0x004af7c5	0x004af7c4	36	1	lua_absindex	lua_absindex
+0x004af89b	0x004af89a	24	1	lua_copy	lua_copy
+0x004af8f1	0x004af8f0	16	1	lua_typename	lua_typename
+0x004af901	0x004af900	26	1	lua_iscfunction	lua_iscfunction
+0x004af91b	0x004af91a	34	1	lua_isnumber	lua_isnumber
+0x004af93d	0x004af93c	18	1	lua_isstring	lua_isstring
+0x004af94f	0x004af94e	24	1	lua_isuserdata	lua_isuserdata
+0x004af969	0x004af968	68	1	lua_rawequal	lua_rawequal
+0x004af9ad	0x004af9ac	110	1	lua_arith	lua_arith
+0x004afa1d	0x004afa1c	108	1	lua_compare	lua_compare
+0x004afaf9	0x004afaf8	100	1	lua_tounsignedx	lua_tounsignedx
+0x004afbd1	0x004afbd0	50	1	lua_rawlen	lua_rawlen
+0x004afc03	0x004afc02	28	1	lua_tocfunction	lua_tocfunction
+0x004afc41	0x004afc40	18	1	lua_tothread	lua_tothread
+0x004afc53	0x004afc52	66	1	lua_topointer	lua_topointer
+0x004afccf	0x004afcce	36	1	lua_pushunsigned	lua_pushunsigned
+0x004afd65	0x004afd64	34	1	lua_pushvfstring	lua_pushvfstring
+0x004afe35	0x004afe34	28	1	lua_pushthread	lua_pushthread
+0x004afee3	0x004afee2	36	1	lua_rawget	lua_rawget
+0x004aff07	0x004aff06	40	1	lua_rawgeti	lua_rawgeti
+0x004aff2f	0x004aff2e	50	1	lua_rawgetp	lua_rawgetp
+0x004affa5	0x004affa4	62	1	lua_getmetatable	lua_getmetatable
+0x004affe3	0x004affe2	30	1	lua_getuservalue	lua_getuservalue
+0x004b0065	0x004b0064	62	1	lua_setfield	lua_setfield
+0x004b00a3	0x004b00a2	86	1	lua_rawset	lua_rawset
+0x004b00f9	0x004b00f8	68	1	lua_rawseti	lua_rawseti
+0x004b013d	0x004b013c	88	1	lua_rawsetp	lua_rawsetp
+0x004b0213	0x004b0212	62	1	lua_setuservalue	lua_setuservalue
+0x004b0251	0x004b0250	34	1	lua_getctx	lua_getctx
+0x004b0273	0x004b0272	62	1	lua_callk	lua_callk
+0x004b035d	0x004b035c	128	1	lua_load	lua_load
+0x004b03dd	0x004b03dc	40	1	lua_dump	lua_dump
+0x004b0405	0x004b0404	4	1	lua_status	lua_status
+0x004b0409	0x004b0408	210	1	lua_gc	lua_gc
+0x004b04db	0x004b04da	6	1	lua_error	lua_error
+0x004b04e1	0x004b04e0	36	1	lua_next	lua_next
+0x004b0505	0x004b0504	72	1	lua_concat	lua_concat
+0x004b054d	0x004b054c	26	1	lua_len	lua_len
+0x004b0567	0x004b0566	14	1	lua_getallocf	lua_getallocf
+0x004b0575	0x004b0574	10	1	lua_setallocf	lua_setallocf
+0x004b05ad	0x004b05ac	56	1	lua_getupvalue	lua_getupvalue
+0x004b05e5	0x004b05e4	90	1	lua_setupvalue	lua_setupvalue
+0x004b063f	0x004b063e	44	1	lua_upvalueid	lua_upvalueid
+0x004b066b	0x004b066a	72	1	lua_upvaluejoin	lua_upvaluejoin
+0x004b4529	0x004b4528	712	1	lua_getinfo	lua_getinfo
+0x004b0989	0x004b0988	492	1	luaL_traceback	luaL_traceback
+0x004b4485	0x004b4484	34	1	lua_getstack	lua_getstack
+0x004b0b75	0x004b0b74	100	1	luaL_where	luaL_where
+0x004b0d21	0x004b0d20	84	1	luaL_fileresult	luaL_fileresult
+0x004b0d75	0x004b0d74	64	1	luaL_execresult	luaL_execresult
+0x004b0e05	0x004b0e04	32	1	luaL_setmetatable	luaL_setmetatable
+0x004b0e25	0x004b0e24	80	1	luaL_testudata	luaL_testudata
+0x004b0e95	0x004b0e94	56	1	luaL_checkstack	luaL_checkstack
+0x004b0ecd	0x004b0ecc	32	1	luaL_checktype	luaL_checktype
+0x004b0eed	0x004b0eec	36	1	luaL_checkany	luaL_checkany
+0x004b0f11	0x004b0f10	28	1	luaL_checklstring	luaL_checklstring
+0x004b0f2d	0x004b0f2c	50	1	luaL_optlstring	luaL_optlstring
+0x004b0f61	0x004b0f60	84	1	luaL_checkoption	luaL_checkoption
+0x004b0fb5	0x004b0fb4	38	1	luaL_checknumber	luaL_checknumber
+0x004b0fdb	0x004b0fda	36	1	luaL_optnumber	luaL_optnumber
+0x004b0fff	0x004b0ffe	34	1	luaL_checkinteger	luaL_checkinteger
+0x004b1021	0x004b1020	34	1	luaL_checkunsigned	luaL_checkunsigned
+0x004b1043	0x004b1042	32	1	luaL_optinteger	luaL_optinteger
+0x004b1063	0x004b1062	32	1	luaL_optunsigned	luaL_optunsigned
+0x004b1085	0x004b1084	100	1	luaL_prepbuffsize	luaL_prepbuffsize
+0x004b10e9	0x004b10e8	30	1	luaL_addlstring	luaL_addlstring
+0x004b1107	0x004b1106	26	1	luaL_addstring	luaL_addstring
+0x004b1121	0x004b1120	42	1	luaL_pushresult	luaL_pushresult
+0x004b114b	0x004b114a	10	1	luaL_pushresultsize	luaL_pushresultsize
+0x004b1155	0x004b1154	74	1	luaL_addvalue	luaL_addvalue
+0x004b119f	0x004b119e	20	1	luaL_buffinit	luaL_buffinit
+0x004b11b3	0x004b11b2	22	1	luaL_buffinitsize	luaL_buffinitsize
+0x004b11c9	0x004b11c8	120	1	luaL_ref	luaL_ref
+0x004b1241	0x004b1240	58	1	luaL_unref	luaL_unref
+0x004b13dd	0x004b13dc	32	1	luaL_loadbufferx	luaL_loadbufferx
+0x004b1465	0x004b1464	52	1	luaL_callmeta	luaL_callmeta
+0x004b1499	0x004b1498	56	1	luaL_len	luaL_len
+0x004b14d1	0x004b14d0	172	1	luaL_tolstring	luaL_tolstring
+0x004b157d	0x004b157c	140	1	luaL_pushmodule	luaL_pushmodule
+0x004b1609	0x004b1608	84	1	luaL_getsubtable	luaL_getsubtable
+0x004b165d	0x004b165c	120	1	luaL_requiref	luaL_requiref
+0x004b16d5	0x004b16d4	136	1	luaL_gsub	luaL_gsub
+0x004b175d	0x004b175c	36	1	luaL_newstate	luaL_newstate
+0x004bbaf1	0x004bbaf0	352	1	lua_newstate	lua_newstate
+0x004b1781	0x004b1780	184	1	luaL_checkversion_	luaL_checkversion_
+0x004b1839	0x004b1838	124	1	luaL_setfuncs	luaL_setfuncs
+0x004b18b9	0x004b18b8	96	1	luaL_openlib	luaL_openlib
+0x004b5259	0x004b5258	88	1	lua_yieldk	lua_yieldk
+0x004b5191	0x004b5190	200	1	lua_resume	lua_resume
+0x004bbc51	0x004bbc50	116	1	lua_newthread	lua_newthread
+0x004b44f7	0x004b44f6	48	1	lua_setlocal	lua_setlocal
+0x004b444d	0x004b444c	42	1	lua_sethook	lua_sethook
+0x004b44a7	0x004b44a6	80	1	lua_getlocal	lua_getlocal
+0x004b447b	0x004b447a	6	1	lua_gethookmask	lua_gethookmask
+0x004b4477	0x004b4476	4	1	lua_gethook	lua_gethook
+0x004b4481	0x004b4480	4	1	lua_gethookcount	lua_gethookcount
+0x004b6775	0x004b6774	80	1	luaL_openlibs	luaL_openlibs
+0x004bbce9	0x004bbce8	10	1	lua_close	lua_close
+0x004c81b1	0x004c81b0	16	1	_ZN13lua_LGGDevice9getObjectEP9lua_State	lua_LGGDevice::getObject(lua_State*)
+0x004c81c1	0x004c81c0	32	1	_ZN13lua_LGGDeviceC2Ev	lua_LGGDevice::lua_LGGDevice()
+0x004c81c1	0x004c81c0	32	1	_ZN13lua_LGGDeviceC1Ev	lua_LGGDevice::lua_LGGDevice()
+0x004c81e1	0x004c81e0	16	1	_ZN13lua_LGGDeviceD2Ev	lua_LGGDevice::~lua_LGGDevice()
+0x004c81e1	0x004c81e0	16	1	_ZN13lua_LGGDeviceD1Ev	lua_LGGDevice::~lua_LGGDevice()
+0x004c81f1	0x004c81f0	28	1	_ZN13lua_LGGDeviceC2EP9lua_State	lua_LGGDevice::lua_LGGDevice(lua_State*)
+0x004c81f1	0x004c81f0	28	1	_ZN13lua_LGGDeviceC1EP9lua_State	lua_LGGDevice::lua_LGGDevice(lua_State*)
+0x004c820d	0x004c820c	16	1	_ZN13lua_LGGDevice14shareLGGDeviceEv	lua_LGGDevice::shareLGGDevice()
+0x004c821d	0x004c821c	32	1	_ZN13lua_LGGDevice17getDeviceLanguageEP9lua_State	lua_LGGDevice::getDeviceLanguage(lua_State*)
+0x004c823d	0x004c823c	20	1	_ZN13lua_LGGDevice15getDeviceLocaleEP9lua_State	lua_LGGDevice::getDeviceLocale(lua_State*)
+0x004c8281	0x004c8280	32	1	_ZN13lua_LGGDevice13getDeviceUUIDEP9lua_State	lua_LGGDevice::getDeviceUUID(lua_State*)
+0x004c82a1	0x004c82a0	104	1	_ZN13lua_LGGDevice19downHttpUrlCallbackEbRKSsS1_S1_S1_	lua_LGGDevice::downHttpUrlCallback(bool, std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0x004cb271	0x004cb270	100	1	_Z10klua_callkP9lua_Stateii	klua_callk(lua_State*, int, int)
+0x004c8c31	0x004c8c30	68	1	_Z25LGG_Mobile_Get_SMS_CenterP9lua_State	LGG_Mobile_Get_SMS_Center(lua_State*)
+0x004c8c79	0x004c8c78	20	1	_Z20LGG_Mobile_Is_OnlineP9lua_State	LGG_Mobile_Is_Online(lua_State*)
+0x004c8ca1	0x004c8ca0	30	1	_Z21LGG_Mobile_Set_SN_KeyP9lua_State	LGG_Mobile_Set_SN_Key(lua_State*)
+0x004c8cc5	0x004c8cc4	68	1	_Z19LGG_Mobile_Get_IMEIP9lua_State	LGG_Mobile_Get_IMEI(lua_State*)
+0x004c8ebd	0x004c8ebc	76	1	_Z18LGG_Mobile_Get_RegP9lua_State	LGG_Mobile_Get_Reg(lua_State*)
+0x004c8f09	0x004c8f08	108	1	_Z20LGG_Mobile_Check_RegP9lua_State	LGG_Mobile_Check_Reg(lua_State*)
+0x004c8f75	0x004c8f74	76	1	_Z17LGG_Mobile_Get_SNP9lua_State	LGG_Mobile_Get_SN(lua_State*)
+0x004c8fc5	0x004c8fc4	54	1	_Z19LGG_Mobile_Send_SMSP9lua_State	LGG_Mobile_Send_SMS(lua_State*)
+0x004c8ffb	0x004c8ffa	12	1	_Z17LGG_Mobile_SetDVSP9lua_State	LGG_Mobile_SetDVS(lua_State*)
+0x004c9471	0x004c9470	2	1	_ZN18LGGUpdateMsgCaller24call_lua_update_progressEd	LGGUpdateMsgCaller::call_lua_update_progress(double)
+0x004c94e5	0x004c94e4	52	1	_ZN18LGGUpdateMsgCaller23call_lua_update_successEPv	LGGUpdateMsgCaller::call_lua_update_success(void*)
+0x004c9519	0x004c9518	72	1	_ZN18LGGUpdateMsgCaller22call_lua_update_failedEPv	LGGUpdateMsgCaller::call_lua_update_failed(void*)
+0x004c9879	0x004c9878	116	1	_Z11luaopen_bitP9lua_State	luaopen_bit(lua_State*)
+0x004c991d	0x004c991c	28	1	_ZN13lua_managerEx6uninitEv	lua_managerEx::uninit()
+0x004c9995	0x004c9994	72	1	_Z21lua_toNumberFromTablePKci	lua_toNumberFromTable(char const*, int)
+0x004c99dd	0x004c99dc	60	1	_Z21lua_toStringFromTablePKci	lua_toStringFromTable(char const*, int)
+0x004c9a7d	0x004c9a7c	116	1	_Z21lua_callTableFunctionPKcS0_S0_i	lua_callTableFunction(char const*, char const*, char const*, int)
+0x004c9af1	0x004c9af0	112	1	_Z21lua_callTableFunctionPKcS0_S0_S0_i	lua_callTableFunction(char const*, char const*, char const*, char const*, int)
+0x004c9b61	0x004c9b60	68	1	_Z25lua_callFunctionNewThreadPKc	lua_callFunctionNewThread(char const*)
+0x004c9c49	0x004c9c48	80	1	_Z21lua_getFunctionReturnPiS_	lua_getFunctionReturn(int*, int*)
+0x004c9e75	0x004c9e74	336	1	_Z33lua_callGlobalFunctionWithMultArgPKciSsz	lua_callGlobalFunctionWithMultArg(char const*, int, std::basic_string<char, std::char_traits<char>, std::allocator<char> >, ...)
+0x004c9fc5	0x004c9fc4	4	1	_ZN10lua_system19Lua_SetConsoleColorEP9lua_State	lua_system::Lua_SetConsoleColor(lua_State*)
+0x004c9fe9	0x004c9fe8	40	1	_ZN10lua_system18Lua_GetSetFilePathEP9lua_State	lua_system::Lua_GetSetFilePath(lua_State*)
+0x004ca011	0x004ca010	52	1	_ZN10lua_system23Lua_GetPathWithFileNameEP9lua_State	lua_system::Lua_GetPathWithFileName(lua_State*)
+0x004ca049	0x004ca048	64	1	_ZN10lua_system14getCurrentTimeEv	lua_system::getCurrentTime()
+0x004ca089	0x004ca088	32	1	_ZN10lua_system11getCpuClockEv	lua_system::getCpuClock()
+0x004ca0a9	0x004ca0a8	36	1	_ZN10lua_system14getTicketCountEv	lua_system::getTicketCount()
+0x004ca0cd	0x004ca0cc	24	1	_ZN10lua_system15GetPlatformTypeEv	lua_system::GetPlatformType()
+0x004ca0e5	0x004ca0e4	36	1	_ZN10lua_system21Lua_GetPlatformStringEP9lua_State	lua_system::Lua_GetPlatformString(lua_State*)
+0x004ca109	0x004ca108	84	1	_ZN10lua_system15GetSaveFilePathEv	lua_system::GetSaveFilePath()
+0x004ca15d	0x004ca15c	32	1	_ZN10lua_system19Lua_GetSaveFilePathEP9lua_State	lua_system::Lua_GetSaveFilePath(lua_State*)
+0x004ca309	0x004ca308	32	1	_ZN10lua_system12Lua_CopyFileEP9lua_State	lua_system::Lua_CopyFile(lua_State*)
+0x004ca269	0x004ca268	24	1	_ZN10lua_system9uninitLuaEv	lua_system::uninitLua()
+0x004ca29d	0x004ca29c	108	1	_ZN10lua_system20Lua_CopyFile_androidEP9lua_State	lua_system::Lua_CopyFile_android(lua_State*)
+0x004ca329	0x004ca328	92	1	_ZN10lua_system15Lua_SetDumpInfoEP9lua_State	lua_system::Lua_SetDumpInfo(lua_State*)
+0x004ca385	0x004ca384	4	1	_ZN8luaXmlEx14Xml_loadStringEP9lua_State	luaXmlEx::Xml_loadString(lua_State*)
+0x004ca389	0x004ca388	4	1	_ZN8luaXmlEx8Xml_saveEP9lua_State	luaXmlEx::Xml_save(lua_State*)
+0x004ca38d	0x004ca38c	2	1	_ZN8luaXmlEx23Xml_pushChildNodesTableEP9lua_StatePN8rapidxml8xml_nodeIcEE	luaXmlEx::Xml_pushChildNodesTable(lua_State*, rapidxml::xml_node<char>*)
+0x004ca391	0x004ca390	28	1	_Z20luaopen_LuaXMLEx_libP9lua_State	luaopen_LuaXMLEx_lib(lua_State*)
+0x004ca431	0x004ca430	68	1	_ZN8luaXmlEx20Xml_pushAttribsTableEP9lua_StatePN8rapidxml8xml_nodeIcEE	luaXmlEx::Xml_pushAttribsTable(lua_State*, rapidxml::xml_node<char>*)
+0x004ca475	0x004ca474	144	1	_ZN8luaXmlEx8Xml_nodeEP9lua_StatePN8rapidxml8xml_nodeIcEE	luaXmlEx::Xml_node(lua_State*, rapidxml::xml_node<char>*)
+0x004cb0f9	0x004cb0f8	204	1	_ZN8luaXmlEx8Xml_loadEP9lua_State	luaXmlEx::Xml_load(lua_State*)
+0x004cb1c5	0x004cb1c4	12	1	_Z18lua_getLunarObjectP9lua_Statei	lua_getLunarObject(lua_State*, int)
+0x004cb1d1	0x004cb1d0	34	1	_Z13lua_setLuaDelP9lua_State	lua_setLuaDel(lua_State*)
+0x004cb1f5	0x004cb1f4	124	1	_Z18lua_setErrorHandleP9lua_State	lua_setErrorHandle(lua_State*)
+0x004cd2d7	0x004cd2d6	16	1	_ZN12lua_ProtoRPC9getObjectEP9lua_State	lua_ProtoRPC::getObject(lua_State*)
+0x004cd2e7	0x004cd2e6	20	1	_ZN12lua_ProtoRPC5GetIDEP9lua_State	lua_ProtoRPC::GetID(lua_State*)
+0x004cd355	0x004cd354	100	1	_ZN12lua_ProtoRPC5SetIDEP9lua_State	lua_ProtoRPC::SetID(lua_State*)
+0x004cd3b9	0x004cd3b8	168	1	_ZN12lua_ProtoRPC19SetProtoFileRootDirEP9lua_State	lua_ProtoRPC::SetProtoFileRootDir(lua_State*)
+0x004cd461	0x004cd460	300	1	_ZN12lua_ProtoRPC15ImportProtoFileEP9lua_State	lua_ProtoRPC::ImportProtoFile(lua_State*)
+0x004cd58d	0x004cd58c	44	1	_ZN12lua_ProtoRPC15CheckConnectionEP9lua_State	lua_ProtoRPC::CheckConnection(lua_State*)
+0x004cd5b9	0x004cd5b8	28	1	_ZN12lua_ProtoRPC5ClearEP9lua_State	lua_ProtoRPC::Clear(lua_State*)
+0x004cd5d5	0x004cd5d4	56	1	_ZN12lua_ProtoRPC4SwapEP9lua_State	lua_ProtoRPC::Swap(lua_State*)
+0x004cd60d	0x004cd60c	14	1	_ZN12lua_ProtoRPC13CleanStackMsgEP9lua_State	lua_ProtoRPC::CleanStackMsg(lua_State*)
+0x004cd61b	0x004cd61a	88	1	_ZN12lua_ProtoRPC8SetRpcIDEP9lua_State	lua_ProtoRPC::SetRpcID(lua_State*)
+0x004cd673	0x004cd672	110	1	_ZN12lua_ProtoRPC15SetRpcSessionIDEP9lua_State	lua_ProtoRPC::SetRpcSessionID(lua_State*)
+0x004cd6f5	0x004cd6f4	116	1	_ZN12lua_ProtoRPC8AddInt32EP9lua_State	lua_ProtoRPC::AddInt32(lua_State*)
+0x004cd769	0x004cd768	124	1	_ZN12lua_ProtoRPC8AddInt64EP9lua_State	lua_ProtoRPC::AddInt64(lua_State*)
+0x004cd7e5	0x004cd7e4	116	1	_ZN12lua_ProtoRPC9AddUInt32EP9lua_State	lua_ProtoRPC::AddUInt32(lua_State*)
+0x004cd859	0x004cd858	124	1	_ZN12lua_ProtoRPC9AddUInt64EP9lua_State	lua_ProtoRPC::AddUInt64(lua_State*)
+0x004cd8d5	0x004cd8d4	128	1	_ZN12lua_ProtoRPC8AddFloatEP9lua_State	lua_ProtoRPC::AddFloat(lua_State*)
+0x004cd955	0x004cd954	124	1	_ZN12lua_ProtoRPC9AddDoubleEP9lua_State	lua_ProtoRPC::AddDouble(lua_State*)
+0x004cd9d1	0x004cd9d0	120	1	_ZN12lua_ProtoRPC7AddBoolEP9lua_State	lua_ProtoRPC::AddBool(lua_State*)
+0x004cda49	0x004cda48	140	1	_ZN12lua_ProtoRPC9AddStringEP9lua_State	lua_ProtoRPC::AddString(lua_State*)
+0x004cdad5	0x004cdad4	144	1	_ZN12lua_ProtoRPC7AddEnumEP9lua_State	lua_ProtoRPC::AddEnum(lua_State*)
+0x004cdb65	0x004cdb64	144	1	_ZN12lua_ProtoRPC10AddMessageEP9lua_State	lua_ProtoRPC::AddMessage(lua_State*)
+0x004cdbf5	0x004cdbf4	156	1	_ZN12lua_ProtoRPC8SetInt32EP9lua_State	lua_ProtoRPC::SetInt32(lua_State*)
+0x004cdc91	0x004cdc90	164	1	_ZN12lua_ProtoRPC8SetInt64EP9lua_State	lua_ProtoRPC::SetInt64(lua_State*)
+0x004cdd35	0x004cdd34	156	1	_ZN12lua_ProtoRPC9SetUInt32EP9lua_State	lua_ProtoRPC::SetUInt32(lua_State*)
+0x004cddd1	0x004cddd0	164	1	_ZN12lua_ProtoRPC9SetUInt64EP9lua_State	lua_ProtoRPC::SetUInt64(lua_State*)
+0x004cde75	0x004cde74	172	1	_ZN12lua_ProtoRPC8SetFloatEP9lua_State	lua_ProtoRPC::SetFloat(lua_State*)
+0x004cdf21	0x004cdf20	164	1	_ZN12lua_ProtoRPC9SetDoubleEP9lua_State	lua_ProtoRPC::SetDouble(lua_State*)
+0x004cdfc5	0x004cdfc4	164	1	_ZN12lua_ProtoRPC7SetBoolEP9lua_State	lua_ProtoRPC::SetBool(lua_State*)
+0x004ce069	0x004ce068	184	1	_ZN12lua_ProtoRPC9SetStringEP9lua_State	lua_ProtoRPC::SetString(lua_State*)
+0x004ce121	0x004ce120	184	1	_ZN12lua_ProtoRPC7SetEnumEP9lua_State	lua_ProtoRPC::SetEnum(lua_State*)
+0x004ce1d9	0x004ce1d8	176	1	_ZN12lua_ProtoRPC10GetMessageEP9lua_State	lua_ProtoRPC::GetMessage(lua_State*)
+0x004ce289	0x004ce288	144	1	_ZN12lua_ProtoRPC8GetInt32EP9lua_State	lua_ProtoRPC::GetInt32(lua_State*)
+0x004ce319	0x004ce318	144	1	_ZN12lua_ProtoRPC8GetInt64EP9lua_State	lua_ProtoRPC::GetInt64(lua_State*)
+0x004ce3a9	0x004ce3a8	144	1	_ZN12lua_ProtoRPC9GetUInt32EP9lua_State	lua_ProtoRPC::GetUInt32(lua_State*)
+0x004ce439	0x004ce438	144	1	_ZN12lua_ProtoRPC9GetUInt64EP9lua_State	lua_ProtoRPC::GetUInt64(lua_State*)
+0x004ce4c9	0x004ce4c8	152	1	_ZN12lua_ProtoRPC8GetFloatEP9lua_State	lua_ProtoRPC::GetFloat(lua_State*)
+0x004ce561	0x004ce560	144	1	_ZN12lua_ProtoRPC9GetDoubleEP9lua_State	lua_ProtoRPC::GetDouble(lua_State*)
+0x004ce5f1	0x004ce5f0	144	1	_ZN12lua_ProtoRPC7GetBoolEP9lua_State	lua_ProtoRPC::GetBool(lua_State*)
+0x004ce681	0x004ce680	200	1	_ZN12lua_ProtoRPC9GetStringEP9lua_State	lua_ProtoRPC::GetString(lua_State*)
+0x004ce749	0x004ce748	180	1	_ZN12lua_ProtoRPC7GetEnumEP9lua_State	lua_ProtoRPC::GetEnum(lua_State*)
+0x004ce7fd	0x004ce7fc	112	1	_ZN12lua_ProtoRPC8HasFieldEP9lua_State	lua_ProtoRPC::HasField(lua_State*)
+0x004ce86d	0x004ce86c	112	1	_ZN12lua_ProtoRPC9FieldSizeEP9lua_State	lua_ProtoRPC::FieldSize(lua_State*)
+0x004ce8dd	0x004ce8dc	128	1	_ZN12lua_ProtoRPC12SwapElementsEP9lua_State	lua_ProtoRPC::SwapElements(lua_State*)
+0x004ce95d	0x004ce95c	96	1	_ZN12lua_ProtoRPC10RemoveLastEP9lua_State	lua_ProtoRPC::RemoveLast(lua_State*)
+0x004ce9bd	0x004ce9bc	96	1	_ZN12lua_ProtoRPC10ClearFieldEP9lua_State	lua_ProtoRPC::ClearField(lua_State*)
+0x004cea81	0x004cea80	48	1	_ZN12lua_ProtoRPC16isDontRepeatSendERKSs	lua_ProtoRPC::isDontRepeatSend(std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0x004ceab1	0x004ceab0	64	1	_ZN12lua_ProtoRPC14getCurrentTimeEv	lua_ProtoRPC::getCurrentTime()
+0x004ceaf1	0x004ceaf0	56	1	_ZN12lua_ProtoRPC11getTableRefEP9lua_StatePKc	lua_ProtoRPC::getTableRef(lua_State*, char const*)
+0x004ceb29	0x004ceb28	2	1	_ZN12lua_ProtoRPC13heartBeat_ctsEv	lua_ProtoRPC::heartBeat_cts()
+0x004ceb2d	0x004ceb2c	184	1	_ZN12lua_ProtoRPC15notifyUnConnectESs	lua_ProtoRPC::notifyUnConnect(std::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+0x004cebe5	0x004cebe4	184	1	_ZN12lua_ProtoRPC13notifyConnectEb	lua_ProtoRPC::notifyConnect(bool)
+0x004cec9d	0x004cec9c	84	1	_ZN12lua_ProtoRPC9sngPopMsgEy	lua_ProtoRPC::sngPopMsg(unsigned long long)
+0x004cecf1	0x004cecf0	54	1	_ZN12lua_ProtoRPC8SetInt32EPN6google8protobuf7MessageESsi	lua_ProtoRPC::SetInt32(google::protobuf::Message*, std::basic_string<char, std::char_traits<char>, std::allocator<char> >, int)
+0x004ced27	0x004ced26	54	1	_ZN12lua_ProtoRPC9SetUInt32EPN6google8protobuf7MessageESsj	lua_ProtoRPC::SetUInt32(google::protobuf::Message*, std::basic_string<char, std::char_traits<char>, std::allocator<char> >, unsigned int)
+0x004ced5d	0x004ced5c	56	1	_ZN12lua_ProtoRPC8SetInt64EPN6google8protobuf7MessageESsx	lua_ProtoRPC::SetInt64(google::protobuf::Message*, std::basic_string<char, std::char_traits<char>, std::allocator<char> >, long long)
+0x004ced95	0x004ced94	56	1	_ZN12lua_ProtoRPC9SetUInt64EPN6google8protobuf7MessageESsy	lua_ProtoRPC::SetUInt64(google::protobuf::Message*, std::basic_string<char, std::char_traits<char>, std::allocator<char> >, unsigned long long)
+0x004cedcd	0x004cedcc	54	1	_ZN12lua_ProtoRPC9SetStringEPN6google8protobuf7MessageERKSsS5_	lua_ProtoRPC::SetString(google::protobuf::Message*, std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0x004cee03	0x004cee02	54	1	_ZN12lua_ProtoRPC9GetUInt64EPN6google8protobuf7MessageERKSs	lua_ProtoRPC::GetUInt64(google::protobuf::Message*, std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0x004cee39	0x004cee38	92	1	_ZN12lua_ProtoRPC9GetStringEPN6google8protobuf7MessageERKSs	lua_ProtoRPC::GetString(google::protobuf::Message*, std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0x004cee95	0x004cee94	308	1	_ZN12lua_ProtoRPC16HandleServerPushEPv	lua_ProtoRPC::HandleServerPush(void*)
+0x004cefc9	0x004cefc8	20	1	_ZN12lua_ProtoRPC14sngGenSerialIDEv	lua_ProtoRPC::sngGenSerialID()
+0x004cf205	0x004cf204	456	1	_ZN12lua_ProtoRPC8StartRPCEP9lua_State	lua_ProtoRPC::StartRPC(lua_State*)
+0x004d04b5	0x004d04b4	92	1	_ZN12lua_ProtoRPC6upDateEf	lua_ProtoRPC::upDate(float)
+0x004cf3cd	0x004cf3cc	76	1	_ZN12lua_ProtoRPC5CloseEP9lua_State	lua_ProtoRPC::Close(lua_State*)
+0x004cf419	0x004cf418	24	1	_ZN12lua_ProtoRPC14connectSuccessEv	lua_ProtoRPC::connectSuccess()
+0x004cf431	0x004cf430	8	1	_ZThn20_N12lua_ProtoRPC14connectSuccessEv	non-virtual thunk to lua_ProtoRPC::connectSuccess()
+0x004cf439	0x004cf438	50	1	_ZN12lua_ProtoRPC14overTimeNotifyESs	lua_ProtoRPC::overTimeNotify(std::basic_string<char, std::char_traits<char>, std::allocator<char> >)
+0x004cf46d	0x004cf46c	100	1	_ZN12lua_ProtoRPC16sngCheckOvertimeEv	lua_ProtoRPC::sngCheckOvertime()
+0x004cf4d1	0x004cf4d0	292	1	_ZN12lua_ProtoRPCC2EP9lua_State	lua_ProtoRPC::lua_ProtoRPC(lua_State*)
+0x004cf611	0x004cf610	56	1	_ZN12lua_ProtoRPC12connectErrorEv	lua_ProtoRPC::connectError()
+0x004cf649	0x004cf648	8	1	_ZThn20_N12lua_ProtoRPC12connectErrorEv	non-virtual thunk to lua_ProtoRPC::connectError()
+0x004cf651	0x004cf650	18	1	_ZN12lua_ProtoRPC11pushMeToLuaEP9lua_State	lua_ProtoRPC::pushMeToLua(lua_State*)
+0x004cf689	0x004cf688	38	1	_ZNSt8_Rb_treeISsSt4pairIKSsN12lua_ProtoRPC10MethodInfoEESt10_Select1stIS4_ESt4lessISsESaIS4_EE8_M_eraseEPSt13_Rb_tree_nodeIS4_E	std::_Rb_tree<std::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo>, std::_Select1st<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> >, std::less<std::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> > >::_M_erase(std::_Rb_tree_node<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> >*)
+0x004cf6eb	0x004cf6ea	96	1	_ZNSt8_Rb_treeISsSt4pairIKSsN12lua_ProtoRPC10MethodInfoEESt10_Select1stIS4_ESt4lessISsESaIS4_EE24_M_get_insert_unique_posERS1_	std::_Rb_tree<std::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo>, std::_Select1st<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> >, std::less<std::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> > >::_M_get_insert_unique_pos(std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0x004cf74b	0x004cf74a	308	1	_ZNSt8_Rb_treeISsSt4pairIKSsN12lua_ProtoRPC10MethodInfoEESt10_Select1stIS4_ESt4lessISsESaIS4_EE22_M_emplace_hint_uniqueIIRKSt21piecewise_construct_tSt5tupleIIRS1_EESF_IIEEEEESt17_Rb_tree_iteratorIS4_ESt23_Rb_tree_const_iteratorIS4_EDpOT_	std::_Rb_tree_iterator<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> > std::_Rb_tree<std::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo>, std::_Select1st<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> >, std::less<std::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> >, std::piecewise_construct_t const&, std::tuple<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>&&, std::tuple<>&&)
+0x004cf74b	0x004cf74a	308	1	_ZNSt8_Rb_treeISsSt4pairIKSsN12lua_ProtoRPC10MethodInfoEESt10_Select1stIS4_ESt4lessISsESaIS4_EE22_M_emplace_hint_uniqueIJRKSt21piecewise_construct_tSt5tupleIJRS1_EESF_IJEEEEESt17_Rb_tree_iteratorIS4_ESt23_Rb_tree_const_iteratorIS4_EDpOT_	std::_Rb_tree_iterator<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> > std::_Rb_tree<std::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo>, std::_Select1st<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> >, std::less<std::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> > >::_M_emplace_hint_unique<std::piecewise_construct_t const&, std::tuple<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>, std::tuple<> >(std::_Rb_tree_const_iterator<std::pair<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const, lua_ProtoRPC::MethodInfo> >, std::piecewise_construct_t const&, std::tuple<std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&>&&, std::tuple<>&&)
+0x004cf939	0x004cf938	552	1	_ZN12lua_ProtoRPC13GetMethodInfoERKSs	lua_ProtoRPC::GetMethodInfo(std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0x004cfd09	0x004cfd08	62	1	_ZN12lua_ProtoRPC13DeleteMessageEPN6google8protobuf7MessageE	lua_ProtoRPC::DeleteMessage(google::protobuf::Message*)
+0x004cfd47	0x004cfd46	24	1	_ZN12lua_ProtoRPC13DeleteMessageEP9lua_State	lua_ProtoRPC::DeleteMessage(lua_State*)
+0x004cfd5f	0x004cfd5e	92	1	_ZN12lua_ProtoRPC18GetMessageFromPoolEPKN6google8protobuf10DescriptorE	lua_ProtoRPC::GetMessageFromPool(google::protobuf::Descriptor const*)
+0x004cfdbb	0x004cfdba	22	1	_ZN12lua_ProtoRPC10NewRequestERKSs	lua_ProtoRPC::NewRequest(std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0x004cfdd1	0x004cfdd0	88	1	_ZN12lua_ProtoRPC10NewRequestEP9lua_State	lua_ProtoRPC::NewRequest(lua_State*)
+0x004cfe29	0x004cfe28	22	1	_ZN12lua_ProtoRPC11NewResponseERKSs	lua_ProtoRPC::NewResponse(std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0x004cfe41	0x004cfe40	828	1	_ZN12lua_ProtoRPC13sngCallMethodEP10sngMessage	lua_ProtoRPC::sngCallMethod(sngMessage*)
+0x004d017d	0x004d017c	824	1	_ZN12lua_ProtoRPC10CallMethodEP9lua_State	lua_ProtoRPC::CallMethod(lua_State*)
+0x004d0511	0x004d0510	26	1	_ZN12lua_ProtoRPC18GetMessageFromPoolERKSs	lua_ProtoRPC::GetMessageFromPool(std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+0x004d052d	0x004d052c	88	1	_ZN12lua_ProtoRPC10NewMessageEP9lua_State	lua_ProtoRPC::NewMessage(lua_State*)
+0x004d0585	0x004d0584	380	1	_ZN12lua_ProtoRPC4TestEv	lua_ProtoRPC::Test()
+0x004d0701	0x004d0700	340	1	_ZN12lua_ProtoRPCD2Ev	lua_ProtoRPC::~lua_ProtoRPC()
+0x004d0701	0x004d0700	340	1	_ZN12lua_ProtoRPCD1Ev	lua_ProtoRPC::~lua_ProtoRPC()
+0x004d0855	0x004d0854	8	1	_ZThn20_N12lua_ProtoRPCD1Ev	non-virtual thunk to lua_ProtoRPC::~lua_ProtoRPC()
+0x004d085d	0x004d085c	18	1	_ZN12lua_ProtoRPCD0Ev	lua_ProtoRPC::~lua_ProtoRPC()
+0x004d086f	0x004d086e	8	1	_ZThn20_N12lua_ProtoRPCD0Ev	non-virtual thunk to lua_ProtoRPC::~lua_ProtoRPC()
+0x004d0879	0x004d0878	468	1	_ZN12lua_ProtoRPC14ProcessOneCallEPhiS0_i	lua_ProtoRPC::ProcessOneCall(unsigned char*, int, unsigned char*, int)
+0x004d0a4d	0x004d0a4c	356	1	_ZN12lua_ProtoRPC11receiveDataEv	lua_ProtoRPC::receiveData()
+0x004d0bb1	0x004d0bb0	8	1	_ZThn20_N12lua_ProtoRPC11receiveDataEv	non-virtual thunk to lua_ProtoRPC::receiveData()
+0x005198fb	0x005198fa	32	1	_ZN7cocos2d8CCObject4copyEP9lua_State	cocos2d::CCObject::copy(lua_State*)
+0x00516eeb	0x00516eea	40	1	_ZN7cocos2d6CCNode29scheduleUpdateWithPriorityLuaEii	cocos2d::CCNode::scheduleUpdateWithPriorityLua(int, int)
+0x00534751	0x00534750	16	1	_ZN7cocos2d8CCLuaLogEPKc	cocos2d::CCLuaLog(char const*)
+0x00536cad	0x00536cac	20	1	_ZN7cocos2d21CCScriptEngineManager18removeScriptEngineEv	cocos2d::CCScriptEngineManager::removeScriptEngine()
+0x00536cc1	0x00536cc0	12	1	_ZN7cocos2d21CCScriptEngineManagerD2Ev	cocos2d::CCScriptEngineManager::~CCScriptEngineManager()
+0x00536cc1	0x00536cc0	12	1	_ZN7cocos2d21CCScriptEngineManagerD1Ev	cocos2d::CCScriptEngineManager::~CCScriptEngineManager()
+0x00536ccd	0x00536ccc	14	1	_ZN7cocos2d21CCScriptEngineManager15setScriptEngineEPNS_22CCScriptEngineProtocolE	cocos2d::CCScriptEngineManager::setScriptEngine(cocos2d::CCScriptEngineProtocol*)
+0x00536dd5	0x00536dd4	32	1	_ZN7cocos2d21CCScriptEngineManager18purgeSharedManagerEv	cocos2d::CCScriptEngineManager::purgeSharedManager()

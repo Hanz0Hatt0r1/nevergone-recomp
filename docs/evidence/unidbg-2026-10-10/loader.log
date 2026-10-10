@@ -1,0 +1,83 @@
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+RELR libEGL.so patched=2059 already=0
+RELR libGLESv2.so patched=3 already=0
+RELR android.hardware.configstore-utils.so patched=3 already=0
+RELR android.hardware.configstore@1.0.so patched=385 already=0
+RELR android.hardware.configstore@1.1.so patched=249 already=0
+RELR libSurfaceFlingerProp.so patched=28 already=0
+RELR libandroid_runtime_lazy.so patched=3 already=0
+RELR libbacktrace.so patched=856 already=0
+RELR libbinder.so patched=696 already=0
+RELR libbinder_ndk.so patched=100 already=0
+RELR libgraphicsenv.so patched=53 already=0
+RELR liblzma.so patched=7 already=0
+RELR libnativebridge_lazy.so patched=3 already=0
+RELR libnativeloader_lazy.so patched=3 already=0
+RELR libnativewindow.so patched=3 already=0
+RELR libsync.so patched=3 already=0
+RELR libutils.so patched=141 already=0
+RELR libvndksupport.so patched=3 already=0
+RELR libc++.so patched=362 already=0
+RELR_PATCHED_TOTAL=4960
+JNI_OnLoad completed
+LOADED libcocos2dcpp.so base=0x12000000 size=0x968000
+JNI_OnLoad=JNI_OnLoad
+FFMPEG=LinuxModule{base=0x12968000, size=22409216, name='libffmpeg.so'}
+GLESv2=LinuxModule{base=0x1407b000, size=73728, name='libGLESv2.so'}
+libEGL.so=LinuxModule{base=0x140ca000, size=159744, name='libEGL.so'}
+libcutils.so=LinuxModule{base=0x1408d000, size=73728, name='libcutils.so'}
+UNRESOLVED libcocos2dcpp.so=0
+UNRESOLVED libGLESv2.so=0
+UNRESOLVED libEGL.so=0
+UNRESOLVED libcutils.so=0
+MODULE ld-android.so base=0x13fcd000 size=0x3000
+MODULE libdl.so base=0x13fd0000 size=0x5000
+MODULE libc.so base=0x13ee9000 size=0xe4000
+MODULE libm.so base=0x13ec7000 size=0x22000
+MODULE libc++.so base=0x13ff1000 size=0x7d000
+MODULE libz.so base=0x13fd5000 size=0x1c000
+MODULE libffmpeg.so base=0x12968000 size=0x155f000
+MODULE liblog.so base=0x1406e000 size=0xd000
+MODULE libbase.so base=0x1409f000 size=0x2b000
+MODULE libcutils.so base=0x1408d000 size=0x12000
+MODULE libdl_android.so base=0x141aa000 size=0x3000
+MODULE libvndksupport.so base=0x141a6000 size=0x4000
+MODULE libutils.so base=0x14190000 size=0x16000
+MODULE libbinder.so base=0x140fc000 size=0x94000
+MODULE libgraphicsenv.so base=0x140f1000 size=0xb000
+MODULE libhidlbase.so base=0x14208000 size=0x7c000
+MODULE android.hardware.graphics.common@1.0.so base=0x14205000 size=0x3000
+MODULE android.hardware.graphics.mapper@2.0.so base=0x14284000 size=0x14000
+MODULE android.hardware.graphics.allocator@2.0.so base=0x141f3000 size=0x12000
+MODULE android.hardware.graphics.common@1.1.so base=0x142aa000 size=0x3000
+MODULE android.hardware.graphics.common@1.2.so base=0x142ad000 size=0x3000
+MODULE android.hardware.graphics.mapper@3.0.so base=0x142b0000 size=0x16000
+MODULE android.hardware.graphics.allocator@3.0.so base=0x14298000 size=0x12000
+MODULE android.hardware.graphics.mapper@4.0.so base=0x142d7000 size=0x1c000
+MODULE android.hardware.graphics.allocator@4.0.so base=0x142c6000 size=0x11000
+MODULE libandroid_runtime_lazy.so base=0x1430d000 size=0x4000
+MODULE libbinder_ndk.so base=0x142fc000 size=0x11000
+MODULE android.hardware.common-V2-ndk.so base=0x14311000 size=0x5000
+MODULE android.hardware.graphics.allocator-V1-ndk.so base=0x142f3000 size=0x9000
+MODULE android.hardware.graphics.common-V3-ndk.so base=0x14316000 size=0x7000
+MODULE android.hardware.graphics.mapper@2.1.so base=0x1431d000 size=0x15000
+MODULE libgralloctypes.so base=0x14332000 size=0x11000
+MODULE libsync.so base=0x14343000 size=0x4000
+MODULE libui.so base=0x141b3000 size=0x40000
+MODULE libnativewindow.so base=0x141ad000 size=0x6000
+MODULE liblzma.so base=0x143cd000 size=0x2c000
+MODULE libunwindstack.so base=0x14364000 size=0x69000
+MODULE libbacktrace.so base=0x14347000 size=0x1d000
+MODULE android.hardware.configstore@1.0.so base=0x143f9000 size=0x1b000
+MODULE android.hardware.configstore@1.1.so base=0x14417000 size=0x16000
+MODULE android.hardware.configstore-utils.so base=0x14414000 size=0x3000
+MODULE libnativebridge_lazy.so base=0x1442d000 size=0x4000
+MODULE libnativeloader_lazy.so base=0x14431000 size=0x4000
+MODULE libSurfaceFlingerProp.so base=0x14435000 size=0x10000
+MODULE libEGL.so base=0x140ca000 size=0x27000
+MODULE libGLESv2.so base=0x1407b000 size=0x12000
+MODULE libstdc++.so base=0x14445000 size=0x7000
+MODULE libcocos2dcpp.so base=0x12000000 size=0x968000
+MODULES=48 UNRESOLVED_TOTAL=0

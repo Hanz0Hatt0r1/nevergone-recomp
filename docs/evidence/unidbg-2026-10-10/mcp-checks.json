@@ -1,0 +1,74 @@
+[
+  {
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "tools/call",
+      "params": {
+        "name": "find_symbol",
+        "arguments": {
+          "module_name": "libcocos2dcpp.so",
+          "symbol_name": "_ZN7cocos2d6DecodeEPhiS0_j"
+        }
+      }
+    },
+    "response": {
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "cocos2d::Decode(unsigned char*, int, unsigned char*, unsigned int) @ 0x12534a41 (libcocos2dcpp.so+0x534a41)"
+          }
+        ]
+      },
+      "id": 1,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "method": "tools/call",
+      "params": {
+        "name": "read_memory",
+        "arguments": {
+          "address": "0x12534a40",
+          "size": 8
+        }
+      }
+    },
+    "response": {
+      "read_success": true,
+      "note": "8 original instruction bytes omitted from publication"
+    }
+  },
+  {
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "method": "tools/call",
+      "params": {
+        "name": "call_symbol",
+        "arguments": {
+          "module_name": "libffmpeg.so",
+          "symbol_name": "avcodec_version",
+          "args": [],
+          "preview_size": 0
+        }
+      }
+    },
+    "response": {
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "ret=0x394164\n"
+          }
+        ]
+      },
+      "id": 3,
+      "jsonrpc": "2.0"
+    }
+  }
+]
