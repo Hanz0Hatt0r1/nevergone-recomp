@@ -1,0 +1,36 @@
+name: GameScene construction plan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_construction_plan.cpp'
+      - 'android/app/src/main/cpp/game_scene_construction_plan.h'
+      - 'android/app/src/main/cpp/game_levels_scene_instance.h'
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.h'
+      - 'android/app/src/main/cpp/game_levels_layer_tail.h'
+      - 'tools/game_scene_construction_plan_smoke.cpp'
+      - '.github/workflows/game-scene-construction-plan.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_construction_plan.cpp'
+      - 'android/app/src/main/cpp/game_scene_construction_plan.h'
+      - 'android/app/src/main/cpp/game_levels_scene_instance.h'
+      - 'android/app/src/main/cpp/game_levels_scene_prefix.h'
+      - 'android/app/src/main/cpp/game_levels_layer_tail.h'
+      - 'tools/game_scene_construction_plan_smoke.cpp'
+      - '.github/workflows/game-scene-construction-plan.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run construction-plan smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_scene_construction_plan_smoke.cpp \
+            android/app/src/main/cpp/game_scene_construction_plan.cpp \
+            -o /tmp/game_scene_construction_plan_smoke
+          /tmp/game_scene_construction_plan_smoke
