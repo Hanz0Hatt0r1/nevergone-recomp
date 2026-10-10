@@ -68,14 +68,16 @@ int main() {
     assert(near(quad.positions[0], -0.17605634f));
     assert(near(quad.positions[1], 0.0390625f));
 
-    // 16:9 design geometry remains centered under aspect-fit letterboxing.
+    // The original uses ResolutionPolicy 0 (ExactFit), not letterboxing.
+    // A square physical surface must preserve the same clip-space design
+    // fractions independently on X and Y.
     transform.scale_x = 1.0f;
     transform.scale_y = 1.0f;
     assert(geometry::build_quad(transform, 100, 50, 1000, 1000, &quad));
-    const float center_x = (quad.positions[0] + quad.positions[4]) * 0.5f;
-    const float center_y = (quad.positions[1] + quad.positions[3]) * 0.5f;
-    assert(near(center_x, 0.0f));
-    assert(near(center_y, 0.0f));
+    assert(near(quad.positions[0], -0.08802817f));
+    assert(near(quad.positions[1], 0.078125f));
+    assert(near(quad.positions[4], 0.08802817f));
+    assert(near(quad.positions[7], -0.078125f));
 
     assert(!geometry::build_quad(transform, 0, 50, 1136, 640, &quad));
     assert(!geometry::build_quad(transform, 100, 50, 0, 640, &quad));
@@ -92,8 +94,11 @@ int main() {
     queue.sprites.push_back(direct_sprite(0u, -2));  // index 4
     queue.direct_file_count = 4u;
 
+    // Queue order already reflects recovered layer/object traversal. The local
+    // child Z belongs to the sprite inside each separate GameSceneObject and
+    // must not reorder distinct objects globally.
     const std::vector<std::size_t> order = geometry::ordered_direct_sprite_indices(queue);
-    assert((order == std::vector<std::size_t>{3u, 4u, 1u, 0u}));
+    assert((order == std::vector<std::size_t>{0u, 1u, 3u, 4u}));
 
     return 0;
 }
