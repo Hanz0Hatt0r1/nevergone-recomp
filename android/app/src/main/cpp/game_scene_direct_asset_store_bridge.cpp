@@ -1,6 +1,7 @@
 #include <jni.h>
 
 #include <cstdint>
+#include <limits>
 
 #include "game_scene_direct_asset_store.h"
 
@@ -88,6 +89,6 @@ extern "C" JNIEXPORT jint JNICALL
 Java_org_nevergone_recomp_GameSceneDirectAssetStore_nativeActiveAssetCount(
         JNIEnv*, jclass) {
     const auto count = nevergone::game_scene_direct_asset_store::snapshot().active_asset_count;
-    if (count > static_cast<std::size_t>(INT32_MAX)) return 0;
+    if (count > static_cast<std::size_t>(std::numeric_limits<jint>::max())) return 0;
     return static_cast<jint>(count);
 }
