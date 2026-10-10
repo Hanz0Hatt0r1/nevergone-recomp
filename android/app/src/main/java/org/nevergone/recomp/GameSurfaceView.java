@@ -182,12 +182,14 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+        GameSceneDirectAssetStager.resetFailure();
         nativeOnSurfaceCreated();
         nativeOnSingleLoginSurfaceCreated();
         nativeOnServerSelectionSurfaceCreated();
         nativeOnSingleSelectHeroSurfaceCreated();
         nativeOnSplashSurfaceCreated();
         reloadImportedVisualsOnGlThread();
+        updateGameSceneDirectAssetsOnGlThread();
         updateImportedAudioStateOnGlThread();
         updateChooseHeroBackgroundAssetsOnGlThread();
     }
@@ -202,6 +204,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
 
     @Override
     public void onDrawFrame(GL10 gl) {
+        updateGameSceneDirectAssetsOnGlThread();
         nativeOnDrawFrame();
         nativeDrawSingleLoginLayer();
         nativeDrawSingleSelectHeroLayer();
@@ -218,6 +221,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
             lastSingleSelectHeroActive = false;
             chooseHeroBackgroundAssetsLoaded = false;
             nativeClearChooseHeroBackgroundAssets();
+            GameSceneDirectAssetStager.invalidate();
             mainHandler.post(() -> {
                 startupLogoAudio.resetSequence();
                 singleLoginAudio.setSceneActive(false);
@@ -225,6 +229,7 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
                 singleSelectHeroAudio.setSceneActive(false);
             });
             reloadImportedVisualsOnGlThread();
+            updateGameSceneDirectAssetsOnGlThread();
             mainHandler.post(() -> {
                 startupLogoAudio.onAssetsReloaded();
                 singleLoginAudio.onAssetsReloaded();
@@ -266,6 +271,10 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
                 "\nSingleLogin BGM: " + singleLoginAudio.status() +
                 "\nSingleLogin thunder: " + singleLoginThunderAudio.status() +
                 "\nSingleSelectHero BGM: " + singleSelectHeroAudio.status();
+    }
+
+    private void updateGameSceneDirectAssetsOnGlThread() {
+        GameSceneDirectAssetStager.stageIfNeeded(assetRoot);
     }
 
     private void updateImportedAudioStateOnGlThread() {

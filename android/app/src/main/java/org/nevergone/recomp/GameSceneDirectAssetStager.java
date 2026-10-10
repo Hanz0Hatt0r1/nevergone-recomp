@@ -9,19 +9,48 @@ import java.io.IOException;
 final class GameSceneDirectAssetStager {
     private static final long MAX_PIXELS_PER_ASSET = 16L * 1024L * 1024L;
 
+    // All calls are made on the GLSurfaceView render thread. Remember one failed
+    // queue revision so a missing/corrupt imported file cannot trigger a full
+    // BitmapFactory decode attempt on every rendered frame.
+    private static long failedRevision;
+
     private GameSceneDirectAssetStager() {}
+
+    static void resetFailure() {
+        failedRevision = 0L;
+    }
+
+    // Explicit imported-asset reloads may replace a file without changing the
+    // native scene/render-queue revision. Drop the active pixel snapshot so the
+    // same queue revision is decoded again from the refreshed user-owned files.
+    static void invalidate() {
+        failedRevision = 0L;
+        GameSceneDirectAssetStore.clear();
+    }
 
     static boolean stageIfNeeded(File assetRoot) {
         long revision = GameSceneDirectAssetRequests.refresh();
+        long activeRevision = GameSceneDirectAssetStore.activeRevision();
         if (revision == 0L) {
-            GameSceneDirectAssetStore.clear();
+            failedRevision = 0L;
+            if (activeRevision != 0L) GameSceneDirectAssetStore.clear();
             return true;
         }
-        if (GameSceneDirectAssetStore.activeRevision() == revision) return true;
-        if (assetRoot == null || !assetRoot.isDirectory()) return false;
+        if (activeRevision == revision) {
+            failedRevision = 0L;
+            return true;
+        }
+        if (failedRevision == revision) return false;
+        if (assetRoot == null || !assetRoot.isDirectory()) {
+            failedRevision = revision;
+            return false;
+        }
 
         int count = GameSceneDirectAssetRequests.count();
-        if (count < 0 || !GameSceneDirectAssetStore.begin(revision, count)) return false;
+        if (count < 0 || !GameSceneDirectAssetStore.begin(revision, count)) {
+            failedRevision = revision;
+            return false;
+        }
 
         boolean completed = false;
         try {
@@ -78,11 +107,15 @@ final class GameSceneDirectAssetStager {
             }
 
             completed = GameSceneDirectAssetStore.finish(revision);
+            if (completed) failedRevision = 0L;
             return completed;
         } catch (IOException | RuntimeException error) {
             return false;
         } finally {
-            if (!completed) GameSceneDirectAssetStore.cancel(revision);
+            if (!completed) {
+                GameSceneDirectAssetStore.cancel(revision);
+                failedRevision = revision;
+            }
         }
     }
 }
