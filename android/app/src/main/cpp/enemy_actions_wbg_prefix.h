@@ -10,31 +10,17 @@
 
 namespace nevergone::enemy_actions_wbg_prefix {
 
-// The original ARMv7 loadWBGFile() consumes these four fields before entering
-// its first ActionFrameData loop.
 constexpr std::size_t kPrefixBytes = 16u;
-
-// One primary ActionFrameData stream record has 76 evidence-backed non-payload
-// bytes: int32 + 12 floats + bool8 + int32 + float, then three int32 string
-// lengths, each followed by one skipped byte. String payload bytes are extra.
 constexpr std::size_t kActionFrameFixedBytes = 76u;
 constexpr std::size_t kStringSeparatorBytes = 1u;
 
-// The next counted block starts with one signed int32 count and each positive
-// iteration consumes exactly int32 + float + float before creating an AFD.
 constexpr std::size_t kCompactBlockHeaderBytes = 4u;
 constexpr std::size_t kCompactActionFrameBytes = 12u;
 
-// Section C starts with a signed outer count. Every positive outer iteration
-// starts with an unsigned inner count. Each inner record has 72 fixed bytes:
-// int32 + 12 floats + bool8 + int32 + three framed string lengths.
 constexpr std::size_t kNestedBlockHeaderBytes = 4u;
 constexpr std::size_t kNestedGroupHeaderBytes = 4u;
 constexpr std::size_t kNestedActionFrameFixedBytes = 72u;
 
-// Section D has no serialized outer count. The first WBG header word selects
-// exactly 6 or 20 groups. Each group starts with one signed record count and
-// each record has 80 fixed bytes before its three variable payloads.
 constexpr std::int32_t kVersionedGroupGateValue = 0x68;
 constexpr std::size_t kLegacyVersionedGroupCount = 6u;
 constexpr std::size_t kModernVersionedGroupCount = 20u;
@@ -47,9 +33,12 @@ inline std::size_t versioned_group_count_for_header(std::int32_t header_word0) {
             : kLegacyVersionedGroupCount;
 }
 
-// Each original temporary char buffer occupies 0x100 bytes and receives an
-// explicit NUL at buffer[length]. The reconstructed parser rejects payloads
-// that would cross that observed stack-buffer boundary.
+// Section E starts with a signed int32 count. Every positive iteration consumes
+// exactly int32 + 12 float32 + bool8 = 0x35 bytes before creating an AFD and
+// appending it to EnemyActionsData+0x84.
+constexpr std::size_t kFixedTailBlockHeaderBytes = 4u;
+constexpr std::size_t kFixedTailActionFrameBytes = 0x35u;
+
 constexpr std::size_t kMaxStringPayloadBytes = 0xffu;
 
 struct Prefix {
@@ -130,8 +119,6 @@ struct VersionedActionFrameRecord {
 };
 
 struct VersionedActionFrameGroup {
-    // Native inner guard uses signed BGE, so nonpositive counts consume no
-    // records but the group header is still present for all 6/20 groups.
     std::int32_t record_count_i32 = 0;
     std::vector<VersionedActionFrameRecord> records;
     std::size_t bytes_consumed = 0;
@@ -141,6 +128,19 @@ struct VersionedActionFrameBlock {
     std::int32_t header_word0 = 0;
     std::size_t expected_group_count = 0;
     std::vector<VersionedActionFrameGroup> groups;
+    std::size_t bytes_consumed = 0;
+};
+
+struct FixedTailActionFrameRecord {
+    std::int32_t first_i32 = 0;
+    std::array<float, 12> float_values{};
+    bool first_bool = false;
+};
+
+struct FixedTailActionFrameBlock {
+    // Native loop uses signed BGE: zero and negative values consume no records.
+    std::int32_t count_i32 = 0;
+    std::vector<FixedTailActionFrameRecord> records;
     std::size_t bytes_consumed = 0;
 };
 
@@ -164,5 +164,9 @@ bool parse_versioned_action_frame_groups(
         std::size_t start_offset,
         std::int32_t header_word0,
         VersionedActionFrameBlock* out);
+bool parse_fixed_tail_action_frame_block(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        FixedTailActionFrameBlock* out);
 
 }  // namespace nevergone::enemy_actions_wbg_prefix
