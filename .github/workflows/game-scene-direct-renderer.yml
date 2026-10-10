@@ -36,6 +36,10 @@ jobs:
             android/app/src/main/cpp/game_scene_direct_geometry.cpp \
             -o /tmp/game_scene_direct_geometry_smoke
           /tmp/game_scene_direct_geometry_smoke
+      - name: Install GLES2 headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgles2-mesa-dev
       - name: Syntax-check GLES renderer and frame hook
         run: |
           JAVA_HOME_PATH="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
