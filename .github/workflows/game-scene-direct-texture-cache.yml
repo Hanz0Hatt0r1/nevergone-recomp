@@ -39,3 +39,11 @@ jobs:
             android/app/src/main/cpp/game_scene_direct_asset_store.cpp \
             -o /tmp/game_scene_direct_texture_cache_smoke
           /tmp/game_scene_direct_texture_cache_smoke
+      - name: Syntax-check JNI bridge
+        run: |
+          JAVA_HOME_PATH="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
+          g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+            -I android/app/src/main/cpp \
+            -I "$JAVA_HOME_PATH/include" \
+            -I "$JAVA_HOME_PATH/include/linux" \
+            android/app/src/main/cpp/game_scene_direct_texture_bridge.cpp
