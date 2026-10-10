@@ -12,7 +12,7 @@ namespace nevergone::enemy_actions_wbg_prefix {
 
 constexpr std::size_t kPrefixBytes = 16u;
 constexpr std::size_t kActionFrameFixedBytes = 76u;
-constexpr std::size_t kStringSeparatorBytes = 1u;
+constexpr std::size_t kStringFramingBytes = 1u;
 
 constexpr std::size_t kCompactBlockHeaderBytes = 4u;
 constexpr std::size_t kCompactActionFrameBytes = 12u;
