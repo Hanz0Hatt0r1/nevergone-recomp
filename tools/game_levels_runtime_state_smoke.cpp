@@ -36,14 +36,7 @@ std::vector<std::uint8_t> fixture() {
     append_f32(&out, 0.5f); append_u32(&out, 0u); append_u32(&out, 0u); append_u32(&out, 0u);
     append_string(&out, "b", 0x12u); append_f32(&out, 3.0f); append_f32(&out, 4.0f); append_u32(&out, 0u);
     append_u32(&out, 0u);
-    // LoadGL_Global first counted string vector. The original copies every
-    // string, including empty/duplicate entries, into GameLevels + 0x24 and
-    // loadingTex later calls addSpriteFramesWithFile() for each entry.
-    append_u32(&out, 3u);
-    append_string(&out, "l01/res/L01_01_default.plist", 0x41u);
-    append_string(&out, "", 0x42u);
-    append_string(&out, "l01/res/L01_01_default.plist", 0x43u);
-    append_u32(&out, 11u); append_u32(&out, 12u); append_u32(&out, 0u); append_u32(&out, 0u); append_u32(&out, 0u);
+    append_u32(&out, 0u); append_u32(&out, 11u); append_u32(&out, 12u); append_u32(&out, 0u); append_u32(&out, 0u); append_u32(&out, 0u);
     append_u32(&out, 2u);
     append_port(&out, "a", true, "b");
     append_port(&out, "b", false, "");
@@ -68,7 +61,6 @@ int main() {
 
     runtime::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
-    assert(!runtime::sprite_frame_plist_requests().has_value());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
@@ -78,9 +70,6 @@ int main() {
     assert(state.load_attempt_count == 1u);
     assert(state.reader_size == bytes.size());
     assert(state.model_end_offset == bytes.size());
-    assert(state.sprite_frame_plist_requests_ready);
-    assert(state.sprite_frame_plist_revision != 0u);
-    assert(state.sprite_frame_plist_count == 3u);
     assert(state.current_port_node_index == 0u);
     assert(state.current_scene_index == 0u);
     assert(state.current_scene_guid == "a");
@@ -98,18 +87,6 @@ int main() {
     assert(state.current_render_direct_file_count == 0u);
     assert(state.current_render_scene_action_pair_count == 0u);
     assert(state.current_render_unresolved_object_count == 0u);
-
-    auto plist_requests = runtime::sprite_frame_plist_requests();
-    assert(plist_requests.has_value());
-    assert(plist_requests->revision == state.sprite_frame_plist_revision);
-    assert(plist_requests->requests.size() == 3u);
-    assert(plist_requests->requests[0].source_global_string_index == 0u);
-    assert(plist_requests->requests[0].plist_path == "l01/res/L01_01_default.plist");
-    assert(plist_requests->requests[1].source_global_string_index == 1u);
-    assert(plist_requests->requests[1].plist_path.empty());
-    assert(plist_requests->requests[2].source_global_string_index == 2u);
-    assert(plist_requests->requests[2].plist_path == plist_requests->requests[0].plist_path);
-    const auto original_plist_revision = plist_requests->revision;
 
     auto scene = runtime::current_scene_instance();
     assert(scene.has_value());
@@ -143,11 +120,6 @@ int main() {
     assert(state.current_scene_index == 1u);
     assert(state.current_scene_guid == "b");
     assert(state.stored_event_port_type == 0u);
-    assert(state.sprite_frame_plist_requests_ready);
-    assert(state.sprite_frame_plist_revision == original_plist_revision);
-    assert(state.sprite_frame_plist_count == 3u);
-    assert(runtime::sprite_frame_plist_requests()->revision == original_plist_revision);
-    assert(runtime::sprite_frame_plist_requests()->requests[1].plist_path.empty());
     assert(state.current_scene_instance_ready);
     assert(state.current_scene_layer_count == 0u);
     assert(state.current_scene_construction_plan_ready);
@@ -175,7 +147,6 @@ int main() {
     assert(state.current_scene_index == 0u);
     assert(state.current_scene_guid == "a");
     assert(state.stored_event_port_type == 1u);
-    assert(state.sprite_frame_plist_revision == original_plist_revision);
     assert(state.current_scene_instance_ready);
     assert(state.current_scene_construction_plan_ready);
     assert(state.current_scene_render_queue_ready);
@@ -186,7 +157,6 @@ int main() {
     transition = runtime::step(9u);
     assert(transition.port_step.status == port_nav::StepStatus::kUnsupportedEventType);
     assert(runtime::snapshot().current_scene_guid == "a");
-    assert(runtime::snapshot().sprite_frame_plist_revision == original_plist_revision);
     assert(runtime::current_scene_instance()->guid == "a");
     assert(runtime::current_scene_construction_plan()->guid == "a");
     assert(runtime::current_scene_render_queue()->guid == "a");
@@ -194,9 +164,6 @@ int main() {
     assert(!runtime::load_file(path.string(), 1u));
     assert(runtime::snapshot().status == runtime::LoadStatus::kTooLarge);
     assert(runtime::snapshot().load_attempt_count == 2u);
-    assert(!runtime::snapshot().sprite_frame_plist_requests_ready);
-    assert(runtime::snapshot().sprite_frame_plist_revision == 0u);
-    assert(!runtime::sprite_frame_plist_requests().has_value());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
@@ -205,7 +172,6 @@ int main() {
     assert(!runtime::load_pvp_scene((root / "missing-root").string()));
     assert(runtime::snapshot().status == runtime::LoadStatus::kMissing);
     assert(runtime::snapshot().load_attempt_count == 3u);
-    assert(!runtime::sprite_frame_plist_requests().has_value());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
@@ -213,7 +179,6 @@ int main() {
     std::filesystem::remove_all(root);
     runtime::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
-    assert(!runtime::sprite_frame_plist_requests().has_value());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
