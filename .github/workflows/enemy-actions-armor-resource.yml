@@ -1,0 +1,27 @@
+name: EnemyActions armor resource
+
+on:
+  push:
+    paths:
+      - 'android/app/src/main/cpp/enemy_actions_armor_resource.h'
+      - 'tools/enemy_actions_armor_resource_smoke.cpp'
+      - '.github/workflows/enemy-actions-armor-resource.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/enemy_actions_armor_resource.h'
+      - 'tools/enemy_actions_armor_resource_smoke.cpp'
+      - '.github/workflows/enemy-actions-armor-resource.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile armor resource smoke
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -pedantic
+          -Iandroid/app/src/main/cpp
+          tools/enemy_actions_armor_resource_smoke.cpp
+          -o /tmp/enemy_actions_armor_resource_smoke
+      - name: Run armor resource smoke
+        run: /tmp/enemy_actions_armor_resource_smoke
