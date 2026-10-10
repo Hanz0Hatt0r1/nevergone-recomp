@@ -1,0 +1,32 @@
+name: GameLevels port-node graph
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_levels_port_node_graph.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_node_graph.h'
+      - 'android/app/src/main/cpp/game_levels_port_node_section.h'
+      - 'tools/game_levels_port_node_graph_smoke.cpp'
+      - '.github/workflows/game-levels-port-node-graph.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_levels_port_node_graph.cpp'
+      - 'android/app/src/main/cpp/game_levels_port_node_graph.h'
+      - 'android/app/src/main/cpp/game_levels_port_node_section.h'
+      - 'tools/game_levels_port_node_graph_smoke.cpp'
+      - '.github/workflows/game-levels-port-node-graph.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run port-node graph smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_levels_port_node_graph_smoke.cpp \
+            android/app/src/main/cpp/game_levels_port_node_graph.cpp \
+            -o /tmp/game_levels_port_node_graph_smoke
+          /tmp/game_levels_port_node_graph_smoke
