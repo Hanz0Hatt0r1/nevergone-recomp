@@ -24,7 +24,8 @@ import javax.xml.parsers.DocumentBuilderFactory;
  * Discovers the original GameScene scene-list plist without inventing its filename.
  *
  * The recovered 1.0.9 ARMv7 loader accepts a plist path, reads gs_num/gs%02d,
- * matches each entry's gamedatafile, and retains gsresfile04 as the array later
+ * matches each entry's gamedatafile, retains playerStartXPos/playerStartYPos as
+ * floating-point scene-entry metadata, and retains gsresfile04 as the array later
  * consumed by GameScene::loadingTex() through addSpriteFramesWithFile(). The
  * original call site that supplies the plist filename has no direct in-library
  * branch reference, so the clean-room runtime identifies the unique imported
@@ -41,10 +42,30 @@ final class GameSceneAtlasListDiscovery {
     static final class Result {
         final String sceneListRelativePath;
         final List<String> atlasPlists;
+        final float playerStartXPos;
+        final float playerStartYPos;
 
-        Result(String sceneListRelativePath, List<String> atlasPlists) {
+        Result(
+                String sceneListRelativePath,
+                List<String> atlasPlists,
+                float playerStartXPos,
+                float playerStartYPos) {
             this.sceneListRelativePath = sceneListRelativePath;
             this.atlasPlists = Collections.unmodifiableList(new ArrayList<>(atlasPlists));
+            this.playerStartXPos = playerStartXPos;
+            this.playerStartYPos = playerStartYPos;
+        }
+    }
+
+    private static final class MatchingEntry {
+        final List<String> atlasPlists;
+        final float playerStartXPos;
+        final float playerStartYPos;
+
+        MatchingEntry(List<String> atlasPlists, float playerStartXPos, float playerStartYPos) {
+            this.atlasPlists = atlasPlists;
+            this.playerStartXPos = playerStartXPos;
+            this.playerStartYPos = playerStartYPos;
         }
     }
 
@@ -105,8 +126,8 @@ final class GameSceneAtlasListDiscovery {
                         continue;
                     }
 
-                    List<String> atlases = readMatchingAtlasList(canonicalChild, targetBasename);
-                    if (atlases == null) continue;
+                    MatchingEntry entry = readMatchingEntry(canonicalChild, targetBasename);
+                    if (entry == null) continue;
                     if (match != null) {
                         // More than one imported plist claims the same game-data file.
                         // Stay fail-closed rather than selecting by an invented priority.
@@ -116,7 +137,11 @@ final class GameSceneAtlasListDiscovery {
                     if (relative.isEmpty() || relative.startsWith("/") || relative.contains("..")) {
                         return null;
                     }
-                    match = new Result(relative, atlases);
+                    match = new Result(
+                            relative,
+                            entry.atlasPlists,
+                            entry.playerStartXPos,
+                            entry.playerStartYPos);
                 }
             }
             return match;
@@ -125,7 +150,7 @@ final class GameSceneAtlasListDiscovery {
         }
     }
 
-    private static List<String> readMatchingAtlasList(File plist, String targetBasename) throws Exception {
+    private static MatchingEntry readMatchingEntry(File plist, String targetBasename) throws Exception {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(false);
         factory.setXIncludeAware(false);
@@ -150,7 +175,7 @@ final class GameSceneAtlasListDiscovery {
         Integer sceneCount = integerValue(countValue);
         if (sceneCount == null || sceneCount < 0 || sceneCount > MAX_SCENE_ENTRIES) return null;
 
-        List<String> found = null;
+        MatchingEntry found = null;
         for (int index = 1; index <= sceneCount; ++index) {
             String entryKey = String.format(Locale.US, "gs%02d", index);
             Element entry = valueForKey(rootDict, entryKey);
@@ -160,8 +185,12 @@ final class GameSceneAtlasListDiscovery {
 
             Element atlasValue = valueForKey(entry, "gsresfile04");
             List<String> atlases = stringArray(atlasValue);
-            if (atlases == null || found != null) return null;
-            found = atlases;
+            Float playerStartXPos = floatValue(valueForKey(entry, "playerStartXPos"));
+            Float playerStartYPos = floatValue(valueForKey(entry, "playerStartYPos"));
+            if (atlases == null || playerStartXPos == null || playerStartYPos == null || found != null) {
+                return null;
+            }
+            found = new MatchingEntry(atlases, playerStartXPos, playerStartYPos);
         }
         return found;
     }
@@ -204,6 +233,21 @@ final class GameSceneAtlasListDiscovery {
         }
         try {
             return Integer.valueOf(value.getTextContent().trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private static Float floatValue(Element value) {
+        if (value == null ||
+                !("real".equals(value.getTagName()) ||
+                        "integer".equals(value.getTagName()) ||
+                        "string".equals(value.getTagName()))) {
+            return null;
+        }
+        try {
+            float parsed = Float.parseFloat(value.getTextContent().trim());
+            return Float.isFinite(parsed) ? parsed : null;
         } catch (NumberFormatException ignored) {
             return null;
         }
