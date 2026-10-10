@@ -88,11 +88,12 @@ jobs:
 
       - name: Build synthetic imported asset trees
         run: |
-          mkdir -p /tmp/wbg-tree/gamescene/a /tmp/wbg-tree/gamescene/b
+          mkdir -p /tmp/wbg-tree/gamescene/a /tmp/wbg-tree/gamescene/b /tmp/wbg-tree/gamescene/c
           mkdir -p /tmp/invalid-wbg-tree /tmp/empty-wbg-tree
           cp /tmp/synthetic.wbg /tmp/wbg-tree/gamescene/a/first.wbg
           cp /tmp/synthetic.wbg /tmp/wbg-tree/gamescene/b/SECOND.WBG
-          cp /tmp/truncated.wbg /tmp/invalid-wbg-tree/bad.wbg
+          cp /tmp/synthetic.wbg /tmp/wbg-tree/gamescene/c/third.actData
+          cp /tmp/truncated.wbg /tmp/invalid-wbg-tree/bad.ACTDATA
 
       - name: Validate batch scanner success
         run: |
@@ -100,11 +101,12 @@ jobs:
             --validator /tmp/enemy_actions_wbg_validate \
             /tmp/wbg-tree \
             > /tmp/batch.jsonl 2> /tmp/batch.summary
-          test "$(wc -l < /tmp/batch.jsonl)" -eq 2
+          test "$(wc -l < /tmp/batch.jsonl)" -eq 3
           grep -F '"relative_path":"gamescene/a/first.wbg"' /tmp/batch.jsonl
           grep -F '"relative_path":"gamescene/b/SECOND.WBG"' /tmp/batch.jsonl
+          grep -F '"relative_path":"gamescene/c/third.actData"' /tmp/batch.jsonl
           grep -F '"parse_status":"ok"' /tmp/batch.jsonl
-          grep -Fx 'summary files=2 passed=2 failed=0' /tmp/batch.summary
+          grep -Fx 'summary files=3 passed=3 failed=0' /tmp/batch.summary
 
       - name: Validate batch scanner failure codes
         run: |
@@ -133,4 +135,4 @@ jobs:
           grep -Fx 'summary files=1 passed=0 failed=1' /tmp/invalid.summary
           test "$strict_status" -eq 5
           grep -F '"validator_exit":3' /tmp/strict-batch.jsonl
-          grep -Fx 'summary files=2 passed=0 failed=2' /tmp/strict-batch.summary
+          grep -Fx 'summary files=3 passed=0 failed=3' /tmp/strict-batch.summary
