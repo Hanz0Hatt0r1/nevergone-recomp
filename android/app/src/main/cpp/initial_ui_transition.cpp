@@ -85,16 +85,21 @@ bool on_server_enter_dispatch_succeeded() {
 
 bool on_role_enter_dispatch_succeeded() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_state.phase != Phase::kManagementLoginInitialized ||
-            (g_state.management_route != ManagementRoute::kRoleSelection &&
-             g_state.management_route != ManagementRoute::kRoleCreated)) {
+    if (g_state.phase != Phase::kManagementLoginInitialized) return false;
+
+    // EnterGameWithCid may synchronously invoke cpp_OnEnterGame before the Lua
+    // call returns. In that case the recovered callback has already advanced
+    // the route and the dispatch is still a valid success.
+    if (g_state.management_route == ManagementRoute::kEnteringGame) return true;
+
+    if (g_state.management_route != ManagementRoute::kRoleSelection &&
+            g_state.management_route != ManagementRoute::kRoleCreated) {
         return false;
     }
 
-    // EnterGameWithCid crossed the reconstructed Lua boundary successfully,
-    // but gameplay ownership remains with the recovered cpp_OnEnterGame
-    // callback. Keep that distinction observable and reject duplicate success
-    // notifications once the role UI has handed off.
+    // Otherwise the request crossed the reconstructed Lua boundary without an
+    // enter callback yet. Keep that distinction observable and reject another
+    // success notification once the role UI has handed off.
     g_state.pending_management_route = ManagementRoute::kAwaitingEnterGame;
     set_management_route_locked(ManagementRoute::kAwaitingEnterGame);
     return true;
