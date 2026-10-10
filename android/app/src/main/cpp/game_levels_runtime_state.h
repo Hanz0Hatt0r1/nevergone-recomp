@@ -7,6 +7,7 @@
 
 #include "game_levels_scene_instance.h"
 #include "game_levels_scene_navigation.h"
+#include "game_scene_construction_plan.h"
 
 namespace nevergone::game_levels_runtime_state {
 
@@ -36,6 +37,10 @@ struct Snapshot {
     bool current_scene_instance_ready = false;
     std::size_t current_scene_layer_count = 0;
     std::size_t current_scene_object_count = 0;
+    bool current_scene_construction_plan_ready = false;
+    std::size_t current_construction_layer_count = 0;
+    std::size_t current_construction_object_count = 0;
+    std::size_t current_construction_ignored_layer_count = 0;
 };
 
 void reset();
@@ -43,6 +48,7 @@ bool load_file(const std::string& path, std::size_t max_bytes = kMaxRuntimeScene
 bool load_pvp_scene(const std::string& files_dir, std::size_t max_bytes = kMaxRuntimeSceneBytes);
 Snapshot snapshot();
 std::optional<game_levels_scene_instance::SceneInstance> current_scene_instance();
+std::optional<game_scene_construction_plan::ScenePlan> current_scene_construction_plan();
 game_levels_scene_navigation::Transition step(std::uint32_t requested_event_port_type);
 const char* status_name(LoadStatus status);
 std::string status_report();

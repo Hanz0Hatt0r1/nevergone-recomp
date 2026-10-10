@@ -11,6 +11,8 @@ on:
       - 'android/app/src/main/cpp/game_levels_scene_instance.h'
       - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
       - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
+      - 'android/app/src/main/cpp/game_scene_construction_plan.cpp'
+      - 'android/app/src/main/cpp/game_scene_construction_plan.h'
       - 'tools/game_levels_runtime_state_smoke.cpp'
       - '.github/workflows/game-levels-runtime-state.yml'
   pull_request:
@@ -22,6 +24,8 @@ on:
       - 'android/app/src/main/cpp/game_levels_scene_instance.h'
       - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
       - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
+      - 'android/app/src/main/cpp/game_scene_construction_plan.cpp'
+      - 'android/app/src/main/cpp/game_scene_construction_plan.h'
       - 'tools/game_levels_runtime_state_smoke.cpp'
       - '.github/workflows/game-levels-runtime-state.yml'
 
@@ -47,6 +51,7 @@ jobs:
             android/app/src/main/cpp/game_levels_start_scene.cpp \
             android/app/src/main/cpp/game_levels_scene_navigation.cpp \
             android/app/src/main/cpp/game_levels_scene_instance.cpp \
+            android/app/src/main/cpp/game_scene_construction_plan.cpp \
             android/app/src/main/cpp/hp_data_reader.cpp \
             -o /tmp/game_levels_runtime_state_smoke
           /tmp/game_levels_runtime_state_smoke
