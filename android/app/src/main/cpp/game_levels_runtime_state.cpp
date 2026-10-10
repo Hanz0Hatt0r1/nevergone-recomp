@@ -13,6 +13,7 @@
 #include "game_levels_scene_instance.h"
 #include "game_scene_construction_plan.h"
 #include "game_scene_render_queue.h"
+#include "game_scene_sprite_frame_plist_requests.h"
 #include "hp_data_reader.h"
 
 namespace nevergone::game_levels_runtime_state {
@@ -20,6 +21,7 @@ namespace {
 
 std::mutex g_mutex;
 std::optional<game_levels_model::Model> g_model;
+std::optional<game_scene_sprite_frame_plist_requests::Snapshot> g_sprite_frame_plist_requests;
 std::optional<game_levels_scene_instance::SceneInstance> g_scene_instance;
 std::optional<game_scene_construction_plan::ScenePlan> g_scene_construction_plan;
 std::optional<game_scene_render_queue::Queue> g_scene_render_queue;
@@ -85,6 +87,7 @@ void refresh_current_scene_locked() {
 void begin_attempt_locked() {
     const std::uint64_t attempts = g_state.load_attempt_count + 1u;
     g_model.reset();
+    g_sprite_frame_plist_requests.reset();
     g_scene_instance.reset();
     g_scene_construction_plan.reset();
     g_scene_render_queue.reset();
@@ -97,6 +100,7 @@ void begin_attempt_locked() {
 void reset() {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_model.reset();
+    g_sprite_frame_plist_requests.reset();
     g_scene_instance.reset();
     g_scene_construction_plan.reset();
     g_scene_render_queue.reset();
@@ -157,6 +161,11 @@ bool load_file(const std::string& path, std::size_t max_bytes) {
     }
 
     g_state.model_end_offset = parsed.end_offset;
+    g_sprite_frame_plist_requests =
+            game_scene_sprite_frame_plist_requests::build(parsed.global);
+    g_state.sprite_frame_plist_requests_ready = true;
+    g_state.sprite_frame_plist_revision = g_sprite_frame_plist_requests->revision;
+    g_state.sprite_frame_plist_count = g_sprite_frame_plist_requests->requests.size();
     g_model = std::move(parsed);
     g_state.status = LoadStatus::kReady;
     refresh_current_scene_locked();
@@ -173,6 +182,11 @@ bool load_pvp_scene(const std::string& files_dir, std::size_t max_bytes) {
 Snapshot snapshot() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_state;
+}
+
+std::optional<game_scene_sprite_frame_plist_requests::Snapshot> sprite_frame_plist_requests() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_sprite_frame_plist_requests;
 }
 
 std::optional<game_levels_scene_instance::SceneInstance> current_scene_instance() {
@@ -226,6 +240,11 @@ std::string status_report() {
     out << "load attempts: " << state.load_attempt_count << "\n";
     if (state.reader_size != 0u) out << "scene bytes loaded: " << state.reader_size << "\n";
     if (state.model_end_offset != 0u) out << "verified model bytes: " << state.model_end_offset << "\n";
+    if (state.sprite_frame_plist_requests_ready) {
+        out << "sprite-frame plist requests: ready\n";
+        out << "sprite-frame plist revision: " << state.sprite_frame_plist_revision << "\n";
+        out << "sprite-frame plist count: " << state.sprite_frame_plist_count << "\n";
+    }
     if (state.current_port_node_index.has_value()) out << "current port index: " << *state.current_port_node_index << "\n";
     if (state.current_scene_index.has_value()) out << "current scene index: " << *state.current_scene_index << "\n";
     if (!state.current_scene_guid.empty()) out << "current scene guid: " << state.current_scene_guid << "\n";
