@@ -23,6 +23,28 @@ void append_i32(std::vector<std::uint8_t>& out, std::int32_t value) { append_u32
 void append_f32(std::vector<std::uint8_t>& out, float value) {
     std::uint32_t bits = 0; std::memcpy(&bits, &value, sizeof(bits)); append_u32(out, bits);
 }
+void append_string(std::vector<std::uint8_t>& out, const std::string& value, std::uint8_t gap) {
+    append_u32(out, static_cast<std::uint32_t>(value.size()));
+    out.push_back(gap);
+    out.insert(out.end(), value.begin(), value.end());
+}
+void append_port(
+        std::vector<std::uint8_t>& out,
+        const std::string& first,
+        bool start,
+        const std::string& third) {
+    append_string(out, first, 0x31u);
+    append_string(out, "", 0x32u);
+    append_u32(out, 1u);
+    append_u32(out, 2u);
+    out.push_back(start ? 1u : 0u);
+    out.push_back(0u);
+    out.push_back(0u);
+    append_u32(out, 3u);
+    append_u32(out, 4u);
+    append_u32(out, 5u);
+    append_string(out, third, 0x33u);
+}
 std::vector<std::uint8_t> verified_scene_section_fixture() {
     std::vector<std::uint8_t> out;
     append_i32(out, 2); append_u32(out, 2u);
@@ -61,9 +83,15 @@ std::vector<std::uint8_t> verified_port_node_section_fixture() {
     assert(out.size() == 96u);
     return out;
 }
-void write_fixture(const std::filesystem::path& path) {
-    const auto data = verified_port_node_section_fixture();
-    std::ofstream output(path, std::ios::binary);
+std::vector<std::uint8_t> start_scene_fixture() {
+    auto out = verified_global_section_fixture();
+    append_u32(out, 1u);
+    append_port(out, "one", true, "");
+    assert(out.size() == 137u);
+    return out;
+}
+void write_fixture(const std::filesystem::path& path, const std::vector<std::uint8_t>& data) {
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
     output.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
     assert(output.good());
 }
@@ -126,16 +154,44 @@ int main() {
     const std::filesystem::path root(make_temp_dir());
     const auto scene = root / "assets" / "gamescene" / "gs_list" / "pvp_scene.glData";
     std::filesystem::create_directories(scene.parent_path());
-    write_fixture(scene);
+
+    // A complete GameLevels model with no PortNode can be retained, but it has
+    // no resolvable current scene. Preserve the model-ready fallback boundary.
+    const auto model_only = verified_port_node_section_fixture();
+    write_fixture(scene, model_only);
     transition::on_enter_game(root.string());
     state = transition::snapshot();
     assert(state.boundary == Boundary::kRuntimeModelReady);
-    assert(state.verified_bytes == 96u);
-    const auto retained = runtime::snapshot();
+    assert(state.verified_bytes == model_only.size());
+    auto retained = runtime::snapshot();
     assert(retained.status == runtime::LoadStatus::kReady);
-    assert(retained.model_end_offset == 96u);
+    assert(retained.model_end_offset == model_only.size());
+    assert(!retained.current_scene_instance_ready);
+    assert(!runtime::current_scene_instance().has_value());
     assert(transition::status_report().find("runtime-model-ready") != std::string::npos);
-    assert(transition::status_report().find("GameLevels runtime model") != std::string::npos);
+
+    // A recovered start PortNode that resolves to the first parsed scene now
+    // promotes the real EnterGame path to the stronger scene-instance boundary.
+    transition::reset();
+    const auto with_start_scene = start_scene_fixture();
+    write_fixture(scene, with_start_scene);
+    transition::on_enter_game(root.string());
+    state = transition::snapshot();
+    assert(state.boundary == Boundary::kRuntimeSceneInstanceReady);
+    assert(state.verified_bytes == with_start_scene.size());
+    retained = runtime::snapshot();
+    assert(retained.status == runtime::LoadStatus::kReady);
+    assert(retained.current_port_node_index == 0u);
+    assert(retained.current_scene_index == 0u);
+    assert(retained.current_scene_guid == "one");
+    assert(retained.current_scene_instance_ready);
+    const auto live_scene = runtime::current_scene_instance();
+    assert(live_scene.has_value());
+    assert(live_scene->source_scene_index == 0u);
+    assert(live_scene->guid == "one");
+    assert(live_scene->layers.size() == 1u);
+    assert(transition::status_report().find("runtime-scene-instance-ready") != std::string::npos);
+    assert(transition::status_report().find("scene instance: ready") != std::string::npos);
 
     transition::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
