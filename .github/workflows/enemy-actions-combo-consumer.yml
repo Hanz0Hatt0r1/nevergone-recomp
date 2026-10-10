@@ -107,3 +107,15 @@ jobs:
 
       - name: Run waUpdate single-iteration smoke
         run: /tmp/enemy_actions_wa_update_iteration_smoke
+
+      - name: Compile showActionLastFrame smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/enemy_actions_combo_consumer.cpp \
+            android/app/src/main/cpp/enemy_actions_runtime_state.cpp \
+            tools/enemy_actions_show_last_frame_smoke.cpp \
+            -o /tmp/enemy_actions_show_last_frame_smoke
+
+      - name: Run showActionLastFrame smoke
+        run: /tmp/enemy_actions_show_last_frame_smoke
