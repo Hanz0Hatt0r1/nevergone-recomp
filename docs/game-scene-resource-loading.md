@@ -40,7 +40,7 @@ The already recovered direct type-0 branches pass basenames such as `gktianchong
 - `sceneNum`
 - `mirror`
 
-Each entry becomes a `GameLevelsData` object. In the recovered assignment sequence, the object read from `gsresfile04` is retained at `GameLevelsData + 0x24`.
+Each entry becomes a `GameLevelsData` object. In the recovered assignment sequence, the objects read from `gsresfile01`, `gsresfile02`, `gsresfile03`, and `gsresfile04` are retained at `GameLevelsData + 0x18`, `+0x1c`, `+0x20`, and `+0x24` respectively. The loader does not convert those four values through `CCString`; it retains the plist objects directly. The downstream `loadingTex()` use below proves the `+0x24`/`gsresfile04` object is a `CCArray` of strings.
 
 ## Atlas preload list used by `loadingTex()`
 
@@ -56,10 +56,23 @@ For every element in that array, in original order, it performs:
 
 Only after this preload loop does `loadingTex()` create the 11 scene layers and walk scene objects. This explains why the default type-0 object path can later call `spriteFrameByName(serialized_name)` without knowing an atlas file locally.
 
-The clean-room renderer should therefore preserve this separation:
+The clean-room renderer therefore preserves this separation:
 
 - **direct-file sprite:** resolve the proven imported image search path immediately;
 - **sprite-frame-by-name:** resolve only after the recovered `gsresfile04` plist list for the selected scene-list entry has been loaded;
 - **scene-action pair:** defer to the separate action-system reconstruction.
 
-The exact scene-list plist filename supplied to `loadGameSceneList()` is not yet recovered, so the project must not invent one. Atlas registration should remain a distinct milestone until that source path (or an equivalent user-owned imported entry point) is proven.
+## Scene-list filename boundary
+
+A complete Thumb-2 scan of the shipped `.text` section finds no direct `BL` or `B.W` branch to `GameScene::loadGameSceneList(char const*)`. The symbol is exported, but the library contains no direct in-library call edge from which a constant plist filename can be recovered. A simple string-table scan likewise exposes the schema keys and GameScene search paths but not a unique scene-list plist filename.
+
+That means hardcoding a guessed filename would not be clean-room evidence. The project-owned runtime instead uses `GameSceneAtlasListDiscovery` to identify the imported source by content:
+
+- search only beneath the user-owned `filesDir/assets/gamescene` tree;
+- inspect bounded `.plist` candidates only;
+- require the recovered top-level `gs_num` plus `gs%02d` dictionary schema;
+- match the target entry by the recovered `gamedatafile` key, using `pvp_scene.glData` as the currently reconstructed GameLevels data file;
+- extract the `gsresfile04` array in original order;
+- reject traversal resource names, oversized inputs, excessive entry counts, and ambiguous multiple matching scene-list files.
+
+This resolves the imported atlas preload list without assigning an unproven filename or redistributing any game resources. The next renderer milestone can consume that ordered list to locate imported TexturePacker plists and satisfy `spriteFrameByName` commands.
