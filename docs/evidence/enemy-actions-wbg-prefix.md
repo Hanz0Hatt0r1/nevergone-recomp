@@ -19,117 +19,48 @@ At `0x28f4ec..0x28f4f2` a zero-based loop index is compared directly with `+0xc4
 
 ## Primary ActionFrameData record
 
-Each primary record has this fixed prefix:
-
-| Relative offset | Native call site | Type |
-| ---: | ---: | --- |
-| `0` | `0x28f538` | `int32` |
-| `4..48` | `0x28f54e..0x28f636` | 12 × `float` |
-| `52` | `0x28f650` | `bool` |
-| `53` | `0x28f664` | `int32` |
-| `57` | `0x28f678` | `float` |
-| `61` | `0x28f68e` | first signed string length |
-
-Three variable segments use `[int32 length][one skipped byte][length bytes]`, with char-copy calls at `0x28f6a6`, `0x28f6f4`, and `0x28f736`. The fixed size excluding payload bytes is 76, so total record size is `76 + len1 + len2 + len3`.
-
-## Temporary string-buffer bound
-
-The three original destination buffers begin at `sp+0xa4`, `sp+0x1a4`, and `sp+0x2a4`. Each is followed by `buffer[length] = 0`, and adjacent buffers are exactly `0x100` bytes apart. The clean-room parser caps each payload at `0xff` bytes so the explicit NUL remains inside the observed original buffer. This is a reconstruction safety bound, not evidence that the original parser validated hostile lengths.
+Each primary record begins with `int32`, twelve `float32`, `bool8`, `int32`, `float32`, then three variable segments framed as `[int32 length][one skipped byte][length bytes]`. The fixed size excluding payload bytes is 76, so total record size is `76 + len1 + len2 + len3`. The three original temporary char buffers are `0x100` bytes apart and receive explicit trailing NUL writes, so the clean-room parser caps each payload at `0xff` bytes.
 
 ## Section B: compact ActionFrameData block
 
-After the primary loop:
-
-- `0x28f842`: signed `int32` count;
-- signed `BGE` loop guard at `0x28f84c..0x28f854`;
-- each positive iteration reads `int32` at `0x28f870`, `float` at `0x28f882`, and `float` at `0x28f896`;
-- the resulting `ActionFrameData` is appended to `EnemyActionsData + 0x8c`.
-
-Nonpositive counts consume only the four-byte count. Positive counts consume `4 + count * 12` bytes.
+After the primary loop, `0x28f842` reads a signed `int32` count. Each positive iteration consumes `int32 + float32 + float32` (12 bytes) and appends an `ActionFrameData` to `EnemyActionsData + 0x8c`. Nonpositive counts consume only the four-byte count.
 
 ## Section C: nested counted groups
 
-Section C is a two-level counted structure:
-
-- `0x28f8dc`: signed outer/group count;
-- signed `BGE` outer guard at `0x28f8e6..0x28f8ec`;
-- `0x28f904`: unsigned inner record count for each positive outer index;
-- unsigned `BHS` inner guard at `0x28f91c..0x28f922`;
-- records for outer index `i` append to the array pointer at `EnemyActionsData + 0x14 + 4*i`.
-
-Each inner record consumes `72 + len1 + len2 + len3` bytes:
-
-| Relative offset | Native call site | Type |
-| ---: | ---: | --- |
-| `0` | `0x28f962` | `int32` |
-| `4..48` | `0x28f978..0x28fa66` | 12 × `float` |
-| `52` | `0x28fa84` | `bool` |
-| `53` | `0x28fa9c` | `int32` |
-| `57` | `0x28fab0` | first signed string length |
-
-The three strings use the same five-byte framing overhead and char copies at `0x28faca`, `0x28fb12`, and `0x28fb4e`. `ActionFrameData::createAFD()` runs at `0x28fb5a`, and insertion into the selected per-group array occurs at `0x28fc3e`.
-
-The independent `enemy_actions_wbg_topology_evidence` contract proves the same Section C container topology.
+Section C reads a signed outer count at `0x28f8dc`; each positive outer group then reads an unsigned inner count at `0x28f904`. Records are appended through the array pointer at `EnemyActionsData + 0x14 + 4*i`. Each inner record consumes `72 + len1 + len2 + len3` bytes: `int32 + 12×float32 + bool8 + int32 + 3 framed strings`.
 
 ## Section D: version-gated groups
 
-After Section C the first header word controls a fixed outer fanout:
-
-- `0x28fc5c`: compare header word 0 with `0x68`;
-- values `> 0x68` select 20 groups; all other values select 6 groups;
-- for every selected group, `0x28fc7c` reads one signed `int32` record count;
-- `0x28fc98..0x28fc9e` uses a signed `BGE` inner guard;
-- group index `i` targets the array pointer at `EnemyActionsData + 0x34 + 4*i`;
-- insertion occurs at `0x28ffe8`.
-
-A Section D record consumes `80 + len1 + len2 + len3` bytes:
-
-| Relative offset | Native call site | Type |
-| ---: | ---: | --- |
-| `0` | `0x28fcda` | `int32` |
-| `4..48` | `0x28fcf0..0x28fdda` | 12 × `float` |
-| `52` | `0x28fdf6` | `bool` |
-| `53` | `0x28fe0a` | `int32` |
-| `57` | `0x28fe1e` | `uint32` |
-| `61` | `0x28fe32` | `uint32` |
-| `65` | `0x28fe46` | first signed string length |
-
-The first payload begins at relative offset `70`, again proving `[int32 length][one skipped byte][payload]`. The first char copy is at `0x28fe64`; the second signed length/copy pair is at `0x28fe88` / `0x28feac`; the third is at `0x28fed2` / `0x28fee8`.
-
-`ActionFrameData::createAFD()` runs at `0x28fef4`. All 6 or 20 group-count fields are mandatory because the outer group count is derived from the header. Signed nonpositive per-group counts consume no records. The clean-room parser reserves bytes for all remaining group headers before accepting a positive record count and bounds that count by the 80-byte minimum record size.
+At `0x28fc5c`, header word 0 is compared with `0x68`: values `> 0x68` select 20 groups, otherwise 6. Every selected group has a signed `int32` record count and targets `EnemyActionsData + 0x34 + 4*i`. Each record consumes `80 + len1 + len2 + len3` bytes: `int32 + 12×float32 + bool8 + int32 + 2×uint32 + 3 framed strings`. All 6 or 20 group headers are mandatory; positive counts are bounded after reserving the remaining mandatory headers.
 
 ## Section E: fixed tail
 
-After the version-gated groups, the original enters one more signed counted ActionFrameData block:
+`0x290018` reads a signed `int32` count. Each positive iteration consumes exactly `0x35` bytes:
 
-- `0x290018`: read signed `int32` count;
-- `0x29002a..0x29002e`: signed `BGE` loop guard;
-- each positive iteration consumes exactly `0x35` (53) bytes;
-- `ActionFrameData::createAFD()` runs at `0x29018c`;
-- the resulting object is appended to `EnemyActionsData + 0x84` at `0x29021c..0x290222`.
+- `int32` at relative `+0`;
+- twelve `float32` at `+4..+48`;
+- `bool8` at `+52`.
 
-The fixed 53-byte record is:
+`ActionFrameData::createAFD()` runs at `0x29018c`, and the object is appended to `EnemyActionsData + 0x84` at `0x29021c..0x290222`. Nonpositive counts consume only the four-byte count. Positive counts are bounded against `remaining / 0x35` before allocation.
+
+## Section F: primary-indexed 24-byte tuples
+
+After Section E, the parser does **not** read another count. Instead it repeats exactly the unsigned primary count already stored at `EnemyActionsData + 0xc4`. For each primary index `i`, it consumes one fixed `0x18`-byte tuple:
 
 | Relative offset | Native call site | Type |
 | ---: | ---: | --- |
-| `0` | `0x29006c` | `int32` |
-| `4` | `0x290080` | `float` |
-| `8` | `0x29009c` | `float` |
-| `12` | `0x2900b4` | `float` |
-| `16` | `0x2900c8` | `float` |
-| `20` | `0x2900dc` | `float` |
-| `24` | `0x2900f4` | `float` |
-| `28` | `0x290108` | `float` |
-| `32` | `0x290120` | `float` |
-| `36` | `0x290134` | `float` |
-| `40` | `0x290148` | `float` |
-| `44` | `0x29015c` | `float` |
-| `48` | `0x290170` | `float` |
-| `52` | `0x290188` | `bool` |
+| `0x00` | `0x29027a` | `int32` |
+| `0x04` | `0x29028e` | `int32` |
+| `0x08` | `0x2902ac` | `int32` |
+| `0x0c` | `0x2902ce` | `int32` |
+| `0x10` | `0x2902f8` | `float32` |
+| `0x14` | `0x290328` | `float32` |
 
-The stream cursor advances by exactly `0x35` at `0x290182`. No serialized strings occur in this block. The original stores the loop index at `ActionFrameData + 0x70`, writes the serialized scalar values into the same broad ActionFrameData scalar region used by earlier sections, creates one fixed native string that is not sourced from the WBG payload, and sets an additional flag before insertion. Those downstream object fields are outside this stream parser; the reconstruction therefore keeps the serialized fields structurally named.
+The float at tuple `+0x10` is stored to `EnemyActionsData + 0xd8 + 4*i`; the float at `+0x14` is stored to `EnemyActionsData + 0x268 + 4*i`. Those are exactly the two 100-dword regions initialized by `initWithFile`, providing an independent structural cross-check of the tuple count and indexing.
 
-Zero and negative counts consume only the four-byte count. Positive counts are pre-bounded against `remaining / 0x35` before vector allocation. Parse failure is transactional.
+The four integer values feed branch logic that can create `ActionComboValue` objects and append them to arrays at `EnemyActionsData + 0x94`, `+0x9c`, and `+0x98` (`addObject` at `0x290368`, `0x290384`, `0x2903b4`). Their gameplay meanings are unresolved, so the clean-room stream record keeps them as an ordered four-element integer array rather than naming them from branch behavior.
+
+`parse_primary_indexed_tuple_block()` receives `action_frame_count` from the already parsed prefix instead of consuming a new serialized count. It pre-bounds `count * 24` via `count <= remaining / 24`, parses exactly that many records from the supplied start offset, and leaves later bytes untouched. A zero primary count consumes zero bytes. Failure is transactional.
 
 ## Reconstructed implementation
 
@@ -141,10 +72,11 @@ Zero and negative counts consume only the four-byte count. Positive counts are p
 - Section C signed-outer/unsigned-inner nested groups;
 - Section D 6/20 version-gated groups and their complete variable-length records;
 - Section E signed counted fixed 53-byte records;
+- Section F fixed 24-byte tuples repeated exactly `action_frame_count` times;
 - one-byte string separators, signed-length rejection, and the evidence-derived `0xff` payload cap for string-bearing sections;
-- exact signed nonpositive-count behavior and pre-bounded positive allocations;
+- exact signed nonpositive-count behavior and pre-bounded positive/fixed counts;
 - transactional outputs for truncation or malformed lengths.
 
 The implementation uses the project-owned bounds-checked `hp_data::Reader` / `Cursor`; it does not call the original library and does not require `CCFileUtils`, `AppParameters`, or Cocos object construction.
 
-The next bounded stream step begins around `0x290234` and runs exactly `EnemyActionsData + 0xc4` times. Each iteration consumes 24 bytes (`4 × int32 + 2 × float`) before constructing `ActionComboValue` objects and updating two EnemyActionsData floats. The record shape is known, but its clean-room field names should remain structural until the array-selection behavior is represented without inventing gameplay semantics.
+The final bounded stream step is Section G: one `int32` per primary record at `0x2903f2`. If a corresponding primary `ActionFrameData` exists, the original converts the integer to float and stores `1.0f / value` at `ActionFrameData + 0x5c`. Structurally, the remaining serialized tail is therefore exactly `action_frame_count * 4` bytes; reconstruction should keep the raw integers and leave the reciprocal application to a later object-construction layer.
