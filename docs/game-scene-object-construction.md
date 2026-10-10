@@ -60,7 +60,33 @@ The common sprite-finalization block in `GameSceneObject::initWithData()` resolv
 
 The parser keeps its structural historical member names so binary parsing remains independent of gameplay/rendering interpretation. `game_scene_construction_plan::Type0SpriteTransform` is the renderer-facing structure that exposes these proven semantics. It is emitted only for type-0 branches that actually construct a sprite; the `klhuo-1.png` action-pair branch intentionally has no sprite transform.
 
-The second serialized boolean and later conditional/tail fields remain unresolved here.
+The second serialized boolean and later conditional/tail fields remain unresolved here. The recovered common sprite path only passes the byte derived from source `+0x34` to `CCSprite::setFlipX(bool)`; it does not establish a corresponding `setFlipY` use for the second serialized boolean.
+
+The recovered `trailing_i32` is **local child Z**, not a global object-order key. At `GameSceneObject::initWithData()+0xa58`, the receiver is the individual `GameSceneObject`, the child is that object's created sprite, and the recovered integer is passed to the object's `addChild(sprite, z_order)` call. Separate GameSceneObject instances therefore continue to follow the already recovered layer/object traversal order; project-owned direct rendering must not reorder different objects by this local child Z value.
+
+## Proven design resolution, content scale and anchor
+
+The original `AppDelegate::AddAllSearchPath()` obtains the shared `CCEGLView`, loads literal floats `1136.0f` and `640.0f`, sets the policy argument to zero, and dispatches virtual slot `+0x28`. The shipped `CCEGLViewProtocol` vtable resolves that slot to `CCEGLViewProtocol::setDesignResolutionSize(float, float, ResolutionPolicy)` at `0x00533e42`/Thumb `0x00533e43`.
+
+The shipped `setDesignResolutionSize` implementation treats policy values `1..4` as special cases; policy `0` keeps independent X/Y scale factors. This is the Cocos2d-x **ExactFit** path. The GameScene design rectangle is therefore 1136×640 and maps to the entire physical viewport independently on each axis. Aspect-fit/letterboxing is not faithful to this call site.
+
+`CCDirector::init()` writes `1.0f` to the content-scale-factor field at `+0x94`, and no game call site for `CCDirector::setContentScaleFactor(float)` is present. Direct `CCSprite::create(file)` texture dimensions therefore remain 1:1 with design units in the recovered path.
+
+`CCSprite::initWithTexture()` constructs `CCPoint(0.5f, 0.5f)` and dispatches sprite vtable slot `+0x6c`; that slot resolves to `CCSprite::setAnchorPoint(CCPoint const&)`. The ordinary sprite anchor is consequently centered at `(0.5, 0.5)`.
+
+Finally, `CCNode::nodeToParentTransform()` multiplies the stored rotation by the literal `pi/180` through a negative multiply before sine/cosine evaluation. Positive Cocos rotation is therefore clockwise. The direct geometry adapter reproduces this sign rather than using a conventional positive counter-clockwise matrix.
+
+## Direct renderer consistency boundary
+
+The Java stager and native texture cache already publish direct-file pixels transactionally under the deterministic request revision derived from the current render queue. The renderer must preserve that boundary:
+
+- rebuild the direct request snapshot from the current live queue;
+- require the GL texture cache `source_revision` to equal that request revision;
+- require every direct request to resolve to a valid texture before changing the framebuffer;
+- preserve filtered queue order rather than sorting different objects by their local child Z;
+- only after complete validation replace the generic entered-game fallback and submit the direct sprite quads.
+
+This prevents a scene transition from mixing a new GameScene queue with stale texture handles from the previous scene.
 
 ## `createGSObject()` is a separate boundary
 
@@ -79,4 +105,4 @@ Despite its name, `GameScene::createGSObject()` is not the layer-object renderer
 - the complete evidence-backed `ObjectRecord` remains available without renaming unresolved parser fields;
 - source layers beyond index 10 are counted as ignored because the original `loadingTex()` loop never requests them.
 
-The next renderer step can consume the recovered resource/transform contract and stage user-owned textures on the existing OpenGL bridge. Atlas/plist discovery for frame-cache names, action-pair playback, anchor-point semantics, and nonzero object-type construction remain separate milestones.
+The direct-file branch can now be staged and rendered with recovered transform/design semantics. The next visual renderer milestone is resolving the sprite-frame-cache atlas/plist path so default type-0 objects can join those direct sprites without inventing resource layout. Action-pair playback and nonzero object-type construction remain separate milestones.
