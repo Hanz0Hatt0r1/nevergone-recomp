@@ -5,6 +5,8 @@
 
 int main() {
     using nevergone::enemy_actions_combo_consumer::advance_boundary_cursor;
+    using nevergone::enemy_actions_combo_consumer::apply_combo_hit_transition;
+    using nevergone::enemy_actions_combo_consumer::ComboHitState;
     using nevergone::enemy_actions_combo_consumer::combo_hit_mode_for_frame;
     using nevergone::enemy_actions_combo_consumer::current_frame_power;
     using nevergone::enemy_actions_wbg_combo_section::Block;
@@ -62,6 +64,65 @@ int main() {
     assert(!combo_hit_mode_for_frame(block, 1u, 2).has_value());
     assert(!combo_hit_mode_for_frame(block, 1u, 6).has_value());
     assert(!combo_hit_mode_for_frame(block, 2u, 4).has_value());
+
+    // comboHit state transition: a field_1c != 2 match sets +0x191 but leaves
+    // +0x290 clear and returns true.
+    ComboHitState clear_state;
+    const auto first_hit = apply_combo_hit_transition(block, 0u, 1, clear_state);
+    assert(first_hit.returned_true);
+    assert(first_hit.state.flag_190 == 0u);
+    assert(first_hit.state.flag_191 == 1u);
+    assert(first_hit.state.flag_290 == 0u);
+
+    // field_1c == 2 additionally writes 1 to +0x290.
+    const auto second_hit = apply_combo_hit_transition(block, 1u, 4, clear_state);
+    assert(second_hit.returned_true);
+    assert(second_hit.state.flag_190 == 0u);
+    assert(second_hit.state.flag_191 == 1u);
+    assert(second_hit.state.flag_290 == 1u);
+
+    // Any nonzero +0x190 or +0x290 gates the path before range evaluation.
+    ComboHitState blocked_190;
+    blocked_190.flag_190 = 7u;
+    blocked_190.flag_191 = 9u;
+    const auto blocked_by_190 = apply_combo_hit_transition(block, 0u, 1, blocked_190);
+    assert(!blocked_by_190.returned_true);
+    assert(blocked_by_190.state.flag_190 == 7u);
+    assert(blocked_by_190.state.flag_191 == 9u);
+    assert(blocked_by_190.state.flag_290 == 0u);
+
+    ComboHitState blocked_290;
+    blocked_290.flag_191 = 8u;
+    blocked_290.flag_290 = 3u;
+    const auto blocked_by_290 = apply_combo_hit_transition(block, 1u, 4, blocked_290);
+    assert(!blocked_by_290.returned_true);
+    assert(blocked_by_290.state.flag_190 == 0u);
+    assert(blocked_by_290.state.flag_191 == 8u);
+    assert(blocked_by_290.state.flag_290 == 3u);
+
+    // Misses and project-owned stale indices are no-op false transitions.
+    ComboHitState retained_state;
+    retained_state.flag_191 = 5u;
+    const auto miss = apply_combo_hit_transition(block, 0u, 99, retained_state);
+    assert(!miss.returned_true);
+    assert(miss.state.flag_191 == 5u);
+    const auto stale_hit = apply_combo_hit_transition(block, 99u, 1, retained_state);
+    assert(!stale_hit.returned_true);
+    assert(stale_hit.state.flag_191 == 5u);
+
+    Block one_range;
+    one_range.array_94_values.push_back(range0);
+    const auto count_gate = apply_combo_hit_transition(one_range, 0u, 1, retained_state);
+    assert(!count_gate.returned_true);
+    assert(count_gate.state.flag_191 == 5u);
+
+    // A successful native write stores byte value 1 even if +0x191 previously
+    // held another nonzero value.
+    ComboHitState normalize_191;
+    normalize_191.flag_191 = 0x7fu;
+    const auto normalized = apply_combo_hit_transition(block, 0u, 1, normalize_191);
+    assert(normalized.returned_true);
+    assert(normalized.state.flag_191 == 1u);
 
     // waUpdate compares against field +0x18 after incrementing its frame.
     const auto before_first_end = advance_boundary_cursor(block.array_94_values, 0u, 1);
