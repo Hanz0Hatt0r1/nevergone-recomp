@@ -63,8 +63,10 @@ At `0x2acdbc`, native loads byte `AFD+0x50` and calls the `CCSprite::setOpacity`
 
 If `system+0x250 == 3`, native then calls `setVisible(true)` unconditionally, overriding the earlier visibility derived from `system+0x258+i`.
 
-## Deliberate boundary
+## Following child-order call
 
-The helper stops before the virtual `system` callback at `0x2acde2..0x2acdf0`, which receives the armor sprite and `AFD+0x38`. That callback's semantic identity is not yet proven.
+At `0x2acde2..0x2acdf0`, native invokes the `EnemyActionsSystem` vtable slot at object-vptr `+0xf0`. Resolving the original vtable (`vtable for EnemyActionsSystem` at `0x8e5410`) shows that this inherited slot is `cocos2d::CCNode::reorderChild(cocos2d::CCNode*, int)` at `0x515e21`.
+
+The call arguments are the armor sprite and `AFD+0x38`. The helper deliberately stops before this call because the exact serialized-float-to-`AFD+0x38` conversion contract, including exceptional float behavior, is being kept as a separate bounded reconstruction.
 
 No proprietary payload or decompiler-derived source is committed.
