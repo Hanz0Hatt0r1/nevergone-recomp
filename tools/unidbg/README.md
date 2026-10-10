@@ -54,6 +54,16 @@ python3 verify_save_probes.py target/save-probe.log
 
 The runner is an API for declarative calls with source bytes, key, symbol and exact ELF instruction offset. Its allowlist currently contains only GameSaveData::Encode (0x33a766) and Decode (0x33a788), whose five-argument ABI and lack of object use were checked in Thumb disassembly. Each `EVIDENCE` JSON row records inputs, module base, registers before/after the unidbg call, memory before/after, return value and trace metadata. The before-call register snapshot is the prior emulator state, not the function-entry register state; `trace.mode=none` means no instruction trace was collected. See [stage-2 analysis](../../docs/evidence/unidbg-2026-10-10/reconstruction-stage-2.md) and [native results](../../docs/evidence/unidbg-2026-10-10/save-probes.jsonl).
 
+The EnemyActions/HPData lane uses smaller hard-allowlisted probes rather than entering the WBG parser directly:
+
+```sh
+./run.sh --probe-enemy-actions-ctor > target/enemy-actions-ctor.log 2>&1
+./run.sh --probe-enemy-actions-cstring > target/enemy-actions-cstring.log 2>&1
+./run.sh --probe-hpdata-memory > target/hpdata-memory.log 2>&1
+```
+
+`--probe-enemy-actions-ctor` calls only the zero-argument `EnemyActionsData` constructor against guarded storage. `--probe-enemy-actions-cstring` calls only the original `CCString(char const*)`, `getCString()` and destructor and verifies the ARM32 `0x18`-byte object / `+0x14` payload contract. `--probe-hpdata-memory` constructs a `0x1c`-byte `HPData` from controlled memory, validates all five exported `getBytes` overloads using by-value `HPRange`, then destroys it. Neither prerequisite probe enters `EnemyActionsData::loadWBGFile`, `CCFileUtils`, or file-backed HPData. See [loadWBG boundary](../../docs/evidence/unidbg-2026-10-10/enemy-actions-load-wbg-boundary.md) and [HPData memory ABI](../../docs/evidence/unidbg-2026-10-10/hpdata-memory-abi-probe.md).
+
 `relr_plan.py` decodes ELF32 DT_RELR into a local relocation plan. Before JNI_OnLoad, the harness checks source SHA-256 and target values and applies missing rebases in emulator memory only. Already rebased words are skipped. Unsupported ELF formats, non-file-backed targets and unexpected values fail closed. This compensates for missing DT_RELR support in the tested unidbg revision; it is not a general Android linker implementation. All RELR fixes happen after loading with constructors disabled. Do not enable constructors before these fixes.
 
 Dependencies returned by the custom resolver route their own nested dependencies through it, avoiding SDK resource lookup silently overriding the selected phone runtime. Root-file siblings are resolved by unidbg's ElfLibraryFile from the original library directory.
