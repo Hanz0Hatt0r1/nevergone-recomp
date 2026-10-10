@@ -2,9 +2,9 @@
 """Correlate player-spawn strings with checked-in Ghidra and ELF metadata.
 
 This tool reads metadata only. It never reads original binaries, assets, Ghidra
-project databases, or decompiler output. Ghidra addresses are normalized back to
-ELF code offsets by deriving the load delta from a function that is present in
-both metadata sets.
+project databases, or decompiler output. Ghidra code addresses are normalized
+back to ELF code offsets by deriving the load delta from a function present in
+both metadata sets. Data/string addresses remain exact.
 """
 
 from __future__ import annotations
@@ -29,7 +29,12 @@ def parse_address(value: str) -> int:
     text = value.strip().lower()
     if text in ("", "-"):
         raise ValueError(f"invalid address {value!r}")
-    return int(text, 16) & ~1
+    return int(text, 16)
+
+
+def parse_code_address(value: str) -> int:
+    # ARM Thumb function pointers may carry bit 0. Code offsets do not.
+    return parse_address(value) & ~1
 
 
 def hex_address(value: int) -> str:
@@ -63,7 +68,7 @@ def unique_named_function(
         name = row.get(name_field, "")
         if token not in name:
             continue
-        matches.append((parse_address(row[address_field]), name))
+        matches.append((parse_code_address(row[address_field]), name))
     unique = list(dict.fromkeys(matches))
     if len(unique) != 1:
         raise ValueError(
@@ -86,7 +91,7 @@ class FunctionRange:
 def load_elf_ranges(path: Path) -> list[FunctionRange]:
     ranges: list[FunctionRange] = []
     for row in open_tsv(path):
-        start = parse_address(row["code_offset_hex"])
+        start = parse_code_address(row["code_offset_hex"])
         size = int(row["size"], 10)
         if size <= 0:
             continue
@@ -166,7 +171,7 @@ def spawn_references(
         key = by_target.get(target)
         if key is None:
             continue
-        from_ghidra = parse_address(row["from"])
+        from_ghidra = parse_code_address(row["from"])
         from_elf = from_ghidra - delta
         names = tuple(item.name for item in containing_functions(ranges, from_elf))
         refs.append(
@@ -196,7 +201,7 @@ class CallEdge:
 def function_names(index_root: Path) -> dict[int, str]:
     result: dict[int, str] = {}
     for row in open_gzip_tsv(index_root / f"{PROGRAM}.functions.tsv.gz"):
-        result[parse_address(row["entry"])] = row.get("name", "")
+        result[parse_code_address(row["entry"])] = row.get("name", "")
     return result
 
 
@@ -210,15 +215,15 @@ def adjust_player_callers(index_root: Path) -> list[CallEdge]:
     )
     edges: list[CallEdge] = []
     for row in open_gzip_tsv(index_root / f"{PROGRAM}.calls.tsv.gz"):
-        callee = parse_address(row["callee_entry"])
+        callee = parse_code_address(row["callee_entry"])
         if callee != adjust_entry:
             continue
-        caller = parse_address(row["caller_entry"])
+        caller = parse_code_address(row["caller_entry"])
         edges.append(
             CallEdge(
                 caller_entry=caller,
                 caller_name=names.get(caller, "<unknown>"),
-                call_site=parse_address(row["call_site"]),
+                call_site=parse_code_address(row["call_site"]),
                 callee_entry=callee,
                 callee_name=adjust_name,
             )
