@@ -7,6 +7,7 @@
 
 #include "character_name_compositor.h"
 #include "character_name_state.h"
+#include "game_scene_direct_sprite_renderer.h"
 #include "server_selection_compositor.h"
 #include "single_select_hero_confirm_compositor.h"
 #include "startup_contract.h"
@@ -75,6 +76,10 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
 }
 
 void draw_post_scene_layers(JNIEnv*, jclass) {
+    // GameSurfaceView invokes this registered method after the generic native
+    // frame and the route-specific base layers. The direct GameScene renderer
+    // is a no-op until a complete live queue/texture revision is available.
+    (void)nevergone::game_scene_direct_sprite_renderer::draw();
     nevergone::splash_layer_renderer::draw();
     nevergone::single_select_hero_confirm_compositor::draw();
 }
