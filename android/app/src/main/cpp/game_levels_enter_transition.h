@@ -21,6 +21,7 @@ enum class Boundary {
     kRuntimeModelReady,
     kRuntimeSceneInstanceReady,
     kRuntimeSceneConstructionPlanReady,
+    kRuntimeRenderQueueReady,
 };
 
 struct Snapshot {
