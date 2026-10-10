@@ -32,11 +32,20 @@ Goal: fail quickly before Android SDK/NDK work is spent.
 
 ### Android emulator smoke
 
-`.github/workflows/android-emulator-smoke.yml` runs manually and on a scheduled cadence against Android API 35 and 36. It builds a CI-only x86_64 variant, launches `MainActivity`, checks that the process remains alive and scans logcat for a fatal startup crash.
+`.github/workflows/android-emulator-smoke.yml` runs manually and on a scheduled cadence against Android API 35 and 36. Changes to the workflow itself also run the matrix on the pull request.
+
+Each x86_64 emulator job now exercises more than process launch:
+
+- foreground launch and fatal-logcat gate;
+- Home/pause while requiring the same process to remain alive;
+- foreground resume while requiring the same PID;
+- Back/Activity finish followed by immediate relaunch in the retained process, exercising a fresh `Activity`/`GLSurfaceView`/EGL-surface lifecycle;
+- force-stop plus cold restart;
+- process/foreground/fatal checks after each relevant phase.
 
 Normal builds remain `arm64-v8a` + `armeabi-v7a`; x86_64 is enabled only with `-PciEmulator`.
 
-Physical arm64 and real 16 KiB runtime validation are still required release gates; the x86_64 emulator job does not substitute for them.
+Physical/emulated arm64 and real 16 KiB page-size runtime validation are still required release gates; the x86_64 emulator job does not substitute for them. The evidence matrix and exact distinction between CI transport and release proof are recorded in `docs/android-runtime-validation.md`.
 
 ## Pull requests
 
