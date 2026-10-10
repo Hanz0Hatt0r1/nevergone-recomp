@@ -17,7 +17,7 @@ std::optional<nevergone::game_scene_direct_asset_requests::Snapshot> current_req
 }  // namespace
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeGameSceneDirectAssetRevision(
+Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeRevision(
         JNIEnv*, jclass) {
     const auto requests = current_requests();
     if (!requests.has_value()) return 0;
@@ -25,7 +25,7 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeGameSceneDirectAssetRevision(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeGameSceneDirectAssetCount(
+Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeCount(
         JNIEnv*, jclass) {
     const auto requests = current_requests();
     if (!requests.has_value() ||
@@ -36,7 +36,7 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeGameSceneDirectAssetCount(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeGameSceneDirectAssetPath(
+Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativePathAt(
         JNIEnv* env,
         jclass,
         jint request_index) {
@@ -48,7 +48,7 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeGameSceneDirectAssetPath(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeGameSceneDirectAssetSpriteCommandIndex(
+Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeSpriteCommandIndexAt(
         JNIEnv*,
         jclass,
         jint request_index) {
