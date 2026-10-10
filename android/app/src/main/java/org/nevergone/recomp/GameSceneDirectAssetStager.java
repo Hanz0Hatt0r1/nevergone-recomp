@@ -23,6 +23,7 @@ final class GameSceneDirectAssetStager {
 
     static void resetFailure() {
         failedRevision = 0L;
+        GameSceneAssetStagingDiagnostics.reset();
     }
 
     // Explicit imported-asset reloads may replace a file without changing the
@@ -30,7 +31,30 @@ final class GameSceneDirectAssetStager {
     // same queue revision is decoded again from the refreshed user-owned files.
     static void invalidate() {
         failedRevision = 0L;
+        GameSceneAssetStagingDiagnostics.reset();
         GameSceneDirectAssetStore.clear();
+    }
+
+    static String statusReport() {
+        return GameSceneAssetStagingDiagnostics.statusReport();
+    }
+
+    private static boolean reject(
+            String reason,
+            long revision,
+            int requestCount,
+            int requestIndex,
+            int requestKind,
+            int stagedCount) {
+        failedRevision = revision;
+        GameSceneAssetStagingDiagnostics.failed(
+                reason,
+                revision,
+                requestCount,
+                requestIndex,
+                requestKind,
+                stagedCount);
+        return false;
     }
 
     static boolean stageIfNeeded(File assetRoot) {
@@ -39,25 +63,30 @@ final class GameSceneDirectAssetStager {
         if (revision == 0L) {
             failedRevision = 0L;
             if (activeRevision != 0L) GameSceneDirectAssetStore.clear();
+            GameSceneAssetStagingDiagnostics.noLiveQueue();
             return true;
-        }
-        if (activeRevision == revision) {
-            failedRevision = 0L;
-            return true;
-        }
-        if (failedRevision == revision) return false;
-        if (assetRoot == null || !assetRoot.isDirectory()) {
-            failedRevision = revision;
-            return false;
         }
 
         int count = GameSceneDirectAssetRequests.count();
         if (count < 0) {
-            failedRevision = revision;
-            return false;
+            return reject("invalid-request-count", revision, 0, -1, -1, 0);
+        }
+        if (activeRevision == revision) {
+            failedRevision = 0L;
+            GameSceneAssetStagingDiagnostics.ready(revision, count);
+            return true;
+        }
+        if (failedRevision == revision) return false;
+
+        GameSceneAssetStagingDiagnostics.begin(revision, count);
+        if (assetRoot == null || !assetRoot.isDirectory()) {
+            return reject("asset-root-unavailable", revision, count, -1, -1, 0);
         }
 
         boolean completed = false;
+        int currentRequestIndex = -1;
+        int currentRequestKind = -1;
+        int stagedCount = 0;
         Map<String, Bitmap> atlasBitmaps = new HashMap<>();
         try {
             File canonicalRoot = assetRoot.getCanonicalFile();
@@ -77,7 +106,13 @@ final class GameSceneDirectAssetStager {
                 if ((kind != GameSceneDirectAssetRequests.KIND_DIRECT_FILE &&
                         kind != GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME) ||
                         value == null || value.isEmpty() || spriteCommandIndex < 0) {
-                    return false;
+                    return reject(
+                            "invalid-request",
+                            revision,
+                            count,
+                            requestIndex,
+                            kind,
+                            stagedCount);
                 }
                 requestKinds[requestIndex] = kind;
                 requestValues[requestIndex] = value;
@@ -89,30 +124,74 @@ final class GameSceneDirectAssetStager {
             if (needsAtlases) {
                 GameSceneAtlasListDiscovery.Result discovery =
                         GameSceneAtlasListDiscovery.discover(canonicalRoot, PVP_GAME_DATA_FILE);
-                if (discovery == null) return false;
+                if (discovery == null) {
+                    return reject(
+                            "atlas-list-discovery-failed",
+                            revision,
+                            count,
+                            -1,
+                            GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME,
+                            stagedCount);
+                }
                 atlases = GameSceneAtlasResolver.resolve(canonicalRoot, discovery);
-                if (atlases == null || atlases.isEmpty()) return false;
+                if (atlases == null || atlases.isEmpty()) {
+                    return reject(
+                            "atlas-resolution-failed",
+                            revision,
+                            count,
+                            -1,
+                            GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME,
+                            stagedCount);
+                }
             }
 
-            if (!GameSceneDirectAssetStore.begin(revision, count)) return false;
+            if (!GameSceneDirectAssetStore.begin(revision, count)) {
+                return reject("store-begin-failed", revision, count, -1, -1, stagedCount);
+            }
 
             long cachedAtlasPixels = 0L;
             for (int requestIndex = 0; requestIndex < count; requestIndex++) {
+                currentRequestIndex = requestIndex;
                 final int kind = requestKinds[requestIndex];
+                currentRequestKind = kind;
                 final String value = requestValues[requestIndex];
                 final int spriteCommandIndex = spriteCommandIndices[requestIndex];
 
                 if (kind == GameSceneDirectAssetRequests.KIND_DIRECT_FILE) {
                     File source = new File(canonicalRoot, value).getCanonicalFile();
-                    if (!source.getPath().startsWith(rootPrefix) || !source.isFile()) return false;
+                    if (!source.getPath().startsWith(rootPrefix) || !source.isFile()) {
+                        return reject(
+                                "direct-file-unavailable",
+                                revision,
+                                count,
+                                requestIndex,
+                                kind,
+                                stagedCount);
+                    }
 
                     Bitmap decoded = BitmapFactory.decodeFile(source.getAbsolutePath(), options);
-                    if (decoded == null) return false;
+                    if (decoded == null) {
+                        return reject(
+                                "direct-decode-failed",
+                                revision,
+                                count,
+                                requestIndex,
+                                kind,
+                                stagedCount);
+                    }
                     Bitmap bitmap = decoded;
                     try {
                         if (decoded.getConfig() != Bitmap.Config.ARGB_8888) {
                             Bitmap converted = decoded.copy(Bitmap.Config.ARGB_8888, false);
-                            if (converted == null) return false;
+                            if (converted == null) {
+                                return reject(
+                                        "direct-decode-failed",
+                                        revision,
+                                        count,
+                                        requestIndex,
+                                        kind,
+                                        stagedCount);
+                            }
                             bitmap = converted;
                         }
 
@@ -122,7 +201,13 @@ final class GameSceneDirectAssetStager {
                         if (width <= 0 || height <= 0 ||
                                 pixelCount <= 0L || pixelCount > MAX_PIXELS_PER_ASSET ||
                                 pixelCount > Integer.MAX_VALUE) {
-                            return false;
+                            return reject(
+                                    "direct-pixel-bounds-failed",
+                                    revision,
+                                    count,
+                                    requestIndex,
+                                    kind,
+                                    stagedCount);
                         }
 
                         int[] pixels = new int[(int) pixelCount];
@@ -134,33 +219,79 @@ final class GameSceneDirectAssetStager {
                                 width,
                                 height,
                                 pixels)) {
-                            return false;
+                            return reject(
+                                    "store-upload-failed",
+                                    revision,
+                                    count,
+                                    requestIndex,
+                                    kind,
+                                    stagedCount);
                         }
                     } finally {
                         if (bitmap != decoded) bitmap.recycle();
                         decoded.recycle();
                     }
+                    ++stagedCount;
+                    GameSceneAssetStagingDiagnostics.progress(stagedCount);
                     continue;
                 }
 
-                if (atlases == null) return false;
+                if (atlases == null) {
+                    return reject(
+                            "atlas-resolution-failed",
+                            revision,
+                            count,
+                            requestIndex,
+                            kind,
+                            stagedCount);
+                }
                 GameSceneAtlasFrameResolver.Frame frame =
                         GameSceneAtlasFrameResolver.resolve(canonicalRoot, atlases, value);
-                if (frame == null) return false;
+                if (frame == null) {
+                    return reject(
+                            "frame-resolution-failed",
+                            revision,
+                            count,
+                            requestIndex,
+                            kind,
+                            stagedCount);
+                }
 
                 File atlasFile = new File(canonicalRoot, frame.textureRelativePath).getCanonicalFile();
-                if (!atlasFile.getPath().startsWith(rootPrefix) || !atlasFile.isFile()) return false;
+                if (!atlasFile.getPath().startsWith(rootPrefix) || !atlasFile.isFile()) {
+                    return reject(
+                            "atlas-file-unavailable",
+                            revision,
+                            count,
+                            requestIndex,
+                            kind,
+                            stagedCount);
+                }
                 String atlasPath = atlasFile.getPath();
                 Bitmap atlas = atlasBitmaps.get(atlasPath);
                 if (atlas == null) {
                     atlas = BitmapFactory.decodeFile(atlasPath, options);
-                    if (atlas == null) return false;
+                    if (atlas == null) {
+                        return reject(
+                                "atlas-decode-failed",
+                                revision,
+                                count,
+                                requestIndex,
+                                kind,
+                                stagedCount);
+                    }
                     long atlasPixels = (long) atlas.getWidth() * (long) atlas.getHeight();
                     if (atlas.getWidth() <= 0 || atlas.getHeight() <= 0 ||
                             atlasPixels <= 0L || atlasPixels > MAX_PIXELS_PER_ASSET ||
                             cachedAtlasPixels + atlasPixels > MAX_CACHED_ATLAS_PIXELS) {
                         atlas.recycle();
-                        return false;
+                        return reject(
+                                "atlas-pixel-bounds-failed",
+                                revision,
+                                count,
+                                requestIndex,
+                                kind,
+                                stagedCount);
                     }
                     cachedAtlasPixels += atlasPixels;
                     atlasBitmaps.put(atlasPath, atlas);
@@ -174,7 +305,13 @@ final class GameSceneDirectAssetStager {
                         frame.textureX < 0 || frame.textureY < 0 ||
                         (long) frame.textureX + packedWidth > atlas.getWidth() ||
                         (long) frame.textureY + packedHeight > atlas.getHeight()) {
-                    return false;
+                    return reject(
+                            "frame-crop-bounds-failed",
+                            revision,
+                            count,
+                            requestIndex,
+                            kind,
+                            stagedCount);
                 }
 
                 int[] packedPixels = new int[(int) packedCount];
@@ -189,22 +326,63 @@ final class GameSceneDirectAssetStager {
                 GameSceneAtlasFramePixels.Asset reconstructed =
                         GameSceneAtlasFramePixels.reconstruct(
                                 frame, packedWidth, packedHeight, packedPixels);
-                if (reconstructed == null || !GameSceneDirectAssetStore.upload(
+                if (reconstructed == null) {
+                    return reject(
+                            "frame-reconstruction-failed",
+                            revision,
+                            count,
+                            requestIndex,
+                            kind,
+                            stagedCount);
+                }
+                if (!GameSceneDirectAssetStore.upload(
                         revision,
                         requestIndex,
                         spriteCommandIndex,
                         reconstructed.width,
                         reconstructed.height,
                         reconstructed.pixels)) {
-                    return false;
+                    return reject(
+                            "store-upload-failed",
+                            revision,
+                            count,
+                            requestIndex,
+                            kind,
+                            stagedCount);
                 }
+                ++stagedCount;
+                GameSceneAssetStagingDiagnostics.progress(stagedCount);
             }
 
             completed = GameSceneDirectAssetStore.finish(revision);
-            if (completed) failedRevision = 0L;
-            return completed;
-        } catch (IOException | RuntimeException error) {
-            return false;
+            if (!completed) {
+                return reject(
+                        "store-finish-failed",
+                        revision,
+                        count,
+                        currentRequestIndex,
+                        currentRequestKind,
+                        stagedCount);
+            }
+            failedRevision = 0L;
+            GameSceneAssetStagingDiagnostics.succeeded(revision, count);
+            return true;
+        } catch (IOException error) {
+            return reject(
+                    "io-failure",
+                    revision,
+                    count,
+                    currentRequestIndex,
+                    currentRequestKind,
+                    stagedCount);
+        } catch (RuntimeException error) {
+            return reject(
+                    "runtime-failure",
+                    revision,
+                    count,
+                    currentRequestIndex,
+                    currentRequestKind,
+                    stagedCount);
         } finally {
             for (Bitmap bitmap : atlasBitmaps.values()) {
                 if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
