@@ -1,0 +1,41 @@
+name: GameScene direct texture cache
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_direct_texture_cache.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_texture_cache.h'
+      - 'android/app/src/main/cpp/game_scene_direct_texture_gl.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_texture_gl.h'
+      - 'android/app/src/main/cpp/game_scene_direct_texture_bridge.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_asset_store.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_asset_store.h'
+      - 'tools/game_scene_direct_texture_cache_smoke.cpp'
+      - '.github/workflows/game-scene-direct-texture-cache.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_direct_texture_cache.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_texture_cache.h'
+      - 'android/app/src/main/cpp/game_scene_direct_texture_gl.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_texture_gl.h'
+      - 'android/app/src/main/cpp/game_scene_direct_texture_bridge.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_asset_store.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_asset_store.h'
+      - 'tools/game_scene_direct_texture_cache_smoke.cpp'
+      - '.github/workflows/game-scene-direct-texture-cache.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run direct texture-cache smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_scene_direct_texture_cache_smoke.cpp \
+            android/app/src/main/cpp/game_scene_direct_texture_cache.cpp \
+            android/app/src/main/cpp/game_scene_direct_asset_store.cpp \
+            -o /tmp/game_scene_direct_texture_cache_smoke
+          /tmp/game_scene_direct_texture_cache_smoke
