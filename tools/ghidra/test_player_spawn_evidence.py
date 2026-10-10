@@ -6,12 +6,14 @@ import csv
 import gzip
 import importlib.util
 from pathlib import Path
+import sys
 import tempfile
 
 MODULE_PATH = Path(__file__).with_name("player_spawn_evidence.py")
 spec = importlib.util.spec_from_file_location("player_spawn_evidence", MODULE_PATH)
 assert spec is not None and spec.loader is not None
 module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
 
