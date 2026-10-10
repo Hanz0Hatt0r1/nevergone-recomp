@@ -1,0 +1,20 @@
+name: unidbg EnemyActionsData constructor probe contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate bounded constructor probe contract
+        run: python3 tools/unidbg/verify_enemy_actions_constructor_probe.py
