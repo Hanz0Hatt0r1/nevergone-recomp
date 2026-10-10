@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "hp_data_reader.h"
 
@@ -18,6 +19,10 @@ constexpr std::size_t kPrefixBytes = 16u;
 // each followed by one skipped byte. String payload bytes are additional.
 constexpr std::size_t kActionFrameFixedBytes = 76u;
 constexpr std::size_t kStringSeparatorBytes = 1u;
+
+// The counted block immediately after the first ActionFrameData loop stores one
+// int32 followed by two float32 values per record.
+constexpr std::size_t kSecondaryRecordBytes = 12u;
 
 // Each original temporary char buffer occupies 0x100 bytes and receives an
 // explicit NUL at buffer[length]. The reconstructed parser rejects payloads
@@ -51,12 +56,36 @@ struct ActionFrameRecord {
     std::size_t bytes_consumed = 0;
 };
 
-// Both parsers are transactional: *out is changed only after the complete
+struct SecondaryRecord {
+    std::int32_t first_i32 = 0;
+    float first_float = 0.0f;
+    float second_float = 0.0f;
+    std::size_t bytes_consumed = 0;
+};
+
+// Bounded clean-room representation of the stream through the end of the
+// counted block beginning at original instruction 0x28f842. The signed count
+// is retained exactly: native control flow performs zero iterations for values
+// <= 0 rather than reinterpreting them as unsigned.
+struct InitialSections {
+    Prefix prefix;
+    std::vector<ActionFrameRecord> action_frames;
+    std::int32_t secondary_record_count_i32 = 0;
+    std::vector<SecondaryRecord> secondary_records;
+    std::size_t bytes_consumed = 0;
+};
+
+// Parsers are transactional: *out is changed only after the complete requested
 // evidence-backed boundary has been consumed successfully.
 bool parse_prefix(const hp_data::Reader& reader, Prefix* out);
 bool parse_action_frame_record(
         const hp_data::Reader& reader,
         std::size_t start_offset,
         ActionFrameRecord* out);
+bool parse_secondary_record(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        SecondaryRecord* out);
+bool parse_initial_sections(const hp_data::Reader& reader, InitialSections* out);
 
 }  // namespace nevergone::enemy_actions_wbg_prefix
