@@ -1,6 +1,7 @@
 #include "game_scene_construction_plan.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace nevergone::game_scene_construction_plan {
 
