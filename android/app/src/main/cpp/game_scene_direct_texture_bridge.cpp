@@ -24,10 +24,3 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeSyncGameSceneDirectTextures(
         jclass) {
     return nevergone::game_scene_direct_texture_gl::sync() ? JNI_TRUE : JNI_FALSE;
 }
-
-extern "C" JNIEXPORT jint JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeDrawGameSceneDirectSprites(
-        JNIEnv*,
-        jclass) {
-    return static_cast<jint>(nevergone::game_scene_direct_sprite_renderer::draw());
-}
