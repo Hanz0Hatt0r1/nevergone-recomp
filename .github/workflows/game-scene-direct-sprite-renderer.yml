@@ -1,0 +1,111 @@
+name: GameScene direct sprite renderer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_direct_sprite_geometry.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_sprite_geometry.h'
+      - 'android/app/src/main/cpp/game_scene_direct_sprite_renderer.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_sprite_renderer.h'
+      - 'android/app/src/main/cpp/game_scene_direct_texture_bridge.cpp'
+      - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
+      - 'tools/game_scene_direct_sprite_geometry_smoke.cpp'
+      - '.github/workflows/game-scene-direct-sprite-renderer.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_direct_sprite_geometry.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_sprite_geometry.h'
+      - 'android/app/src/main/cpp/game_scene_direct_sprite_renderer.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_sprite_renderer.h'
+      - 'android/app/src/main/cpp/game_scene_direct_texture_bridge.cpp'
+      - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
+      - 'tools/game_scene_direct_sprite_geometry_smoke.cpp'
+      - '.github/workflows/game-scene-direct-sprite-renderer.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run direct sprite geometry smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_scene_direct_sprite_geometry_smoke.cpp \
+            android/app/src/main/cpp/game_scene_direct_sprite_geometry.cpp \
+            -o /tmp/game_scene_direct_sprite_geometry_smoke
+          /tmp/game_scene_direct_sprite_geometry_smoke
+
+      - name: Syntax-check GLES renderer and JNI bridge
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/gles-stub/GLES2
+          cat > /tmp/gles-stub/GLES2/gl2.h <<'EOF'
+          #pragma once
+          #include <stddef.h>
+          typedef unsigned int GLenum;
+          typedef unsigned char GLboolean;
+          typedef unsigned int GLbitfield;
+          typedef int GLint;
+          typedef int GLsizei;
+          typedef unsigned int GLuint;
+          typedef float GLfloat;
+          #define GL_FALSE 0
+          #define GL_TRUE 1
+          #define GL_VERTEX_SHADER 0x8B31
+          #define GL_FRAGMENT_SHADER 0x8B30
+          #define GL_COMPILE_STATUS 0x8B81
+          #define GL_LINK_STATUS 0x8B82
+          #define GL_COLOR_BUFFER_BIT 0x00004000
+          #define GL_BLEND 0x0BE2
+          #define GL_SRC_ALPHA 0x0302
+          #define GL_ONE_MINUS_SRC_ALPHA 0x0303
+          #define GL_TEXTURE0 0x84C0
+          #define GL_ARRAY_BUFFER 0x8892
+          #define GL_TEXTURE_2D 0x0DE1
+          #define GL_FLOAT 0x1406
+          #define GL_TRIANGLE_STRIP 0x0005
+          #define GL_VIEWPORT 0x0BA2
+          #define GL_NO_ERROR 0
+          extern "C" {
+          GLuint glCreateShader(GLenum);
+          void glShaderSource(GLuint, GLsizei, const char* const*, const GLint*);
+          void glCompileShader(GLuint);
+          void glGetShaderiv(GLuint, GLenum, GLint*);
+          void glDeleteShader(GLuint);
+          GLuint glCreateProgram(void);
+          void glAttachShader(GLuint, GLuint);
+          void glBindAttribLocation(GLuint, GLuint, const char*);
+          void glLinkProgram(GLuint);
+          void glDeleteProgram(GLuint);
+          void glGetProgramiv(GLuint, GLenum, GLint*);
+          GLint glGetUniformLocation(GLuint, const char*);
+          void glClear(GLbitfield);
+          void glEnable(GLenum);
+          void glBlendFunc(GLenum, GLenum);
+          void glUseProgram(GLuint);
+          void glUniform1i(GLint, GLint);
+          void glActiveTexture(GLenum);
+          void glBindBuffer(GLenum, GLuint);
+          void glEnableVertexAttribArray(GLuint);
+          void glBindTexture(GLenum, GLuint);
+          void glVertexAttribPointer(GLuint, GLint, GLenum, GLboolean, GLsizei, const void*);
+          void glDrawArrays(GLenum, GLint, GLsizei);
+          void glDisableVertexAttribArray(GLuint);
+          GLenum glGetError(void);
+          void glGetIntegerv(GLenum, GLint*);
+          }
+          EOF
+          JAVA_HOME_PATH="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
+          g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+            -I /tmp/gles-stub \
+            -I android/app/src/main/cpp \
+            android/app/src/main/cpp/game_scene_direct_sprite_renderer.cpp
+          g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+            -I /tmp/gles-stub \
+            -I android/app/src/main/cpp \
+            -I "$JAVA_HOME_PATH/include" \
+            -I "$JAVA_HOME_PATH/include/linux" \
+            android/app/src/main/cpp/game_scene_direct_texture_bridge.cpp \
+            android/app/src/main/cpp/post_scene_overlay_jni.cpp
