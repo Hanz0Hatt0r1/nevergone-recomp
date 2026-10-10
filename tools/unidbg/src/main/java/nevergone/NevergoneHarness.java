@@ -35,6 +35,7 @@ public final class NevergoneHarness {
         boolean probeEgl = false;
         boolean probe = false;
         boolean probeEnemyActionsCtor = false;
+        boolean probeEnemyActionsCcString = false;
         String probePlan = null;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
@@ -45,6 +46,7 @@ public final class NevergoneHarness {
             else if ("--probe-egl".equals(arg)) probeEgl = true;
             else if ("--probe".equals(arg)) probe = true;
             else if ("--probe-enemy-actions-ctor".equals(arg)) probeEnemyActionsCtor = true;
+            else if ("--probe-enemy-actions-cstring".equals(arg)) probeEnemyActionsCcString = true;
             else if ("--probe-plan".equals(arg) && i + 1 < args.length) probePlan = args[++i];
             else throw new IllegalArgumentException("Unknown option: " + arg);
         }
@@ -158,6 +160,7 @@ public final class NevergoneHarness {
             if (probe) { EvidenceProbe.run(emulator, module); return; }
             if (probePlan != null) { ProbeRunner.run(emulator, module, new File(probePlan)); return; }
             if (probeEnemyActionsCtor) { EnemyActionsConstructorProbe.run(emulator, module); return; }
+            if (probeEnemyActionsCcString) { EnemyActionsCcStringProbe.run(emulator, module); return; }
             if (smoke) return;
 
             // Constructors are deferred. Some need app state; JNI_OnLoad is tested.
