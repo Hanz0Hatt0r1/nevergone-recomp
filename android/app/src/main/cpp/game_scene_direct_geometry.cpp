@@ -1,6 +1,5 @@
 #include "game_scene_direct_geometry.h"
 
-#include <algorithm>
 #include <cmath>
 
 #include "game_scene_type0_resource.h"
@@ -35,22 +34,13 @@ bool build_quad(
         return false;
     }
 
-    const float surface_w = static_cast<float>(surface_width);
-    const float surface_h = static_cast<float>(surface_height);
-    const float fit_scale = std::min(surface_w / kDesignWidth, surface_h / kDesignHeight);
-    if (!std::isfinite(fit_scale) || fit_scale <= 0.0f) return false;
-    const float viewport_w = kDesignWidth * fit_scale;
-    const float viewport_h = kDesignHeight * fit_scale;
-    const float offset_x = (surface_w - viewport_w) * 0.5f;
-    const float offset_y = (surface_h - viewport_h) * 0.5f;
-
     const float half_w = static_cast<float>(texture_width) * 0.5f;
     const float half_h = static_cast<float>(texture_height) * 0.5f;
     const float local_x[4] = {-half_w, -half_w, half_w, half_w};
     const float local_y[4] = {half_h, -half_h, half_h, -half_h};
 
-    // Cocos2d-x CCNode rotation uses positive values clockwise. Standard 2D
-    // matrix rotation is counter-clockwise, so apply the negative angle here.
+    // Cocos CCNode::nodeToParentTransform() multiplies positive rotation by
+    // -pi/180. Reproduce that clockwise convention here.
     const float radians = -transform.rotation * kPi / 180.0f;
     const float cosine = std::cos(radians);
     const float sine = std::sin(radians);
@@ -62,10 +52,13 @@ bool build_quad(
         const float rotated_y = scaled_x * sine + scaled_y * cosine;
         const float design_x = transform.position_x + rotated_x;
         const float design_y = transform.position_y + rotated_y;
-        const float pixel_x = offset_x + design_x * fit_scale;
-        const float pixel_y = offset_y + design_y * fit_scale;
-        out->positions[index * 2u] = 2.0f * pixel_x / surface_w - 1.0f;
-        out->positions[index * 2u + 1u] = 2.0f * pixel_y / surface_h - 1.0f;
+
+        // ResolutionPolicy 0 in the shipped CCEGLViewProtocol path is
+        // ExactFit: X and Y are scaled independently to the physical viewport.
+        // Expressing the design point directly in clip space is therefore
+        // independent of the surface aspect ratio.
+        out->positions[index * 2u] = 2.0f * design_x / kDesignWidth - 1.0f;
+        out->positions[index * 2u + 1u] = 2.0f * design_y / kDesignHeight - 1.0f;
     }
 
     const float left_u = transform.flip_x ? 1.0f : 0.0f;
@@ -92,13 +85,6 @@ std::vector<std::size_t> ordered_direct_sprite_indices(
             indexes.push_back(index);
         }
     }
-
-    std::stable_sort(indexes.begin(), indexes.end(), [&](std::size_t lhs, std::size_t rhs) {
-        const auto& a = queue.sprites[lhs];
-        const auto& b = queue.sprites[rhs];
-        if (a.layer_z_index != b.layer_z_index) return a.layer_z_index < b.layer_z_index;
-        return a.transform.child_z_order < b.transform.child_z_order;
-    });
     return indexes;
 }
 

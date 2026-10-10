@@ -4,14 +4,21 @@
 
 #include <atomic>
 #include <sstream>
+#include <vector>
 
 #include "game_levels_enter_transition.h"
 #include "game_levels_runtime_state.h"
+#include "game_scene_direct_asset_requests.h"
 #include "game_scene_direct_geometry.h"
 #include "game_scene_direct_texture_gl.h"
 
 namespace nevergone::game_scene_direct_renderer {
 namespace {
+
+struct PreparedSprite {
+    game_scene_direct_texture_cache::Texture texture;
+    game_scene_direct_geometry::Quad quad;
+};
 
 std::atomic<int> g_surface_width{0};
 std::atomic<int> g_surface_height{0};
@@ -129,22 +136,34 @@ bool draw() {
 
     const auto queue = game_levels_runtime_state::current_scene_render_queue();
     if (!queue.has_value()) return false;
+
+    const auto requests = game_scene_direct_asset_requests::build(*queue);
     const auto order = game_scene_direct_geometry::ordered_direct_sprite_indices(*queue);
-    if (order.empty()) return false;
+    if (order.empty() || requests.requests.size() != order.size()) return false;
 
-    std::size_t drawn = 0u;
-    glUseProgram(g_program);
-    glActiveTexture(GL_TEXTURE0);
-    glUniform1i(g_sampler_uniform, 0);
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
+    const auto texture_state = game_scene_direct_texture_gl::snapshot();
+    if (texture_state.source_revision != requests.revision ||
+        texture_state.texture_count != requests.requests.size()) {
+        return false;
+    }
 
-    for (const std::size_t sprite_command_index : order) {
+    // Resolve and build every direct sprite before altering the framebuffer.
+    // This prevents a new scene queue from being partially rendered with stale
+    // texture handles from the previous scene revision.
+    std::vector<PreparedSprite> prepared;
+    prepared.reserve(order.size());
+    for (std::size_t index = 0; index < order.size(); ++index) {
+        const std::size_t sprite_command_index = order[index];
+        if (sprite_command_index >= queue->sprites.size() ||
+            requests.requests[index].sprite_command_index != sprite_command_index) {
+            return false;
+        }
+
         game_scene_direct_texture_cache::Texture texture;
         if (!game_scene_direct_texture_gl::texture_for_sprite_command(
-                sprite_command_index, &texture) ||
+                    sprite_command_index, &texture) ||
             texture.handle == 0 || texture.width <= 0 || texture.height <= 0) {
-            continue;
+            return false;
         }
 
         game_scene_direct_geometry::Quad quad;
@@ -155,22 +174,37 @@ bool draw() {
                 surface_width,
                 surface_height,
                 &quad)) {
-            continue;
+            return false;
         }
+        prepared.push_back({texture, quad});
+    }
+    if (prepared.empty()) return false;
 
-        glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(texture.handle));
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, quad.positions.data());
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, quad.tex_coords.data());
+    // nativeOnDrawFrame() has already rendered the generic entered-game phase.
+    // A complete live GameScene revision replaces that fallback atomically.
+    glClear(GL_COLOR_BUFFER_BIT);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glUseProgram(g_program);
+    glActiveTexture(GL_TEXTURE0);
+    glUniform1i(g_sampler_uniform, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+    for (const auto& sprite : prepared) {
+        glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(sprite.texture.handle));
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, sprite.quad.positions.data());
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, sprite.quad.tex_coords.data());
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        ++drawn;
     }
 
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
 
-    g_last_drawn_sprite_count.store(drawn, std::memory_order_relaxed);
-    if (drawn == 0u) return false;
+    g_last_drawn_sprite_count.store(prepared.size(), std::memory_order_relaxed);
     g_drawn_frame_count.fetch_add(1u, std::memory_order_relaxed);
     return true;
 }
