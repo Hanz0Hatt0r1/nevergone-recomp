@@ -1,0 +1,27 @@
+name: EnemyActions armor z-order
+
+on:
+  push:
+    paths:
+      - 'android/app/src/main/cpp/enemy_actions_armor_z_order.h'
+      - 'tools/enemy_actions_armor_z_order_smoke.cpp'
+      - '.github/workflows/enemy-actions-armor-z-order.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/enemy_actions_armor_z_order.h'
+      - 'tools/enemy_actions_armor_z_order_smoke.cpp'
+      - '.github/workflows/enemy-actions-armor-z-order.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile armor z-order smoke
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -pedantic
+          -Iandroid/app/src/main/cpp
+          tools/enemy_actions_armor_z_order_smoke.cpp
+          -o /tmp/enemy_actions_armor_z_order_smoke
+      - name: Run armor z-order smoke
+        run: /tmp/enemy_actions_armor_z_order_smoke
