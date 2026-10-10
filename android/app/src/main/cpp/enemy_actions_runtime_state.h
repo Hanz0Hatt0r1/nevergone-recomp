@@ -16,6 +16,7 @@ struct State {
     std::uint8_t flag_190 = 0;
     std::uint8_t flag_191 = 0;
     std::uint8_t flag_1bc = 0;
+    std::uint8_t flag_26c = 0;
     std::uint8_t flag_290 = 0;
     std::uint8_t flag_291 = 0;
     std::uint8_t flag_292 = 0;
@@ -75,6 +76,15 @@ struct ShowActionLastFrameResult {
     bool should_call_update_data = true;
 };
 
+struct UpdateDataEntryResult {
+    State state;
+    bool readiness_gate_open = false;
+    bool has_primary_frames = false;
+    bool current_frame_in_range = false;
+    bool would_enter_frame_update = false;
+    std::size_t selected_primary_index = 0;
+};
+
 ComboHitResult apply_combo_hit(
         const enemy_actions_wbg_combo_section::Block& combo_block,
         State state);
@@ -102,5 +112,15 @@ WaUpdateIterationResult apply_wa_update_iteration(
 // copy +0x18c to +0x294, then call updateData() unconditionally. The call is
 // surfaced as a signal; updateData() internals remain outside this layer.
 ShowActionLastFrameResult apply_show_action_last_frame(State state);
+
+// Bounded entry contract for EnemyActionsSystem::updateData(). Native first
+// tests byte +0x26c and returns immediately when it is zero. When nonzero it
+// tail-enters updateActionFrameMoveValue()+0xda, whose first reachable checks
+// require EnemyActionsData+0x88 to exist and contain at least one frame before
+// selecting objectAtIndex(+0x294). A malformed project-owned frame index is
+// rejected safely here rather than reproducing unchecked native access.
+UpdateDataEntryResult apply_update_data_entry(
+        const enemy_actions_wbg_document::Document& document,
+        State state);
 
 }  // namespace nevergone::enemy_actions_runtime_state
