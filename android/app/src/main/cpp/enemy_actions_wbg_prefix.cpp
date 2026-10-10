@@ -81,4 +81,38 @@ bool parse_action_frame_record(
     return true;
 }
 
+bool parse_compact_action_frame_block(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        CompactActionFrameBlock* out) {
+    if (out == nullptr || start_offset > reader.size()) return false;
+
+    hp_data::Cursor cursor(reader, start_offset);
+    CompactActionFrameBlock parsed;
+    if (!cursor.read_i32_le(&parsed.count_i32)) return false;
+
+    if (parsed.count_i32 > 0) {
+        const auto count = static_cast<std::size_t>(parsed.count_i32);
+        if (count > cursor.remaining() / kCompactActionFrameBytes) return false;
+        parsed.records.reserve(count);
+        for (std::size_t i = 0; i < count; ++i) {
+            CompactActionFrameRecord record;
+            if (!cursor.read_i32_le(&record.first_i32) ||
+                !cursor.read_f32_le(&record.first_float) ||
+                !cursor.read_f32_le(&record.second_float)) {
+                return false;
+            }
+            parsed.records.push_back(record);
+        }
+    }
+
+    parsed.bytes_consumed = cursor.offset() - start_offset;
+    const std::size_t expected_bytes = kCompactBlockHeaderBytes +
+            parsed.records.size() * kCompactActionFrameBytes;
+    if (parsed.bytes_consumed != expected_bytes) return false;
+
+    *out = std::move(parsed);
+    return true;
+}
+
 }  // namespace nevergone::enemy_actions_wbg_prefix
