@@ -27,4 +27,33 @@ std::optional<std::int32_t> combo_hit_mode_for_frame(
     return range.field_1c;
 }
 
+BoundaryCursorUpdate advance_boundary_cursor(
+        const std::vector<enemy_actions_wbg_combo_section::DerivedActionComboValue>& values,
+        std::size_t current_index,
+        std::int32_t current_frame_index) {
+    BoundaryCursorUpdate result;
+    result.index = current_index;
+
+    // The original only looks up an object when count != 0. Project-owned code
+    // also rejects a stale index rather than reproducing CCArray undefined use.
+    if (values.empty() || current_index >= values.size()) return result;
+
+    const auto& current = values[current_index];
+    if (current_frame_index < current.field_18) return result;
+
+    const std::size_t incremented = current_index + 1u;
+    if (incremented == values.size()) {
+        // waUpdate stores incremented first, observes index == count, then
+        // subtracts one. The final externally visible index stays on the last
+        // boundary and the +0x94 path treats this as not advancing to a new run.
+        result.index = current_index;
+        result.reached_last_boundary = true;
+        return result;
+    }
+
+    result.index = incremented;
+    result.advanced_to_next = true;
+    return result;
+}
+
 }  // namespace nevergone::enemy_actions_combo_consumer

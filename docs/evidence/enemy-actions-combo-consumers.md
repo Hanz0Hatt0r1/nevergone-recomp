@@ -46,6 +46,16 @@ The two external system flags and their mutations remain outside this helper unt
 
 The original `waUpdate(float)` at `0x2ad520` independently confirms that arrays `+0x94` and `+0x98` are ordered boundary streams: it selects the current objects using system indices `+0x2a0/+0x2a4`, compares current frame `+0x294` with each object's `+0x18`, and advances/clamps those array indices when the boundary is reached.
 
-This establishes the structural role of `field_18` as an end-index boundary without yet assigning gameplay names to the two streams.
+The exact boundary update is visible at `0x2ad622..0x2ad64e` for `+0x94` and `0x2ad652..0x2ad67c` for `+0x98`:
+
+- if `current_frame < ActionComboValue+0x18`, keep the current index;
+- otherwise increment the index by one;
+- compare that incremented index with `array.count()`;
+- if it equals count, immediately subtract one again, leaving the externally visible index on the final element;
+- for the `+0x94` path only, the function also distinguishes a real transition to a next element from the final-element clamp.
+
+`advance_boundary_cursor()` models this data-dependent operation. It reports the resulting index, whether a real next boundary was selected, and whether the update instead hit the final-boundary clamp. Empty arrays and stale project-owned indices are left unchanged safely; this is a reconstruction safety rule, not a claim about malformed native state.
+
+This establishes the structural role of `field_18` as an end-index boundary without yet assigning gameplay names to the two streams. The surrounding timing, hit flags and action-completion state in `waUpdate()` remain outside this pure helper.
 
 No proprietary WBG data or original source code is included in this reconstruction.
