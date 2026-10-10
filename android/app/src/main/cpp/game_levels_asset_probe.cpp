@@ -8,7 +8,9 @@
 #include <vector>
 
 #include "game_levels_actions_section.h"
+#include "game_levels_global_section.h"
 #include "game_levels_layer_tail.h"
+#include "game_levels_port_node_section.h"
 #include "game_levels_scene_prefix.h"
 #include "hp_data_reader.h"
 
@@ -76,21 +78,39 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
     game_levels_layer_tail::FirstSceneLayerSequence scene_layers;
     result.first_scene_layers_readable = game_levels_layer_tail::parse_first_scene_layers(reader, &scene_layers);
     if (result.first_scene_layers_readable) result.first_scene_layers_bytes_consumed = scene_layers.bytes_consumed;
+
     game_levels_layer_tail::SceneSection scene_section;
     result.scene_section_readable = game_levels_layer_tail::parse_scene_section(reader, &scene_section);
-    if (result.scene_section_readable) {
-        result.scene_section_bytes_consumed = scene_section.bytes_consumed;
-        game_levels_actions_section::Section actions_section;
-        result.actions_section_readable = game_levels_actions_section::parse_section(
-                reader,
-                scene_section.bytes_consumed,
-                scene_section.prefix.first_i32,
-                &actions_section);
-        if (result.actions_section_readable) {
-            result.actions_section_bytes_consumed = actions_section.end_offset;
-            result.actions_section_action_count = actions_section.action_count;
-        }
-    }
+    if (!result.scene_section_readable) return result;
+    result.scene_section_bytes_consumed = scene_section.bytes_consumed;
+
+    game_levels_actions_section::Section actions_section;
+    result.actions_section_readable = game_levels_actions_section::parse_section(
+            reader,
+            scene_section.bytes_consumed,
+            scene_section.prefix.first_i32,
+            &actions_section);
+    if (!result.actions_section_readable) return result;
+    result.actions_section_bytes_consumed = actions_section.end_offset;
+    result.actions_section_action_count = actions_section.action_count;
+
+    game_levels_global_section::Section global_section;
+    result.global_section_readable = game_levels_global_section::parse_section(
+            reader,
+            actions_section.end_offset,
+            &global_section);
+    if (!result.global_section_readable) return result;
+    result.global_section_bytes_consumed = global_section.end_offset;
+    result.global_section_enemy_count = global_section.enemy_count;
+
+    game_levels_port_node_section::Section port_node_section;
+    result.port_node_section_readable = game_levels_port_node_section::parse_section(
+            reader,
+            global_section.end_offset,
+            &port_node_section);
+    if (!result.port_node_section_readable) return result;
+    result.port_node_section_bytes_consumed = port_node_section.end_offset;
+    result.port_node_section_port_node_count = port_node_section.port_node_count;
     return result;
 }
 
@@ -111,10 +131,19 @@ std::string status_report(const std::string& files_dir) {
     else if (!state.within_size_limit) out << "too-large (" << state.file_size << " bytes)\n";
     else if (!state.loaded) out << "read-failed\n";
     else if (!state.scene_prefix_readable) out << "loaded (" << state.reader_size << " bytes; LoadGL_Scene prefix truncated)\n";
-    else if (state.actions_section_readable) out << "loaded (" << state.reader_size << " bytes; LoadGL_Actions section complete, "
+    else if (state.port_node_section_readable) out << "loaded (" << state.reader_size
+             << " bytes; LoadGameLevels verified through LoadGL_PortNode, "
+             << state.port_node_section_bytes_consumed << " bytes verified, "
+             << state.port_node_section_port_node_count << " port nodes)\n";
+    else if (state.global_section_readable) out << "loaded (" << state.reader_size
+             << " bytes; LoadGL_Global section complete, "
+             << state.global_section_bytes_consumed << " bytes verified; LoadGL_PortNode unavailable)\n";
+    else if (state.actions_section_readable) out << "loaded (" << state.reader_size
+             << " bytes; LoadGL_Actions section complete, "
              << state.actions_section_bytes_consumed << " bytes verified, "
-             << state.actions_section_action_count << " actions)\n";
-    else if (state.scene_section_readable) out << "loaded (" << state.reader_size << " bytes; LoadGL_Scene scene section complete, "
+             << state.actions_section_action_count << " actions; LoadGL_Global unavailable)\n";
+    else if (state.scene_section_readable) out << "loaded (" << state.reader_size
+             << " bytes; LoadGL_Scene scene section complete, "
              << state.scene_section_bytes_consumed << " bytes verified; LoadGL_Actions unavailable)\n";
     else if (!state.first_scene_header_readable) out << "loaded (" << state.reader_size << " bytes; first scene header unavailable)\n";
     else if (state.first_scene_layers_readable) out << "loaded (" << state.reader_size << " bytes; first scene complete, later scene incomplete)\n";

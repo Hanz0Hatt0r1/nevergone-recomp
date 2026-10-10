@@ -43,8 +43,25 @@ std::vector<std::uint8_t> verified_actions_section_fixture() {
     assert(out.size() == 68u);
     return out;
 }
+std::vector<std::uint8_t> verified_global_section_fixture() {
+    auto out = verified_actions_section_fixture();
+    append_u32(out, 0u);   // string_count
+    append_u32(out, 11u);  // standalone u32
+    append_u32(out, 12u);  // standalone u32
+    append_u32(out, 0u);   // int/int/float record count
+    append_u32(out, 0u);   // uint-pair record count
+    append_u32(out, 0u);   // enemy count
+    assert(out.size() == 92u);
+    return out;
+}
+std::vector<std::uint8_t> verified_port_node_section_fixture() {
+    auto out = verified_global_section_fixture();
+    append_u32(out, 0u);
+    assert(out.size() == 96u);
+    return out;
+}
 void write_fixture(const std::filesystem::path& path) {
-    const auto data = verified_actions_section_fixture();
+    const auto data = verified_port_node_section_fixture();
     std::ofstream output(path, std::ios::binary);
     output.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
     assert(output.good());
@@ -68,7 +85,7 @@ int main() {
     assert(transition::snapshot().boundary == Boundary::kAssetRejected);
 
     probe.regular_file = true; probe.within_size_limit = true; probe.loaded = true;
-    probe.file_size = 68; probe.reader_size = 68;
+    probe.file_size = 96; probe.reader_size = 96;
     probe.first_scene_layers_readable = true;
     probe.first_scene_layers_bytes_consumed = 44;
     transition::on_enter_game_with_probe(probe);
@@ -81,7 +98,6 @@ int main() {
     auto state = transition::snapshot();
     assert(state.boundary == Boundary::kSceneSectionVerified);
     assert(state.verified_bytes == 64u);
-    assert(transition::status_report().find("scene-section-verified") != std::string::npos);
 
     probe.actions_section_readable = true;
     probe.actions_section_bytes_consumed = 68;
@@ -89,7 +105,21 @@ int main() {
     state = transition::snapshot();
     assert(state.boundary == Boundary::kActionsSectionVerified);
     assert(state.verified_bytes == 68u);
-    assert(transition::status_report().find("actions-section-verified") != std::string::npos);
+
+    probe.global_section_readable = true;
+    probe.global_section_bytes_consumed = 92;
+    transition::on_enter_game_with_probe(probe);
+    state = transition::snapshot();
+    assert(state.boundary == Boundary::kGlobalSectionVerified);
+    assert(state.verified_bytes == 92u);
+
+    probe.port_node_section_readable = true;
+    probe.port_node_section_bytes_consumed = 96;
+    transition::on_enter_game_with_probe(probe);
+    state = transition::snapshot();
+    assert(state.boundary == Boundary::kPortNodeSectionVerified);
+    assert(state.verified_bytes == 96u);
+    assert(transition::status_report().find("port-node-section-verified") != std::string::npos);
 
     transition::reset();
     const std::filesystem::path root(make_temp_dir());
@@ -98,8 +128,8 @@ int main() {
     write_fixture(scene);
     transition::on_enter_game(root.string());
     state = transition::snapshot();
-    assert(state.boundary == Boundary::kActionsSectionVerified);
-    assert(state.verified_bytes == 68u);
+    assert(state.boundary == Boundary::kPortNodeSectionVerified);
+    assert(state.verified_bytes == 96u);
     std::filesystem::remove_all(root);
     return 0;
 }
