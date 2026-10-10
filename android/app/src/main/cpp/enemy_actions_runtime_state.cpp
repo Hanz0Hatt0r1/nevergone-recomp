@@ -217,4 +217,26 @@ ShowActionLastFrameResult apply_show_action_last_frame(State state) {
     return result;
 }
 
+UpdateDataEntryResult apply_update_data_entry(
+        const enemy_actions_wbg_document::Document& document,
+        State state) {
+    UpdateDataEntryResult result;
+    result.state = state;
+
+    if (state.flag_26c == 0u) return result;
+    result.readiness_gate_open = true;
+
+    if (document.primary_records.empty()) return result;
+    result.has_primary_frames = true;
+
+    if (state.current_frame_294 < 0) return result;
+    const std::size_t frame_index = static_cast<std::size_t>(state.current_frame_294);
+    if (frame_index >= document.primary_records.size()) return result;
+
+    result.current_frame_in_range = true;
+    result.would_enter_frame_update = true;
+    result.selected_primary_index = frame_index;
+    return result;
+}
+
 }  // namespace nevergone::enemy_actions_runtime_state
