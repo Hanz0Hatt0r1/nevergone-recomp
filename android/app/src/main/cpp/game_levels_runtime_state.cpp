@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "game_levels_model.h"
+#include "game_levels_scene_instance.h"
 #include "hp_data_reader.h"
 
 namespace nevergone::game_levels_runtime_state {
@@ -133,6 +134,12 @@ bool load_pvp_scene(const std::string& files_dir, std::size_t max_bytes) {
 Snapshot snapshot() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_state;
+}
+
+std::optional<game_levels_scene_instance::SceneInstance> current_scene_instance() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_model.has_value()) return std::nullopt;
+    return game_levels_scene_instance::build_current(*g_model);
 }
 
 game_levels_scene_navigation::Transition step(std::uint32_t requested_event_port_type) {
