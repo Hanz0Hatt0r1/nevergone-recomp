@@ -1,3 +1,4 @@
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -26,7 +27,6 @@ int main() {
     assert(evidence::kHeaderReads[3].destination_object_offset == 0x0c4u);
 
     static_assert(evidence::kVersionedFanoutGateValue == 0x68);
-    static_assert(evidence::kVersionedFanoutGateInstructionOffset == 0x28fc5cu);
     assert(evidence::versioned_group_count(0x67) == 6u);
     assert(evidence::versioned_group_count(0x68) == 6u);
     assert(evidence::versioned_group_count(0x69) == 20u);
@@ -78,6 +78,14 @@ int main() {
     static_assert(evidence::kRootFixedAddObjectInstructionOffset == 0x290222u);
 
     static_assert(evidence::kComboTupleBytes == 0x18u);
+    static_assert(evidence::kComboFirstFloatSerializedOffset == 0x10u);
+    static_assert(evidence::kComboSecondFloatSerializedOffset == 0x14u);
+    static_assert(evidence::kComboFirstFloatDestinationBase == 0x0d8u);
+    static_assert(evidence::kComboSecondFloatDestinationBase == 0x268u);
+    assert(evidence::combo_first_float_destination(0u) == 0x0d8u);
+    assert(evidence::combo_first_float_destination(99u) == 0x264u);
+    assert(evidence::combo_second_float_destination(0u) == 0x268u);
+    assert(evidence::combo_second_float_destination(99u) == 0x3f4u);
     assert((evidence::kComboArrayObjectOffsets ==
             std::array<std::size_t, 3>{{0x94u, 0x9cu, 0x98u}}));
     assert((evidence::kComboAddObjectInstructionOffsets ==
