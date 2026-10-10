@@ -7,6 +7,7 @@
 
 #include "character_name_compositor.h"
 #include "character_name_state.h"
+#include "game_scene_direct_renderer.h"
 #include "server_selection_compositor.h"
 #include "single_select_hero_confirm_compositor.h"
 #include "startup_contract.h"
@@ -57,6 +58,7 @@ void maybe_stage_character_name_assets(JNIEnv* env) {
 }
 
 void wrapped_server_surface_created(JNIEnv*, jclass) {
+    nevergone::game_scene_direct_renderer::on_surface_created();
     nevergone::server_selection_compositor::on_surface_created();
     nevergone::character_name_compositor::on_surface_created();
     while (glGetError() != GL_NO_ERROR) {
@@ -64,11 +66,16 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
 }
 
 void wrapped_server_draw(JNIEnv* env, jclass) {
+    GLint viewport[4] = {0, 0, 0, 0};
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    if (viewport[2] > 0 && viewport[3] > 0) {
+        nevergone::game_scene_direct_renderer::on_surface_changed(viewport[2], viewport[3]);
+        (void)nevergone::game_scene_direct_renderer::draw();
+    }
+
     nevergone::server_selection_compositor::draw();
     maybe_stage_character_name_assets(env);
 
-    GLint viewport[4] = {0, 0, 0, 0};
-    glGetIntegerv(GL_VIEWPORT, viewport);
     if (viewport[2] > 0 && viewport[3] > 0) {
         nevergone::character_name_compositor::draw(viewport[2], viewport[3]);
     }
