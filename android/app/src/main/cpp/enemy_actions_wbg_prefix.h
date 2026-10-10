@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "hp_data_reader.h"
 
@@ -18,6 +19,11 @@ constexpr std::size_t kPrefixBytes = 16u;
 // each followed by one skipped byte. String payload bytes are additional.
 constexpr std::size_t kActionFrameFixedBytes = 76u;
 constexpr std::size_t kStringSeparatorBytes = 1u;
+
+// The next counted block starts with one signed int32 count and each positive
+// iteration consumes exactly int32 + float + float before creating an AFD.
+constexpr std::size_t kCompactBlockHeaderBytes = 4u;
+constexpr std::size_t kCompactActionFrameBytes = 12u;
 
 // Each original temporary char buffer occupies 0x100 bytes and receives an
 // explicit NUL at buffer[length]. The reconstructed parser rejects payloads
@@ -51,12 +57,30 @@ struct ActionFrameRecord {
     std::size_t bytes_consumed = 0;
 };
 
-// Both parsers are transactional: *out is changed only after the complete
+struct CompactActionFrameRecord {
+    std::int32_t first_i32 = 0;
+    float first_float = 0.0f;
+    float second_float = 0.0f;
+};
+
+struct CompactActionFrameBlock {
+    // Native control flow uses a signed BGE test. Zero and negative values
+    // therefore consume no records and proceed to the following block.
+    std::int32_t count_i32 = 0;
+    std::vector<CompactActionFrameRecord> records;
+    std::size_t bytes_consumed = 0;
+};
+
+// Parsers are transactional: *out is changed only after the complete
 // evidence-backed boundary has been consumed successfully.
 bool parse_prefix(const hp_data::Reader& reader, Prefix* out);
 bool parse_action_frame_record(
         const hp_data::Reader& reader,
         std::size_t start_offset,
         ActionFrameRecord* out);
+bool parse_compact_action_frame_block(
+        const hp_data::Reader& reader,
+        std::size_t start_offset,
+        CompactActionFrameBlock* out);
 
 }  // namespace nevergone::enemy_actions_wbg_prefix
