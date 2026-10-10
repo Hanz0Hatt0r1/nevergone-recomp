@@ -39,8 +39,9 @@ bool primary_record_bytes(
         std::size_t* out_bytes) {
     if (out_bytes == nullptr) return false;
     constexpr std::size_t kMax = std::numeric_limits<std::size_t>::max();
+    const std::array<std::size_t, 3> lengths{{len0, len1, len2}};
     std::size_t total = kPrimaryRecordFixedBytesExcludingPayload;
-    for (const std::size_t length : {len0, len1, len2}) {
+    for (const std::size_t length : lengths) {
         if (length > kMax - total) return false;
         total += length;
     }
