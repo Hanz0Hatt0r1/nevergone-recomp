@@ -1,0 +1,31 @@
+name: GameScene render queue
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_render_queue.h'
+      - 'android/app/src/main/cpp/game_scene_construction_plan.h'
+      - 'android/app/src/main/cpp/game_scene_type0_resource.h'
+      - 'tools/game_scene_render_queue_smoke.cpp'
+      - '.github/workflows/game-scene-render-queue.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_render_queue.h'
+      - 'android/app/src/main/cpp/game_scene_construction_plan.h'
+      - 'android/app/src/main/cpp/game_scene_type0_resource.h'
+      - 'tools/game_scene_render_queue_smoke.cpp'
+      - '.github/workflows/game-scene-render-queue.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run render-queue smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_scene_render_queue_smoke.cpp \
+            -o /tmp/game_scene_render_queue_smoke
+          /tmp/game_scene_render_queue_smoke
