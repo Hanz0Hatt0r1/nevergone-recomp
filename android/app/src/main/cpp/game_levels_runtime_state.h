@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 
+#include "game_levels_scene_instance.h"
 #include "game_levels_scene_navigation.h"
 
 namespace nevergone::game_levels_runtime_state {
@@ -40,6 +41,7 @@ void reset();
 bool load_file(const std::string& path, std::size_t max_bytes = kMaxRuntimeSceneBytes);
 bool load_pvp_scene(const std::string& files_dir, std::size_t max_bytes = kMaxRuntimeSceneBytes);
 Snapshot snapshot();
+std::optional<game_levels_scene_instance::SceneInstance> current_scene_instance();
 game_levels_scene_navigation::Transition step(std::uint32_t requested_event_port_type);
 const char* status_name(LoadStatus status);
 std::string status_report();
