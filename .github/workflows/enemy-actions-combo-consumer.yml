@@ -1,0 +1,28 @@
+name: EnemyActions combo consumers
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile combo-consumer smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/enemy_actions_combo_consumer.cpp \
+            tools/enemy_actions_combo_consumer_smoke.cpp \
+            -o /tmp/enemy_actions_combo_consumer_smoke
+
+      - name: Run combo-consumer smoke
+        run: /tmp/enemy_actions_combo_consumer_smoke
