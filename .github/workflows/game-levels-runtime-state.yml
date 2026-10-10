@@ -7,6 +7,8 @@ on:
       - 'android/app/src/main/cpp/game_levels_runtime_state.cpp'
       - 'android/app/src/main/cpp/game_levels_runtime_state.h'
       - 'android/app/src/main/cpp/game_levels_model.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_instance.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_instance.h'
       - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
       - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
       - 'tools/game_levels_runtime_state_smoke.cpp'
@@ -16,6 +18,8 @@ on:
       - 'android/app/src/main/cpp/game_levels_runtime_state.cpp'
       - 'android/app/src/main/cpp/game_levels_runtime_state.h'
       - 'android/app/src/main/cpp/game_levels_model.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_instance.cpp'
+      - 'android/app/src/main/cpp/game_levels_scene_instance.h'
       - 'android/app/src/main/cpp/game_levels_scene_navigation.cpp'
       - 'android/app/src/main/cpp/game_levels_port_navigation.cpp'
       - 'tools/game_levels_runtime_state_smoke.cpp'
@@ -42,6 +46,7 @@ jobs:
             android/app/src/main/cpp/game_levels_port_navigation.cpp \
             android/app/src/main/cpp/game_levels_start_scene.cpp \
             android/app/src/main/cpp/game_levels_scene_navigation.cpp \
+            android/app/src/main/cpp/game_levels_scene_instance.cpp \
             android/app/src/main/cpp/hp_data_reader.cpp \
             -o /tmp/game_levels_runtime_state_smoke
           /tmp/game_levels_runtime_state_smoke
