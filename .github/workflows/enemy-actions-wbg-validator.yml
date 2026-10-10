@@ -1,0 +1,84 @@
+name: EnemyActions WBG validator
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile validator
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            android/app/src/main/cpp/enemy_actions_layout_evidence.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_prefix.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_combo_section.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_final_table.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_document.cpp \
+            tools/enemy_actions_wbg_validate.cpp \
+            -o /tmp/enemy_actions_wbg_validate
+
+      - name: Build synthetic WBG fixture
+        run: |
+          python - <<'PY'
+          import struct
+          from pathlib import Path
+
+          data = bytearray()
+          data += struct.pack('<iffI', 0x68, 2.0, 3.0, 1)
+          data += struct.pack('<i', 11)
+          data += struct.pack('<12f', *[float(i) for i in range(1, 13)])
+          data += b'\x01'
+          data += struct.pack('<if', 22, 4.0)
+          for _ in range(3):
+              data += struct.pack('<iB', 0, 0)
+          data += struct.pack('<i', 0)  # Section B
+          data += struct.pack('<i', 0)  # Section C
+          data += struct.pack('<6i', *([0] * 6))  # Section D
+          data += struct.pack('<i', 0)  # Section E
+          data += struct.pack('<4i2f', 1, 2, 3, 4, 0.25, 0.5)  # Section F
+          data += struct.pack('<i', 2)  # Section G
+          data += b'\xde\xad'
+          Path('/tmp/synthetic.wbg').write_bytes(data)
+          Path('/tmp/truncated.wbg').write_bytes(data[:155])
+          PY
+
+      - name: Validate report mode
+        run: |
+          /tmp/enemy_actions_wbg_validate /tmp/synthetic.wbg | tee /tmp/report.txt
+          grep -Fx 'parse_status=ok' /tmp/report.txt
+          grep -Fx 'input_bytes=158' /tmp/report.txt
+          grep -Fx 'bytes_consumed=156' /tmp/report.txt
+          grep -Fx 'trailing_bytes=2' /tmp/report.txt
+          grep -Fx 'primary_records=1' /tmp/report.txt
+          grep -Fx 'versioned_groups=6' /tmp/report.txt
+          grep -Fx 'combo_tuples=1' /tmp/report.txt
+          grep -Fx 'combo_array_94=1' /tmp/report.txt
+          grep -Fx 'combo_array_98=1' /tmp/report.txt
+          grep -Fx 'combo_array_9c=1' /tmp/report.txt
+          grep -Fx 'final_table_entries=1' /tmp/report.txt
+          grep -Fx 'eof_policy=reported' /tmp/report.txt
+
+      - name: Validate strict EOF and truncation failures
+        run: |
+          set +e
+          /tmp/enemy_actions_wbg_validate --require-eof /tmp/synthetic.wbg > /tmp/strict.txt
+          strict_status=$?
+          /tmp/enemy_actions_wbg_validate /tmp/truncated.wbg > /tmp/truncated.txt
+          truncated_status=$?
+          set -e
+          test "$strict_status" -eq 3
+          grep -Fx 'eof_policy=failed' /tmp/strict.txt
+          test "$truncated_status" -eq 2
+          grep -Fx 'parse_status=error' /tmp/truncated.txt
