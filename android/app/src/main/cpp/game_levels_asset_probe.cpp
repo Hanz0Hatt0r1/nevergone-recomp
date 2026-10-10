@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "game_levels_actions_section.h"
 #include "game_levels_layer_tail.h"
 #include "game_levels_scene_prefix.h"
 #include "hp_data_reader.h"
@@ -77,7 +78,19 @@ Snapshot probe_file(const std::string& path, std::size_t max_bytes) {
     if (result.first_scene_layers_readable) result.first_scene_layers_bytes_consumed = scene_layers.bytes_consumed;
     game_levels_layer_tail::SceneSection scene_section;
     result.scene_section_readable = game_levels_layer_tail::parse_scene_section(reader, &scene_section);
-    if (result.scene_section_readable) result.scene_section_bytes_consumed = scene_section.bytes_consumed;
+    if (result.scene_section_readable) {
+        result.scene_section_bytes_consumed = scene_section.bytes_consumed;
+        game_levels_actions_section::Section actions_section;
+        result.actions_section_readable = game_levels_actions_section::parse_section(
+                reader,
+                scene_section.bytes_consumed,
+                scene_section.prefix.first_i32,
+                &actions_section);
+        if (result.actions_section_readable) {
+            result.actions_section_bytes_consumed = actions_section.end_offset;
+            result.actions_section_action_count = actions_section.action_count;
+        }
+    }
     return result;
 }
 
@@ -98,8 +111,11 @@ std::string status_report(const std::string& files_dir) {
     else if (!state.within_size_limit) out << "too-large (" << state.file_size << " bytes)\n";
     else if (!state.loaded) out << "read-failed\n";
     else if (!state.scene_prefix_readable) out << "loaded (" << state.reader_size << " bytes; LoadGL_Scene prefix truncated)\n";
+    else if (state.actions_section_readable) out << "loaded (" << state.reader_size << " bytes; LoadGL_Actions section complete, "
+             << state.actions_section_bytes_consumed << " bytes verified, "
+             << state.actions_section_action_count << " actions)\n";
     else if (state.scene_section_readable) out << "loaded (" << state.reader_size << " bytes; LoadGL_Scene scene section complete, "
-             << state.scene_section_bytes_consumed << " bytes verified)\n";
+             << state.scene_section_bytes_consumed << " bytes verified; LoadGL_Actions unavailable)\n";
     else if (!state.first_scene_header_readable) out << "loaded (" << state.reader_size << " bytes; first scene header unavailable)\n";
     else if (state.first_scene_layers_readable) out << "loaded (" << state.reader_size << " bytes; first scene complete, later scene incomplete)\n";
     else if (!state.first_layer_header_readable) out << "loaded (" << state.reader_size << " bytes; first scene header readable, layer loop incomplete)\n";

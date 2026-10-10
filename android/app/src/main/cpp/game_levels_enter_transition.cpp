@@ -13,7 +13,8 @@ Boundary classify(const game_levels_asset_probe::Snapshot& probe) {
     if (!probe.present) return Boundary::kAssetMissing;
     if (!probe.regular_file || !probe.within_size_limit || !probe.loaded) return Boundary::kAssetRejected;
     if (!probe.scene_section_readable) return Boundary::kVerifiedPrefixIncomplete;
-    return Boundary::kSceneSectionVerified;
+    if (!probe.actions_section_readable) return Boundary::kSceneSectionVerified;
+    return Boundary::kActionsSectionVerified;
 }
 }  // namespace
 
@@ -33,8 +34,13 @@ void on_enter_game_with_probe(const game_levels_asset_probe::Snapshot& probe) {
     g_state.boundary = classify(probe);
     g_state.file_size = probe.file_size;
     g_state.reader_size = probe.reader_size;
-    g_state.verified_bytes = probe.scene_section_readable
-        ? probe.scene_section_bytes_consumed : 0;
+    if (probe.actions_section_readable) {
+        g_state.verified_bytes = probe.actions_section_bytes_consumed;
+    } else if (probe.scene_section_readable) {
+        g_state.verified_bytes = probe.scene_section_bytes_consumed;
+    } else {
+        g_state.verified_bytes = 0;
+    }
 }
 
 Snapshot snapshot() {
@@ -50,6 +56,7 @@ const char* boundary_name(Boundary boundary) {
         case Boundary::kAssetRejected: return "asset-rejected";
         case Boundary::kVerifiedPrefixIncomplete: return "verified-prefix-incomplete";
         case Boundary::kSceneSectionVerified: return "scene-section-verified";
+        case Boundary::kActionsSectionVerified: return "actions-section-verified";
     }
     return "unknown";
 }
@@ -62,7 +69,7 @@ std::string status_report() {
     out << "enter callbacks: " << state.enter_callback_count << "\n";
     out << "probe attempts: " << state.probe_attempt_count << "\n";
     if (state.reader_size != 0) out << "scene bytes loaded: " << state.reader_size << "\n";
-    if (state.verified_bytes != 0) out << "verified LoadGL_Scene bytes: " << state.verified_bytes << "\n";
+    if (state.verified_bytes != 0) out << "verified GameLevels stream bytes: " << state.verified_bytes << "\n";
     return out.str();
 }
 

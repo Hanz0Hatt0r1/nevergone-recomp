@@ -37,8 +37,14 @@ std::vector<std::uint8_t> verified_scene_section_fixture() {
     assert(out.size() == 64u);
     return out;
 }
+std::vector<std::uint8_t> verified_actions_section_fixture() {
+    auto out = verified_scene_section_fixture();
+    append_u32(out, 0u);
+    assert(out.size() == 68u);
+    return out;
+}
 void write_fixture(const std::filesystem::path& path) {
-    const auto data = verified_scene_section_fixture();
+    const auto data = verified_actions_section_fixture();
     std::ofstream output(path, std::ios::binary);
     output.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
     assert(output.good());
@@ -62,7 +68,7 @@ int main() {
     assert(transition::snapshot().boundary == Boundary::kAssetRejected);
 
     probe.regular_file = true; probe.within_size_limit = true; probe.loaded = true;
-    probe.file_size = 64; probe.reader_size = 64;
+    probe.file_size = 68; probe.reader_size = 68;
     probe.first_scene_layers_readable = true;
     probe.first_scene_layers_bytes_consumed = 44;
     transition::on_enter_game_with_probe(probe);
@@ -77,6 +83,14 @@ int main() {
     assert(state.verified_bytes == 64u);
     assert(transition::status_report().find("scene-section-verified") != std::string::npos);
 
+    probe.actions_section_readable = true;
+    probe.actions_section_bytes_consumed = 68;
+    transition::on_enter_game_with_probe(probe);
+    state = transition::snapshot();
+    assert(state.boundary == Boundary::kActionsSectionVerified);
+    assert(state.verified_bytes == 68u);
+    assert(transition::status_report().find("actions-section-verified") != std::string::npos);
+
     transition::reset();
     const std::filesystem::path root(make_temp_dir());
     const auto scene = root / "assets" / "gamescene" / "gs_list" / "pvp_scene.glData";
@@ -84,8 +98,8 @@ int main() {
     write_fixture(scene);
     transition::on_enter_game(root.string());
     state = transition::snapshot();
-    assert(state.boundary == Boundary::kSceneSectionVerified);
-    assert(state.verified_bytes == 64u);
+    assert(state.boundary == Boundary::kActionsSectionVerified);
+    assert(state.verified_bytes == 68u);
     std::filesystem::remove_all(root);
     return 0;
 }
