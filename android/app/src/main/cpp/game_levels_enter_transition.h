@@ -19,6 +19,7 @@ enum class Boundary {
     kGlobalSectionVerified,
     kPortNodeSectionVerified,
     kRuntimeModelReady,
+    kRuntimeSceneInstanceReady,
 };
 
 struct Snapshot {
