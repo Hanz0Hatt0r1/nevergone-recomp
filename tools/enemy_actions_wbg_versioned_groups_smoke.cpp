@@ -33,9 +33,9 @@ void append_f32(std::vector<std::uint8_t>* out, float value) {
 void append_string_field(
         std::vector<std::uint8_t>* out,
         const std::vector<std::uint8_t>& bytes,
-        std::uint8_t separator) {
+        std::uint8_t framing) {
     append_i32(out, static_cast<std::int32_t>(bytes.size()));
-    append_u8(out, separator);
+    append_u8(out, framing);
     out->insert(out->end(), bytes.begin(), bytes.end());
 }
 
@@ -103,8 +103,11 @@ int main() {
     assert(record.second_i32 == -72);
     assert(record.first_u32 == 0x12345678u);
     assert(record.second_u32 == 0x89abcdefu);
+    assert(record.first_string_framing_u8 == 0xe1u);
     assert(record.first_string == "a");
+    assert(record.second_string_framing_u8 == 0xe2u);
     assert(record.second_string == "bc");
+    assert(record.third_string_framing_u8 == 0xe3u);
     assert(record.third_string == "def");
     assert(record.bytes_consumed == wbg::kVersionedActionFrameFixedBytes + 6u);
     assert(legacy.groups[0].bytes_consumed ==

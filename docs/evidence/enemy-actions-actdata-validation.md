@@ -30,6 +30,20 @@ For all three files, `bytes_consumed == input_bytes`; the recovered A-G boundary
 
 This is the first validation of the composed parser against genuine user-owned Never Gone action data rather than a synthetic fixture.
 
+## One-byte string framing field
+
+Sections A, C and D serialize each recovered string as:
+
+```text
+[int32 payload_length][uint8 framing][payload_length bytes]
+```
+
+The native parser advances across the one-byte field before copying the string payload, but the inspected read sequence does not branch on or otherwise validate its value. The project parser therefore now retains it as `*_string_framing_u8` instead of silently skipping it.
+
+Across the three genuine APK `.actData` files, all **540** observed string fields have `framing == payload_length` (the payload lengths are already bounded to at most `0xff`). This is useful format evidence, but it is not promoted to a parser rejection rule because the native code path currently proves only that the byte is consumed, not that mismatches are rejected.
+
+Synthetic smoke fixtures intentionally use framing values unrelated to payload length and remain accepted. That preserves the stronger native compatibility boundary while still exposing the genuine-file observation to later consumers.
+
 ## Scope
 
 These results prove that the recovered structural parser matches these three original `.actData` files closely enough to consume their full serialized topology with internally consistent section counts. They do not prove gameplay meanings for individual fields, malformed-file behavior, or that every action-data variant in the external OBB has the same section population.
