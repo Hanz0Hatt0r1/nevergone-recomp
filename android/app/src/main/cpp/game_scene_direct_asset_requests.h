@@ -9,9 +9,16 @@
 
 namespace nevergone::game_scene_direct_asset_requests {
 
+enum class Kind : std::uint8_t {
+    kDirectFile = 0,
+    kSpriteFrameByName = 1,
+};
+
 struct Request {
+    Kind kind = Kind::kDirectFile;
     std::size_t sprite_command_index = 0;
     std::string relative_path;
+    std::string frame_name;
 };
 
 struct Snapshot {
@@ -47,12 +54,27 @@ inline Snapshot build(const game_scene_render_queue::Queue& queue) {
     Snapshot snapshot;
     snapshot.source_scene_index = queue.source_scene_index;
     snapshot.guid = queue.guid;
-    snapshot.requests.reserve(queue.direct_file_count);
+    snapshot.requests.reserve(queue.direct_file_count + queue.sprite_frame_lookup_count);
 
     for (std::size_t command_index = 0; command_index < queue.sprites.size(); ++command_index) {
         const auto& command = queue.sprites[command_index];
-        if (!command.direct_asset_relative_path.has_value()) continue;
-        snapshot.requests.push_back({command_index, *command.direct_asset_relative_path});
+        if (command.resource.kind == game_scene_type0_resource::Kind::kDirectFile &&
+            command.direct_asset_relative_path.has_value()) {
+            Request request;
+            request.kind = Kind::kDirectFile;
+            request.sprite_command_index = command_index;
+            request.relative_path = *command.direct_asset_relative_path;
+            snapshot.requests.push_back(std::move(request));
+            continue;
+        }
+        if (command.resource.kind == game_scene_type0_resource::Kind::kSpriteFrameByName &&
+            !command.resource.resource_name.empty()) {
+            Request request;
+            request.kind = Kind::kSpriteFrameByName;
+            request.sprite_command_index = command_index;
+            request.frame_name = command.resource.resource_name;
+            snapshot.requests.push_back(std::move(request));
+        }
     }
 
     std::uint64_t hash = detail::kFnvOffsetBasis;
@@ -60,8 +82,10 @@ inline Snapshot build(const game_scene_render_queue::Queue& queue) {
     detail::hash_string(&hash, snapshot.guid);
     detail::hash_size(&hash, snapshot.requests.size());
     for (const auto& request : snapshot.requests) {
+        detail::hash_byte(&hash, static_cast<std::uint8_t>(request.kind));
         detail::hash_size(&hash, request.sprite_command_index);
         detail::hash_string(&hash, request.relative_path);
+        detail::hash_string(&hash, request.frame_name);
     }
     // Java receives this as a signed long. Keep the revision positive and
     // reserve zero for "no live render queue" at the JNI boundary.
