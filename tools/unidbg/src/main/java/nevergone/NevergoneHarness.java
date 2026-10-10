@@ -36,6 +36,7 @@ public final class NevergoneHarness {
         boolean probe = false;
         boolean probeEnemyActionsCtor = false;
         boolean probeEnemyActionsCcString = false;
+        boolean probeHpDataMemory = false;
         String probePlan = null;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
@@ -47,6 +48,7 @@ public final class NevergoneHarness {
             else if ("--probe".equals(arg)) probe = true;
             else if ("--probe-enemy-actions-ctor".equals(arg)) probeEnemyActionsCtor = true;
             else if ("--probe-enemy-actions-cstring".equals(arg)) probeEnemyActionsCcString = true;
+            else if ("--probe-hpdata-memory".equals(arg)) probeHpDataMemory = true;
             else if ("--probe-plan".equals(arg) && i + 1 < args.length) probePlan = args[++i];
             else throw new IllegalArgumentException("Unknown option: " + arg);
         }
@@ -62,10 +64,8 @@ public final class NevergoneHarness {
                 .addBackendFactory(new Unicorn2Factory(true))
                 .build();
         try {
-            // Android platform constructors can require more OS state than the loader provides.
             emulator.getMemory().setCallInitFunction(false);
             final Map<String, File> selectedFiles = new HashMap<>();
-            // The root ElfLibraryFile resolves siblings before invoking the resolver.
             for (File source : LIB_DIR.listFiles()) {
                 if (source.isFile() && source.getName().endsWith(".so"))
                     selectedFiles.put(source.getName(), source);
@@ -161,9 +161,9 @@ public final class NevergoneHarness {
             if (probePlan != null) { ProbeRunner.run(emulator, module, new File(probePlan)); return; }
             if (probeEnemyActionsCtor) { EnemyActionsConstructorProbe.run(emulator, module); return; }
             if (probeEnemyActionsCcString) { EnemyActionsCcStringProbe.run(emulator, module); return; }
+            if (probeHpDataMemory) { HpDataMemoryProbe.run(emulator, module); return; }
             if (smoke) return;
 
-            // Constructors are deferred. Some need app state; JNI_OnLoad is tested.
             McpToolkit toolkit = new McpToolkit();
             toolkit.addTool(new McpTool() {
                 @Override public String name() { return "module_info"; }
