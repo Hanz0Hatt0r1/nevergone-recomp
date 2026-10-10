@@ -3,6 +3,7 @@
 #include "character_name_input.h"
 #include "choose_hero_action_control_compositor.h"
 #include "choose_hero_role_item_compositor.h"
+#include "initial_ui_transition.h"
 #include "login_lua_session.h"
 #include "management_role_action_control_compositor.h"
 #include "server_selection_compositor.h"
@@ -75,7 +76,9 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeOnServerSelectionTouch(
     if (handled && (action == 1 || action == 6) &&
             nevergone::server_selection_state::snapshot().enter_request_pending) {
         (void)nevergone::login_lua_session::ensure_started();
-        (void)nevergone::login_lua_session::dispatch_pending_server_request();
+        if (nevergone::login_lua_session::dispatch_pending_server_request()) {
+            (void)nevergone::initial_ui_transition::on_server_enter_dispatch_succeeded();
+        }
     }
 
     return handled ? JNI_TRUE : JNI_FALSE;

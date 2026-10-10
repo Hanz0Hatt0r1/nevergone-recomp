@@ -68,6 +68,21 @@ void on_management_callback(const std::string& callback_name) {
     }
 }
 
+bool on_server_enter_dispatch_succeeded() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_state.phase != Phase::kManagementLoginInitialized ||
+            g_state.management_route != ManagementRoute::kServerSelection) {
+        return false;
+    }
+
+    // EnterGameLogicServer is only a request boundary. The next recovered
+    // visible route still belongs to cpp_OnGetRoleList, so expose an explicit
+    // waiting state instead of inventing a role-list callback locally.
+    g_state.pending_management_route = ManagementRoute::kAwaitingRoleList;
+    set_management_route_locked(ManagementRoute::kAwaitingRoleList);
+    return true;
+}
+
 Snapshot snapshot() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_state;
@@ -88,6 +103,7 @@ const char* management_route_name(ManagementRoute route) {
         case ManagementRoute::kLoginRoot: return "login-root";
         case ManagementRoute::kAnnouncement: return "announcement";
         case ManagementRoute::kServerSelection: return "server-selection";
+        case ManagementRoute::kAwaitingRoleList: return "awaiting-role-list";
         case ManagementRoute::kRoleSelection: return "role-selection";
         case ManagementRoute::kRoleCreated: return "role-created";
         case ManagementRoute::kEnteringGame: return "entering-game";
