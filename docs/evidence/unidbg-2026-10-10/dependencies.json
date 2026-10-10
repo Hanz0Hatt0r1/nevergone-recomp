@@ -1,0 +1,592 @@
+{
+  "sdk": "33",
+  "abis": "arm64-v8a,armeabi-v7a,armeabi",
+  "copied_libraries": {
+    "android.hardware.common-V2-ndk.so": {
+      "remote_path": "/system/lib/android.hardware.common-V2-ndk.so",
+      "bytes": 8276,
+      "sha256": "e98c2cdcdf5062fc3fc8dfa614dc794cabf106420869b57ab6f3c0f939555ee5",
+      "needed": [
+        "libbinder_ndk.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.configstore-utils.so": {
+      "remote_path": "/system/lib/android.hardware.configstore-utils.so",
+      "bytes": 5780,
+      "sha256": "f6e4f065666d4f1cdd3fc46ec2cc7bee6f6f5c86f50e61aa776e4a866e62c207",
+      "needed": [
+        "android.hardware.configstore@1.0.so",
+        "android.hardware.configstore@1.1.so",
+        "libbase.so",
+        "libhidlbase.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.configstore@1.0.so": {
+      "remote_path": "/system/lib/android.hardware.configstore@1.0.so",
+      "bytes": 103896,
+      "sha256": "1507fe3967904c713d8373d7ad45d7233e8d67079c7d705b0ea192edb080e069",
+      "needed": [
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.configstore@1.1.so": {
+      "remote_path": "/system/lib/android.hardware.configstore@1.1.so",
+      "bytes": 82908,
+      "sha256": "81cf9ff7c86165e5ac9afe1b5466bfe8e0bb17f05efae157fe4b30bbc3452076",
+      "needed": [
+        "android.hardware.configstore@1.0.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.allocator-V1-ndk.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.allocator-V1-ndk.so",
+      "bytes": 23800,
+      "sha256": "86c63bbaca2371fd4080cc1cbf2a21edec9fdcdc4737f9b6b3cf4a7033c1eacc",
+      "needed": [
+        "libbinder_ndk.so",
+        "android.hardware.common-V2-ndk.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.allocator@2.0.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.allocator@2.0.so",
+      "bytes": 63420,
+      "sha256": "494f158fd0f45e0f39deea79e798bfd60953d44c99129a467b8a41024826f164",
+      "needed": [
+        "android.hardware.graphics.common@1.0.so",
+        "android.hardware.graphics.mapper@2.0.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.allocator@3.0.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.allocator@3.0.so",
+      "bytes": 63528,
+      "sha256": "685147028dbb980e9b645dcceff58595e0fd25b216f0148e857e6fecee002169",
+      "needed": [
+        "android.hardware.graphics.common@1.0.so",
+        "android.hardware.graphics.common@1.1.so",
+        "android.hardware.graphics.common@1.2.so",
+        "android.hardware.graphics.mapper@3.0.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.allocator@4.0.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.allocator@4.0.so",
+      "bytes": 59264,
+      "sha256": "628376e0b1dca4915fef8751162aa3e5e3037d05a1be906eb95a47ba19ce4e22",
+      "needed": [
+        "android.hardware.graphics.common@1.0.so",
+        "android.hardware.graphics.common@1.1.so",
+        "android.hardware.graphics.common@1.2.so",
+        "android.hardware.graphics.mapper@4.0.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.common-V3-ndk.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.common-V3-ndk.so",
+      "bytes": 15204,
+      "sha256": "a08ad31fdb5dddbf0e2227d05e695fedfe6309596048e444377ee70a0e3abd4e",
+      "needed": [
+        "libbinder_ndk.so",
+        "android.hardware.common-V2-ndk.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.common@1.0.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.common@1.0.so",
+      "bytes": 2448,
+      "sha256": "f19cb7831efa83974b9542091042f67b843d686b90b9db7a643c29ef179ea815",
+      "needed": [
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.common@1.1.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.common@1.1.so",
+      "bytes": 2504,
+      "sha256": "c27f10449d79812b731b820f74b3a70f2ca2655d68ac3c3fcdd442f64df01a91",
+      "needed": [
+        "android.hardware.graphics.common@1.0.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.common@1.2.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.common@1.2.so",
+      "bytes": 3192,
+      "sha256": "9dd1cbb9e2395208b3d35749c6d0632e82fcd31548f9ce941482b476b97dd948",
+      "needed": [
+        "android.hardware.graphics.common@1.0.so",
+        "android.hardware.graphics.common@1.1.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.mapper@2.0.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.mapper@2.0.so",
+      "bytes": 72088,
+      "sha256": "b1c8370a672348914c4f3ff1b904ba72948870a1fbfc9292021565149b291ad6",
+      "needed": [
+        "android.hardware.graphics.common@1.0.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.mapper@2.1.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.mapper@2.1.so",
+      "bytes": 75848,
+      "sha256": "749bc09bf124fa4e5aea80c850d352eb651c31d8bcd42261b4a226fc272ffd1e",
+      "needed": [
+        "android.hardware.graphics.common@1.0.so",
+        "android.hardware.graphics.common@1.1.so",
+        "android.hardware.graphics.mapper@2.0.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.mapper@3.0.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.mapper@3.0.so",
+      "bytes": 81324,
+      "sha256": "e0afcf1739059869b650cc66f9c4fe5647255426ae2628c7e3d337b87b27bf5e",
+      "needed": [
+        "android.hardware.graphics.common@1.0.so",
+        "android.hardware.graphics.common@1.1.so",
+        "android.hardware.graphics.common@1.2.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "android.hardware.graphics.mapper@4.0.so": {
+      "remote_path": "/system/lib/android.hardware.graphics.mapper@4.0.so",
+      "bytes": 107808,
+      "sha256": "44cf610fdc9070c4cec4e0fbd361ce01ba68ce83952235f6768bfd0cd955aea4",
+      "needed": [
+        "android.hardware.graphics.common@1.0.so",
+        "android.hardware.graphics.common@1.1.so",
+        "android.hardware.graphics.common@1.2.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "ld-android.so": {
+      "remote_path": "/system/lib/ld-android.so",
+      "bytes": 2680,
+      "sha256": "ba519c1390c722b03f45f1db37b25bd84816e80a7ac51a7c7f7c41673ec40617",
+      "needed": []
+    },
+    "libSurfaceFlingerProp.so": {
+      "remote_path": "/system/lib/libSurfaceFlingerProp.so",
+      "bytes": 56340,
+      "sha256": "ea693e9fb33404f31b297c4d79e725c4e46dd8a67eb7c17b671933fc7e8d35f3",
+      "needed": [
+        "android.hardware.configstore-utils.so",
+        "android.hardware.configstore@1.0.so",
+        "android.hardware.configstore@1.1.so",
+        "android.hardware.graphics.common@1.2.so",
+        "libhidlbase.so",
+        "libui.so",
+        "libutils.so",
+        "liblog.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libandroid_runtime_lazy.so": {
+      "remote_path": "/system/lib/libandroid_runtime_lazy.so",
+      "bytes": 4660,
+      "sha256": "28c47d73beb181b50c43cdba1b6cc30f2967946a3df16a914607ab0ae6387d77",
+      "needed": [
+        "liblog.so",
+        "libutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libbacktrace.so": {
+      "remote_path": "/system/lib/libbacktrace.so",
+      "bytes": 112840,
+      "sha256": "4c11cb49b68f9b9a506010bf638a6365eb73db25413368f0b48ba1702748f2c1",
+      "needed": [
+        "libbase.so",
+        "liblog.so",
+        "libunwindstack.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libbase.so": {
+      "remote_path": "/system/lib/libbase.so",
+      "bytes": 170948,
+      "sha256": "b183ffef82ca301783961948b0d4b05f348995f75892ebfdceac123c7930d283",
+      "needed": [
+        "liblog.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libbinder.so": {
+      "remote_path": "/system/lib/libbinder.so",
+      "bytes": 610276,
+      "sha256": "f2d2c824028414be1abccb8117eb894e376498ae40a35dc8d3bc08af8b986d75",
+      "needed": [
+        "liblog.so",
+        "libcutils.so",
+        "libutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libbinder_ndk.so": {
+      "remote_path": "/system/lib/libbinder_ndk.so",
+      "bytes": 59924,
+      "sha256": "34492bcd4a5499f8f5069ad7928617cb2e18bfaf97cc94eb973294d3672bf0bc",
+      "needed": [
+        "libandroid_runtime_lazy.so",
+        "libbase.so",
+        "libbinder.so",
+        "libutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libdl_android.so": {
+      "remote_path": "/system/lib/libdl_android.so",
+      "bytes": 3048,
+      "sha256": "e641c1056b8e57ad4518fab64030c1da4110a8b27b2e8511967083a75e61e018",
+      "needed": [
+        "ld-android.so"
+      ]
+    },
+    "libgralloctypes.so": {
+      "remote_path": "/system/lib/libgralloctypes.so",
+      "bytes": 55816,
+      "sha256": "abfbc6b6e22d5220e1bd1f215aa0f601bd5cd2ce3490ec2f23e07b76c5a41389",
+      "needed": [
+        "android.hardware.graphics.common-V3-ndk.so",
+        "android.hardware.graphics.mapper@4.0.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libgraphicsenv.so": {
+      "remote_path": "/system/lib/libgraphicsenv.so",
+      "bytes": 35064,
+      "sha256": "ec956c1c9ef2caecb5801ee82fb567c326c6d76043bdb98bd31f5e4af96b82ca",
+      "needed": [
+        "libbase.so",
+        "libbinder.so",
+        "libcutils.so",
+        "libdl_android.so",
+        "liblog.so",
+        "libutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libhidlbase.so": {
+      "remote_path": "/system/lib/libhidlbase.so",
+      "bytes": 519112,
+      "sha256": "ba7440e6b7b3bf5a0b46afa8502878d9bd317fbd5e46df747a33624b40c88907",
+      "needed": [
+        "libbase.so",
+        "liblog.so",
+        "libutils.so",
+        "libcutils.so",
+        "libvndksupport.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "liblzma.so": {
+      "remote_path": "/system/lib/liblzma.so",
+      "bytes": 145268,
+      "sha256": "40623f72f0a04ac322647aec0508d05df008e7299b17a145399c261ad33edd3b",
+      "needed": [
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libnativebridge_lazy.so": {
+      "remote_path": "/system/lib/libnativebridge_lazy.so",
+      "bytes": 3868,
+      "sha256": "f3c89afa0a62b7c74233dfca8ad529d6633c27253f8d014ad15db2bbecffb799",
+      "needed": [
+        "liblog.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libnativeloader_lazy.so": {
+      "remote_path": "/system/lib/libnativeloader_lazy.so",
+      "bytes": 4212,
+      "sha256": "cda4f8358b8c7d433ec58c7ff8475dfdbfbd375e41dcdf24314c3baf98d9e385",
+      "needed": [
+        "liblog.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libnativewindow.so": {
+      "remote_path": "/system/lib/libnativewindow.so",
+      "bytes": 18008,
+      "sha256": "f46349800931eca9f6d765116bcdcdf8d6f1f8fe7973481269547ad85c1d26c6",
+      "needed": [
+        "libcutils.so",
+        "liblog.so",
+        "libutils.so",
+        "libui.so",
+        "android.hardware.graphics.common@1.1.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libsync.so": {
+      "remote_path": "/system/lib/libsync.so",
+      "bytes": 5276,
+      "sha256": "5dabe46c80a580d062d4bd6005ab54e3c4aa88754aeb2e67303531b83b87d319",
+      "needed": [
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libui.so": {
+      "remote_path": "/system/lib/libui.so",
+      "bytes": 252424,
+      "sha256": "9f22ad0ccf1d888a8eb2e5e739f850dbce8e64cf48321971f796e74e79762bf8",
+      "needed": [
+        "android.hardware.graphics.allocator@2.0.so",
+        "android.hardware.graphics.allocator@3.0.so",
+        "android.hardware.graphics.allocator@4.0.so",
+        "android.hardware.graphics.allocator-V1-ndk.so",
+        "android.hardware.graphics.common-V3-ndk.so",
+        "android.hardware.graphics.common@1.2.so",
+        "android.hardware.graphics.mapper@2.0.so",
+        "android.hardware.graphics.mapper@2.1.so",
+        "android.hardware.graphics.mapper@3.0.so",
+        "android.hardware.graphics.mapper@4.0.so",
+        "libbase.so",
+        "libbinder_ndk.so",
+        "libcutils.so",
+        "libgralloctypes.so",
+        "libhidlbase.so",
+        "libsync.so",
+        "libutils.so",
+        "liblog.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libunwindstack.so": {
+      "remote_path": "/system/lib/libunwindstack.so",
+      "bytes": 431984,
+      "sha256": "538b9039ff236d78b0f756fa86427a36e8ff2d4cf0e8fc52ef2a6b3a71faddfc",
+      "needed": [
+        "libbase.so",
+        "liblog.so",
+        "liblzma.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libutils.so": {
+      "remote_path": "/system/lib/libutils.so",
+      "bytes": 79832,
+      "sha256": "81bcd542e535458aa147e2ad618cc2db94187a567f6336da895464624d646dcb",
+      "needed": [
+        "libcutils.so",
+        "liblog.so",
+        "libvndksupport.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "libvndksupport.so": {
+      "remote_path": "/system/lib/libvndksupport.so",
+      "bytes": 4308,
+      "sha256": "a4e3f58624216e0d3189bf042e1df85fc87fb93ec4f94f528d9a0b54398b094c",
+      "needed": [
+        "libdl_android.so",
+        "liblog.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    }
+  },
+  "runtime_libraries": {
+    "libc.so": {
+      "remote_path": "/apex/com.android.runtime/lib/bionic/libc.so",
+      "bytes": 1194384,
+      "sha256": "6b6b68a44cbc952579339cea87a4180567c8e29b8d2de6e3c8aca043ac1ba955",
+      "needed": [
+        "ld-android.so",
+        "libdl.so"
+      ]
+    },
+    "libm.so": {
+      "remote_path": "/apex/com.android.runtime/lib/bionic/libm.so",
+      "bytes": 128616,
+      "sha256": "896db04cd0ec62ebd78d55bf6adce7dffa58f4eaccffa4c5c387f4e152f8867c",
+      "needed": [
+        "libc.so"
+      ]
+    },
+    "libdl.so": {
+      "remote_path": "/apex/com.android.runtime/lib/bionic/libdl.so",
+      "bytes": 5340,
+      "sha256": "130f7b35ca39036b223c763c15a04a406c7119f724b46643ac0986bf2b26a939",
+      "needed": [
+        "ld-android.so"
+      ]
+    },
+    "libc++.so": {
+      "remote_path": "/system/lib/libc++.so",
+      "bytes": 502948,
+      "sha256": "456eaf0e5aae290e73a8e76df231d3a9b8f690bd712f7310c91a0098e9300fd6",
+      "needed": [
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    },
+    "liblog.so": {
+      "remote_path": "/system/lib/liblog.so",
+      "bytes": 42048,
+      "sha256": "7873fdea12fcd2764e6f180623653ee19f25e20026c29b07e4bc4d3d6db12c47",
+      "needed": [
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ]
+    }
+  },
+  "unavailable": []
+}

@@ -1,0 +1,5 @@
+FAILED experiment: eglGetError did not return successfully.
+com.github.unidbg.arm.backend.BackendException: unicorn.UnicornException: Invalid memory fetch (UC_ERR_FETCH_UNMAPPED)
+Caused by: unicorn.UnicornException: Invalid memory fetch (UC_ERR_FETCH_UNMAPPED)
+debugger break at: 0x0 @ Runnable|Function32 address=0x140dd651, arguments=[]
+>>> SP=0xe4fff718 LR=RX@0x140dd65f[libEGL.so]0x1365f PC=null cpsr: N=0, Z=1, C=0, V=0, T=0, mode=0b10000

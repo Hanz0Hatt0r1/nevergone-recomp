@@ -1,0 +1,115 @@
+{
+  "libEGL.so": {
+    "bytes": 138356,
+    "sha256": "f2bd9d09a027d39c9efdb91c27a23ba4e427ceac1daf5016a4b959d2b2b11420",
+    "elf": "ELF32 little-endian ARM EABI5 shared object",
+    "abi": "armeabi-v7a",
+    "needed": [
+      "libcutils.so",
+      "liblog.so",
+      "libgraphicsenv.so",
+      "libnativewindow.so",
+      "libbacktrace.so",
+      "libvndksupport.so",
+      "android.hardware.configstore@1.0.so",
+      "android.hardware.configstore-utils.so",
+      "libbase.so",
+      "libhidlbase.so",
+      "libnativebridge_lazy.so",
+      "libnativeloader_lazy.so",
+      "libutils.so",
+      "libSurfaceFlingerProp.so",
+      "libc++.so",
+      "libc.so",
+      "libm.so",
+      "libdl.so"
+    ],
+    "soname": "libEGL.so",
+    "init_array_vaddr": "0x21218",
+    "init_array_bytes": 24,
+    "defined_functions": 116,
+    "defined_objects": 9,
+    "undefined_symbols": 154
+  },
+  "libGLESv2.so": {
+    "bytes": 67384,
+    "sha256": "27ab71713abae118af75459e596aa46e4c72a08df6c0becb421e24b30240dbf5",
+    "elf": "ELF32 little-endian ARM EABI5 shared object",
+    "abi": "armeabi-v7a",
+    "needed": [
+      "libcutils.so",
+      "liblog.so",
+      "libEGL.so",
+      "libc++.so",
+      "libc.so",
+      "libm.so",
+      "libdl.so"
+    ],
+    "soname": "libGLESv2.so",
+    "init_array_vaddr": null,
+    "init_array_bytes": null,
+    "defined_functions": 846,
+    "defined_objects": 0,
+    "undefined_symbols": 2
+  },
+  "libcocos2dcpp.so": {
+    "bytes": 9684428,
+    "sha256": "94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e",
+    "elf": "ELF32 little-endian ARM EABI5 shared object",
+    "abi": "armeabi-v7a",
+    "needed": [
+      "./obj/local/armeabi-v7a/libffmpeg.so",
+      "liblog.so",
+      "libz.so",
+      "libGLESv2.so",
+      "libdl.so",
+      "libstdc++.so",
+      "libm.so",
+      "libc.so"
+    ],
+    "soname": "libcocos2dcpp.so",
+    "init_array_vaddr": "0x8e2870",
+    "init_array_bytes": 2152,
+    "defined_functions": 26875,
+    "defined_objects": 4070,
+    "undefined_symbols": 369
+  },
+  "libcutils.so": {
+    "bytes": 62780,
+    "sha256": "eaf9bd2b6758b8d5aa8b9fe2f7cbe8df8973e4e52ad42c76de238a51fe6a174a",
+    "elf": "ELF32 little-endian ARM EABI5 shared object",
+    "abi": "armeabi-v7a",
+    "needed": [
+      "liblog.so",
+      "libbase.so",
+      "libc++.so",
+      "libc.so",
+      "libm.so",
+      "libdl.so"
+    ],
+    "soname": "libcutils.so",
+    "init_array_vaddr": "0x101f8",
+    "init_array_bytes": 4,
+    "defined_functions": 129,
+    "defined_objects": 10,
+    "undefined_symbols": 163
+  },
+  "libffmpeg.so": {
+    "bytes": 14712492,
+    "sha256": "f5e8392d27b182671be5070bc7aa5772a8b19711af222833651faf8516eacdde",
+    "elf": "ELF32 little-endian ARM EABI5 shared object",
+    "abi": "armeabi-v7a",
+    "needed": [
+      "libm.so",
+      "libz.so",
+      "libc.so",
+      "libdl.so"
+    ],
+    "soname": null,
+    "init_array_vaddr": "0xde8280",
+    "init_array_bytes": 4,
+    "defined_functions": 3219,
+    "defined_objects": 1996,
+    "undefined_symbols": 181
+  }
+}

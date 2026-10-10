@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Android32 ARM32 | Unicorn2Backend (FULL)\ncom.hippiegame.nevergone | custom_tools idle=true running=false bp=0 events=0\n48 modules, ld-android.so@0x13fcd000, android.hardware.graphics.common@1.0.so@0x14205000, android.hardware.graphics.mapper@2.0.so@0x14284000, android.hardware.graphics.allocator@2.0.so@0x141f3000, android.hardware.graphics.common@1.1.so@0x142aa000, android.hardware.graphics.common@1.2.so@0x142ad000, android.hardware.graphics.mapper@3.0.so@0x142b0000, android.hardware.graphics.allocator@3.0.so@0x14298000, android.hardware.graphics.mapper@4.0.so@0x142d7000, android.hardware.graphics.allocator@4.0.so@0x142c6000, android.hardware.common-V2-ndk.so@0x14311000, android.hardware.graphics.allocator-V1-ndk.so@0x142f3000, android.hardware.graphics.common-V3-ndk.so@0x14316000, android.hardware.graphics.mapper@2.1.so@0x1431d000, android.hardware.configstore@1.0.so@0x143f9000, android.hardware.configstore@1.1.so@0x14417000, android.hardware.configstore-utils.so@0x14414000\n"
+      }
+    ]
+  },
+  "id": 1,
+  "jsonrpc": "2.0"
+}
