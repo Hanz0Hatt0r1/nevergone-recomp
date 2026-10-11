@@ -1,6 +1,8 @@
 # GameScene atlas frame and pixel staging boundary
 
-The recovered default type-0 `GameSceneObject` path calls `CCSpriteFrameCache::spriteFrameByName(serialized_name)`. The project reconstructs the ordered `gsresfile04` preload list for the active `pvp_scene.glData` entry, resolves each user-imported plist to its texture image, resolves unique frame metadata and now stages the referenced atlas pixels into the same project-owned transactional texture path used by direct-file sprites.
+The recovered default type-0 `GameSceneObject` path calls `CCSpriteFrameCache::spriteFrameByName(serialized_name)`. For the first-playable `pvp_scene.glData` route, the project now uses the ordered resource names retained from the binary GameLevels `LoadGL_Global()` section, resolves each user-imported plist to its texture image, resolves unique frame metadata and stages the referenced atlas pixels into the same project-owned transactional texture path used by direct-file sprites.
+
+The original binary stores that ordered array at `GameLevels + 0x24`: `LoadGL_Global()` appends each leading length-prefixed string to it, and `ChooseHeroReadyUIScene::loadGameSceneData(GameLevels*)` later iterates the same array and calls `CCSpriteFrameCache::addSpriteFramesWithFile()` for each name. Generic `GameScene::loadingTex()` routes that operate on `GameLevelsData` continue to have their separate recovered `gsresfile04` source.
 
 ## Inputs
 
@@ -42,12 +44,14 @@ The helper rejects inconsistent logical/packed sizes, escaped trim placement and
 
 ## Transactional staging
 
-The existing GameScene asset snapshot now contains both proven static type-0 resource kinds in render-queue order:
+The existing GameScene asset snapshot contains both proven static type-0 resource kinds in render-queue order:
 
 - `CCSprite::create(file)` direct-file resources;
 - `spriteFrameByName` atlas-backed resources.
 
-The request revision hashes resource kind, command index and path/frame name. Java stages every request for that exact revision before `GameSceneDirectAssetStore.finish()` publishes anything. Atlas list discovery and frame resolution happen against the same app-private imported root; referenced atlas bitmaps are bounded and cached only for the current staging pass. A missing, malformed, ambiguous or out-of-bounds frame cancels the pending revision, leaving the previous complete texture set untouched.
+The request revision hashes resource kind, command index and path/frame name. The same JNI refresh now captures the retained GameLevels preload names together with that request snapshot, preventing one GL staging pass from mixing two scene revisions. For PVP, no scene-list plist rediscovery is performed: Java resolves exactly the ordered binary GameLevels names retained by the native parser.
+
+Java stages every request for that exact revision before `GameSceneDirectAssetStore.finish()` publishes anything. Frame resolution happens against the same app-private imported root; referenced atlas bitmaps are bounded and cached only for the current staging pass. A missing, malformed, ambiguous or out-of-bounds frame cancels the pending revision, leaving the previous complete texture set untouched.
 
 The native texture cache and GLES renderer do not need a second atlas-specific store. Reconstructed atlas frames arrive as ordinary standalone untrimmed textures keyed by the original sprite-command index, so direct-file and atlas-backed sprites share one revision, one upload/cache boundary and one original layer/object traversal order.
 
@@ -62,9 +66,9 @@ The native texture cache and GLES renderer do not need a second atlas-specific s
 - the failed request index when applicable;
 - the failed request resource kind (`direct-file` or `sprite-frame-by-name`).
 
-No serialized frame name, plist name, texture path or imported asset path is emitted. This keeps diagnostics useful for a real-device P7 run without copying user-owned resource identifiers into reports.
+`GameLevels runtime model` additionally reports only the number of retained atlas preload names. No serialized frame name, plist name, texture path or imported asset path is emitted.
 
-Failure categories distinguish the important clean-room boundaries, including missing asset roots/direct files, atlas-list discovery, atlas resolution, frame resolution, image decode, pixel/crop bounds, frame reconstruction, native store begin/upload/finish, and I/O/runtime failures. Repeated render frames for the same already-failed revision do not repeat expensive decode work or erase the original failure category.
+Failure categories distinguish the important clean-room boundaries, including unavailable/invalid preload lists, atlas resolution, frame resolution, image decode, pixel/crop bounds, frame reconstruction, native store begin/upload/finish, and I/O/runtime failures. Repeated render frames for the same already-failed revision do not repeat expensive decode work or erase the original failure category.
 
 The native bootstrap diagnostics also include the static GameScene renderer state (`shader`, surface size, draw attempts, successful drawn frames and last submitted static sprite count). Together these reports distinguish parsing/construction readiness, Java pixel staging and final GLES submission during an on-device proof.
 
@@ -74,13 +78,14 @@ The native bootstrap diagnostics also include the static GameScene renderer stat
 
 XML parsing disables external entities and DTD loading. Files are confined to the imported asset root, malformed frame dictionaries are rejected, excessive aliases are bounded, invalid geometry returns no frame, and atlas decode/staging is bounded by per-image and per-pass pixel limits.
 
-No proprietary image or plist payload is committed to the repository. Synthetic fixtures cover metadata lookup, pixel reconstruction and diagnostic state; Android compile/renderer workflows cover the integration surface.
+No proprietary image or plist payload is committed to the repository. Synthetic fixtures cover ordered-list resolution, metadata lookup, pixel reconstruction and diagnostic state; Android compile/renderer workflows cover the integration surface.
 
 ## Remaining P7 boundary
 
-The frame-cache metadata/pixel bridge is no longer the P7 blocker. The remaining proof is runtime integration:
+The previous real-device `atlas-list-discovery-failed` is now addressed at its recovered source boundary. The remaining proof is another runtime integration pass:
 
-1. exercise the complete `server-selection -> ChooseHero -> enter-game -> GameLevels -> static GameScene` route on a real Android target with user-owned imported data;
-2. confirm that a real first-scene revision stages every required direct and atlas-backed static type-0 sprite without fallback;
-3. use the resource-name-free staging/renderer diagnostics plus the retained unresolved-object counters to identify unsupported nonzero object types or scene-action-pair objects that still prevent the complete scene from matching the original;
-4. only after that real-device visual proof close P7 and move the contiguous critical path to player creation/spawn.
+1. exercise the fresh-role offline handoff into `GameLevels` with user-owned imported data;
+2. confirm `GameLevels runtime model` reports a nonzero atlas preload count;
+3. confirm the real first-scene revision stages every required atlas-backed sprite and reaches `GameScene asset staging: ready`;
+4. confirm the static GLES renderer records successful drawn frames and visually inspect the retained screenshot;
+5. then run the joystick/player-input evidence harness against that live scene.

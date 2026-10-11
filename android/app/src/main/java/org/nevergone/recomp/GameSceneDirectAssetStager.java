@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +13,7 @@ import java.util.Map;
 final class GameSceneDirectAssetStager {
     private static final long MAX_PIXELS_PER_ASSET = 16L * 1024L * 1024L;
     private static final long MAX_CACHED_ATLAS_PIXELS = 32L * 1024L * 1024L;
-    private static final String PVP_GAME_DATA_FILE = "pvp_scene.glData";
+    private static final int MAX_ATLAS_PRELOAD_NAMES = 256;
 
     // All calls are made on the GLSurfaceView render thread. Remember one failed
     // queue revision so a missing/corrupt imported file cannot trigger a full
@@ -136,18 +137,31 @@ final class GameSceneDirectAssetStager {
 
             List<GameSceneAtlasResolver.Atlas> sceneAtlases = null;
             if (needsSceneAtlases) {
-                GameSceneAtlasListDiscovery.Result discovery =
-                        GameSceneAtlasListDiscovery.discover(canonicalRoot, PVP_GAME_DATA_FILE);
-                if (discovery == null) {
+                int atlasCount = GameSceneDirectAssetRequests.atlasCount();
+                if (atlasCount <= 0 || atlasCount > MAX_ATLAS_PRELOAD_NAMES) {
                     return reject(
-                            "atlas-list-discovery-failed",
+                            "atlas-preload-list-unavailable",
                             revision,
                             count,
                             -1,
                             GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME,
                             stagedCount);
                 }
-                sceneAtlases = GameSceneAtlasResolver.resolve(canonicalRoot, discovery);
+                ArrayList<String> atlasNames = new ArrayList<>(atlasCount);
+                for (int atlasIndex = 0; atlasIndex < atlasCount; ++atlasIndex) {
+                    String atlasName = GameSceneDirectAssetRequests.atlasNameAt(atlasIndex);
+                    if (atlasName == null || atlasName.isEmpty()) {
+                        return reject(
+                                "invalid-atlas-preload-name",
+                                revision,
+                                count,
+                                -1,
+                                GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME,
+                                stagedCount);
+                    }
+                    atlasNames.add(atlasName);
+                }
+                sceneAtlases = GameSceneAtlasResolver.resolve(canonicalRoot, atlasNames);
                 if (sceneAtlases == null || sceneAtlases.isEmpty()) {
                     return reject(
                             "atlas-resolution-failed",

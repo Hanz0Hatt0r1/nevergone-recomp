@@ -45,19 +45,29 @@ public final class GameSceneAtlasResolverSmoke {
         write(fallbackPlist, plist(null, true));
         write(fallbackPng, "png");
 
+        List<String> orderedNames = Arrays.asList("l01/res/explicit.plist", "fallback.plist");
+        List<GameSceneAtlasResolver.Atlas> directAtlases =
+                GameSceneAtlasResolver.resolve(assets, orderedNames);
+        assert directAtlases != null;
+        assert directAtlases.size() == 2;
+        assert directAtlases.get(0).plistRelativePath.equals("gamescene/l01/res/explicit.plist");
+        assert directAtlases.get(0).textureRelativePath.equals(
+                "gamescene/l01/res/textures/explicit-atlas.png");
+        assert directAtlases.get(1).plistRelativePath.equals("gamescene/fallback.plist");
+        assert directAtlases.get(1).textureRelativePath.equals("gamescene/fallback.png");
+
+        // The legacy scene-list wrapper resolves the same ordered names. The
+        // first-playable PVP route now supplies ordered names from LoadGL_Global
+        // directly instead of rediscovering a scene-list plist.
         GameSceneAtlasListDiscovery.Result discovery = new GameSceneAtlasListDiscovery.Result(
-                "gamescene/list.plist",
-                Arrays.asList("l01/res/explicit.plist", "fallback.plist"),
-                123.5f,
-                -42.25f);
+                "gamescene/list.plist", orderedNames, 123.5f, -42.25f);
         List<GameSceneAtlasResolver.Atlas> atlases = GameSceneAtlasResolver.resolve(assets, discovery);
         assert atlases != null;
-        assert atlases.size() == 2;
-        assert atlases.get(0).plistRelativePath.equals("gamescene/l01/res/explicit.plist");
-        assert atlases.get(0).textureRelativePath.equals(
-                "gamescene/l01/res/textures/explicit-atlas.png");
-        assert atlases.get(1).plistRelativePath.equals("gamescene/fallback.plist");
-        assert atlases.get(1).textureRelativePath.equals("gamescene/fallback.png");
+        assert atlases.size() == directAtlases.size();
+        for (int i = 0; i < atlases.size(); ++i) {
+            assert atlases.get(i).plistRelativePath.equals(directAtlases.get(i).plistRelativePath);
+            assert atlases.get(i).textureRelativePath.equals(directAtlases.get(i).textureRelativePath);
+        }
 
         // Resolver behavior remains driven only by the ordered atlas list; the
         // retained player-start metadata is evidence for a later player boundary.
@@ -75,16 +85,12 @@ public final class GameSceneAtlasResolverSmoke {
         write(new File(assets, "duplicate.png"), "png");
         write(duplicateGameScene, plist(null, false));
         write(new File(assets, "gamescene/duplicate.png"), "png");
-        GameSceneAtlasListDiscovery.Result ambiguous = new GameSceneAtlasListDiscovery.Result(
-                "gamescene/list.plist", Arrays.asList("duplicate.plist"), 0.0f, 0.0f);
-        assert GameSceneAtlasResolver.resolve(assets, ambiguous) == null;
+        assert GameSceneAtlasResolver.resolve(assets, Arrays.asList("duplicate.plist")) == null;
 
         File traversalPlist = new File(assets, "gamescene/traversal.plist");
         write(traversalPlist, plist("../outside.png", false));
         write(new File(assets, "outside.png"), "png");
-        GameSceneAtlasListDiscovery.Result traversal = new GameSceneAtlasListDiscovery.Result(
-                "gamescene/list.plist", Arrays.asList("traversal.plist"), 0.0f, 0.0f);
-        assert GameSceneAtlasResolver.resolve(assets, traversal) == null;
+        assert GameSceneAtlasResolver.resolve(assets, Arrays.asList("traversal.plist")) == null;
 
         File playerPlist = new File(assets,
                 "player/Player01_Res/p01_01_01_default.plist");

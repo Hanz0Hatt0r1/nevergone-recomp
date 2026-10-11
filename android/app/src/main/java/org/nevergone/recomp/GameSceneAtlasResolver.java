@@ -3,11 +3,8 @@ package org.nevergone.recomp;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.xml.sax.InputSource;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -15,10 +12,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Locale;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
-/** Resolves recovered gsresfile04 plist names and their texture images. */
+/** Resolves recovered ordered atlas plist names and their texture images. */
 final class GameSceneAtlasResolver {
     private static final String[] GAME_SCENE_SEARCH_ROOTS = {
             "gamescene",
@@ -79,14 +73,23 @@ final class GameSceneAtlasResolver {
         }
     }
 
+    // Generic scene-list path retained for recovered GameLevelsData::gsresfile04
+    // consumers outside the first-playable PVP route.
     static List<Atlas> resolve(File assetRoot, GameSceneAtlasListDiscovery.Result discovery) {
-        if (assetRoot == null || discovery == null) return null;
+        if (discovery == null) return null;
+        return resolve(assetRoot, discovery.atlasPlists);
+    }
+
+    // The first-playable PVP route gets this ordered list directly from the
+    // binary GameLevels LoadGL_Global resource array (GameLevels + 0x24).
+    static List<Atlas> resolve(File assetRoot, List<String> atlasNames) {
+        if (assetRoot == null || atlasNames == null) return null;
         try {
             File canonicalRoot = assetRoot.getCanonicalFile();
             if (!canonicalRoot.isDirectory()) return null;
             String rootPrefix = canonicalRoot.getPath() + File.separator;
-            ArrayList<Atlas> result = new ArrayList<>(discovery.atlasPlists.size());
-            for (String atlasName : discovery.atlasPlists) {
+            ArrayList<Atlas> result = new ArrayList<>(atlasNames.size());
+            for (String atlasName : atlasNames) {
                 File plist = resolveUniquePlist(canonicalRoot, rootPrefix, atlasName);
                 if (plist == null || plist.length() <= 0L || plist.length() > MAX_PLIST_BYTES) return null;
                 File texture = resolveTextureForPlist(canonicalRoot, rootPrefix, plist);
@@ -157,13 +160,6 @@ final class GameSceneAtlasResolver {
         if (texture == null || !"string".equals(texture.getTagName())) return null;
         String value = texture.getTextContent();
         return value != null ? value.trim() : null;
-    }
-
-    private static void trySetFeature(DocumentBuilderFactory factory, String name, boolean value) {
-        try {
-            factory.setFeature(name, value);
-        } catch (Exception ignored) {
-        }
     }
 
     private static Element valueForKey(Element dict, String wantedKey) {

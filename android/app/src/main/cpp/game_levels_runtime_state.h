@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "game_levels_scene_instance.h"
 #include "game_levels_scene_navigation.h"
@@ -31,6 +32,7 @@ struct Snapshot {
     std::uint64_t file_size = 0;
     std::size_t reader_size = 0;
     std::size_t model_end_offset = 0;
+    std::size_t atlas_preload_name_count = 0;
     std::optional<std::size_t> current_port_node_index;
     std::optional<std::size_t> current_scene_index;
     std::string current_scene_guid;
@@ -59,6 +61,10 @@ Snapshot snapshot();
 std::optional<game_levels_scene_instance::SceneInstance> current_scene_instance();
 std::optional<game_scene_construction_plan::ScenePlan> current_scene_construction_plan();
 std::optional<game_scene_render_queue::Queue> current_scene_render_queue();
+// Ordered strings retained from the leading LoadGL_Global resource array. The
+// original first-playable loader iterates GameLevels + 0x24 and passes these
+// names to CCSpriteFrameCache::addSpriteFramesWithFile().
+std::vector<std::string> current_atlas_preload_names();
 game_levels_scene_navigation::Transition step(std::uint32_t requested_event_port_type);
 const char* status_name(LoadStatus status);
 std::string status_report();
