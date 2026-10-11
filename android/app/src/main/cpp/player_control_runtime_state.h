@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 
 #include "player_control_contract.h"
 
@@ -26,5 +27,10 @@ bool apply_primary_state(player_control_contract::PrimaryControlState state);
 bool apply_horizontal_sample(float activity_metric, float angle_degrees);
 
 Snapshot snapshot();
+
+// Resource-name-free runtime diagnostics used by the retained Android evidence
+// harness. The report exposes only reconstructed counters/state, never imported
+// asset names or payloads.
+std::string status_report();
 
 }  // namespace nevergone::player_control_runtime_state
