@@ -5,12 +5,16 @@ on:
     branches: [main]
     paths:
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasListDiscovery.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneStartPoint.java'
       - 'tools/GameSceneAtlasListDiscoverySmoke.java'
+      - 'tools/GameSceneStartPointSmoke.java'
       - '.github/workflows/game-scene-atlas-list-discovery.yml'
   pull_request:
     paths:
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasListDiscovery.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneStartPoint.java'
       - 'tools/GameSceneAtlasListDiscoverySmoke.java'
+      - 'tools/GameSceneStartPointSmoke.java'
       - '.github/workflows/game-scene-atlas-list-discovery.yml'
 
 jobs:
@@ -29,6 +33,10 @@ jobs:
           javac -Xlint:all -Werror \
             -d /tmp/nevergone-atlas-list-classes \
             android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasListDiscovery.java \
-            tools/GameSceneAtlasListDiscoverySmoke.java
+            android/app/src/main/java/org/nevergone/recomp/GameSceneStartPoint.java \
+            tools/GameSceneAtlasListDiscoverySmoke.java \
+            tools/GameSceneStartPointSmoke.java
           java -ea -cp /tmp/nevergone-atlas-list-classes \
             org.nevergone.recomp.GameSceneAtlasListDiscoverySmoke
+          java -ea -cp /tmp/nevergone-atlas-list-classes \
+            org.nevergone.recomp.GameSceneStartPointSmoke

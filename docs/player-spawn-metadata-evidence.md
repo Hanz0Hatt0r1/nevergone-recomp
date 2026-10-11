@@ -1,8 +1,8 @@
-# Player-start scene-list metadata evidence
+# Player-start and player-entry position evidence
 
-This note records the current evidence boundary for issue #148. It deliberately separates scene-list parsing facts from player-placement semantics.
+This note records the current evidence boundary for issue #148. It deliberately separates scene-list metadata, binary scene entry markers, and the live player-position state.
 
-## Proven from checked-in metadata
+## Proven scene-list start point
 
 The metadata-only query in `tools/ghidra/player_spawn_evidence.py` derives the Ghidra-to-ELF load delta from `GameScene::loadGameSceneList(char const*)` instead of hard-coding it. The checked-in Nevergone index produces a delta of `0x00010000`.
 
@@ -18,43 +18,87 @@ The resolved calls immediately following those references establish the scalar c
 - X: `CCDictionary::objectForKey` at Ghidra `0x003512e4`, then `CCString::floatValue` at `0x003512e8`;
 - Y: `CCDictionary::objectForKey` at `0x00351304`, then `CCString::floatValue` at `0x00351308`.
 
-Therefore `playerStartXPos` and `playerStartYPos` are evidence-backed scene-list **floating-point values**. Treating them as integer-only or textual runtime state would contradict the recovered call sequence.
+A bounded Thumb-2 disassembly check against the user-owned 1.0.9 `libcocos2dcpp.so` (SHA-256 `94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`) closes the previous call-proximity ambiguity:
 
-Later in the same function, the resolved call graph contains `cocos2d::CCPoint::CCPoint` at Ghidra `0x003513b8` and `cocos2d::CCPoint::operator=` at `0x003513c2`. This proves that the loader also constructs/assigns a `CCPoint` after parsing the scene entry, but the broad metadata index does not encode register/stack/SSA dataflow, so call proximity alone does not prove that the two start-position floats feed that exact point.
+- the X `CCString::floatValue` result at ELF `0x003412e8` is stored at stack offset `+0x18`;
+- the Y result at ELF `0x00341308` is stored at stack offset `+0x1c`;
+- at ELF `0x003413b2` and `0x003413b6`, those exact stack words are loaded into `r1` and `r2` while `r0` points at a temporary `CCPoint`;
+- the call at ELF `0x003413b8` is `cocos2d::CCPoint::CCPoint(float, float)`;
+- immediately afterward, `r0` is formed as `GameLevelsData + 0x34`, the temporary point is passed in `r1`, and `CCPoint::operator=` is called at ELF `0x003413c2`.
 
-## Project-owned retention
+Therefore `playerStartXPos` and `playerStartYPos` are evidence-backed floating-point values that form a `CCPoint` retained in `GameLevelsData + 0x34`.
 
-`GameSceneAtlasListDiscovery.Result` retains both values as finite `float` scene-entry metadata alongside the already recovered scene-list path and ordered `gsresfile04` atlas list. Missing, malformed or non-finite start-position values make that candidate fail closed.
+`GameSceneAtlasListDiscovery.Result` retains both values as finite scene-entry metadata. `GameSceneStartPoint` is the project-owned typed representation of that proven pair. This alone still does not prove that `GameLevelsData + 0x34` is the first offline player transform.
 
-This retention does not move a node, instantiate a player, alter the render queue, or infer any camera/control state. Existing atlas staging consumes only `atlasPlists`; the start values are evidence-bearing metadata for the next player-construction boundary.
+## Proven type-6 entry-position selection
 
-## Not yet proven
+The binary GameLevels parser and `GameScene::loadingTex()` provide a separate, direct player-placement path.
 
-The checked-in resolved call graph contains no caller edge to `GameScene::adjustPlayerPos(int)`. Indirect calls and unresolved references are outside the exported call graph, so absence of an edge is not proof that the function is unused.
+For object type code `6`, `GameLevels::LoadGL_Scene()` reads the recovered one-`int32` type tail at ELF `0x002c2ce0` and stores that exact value into `GameSceneLayerObjectData + 0x58` at ELF `0x002c2db6`. The same record's serialized first point is retained at object-data offset `+0x1c`.
 
-Current evidence therefore does **not** prove:
+During `GameScene::loadingTex()`:
 
-- when the parsed start-position pair is applied to the local player;
-- whether the later `CCPoint` assignment is the retained player-start point or another scene-entry point;
-- what the `int` argument of `GameScene::adjustPlayerPos(int)` selects;
-- the player node/class field that ultimately receives the position;
-- camera or control initialization relative to the first placement.
+1. only the first 11 ordered scene layers are visited, matching the already recovered construction traversal;
+2. each layer object is inspected in source order;
+3. an object enters the special path only when `GameSceneLayerObjectData + 0x14 == 6`;
+4. its `+0x58` value is compared against `GameLevels + 0x40` at ELF `0x003467a2..0x003467ac`;
+5. `GameLevels + 0x40` is independently proven by `GetPortNodeLinkPortNode(EVENT_PORT_TYPE)` to be the retained numeric **event-port type**;
+6. on a match, `loadingTex()` copies the object's point at `+0x1c`, applies the scene/window transform, assigns the transformed point into `GameScene + 0x4c4`, and calls the primary `MEPlayer::setPlayerPos()` at ELF `0x00346866`.
 
-## Safe implementation consequence
+This establishes a real first-scene player-placement contract: type-6 objects are filtered by the current event-port type and matching objects drive `MEPlayer::setPlayerPos()`. Multiple matches are not collapsed to a guessed unique marker; the original loop executes the path for each match in traversal order.
 
-It is safe to preserve `playerStartXPos` and `playerStartYPos` as typed floating-point **scene-list metadata**. It is not yet safe to apply them to a reconstructed player transform or claim first-player spawn parity.
+`game_scene_player_entry_markers::collect()` encodes that proven selection boundary. It visits the first 11 layers, preserves object order, selects type `6`, compares `tail_i32` bit-for-bit with the retained event-port type, and returns the raw serialized points. Missing type tails or non-finite matching coordinates fail closed.
 
-The next bounded evidence step is `tools/ghidra/ExportFunctionPcodeFlow.java` plus `tools/ghidra/trace_pcode_flow.py`. Export high P-code metadata for `GameScene::loadGameSceneList`, then test whether each `CCString::floatValue` output reaches the `CCPoint` constructor through actual varnode dependencies rather than address proximity. See `docs/ghidra/function-pcode-flow.md`.
+## Proven offline coordinate transform
 
-Even a proven `floatValue -> CCPoint` path would only identify the point construction. Player-node placement still requires an onward consumer/dataflow edge or independent evidence for `GameScene::adjustPlayerPos(int)`.
+The offline path after a matching type-6 object is now instruction-complete for the point that reaches `GameScene + 0x4c4`.
+
+`loadingTex()` copies the object point, adds the literal `40.0f` to its Y component, calls `CCDirector::getWinSize()`, and then constructs the final point as:
+
+```text
+player_x = source_x - win_width  * 0.5
+player_y = source_y + 40.0 - win_height * 0.5
+```
+
+The relevant constants loaded in the original are `0.5f` at the loop prologue and `40.0f` from the literal pool used immediately after the type-6 point copy. The resulting `CCPoint` is assigned to `GameScene + 0x4c4` at ELF `0x00346828` and passed to `MEPlayer::setPlayerPos()` at `0x00346866`.
+
+`game_scene_player_entry_markers::transform_offline()` implements exactly this conversion with runtime window dimensions. It rejects non-finite coordinates/dimensions and non-positive window sizes. The smoke regression includes the recovered 1136×640 design resolution: raw `(600, 300)` becomes `(32, 20)`.
+
+## Proven live player-position cursor
+
+`GameScene::adjustPlayerPos(int)` is also resolved directly from ARMv7 instructions; the integer argument is not a spawn-selector enum.
+
+For a nonzero argument the function:
+
+1. converts the integer to float;
+2. adds it to the X component of the `CCPoint` at `GameScene + 0x4c4`;
+3. obtains the primary player from `MEPlayerManager`;
+4. calls `MEPlayer::movePlayer(GameScene + 0x4c4)`.
+
+A zero argument is a no-op.
+
+The same `GameScene + 0x4c4` point is synchronized from the primary player's point at `MEPlayer + 0x248` by `GameScene::updatePlayerPos()`. `GameScene::setPlayerPosAddOffset(CCPoint)` likewise starts from `MEPlayer + 0x248`, adds the requested offset, writes the result to `GameScene + 0x4c4`, and calls `MEPlayer::setPlayerPos()`.
+
+Together with the type-6 `loadingTex()` path, this proves that `GameScene + 0x4c4` is live player-position state used for initial placement and subsequent horizontal adjustment.
+
+## Current project-owned boundary
+
+The project now has two separately proven position inputs:
+
+- `GameSceneStartPoint`: the scene-list `playerStartXPos/YPos` pair stored by the original in `GameLevelsData + 0x34`;
+- `game_scene_player_entry_markers`: ordered type-6 binary scene objects whose type tail matches the current event-port type, plus the exact offline transform from their raw point to the live player-position coordinate space.
+
+They must not be conflated. No direct value-flow edge has yet been proven from `GameLevelsData + 0x34` to `GameScene + 0x4c4` or to the type-6 object point.
+
+The position side of the first offline spawn boundary is now modeled without guessed coordinates. The next bounded #148 blocker is the minimum player construction/resource contract: determine what creates the primary `MEPlayer`, what visual/action asset is required for the first visible frame, and which input state can safely move the project-owned player after placement. Camera and online-only behavior remain separate boundaries.
 
 ## Reproduction
 
-The checked-in evidence can be reproduced without the original APK/OBB or Ghidra project:
+The checked-in metadata evidence can be reproduced without the original APK/OBB or Ghidra project:
 
 ```bash
 python tools/ghidra/player_spawn_evidence.py
 python tools/ghidra/query_full_index.py callees GameScene::loadGameSceneList --limit 100
 ```
 
-The deeper value-flow export runs only against the user's analyzed Ghidra project and should remain local unless its sanitized metadata output is intentionally added as new evidence.
+The instruction-level observations above come from the user-owned binary identified by hash. Only derived addresses, field offsets, register/stack flow, constants, and behavioral contracts are retained in the repository; the original binary remains outside Git.
