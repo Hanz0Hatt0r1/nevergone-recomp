@@ -8,6 +8,7 @@ using nevergone::game_levels_scene_instance::LayerInstance;
 using nevergone::game_levels_scene_instance::SceneInstance;
 using nevergone::game_levels_scene_prefix::ObjectRecord;
 using nevergone::game_scene_player_entry_markers::collect;
+using nevergone::game_scene_player_entry_markers::transform_offline;
 
 namespace {
 
@@ -35,7 +36,7 @@ int main() {
     layer0.source_layer_index = 3;
     layer0.objects.push_back(object(0, 0, 1.0f, 2.0f, false));
     layer0.objects.push_back(object(6, 1, 10.0f, 20.0f));
-    layer0.objects.push_back(object(6, 0, 30.0f, 40.0f));
+    layer0.objects.push_back(object(6, 0, 600.0f, 300.0f));
     scene.layers.push_back(layer0);
 
     LayerInstance layer1;
@@ -61,12 +62,17 @@ int main() {
     assert((*event0)[0].source_layer_index == 3u);
     assert((*event0)[0].source_object_index == 2u);
     assert((*event0)[0].event_port_type == 0u);
-    assert((*event0)[0].source_x == 30.0f);
-    assert((*event0)[0].source_y == 40.0f);
+    assert((*event0)[0].source_x == 600.0f);
+    assert((*event0)[0].source_y == 300.0f);
     assert((*event0)[1].source_layer_index == 7u);
     assert((*event0)[1].source_object_index == 0u);
     assert((*event0)[1].source_x == -5.5f);
     assert((*event0)[1].source_y == 8.25f);
+
+    auto position = transform_offline((*event0)[0], 1136.0f, 640.0f);
+    assert(position.has_value());
+    assert(position->x == 32.0f);
+    assert(position->y == 20.0f);
 
     auto event1 = collect(scene, 1u);
     assert(event1.has_value());
@@ -86,6 +92,11 @@ int main() {
     nan_layer.objects.push_back(object(6, 0, std::nanf(""), 2.0f));
     non_finite.layers.push_back(nan_layer);
     assert(!collect(non_finite, 0u).has_value());
+
+    const auto marker = (*event0)[0];
+    assert(!transform_offline(marker, 0.0f, 640.0f).has_value());
+    assert(!transform_offline(marker, 1136.0f, -1.0f).has_value());
+    assert(!transform_offline(marker, std::nanf(""), 640.0f).has_value());
 
     return 0;
 }
