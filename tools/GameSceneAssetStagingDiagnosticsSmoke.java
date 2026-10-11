@@ -29,6 +29,18 @@ public final class GameSceneAssetStagingDiagnosticsSmoke {
         assert report.contains("failed request kind: sprite-frame-by-name");
         assert !report.contains("hero.png");
 
+        GameSceneAssetStagingDiagnostics.failed(
+                "player-atlas-resolution-failed",
+                79L,
+                3,
+                1,
+                GameSceneDirectAssetRequests.KIND_PLAYER_SPRITE_FRAME_BY_NAME,
+                0);
+        report = GameSceneAssetStagingDiagnostics.statusReport();
+        assert report.contains("state: player-atlas-resolution-failed");
+        assert report.contains("failed request index: 1");
+        assert report.contains("failed request kind: player-sprite-frame-by-name");
+
         GameSceneAssetStagingDiagnostics.begin(88L, 1);
         GameSceneAssetStagingDiagnostics.succeeded(88L, 1);
         report = GameSceneAssetStagingDiagnostics.statusReport();
