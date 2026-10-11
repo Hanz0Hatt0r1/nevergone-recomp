@@ -4,6 +4,10 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
 public final class ImportedPlistXmlSmoke {
     private static final String HEADER =
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
@@ -11,6 +15,38 @@ public final class ImportedPlistXmlSmoke {
             "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " +
             "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"";
     private static final String BODY = "<plist version=\"1.0\"><dict/></plist>";
+
+    private static final class NoXIncludeFactory extends DocumentBuilderFactory {
+        boolean xincludeAttempted = false;
+
+        @Override
+        public DocumentBuilder newDocumentBuilder() throws ParserConfigurationException {
+            throw new ParserConfigurationException("unused smoke factory");
+        }
+
+        @Override
+        public void setAttribute(String name, Object value) {}
+
+        @Override
+        public Object getAttribute(String name) {
+            return null;
+        }
+
+        @Override
+        public void setFeature(String name, boolean value) {}
+
+        @Override
+        public boolean getFeature(String name) {
+            return false;
+        }
+
+        @Override
+        public void setXIncludeAware(boolean state) {
+            assert !state;
+            xincludeAttempted = true;
+            throw new UnsupportedOperationException("XInclude unavailable");
+        }
+    }
 
     private static boolean accepts(File file, String xml) throws Exception {
         Files.writeString(file.toPath(), xml, StandardCharsets.UTF_8);
@@ -21,6 +57,11 @@ public final class ImportedPlistXmlSmoke {
         if (args.length == 1) {
             assert ImportedPlistXml.parse(new File(args[0]), 4L * 1024L * 1024L) != null;
         }
+
+        NoXIncludeFactory noXInclude = new NoXIncludeFactory();
+        ImportedPlistXml.configureFactory(noXInclude);
+        assert noXInclude.xincludeAttempted;
+
         File file = Files.createTempFile("nevergone-plist-xml", ".plist").toFile();
         try {
             assert accepts(file, HEADER + BODY);
