@@ -43,10 +43,20 @@ def _bounds(node: ET.Element, label: str) -> tuple[int, int, int, int]:
     return left, top, right, bottom
 
 
+def _normalized_label(value: str) -> str:
+    # Android Button rendering commonly applies textAllCaps before exposing the
+    # accessibility text. Match semantic label content rather than presentation
+    # casing while preserving the exactly-one-control invariant below.
+    return " ".join(value.split()).casefold()
+
+
 def refresh_center(path: Path) -> tuple[int, int]:
     matches: list[tuple[int, int]] = []
+    expected = _normalized_label(REFRESH_TEXT)
     for node in _root(path).iter("node"):
-        if node.attrib.get("text") != REFRESH_TEXT and node.attrib.get("content-desc") != REFRESH_TEXT:
+        text = _normalized_label(node.attrib.get("text", ""))
+        content_desc = _normalized_label(node.attrib.get("content-desc", ""))
+        if text != expected and content_desc != expected:
             continue
         left, top, right, bottom = _bounds(node, "refresh button")
         matches.append(((left + right) // 2, (top + bottom) // 2))
