@@ -11,12 +11,15 @@ Snapshot g_state;
 std::optional<game_scene_player_entry_markers::OfflinePosition> g_position;
 
 void begin_refresh_locked(
+        const game_levels_scene_instance::SceneInstance& scene,
         std::uint32_t event_port_type,
         int surface_width,
         int surface_height) {
     const std::uint64_t generation = g_state.generation + 1u;
     g_state = Snapshot{};
     g_state.generation = generation;
+    g_state.source_scene_index = scene.source_scene_index;
+    g_state.scene_guid = scene.guid;
     g_state.event_port_type = event_port_type;
     g_state.surface_width = surface_width;
     g_state.surface_height = surface_height;
@@ -37,7 +40,7 @@ bool refresh(
         int surface_width,
         int surface_height) {
     std::lock_guard<std::mutex> lock(g_mutex);
-    begin_refresh_locked(event_port_type, surface_width, surface_height);
+    begin_refresh_locked(scene, event_port_type, surface_width, surface_height);
 
     if (surface_width <= 0 || surface_height <= 0) {
         g_state.status = Status::kInvalidSurface;
@@ -112,6 +115,9 @@ std::string status_report() {
     out << "GameScene player spawn state\n";
     out << "state: " << status_name(state.status) << "\n";
     out << "generation: " << state.generation << "\n";
+    if (!state.scene_guid.empty()) {
+        out << "scene: " << state.source_scene_index << " (" << state.scene_guid << ")\n";
+    }
     out << "event port type: " << state.event_port_type << "\n";
     out << "surface: " << state.surface_width << "x" << state.surface_height << "\n";
     out << "matching markers: " << state.matching_marker_count << "\n";
