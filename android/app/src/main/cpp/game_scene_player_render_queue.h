@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "game_scene_initial_player_sprite_request.h"
+#include "game_scene_player_joystick_render_queue.h"
 #include "game_scene_player_spawn_state.h"
 #include "game_scene_render_queue.h"
 #include "player_action_document_store.h"
@@ -54,7 +55,12 @@ inline game_scene_render_queue::Queue with_initial_player(
 inline game_scene_render_queue::Queue current(game_scene_render_queue::Queue queue) {
     const auto frame = player_action_document_store::initial_frame_record();
     const auto spawn = game_scene_player_spawn_state::snapshot();
-    return with_initial_player(std::move(queue), spawn, frame ? &*frame : nullptr);
+    queue = with_initial_player(std::move(queue), spawn, frame ? &*frame : nullptr);
+    // Controls owns the fixed joystick outside the serialized GameScene world
+    // layers. Append its proven Dock.png child after player/world composition so
+    // the JNI asset-request snapshot and GL renderer automatically share the
+    // same screen-space overlay command.
+    return game_scene_player_joystick_render_queue::current(std::move(queue));
 }
 
 }  // namespace nevergone::game_scene_player_render_queue
