@@ -20,6 +20,7 @@ struct Request {
     std::size_t sprite_command_index = 0;
     std::string relative_path;
     std::string frame_name;
+    bool player_body = false;
 };
 
 struct Snapshot {
@@ -74,6 +75,7 @@ inline Snapshot build(const game_scene_render_queue::Queue& queue) {
             request.kind = Kind::kSpriteFrameByName;
             request.sprite_command_index = command_index;
             request.frame_name = command.resource.resource_name;
+            request.player_body = command.player_body_transform.has_value();
             snapshot.requests.push_back(std::move(request));
         }
     }
@@ -87,6 +89,7 @@ inline Snapshot build(const game_scene_render_queue::Queue& queue) {
         detail::hash_size(&hash, request.sprite_command_index);
         detail::hash_string(&hash, request.relative_path);
         detail::hash_string(&hash, request.frame_name);
+        detail::hash_byte(&hash, request.player_body ? 1u : 0u);
     }
     // Java receives this as a signed long. Keep the revision positive and
     // reserve zero for "no live render queue" at the JNI boundary.

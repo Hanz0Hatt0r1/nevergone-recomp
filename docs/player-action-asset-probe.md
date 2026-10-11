@@ -56,6 +56,12 @@ The nested `actdata_validation` report retains only a small allow-list of parser
 
 The frame key is emitted as hex so arbitrary user-owned resource bytes cannot inject additional line-oriented validator fields. The repository never stores the selected action-data payload.
 
+Imported Apple plists use a standard external DTD declaration, and shipped
+player atlas plists include a TexturePacker variant ending in `/>`. The
+Android XML reader removes only those two exact declarations before secure
+DOM parsing. A different DTD remains rejected. The original player default
+atlas in the local OBB resolves a `552×384` frame through this path.
+
 ## Runtime frame request bridge
 
 `game_scene_player_frame_request::build()` connects a parsed player action document to the existing renderer-facing sprite-frame resource contract using the **player-specific** `MeActionsSystem` runtime state.

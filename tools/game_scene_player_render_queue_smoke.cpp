@@ -44,6 +44,7 @@ int main() {
     assert(requests.requests.size() == 1u);
     assert(requests.requests[0].sprite_command_index == 1u);
     assert(requests.requests[0].frame_name == "player_001.png");
+    assert(requests.requests[0].player_body);
 
     auto absent = game_scene_player_render_queue::with_initial_player(scene, spawn, nullptr);
     assert(absent.sprites.size() == 2u);

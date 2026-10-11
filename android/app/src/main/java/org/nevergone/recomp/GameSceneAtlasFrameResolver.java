@@ -193,19 +193,7 @@ final class GameSceneAtlasFrameResolver {
     }
 
     private static Document parseDocument(File plist) throws Exception {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setNamespaceAware(false);
-        factory.setXIncludeAware(false);
-        factory.setExpandEntityReferences(false);
-        trySetFeature(factory, "http://apache.org/xml/features/disallow-doctype-decl", true);
-        trySetFeature(factory, "http://xml.org/sax/features/external-general-entities", false);
-        trySetFeature(factory, "http://xml.org/sax/features/external-parameter-entities", false);
-        trySetFeature(factory, "http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        builder.setEntityResolver((publicId, systemId) -> new InputSource(new StringReader("")));
-        try (FileInputStream input = new FileInputStream(plist)) {
-            return builder.parse(input);
-        }
+        return ImportedPlistXml.parse(plist, MAX_PLIST_BYTES);
     }
 
     private static void trySetFeature(DocumentBuilderFactory factory, String name, boolean value) {

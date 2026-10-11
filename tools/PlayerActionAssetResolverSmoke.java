@@ -13,6 +13,8 @@ public final class PlayerActionAssetResolverSmoke {
 
     private static String plist(String actionName) {
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " +
+                "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n" +
                 "<plist version=\"1.0\"><dict>" +
                 "<key>action01</key><dict><key>name</key><string>idle.actData</string></dict>" +
                 "<key>action28</key><dict><key>name</key><string>" + actionName + "</string></dict>" +
