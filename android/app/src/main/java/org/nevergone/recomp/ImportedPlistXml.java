@@ -46,16 +46,27 @@ final class ImportedPlistXml {
         if (xml.contains("<!DOCTYPE")) return null;
 
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        configureFactory(factory);
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        builder.setEntityResolver((publicId, systemId) -> new InputSource(new StringReader("")));
+        return builder.parse(new InputSource(new StringReader(xml)));
+    }
+
+    static void configureFactory(DocumentBuilderFactory factory) {
         factory.setNamespaceAware(false);
-        factory.setXIncludeAware(false);
+        try {
+            factory.setXIncludeAware(false);
+        } catch (UnsupportedOperationException ignored) {
+            // Some Android/libcore JAXP implementations reject this API even
+            // for false. XInclude defaults to disabled, so continuing preserves
+            // the intended policy while retaining compatibility with the device
+            // parser used for imported TexturePacker plists.
+        }
         factory.setExpandEntityReferences(false);
         trySetFeature(factory, "http://apache.org/xml/features/disallow-doctype-decl", true);
         trySetFeature(factory, "http://xml.org/sax/features/external-general-entities", false);
         trySetFeature(factory, "http://xml.org/sax/features/external-parameter-entities", false);
         trySetFeature(factory, "http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        builder.setEntityResolver((publicId, systemId) -> new InputSource(new StringReader("")));
-        return builder.parse(new InputSource(new StringReader(xml)));
     }
 
     private static void trySetFeature(DocumentBuilderFactory factory, String name, boolean value) {
