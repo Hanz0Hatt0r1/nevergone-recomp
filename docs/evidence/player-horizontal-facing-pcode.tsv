@@ -1,0 +1,9 @@
+function_entry	op_address	op_time	opcode	output	inputs	callee_entry	callee_name
+0032ddee	0032de36	147	INT_EQUAL	def:0032de36:147:1	register:register:00000024:4;const:0x12:4	-	-
+0032ddee	0032de44	167	CALL	-	register:register:00000020:4;const:0x1:4	0032a4ec	MEPlayer::filpPlayer
+0032ddee	0032de50	356	INT_EQUAL	def:0032de50:356:1	register:register:00000024:4;const:0x13:4	-	-
+0032ddee	0032de60	385	CALL	-	register:register:00000020:4;const:0x0:4	0032a4ec	MEPlayer::filpPlayer
+00339108	0033910c	11	PTRADD	def:0033910c:11:4	register:register:00000020:4;const:0x1be:4;const:0x1:4	-	-
+00339108	0033910c	13	STORE	-	const:0x1a1:4;def:0033910c:11:4;def:0033910c:449:1	-	-
+00339108	0033910c	449	CAST	def:0033910c:449:1	register:register:00000024:1	-	-
+00339108	00339114	19	CALL	-	def:00339110:15:4;register:register:00000024:1	00549756	cocos2d::CCSprite::setFlipX

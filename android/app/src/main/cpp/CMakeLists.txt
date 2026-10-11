@@ -61,6 +61,7 @@ add_library(nevergone_recomp SHARED
     game_scene_direct_texture_gl.cpp
     game_scene_frame_asset_bridge.cpp
     game_scene_player_entry_markers.cpp
+    game_scene_player_facing_input.cpp
     game_scene_player_frame_request.cpp
     game_scene_initial_player_sprite_request.cpp
     game_scene_player_spawn_state.cpp

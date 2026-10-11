@@ -6,6 +6,7 @@
 #include "game_levels_runtime_state.h"
 #include "game_scene_direct_renderer.h"
 #include "game_scene_player_spawn_state.h"
+#include "game_scene_player_facing_input.h"
 #include "player_action_document_store.h"
 #include "role_selection_state.h"
 #include "startup_contract.h"
@@ -92,4 +93,5 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeResetPlayerActionDocum
         JNIEnv*, jclass) {
     nevergone::player_action_document_store::reset();
     nevergone::game_scene_player_spawn_state::reset();
+    nevergone::game_scene_player_facing_input::reset();
 }
