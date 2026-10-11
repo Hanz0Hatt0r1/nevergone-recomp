@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cmath>
+#include <string>
 
 #include "game_scene_player_joystick_input.h"
 #include "player_control_runtime_state.h"
@@ -14,10 +15,16 @@ bool near(float lhs, float rhs) {
     return std::fabs(lhs - rhs) < 0.001f;
 }
 
+bool contains(const std::string& text, const std::string& needle) {
+    return text.find(needle) != std::string::npos;
+}
+
 }  // namespace
 
 int main() {
     joystick::reset();
+    assert(contains(joystick::status_report(), "captured: false"));
+    assert(contains(runtime::status_report(), "primary state: none"));
 
     float design_x = 0.0f;
     float design_y = 0.0f;
@@ -34,6 +41,8 @@ int main() {
     joystick::tick();
     auto state = runtime::snapshot();
     assert(!state.primary_state.has_value());
+    assert(contains(joystick::status_report(), "captured: true"));
+    assert(contains(joystick::status_report(), "accepted begins: 1"));
 
     // Positive local X -> angle 0 -> recovered primary state 0x13 -> no flip.
     assert(joystick::on_touch(2, 7, 304.0f, 467.0f, 1136, 640));
@@ -41,6 +50,8 @@ int main() {
     state = runtime::snapshot();
     assert(state.primary_state == contract::PrimaryControlState::kState13);
     assert(!state.flip_x);
+    assert(contains(runtime::status_report(), "primary state: 0x13"));
+    assert(contains(runtime::status_report(), "flip x: false"));
 
     // A different pointer cannot steal the captured fixed joystick.
     assert(!joystick::on_touch(2, 9, 104.0f, 467.0f, 1136, 640));
@@ -51,6 +62,9 @@ int main() {
     state = runtime::snapshot();
     assert(state.primary_state == contract::PrimaryControlState::kState12);
     assert(state.flip_x);
+    assert(contains(runtime::status_report(), "primary state: 0x12"));
+    assert(contains(runtime::status_report(), "flip x: true"));
+    assert(contains(joystick::status_report(), "accepted moves: 2"));
 
     const auto before_far_move = joystick::snapshot();
     // CCJoyStick::updateTouchPoint rejects distance > (300 - 10) = 290 and
@@ -69,6 +83,8 @@ int main() {
     state = runtime::snapshot();
     assert(state.primary_state == contract::PrimaryControlState::kState12);
     assert(state.flip_x);
+    assert(contains(joystick::status_report(), "captured: false"));
+    assert(contains(runtime::status_report(), "primary state: 0x12"));
 
     // Native containsTouchLocation uses strict distance < hitRadius.
     assert(!joystick::on_touch(0, 8, 369.0f, 467.0f, 1136, 640));
@@ -86,6 +102,7 @@ int main() {
     joystick::reset();
     assert(!joystick::snapshot().captured);
     assert(!runtime::snapshot().primary_state.has_value());
+    assert(contains(runtime::status_report(), "primary state: none"));
 
     // Invalid/out-of-surface coordinates fail closed.
     assert(!joystick::surface_to_design(0, 640, 1.0f, 1.0f, &design_x, &design_y));
