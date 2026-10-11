@@ -1,5 +1,7 @@
 #include <cassert>
 #include <cmath>
+#include <cstdint>
+#include <limits>
 #include <string>
 
 #include "game_scene_player_bootstrap.h"
@@ -15,6 +17,16 @@ int main() {
     assert(bootstrap::kConstructionPlayerClothesId == 1u);
     assert(bootstrap::kConstructionPlayerColorId == 0u);
     assert(bootstrap::kInitialActionState == 0x1bu);
+    assert(bootstrap::kInitialActionEntryNumber == 28u);
+    assert(std::string(bootstrap::action_name_field()) == "name");
+
+    const auto initial_action_key = bootstrap::action_entry_key(bootstrap::kInitialActionState);
+    assert(initial_action_key.has_value());
+    assert(*initial_action_key == "action28");
+    const auto first_action_key = bootstrap::action_entry_key(0u);
+    assert(first_action_key.has_value());
+    assert(*first_action_key == "action01");
+    assert(!bootstrap::action_entry_key(std::numeric_limits<std::uint32_t>::max()).has_value());
 
     const auto point = bootstrap::initial_manager_point(1136.0f, 640.0f);
     assert(point.has_value());
