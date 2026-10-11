@@ -166,6 +166,7 @@ bool load_file(const std::string& path, std::size_t max_bytes) {
     }
 
     g_state.model_end_offset = parsed.end_offset;
+    g_state.atlas_preload_name_count = parsed.global.strings.size();
     g_model = std::move(parsed);
     g_state.status = LoadStatus::kReady;
     refresh_current_scene_locked();
@@ -197,6 +198,17 @@ std::optional<game_scene_construction_plan::ScenePlan> current_scene_constructio
 std::optional<game_scene_render_queue::Queue> current_scene_render_queue() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_scene_render_queue;
+}
+
+std::vector<std::string> current_atlas_preload_names() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    std::vector<std::string> result;
+    if (!g_model.has_value()) return result;
+    result.reserve(g_model->global.strings.size());
+    for (const auto& record : g_model->global.strings) {
+        result.push_back(record.value);
+    }
+    return result;
 }
 
 game_levels_scene_navigation::Transition step(std::uint32_t requested_event_port_type) {
@@ -235,6 +247,9 @@ std::string status_report() {
     out << "load attempts: " << state.load_attempt_count << "\n";
     if (state.reader_size != 0u) out << "scene bytes loaded: " << state.reader_size << "\n";
     if (state.model_end_offset != 0u) out << "verified model bytes: " << state.model_end_offset << "\n";
+    if (state.status == LoadStatus::kReady) {
+        out << "atlas preload names: " << state.atlas_preload_name_count << "\n";
+    }
     if (state.current_port_node_index.has_value()) out << "current port index: " << *state.current_port_node_index << "\n";
     if (state.current_scene_index.has_value()) out << "current scene index: " << *state.current_scene_index << "\n";
     if (!state.current_scene_guid.empty()) out << "current scene guid: " << state.current_scene_guid << "\n";
