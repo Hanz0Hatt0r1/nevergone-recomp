@@ -56,19 +56,37 @@ The nested `actdata_validation` report retains only a small allow-list of parser
 
 The frame key is emitted as hex so arbitrary user-owned resource bytes cannot inject additional line-oriented validator fields. The repository never stores the selected action-data payload.
 
+## Runtime frame request bridge
+
+`game_scene_player_frame_request::build()` now connects a parsed player action document to the existing renderer-facing sprite-frame resource contract. It delegates frame selection to `enemy_actions_runtime_state::apply_update_data_frame_lookup()` and does not manufacture a readiness state or current-frame index.
+
+A request becomes `ready` only when:
+
+- the recovered `flag_26c` readiness gate is open;
+- the document contains primary frames;
+- `current_frame_294` selects an in-range primary record;
+- the requested player position is finite;
+- the selected `third_string` frame key is non-empty, length-consistent with the serialized `+0x6c` value, bounded to 512 bytes, and contains no path separators or embedded NUL.
+
+On success the bridge emits `game_scene_type0_resource::Kind::kSpriteFrameByName` with the exact recovered frame key. That is the same resource kind already consumed by the GameScene atlas discovery, frame-resolution, pixel-staging and GLES texture pipeline. The bridge deliberately stops before inventing player attachment/Z-order semantics that have not yet been recovered.
+
+`tools/game_scene_player_frame_request_smoke.cpp` protects the ready path and fail-closed behavior for a closed readiness gate, empty documents, out-of-range frame state, invalid position, traversal-like frame names, length mismatch and empty frame keys.
+
 ## Evidence boundary
 
-The existing `EnemyActionsSystem::updateData()` reconstruction proves that a selected primary frame supplies the sprite-frame lookup key from `ActionFrameRecord::third_string`. The new host bridge therefore exposes record 0's key without claiming that record 0 is universally the runtime-selected frame. Runtime selection still depends on the recovered `current_frame_294` state and readiness gate.
+The existing `EnemyActionsSystem::updateData()` reconstruction proves that a selected primary frame supplies the sprite-frame lookup key from `ActionFrameRecord::third_string`. The local asset probe exposes record 0's key without claiming that record 0 is universally the runtime-selected frame. Runtime selection still depends on the recovered `current_frame_294` state and readiness gate.
 
-This closes the local tooling gap between:
+The project-owned path now reaches:
 
 ```text
 pNN_actions.plist/action28/name
     -> matched user-owned .actData
     -> enemy_actions_wbg_document
-    -> primary record 0 third_string/frame-key metadata
+    -> recovered updateData frame selection
+    -> validated sprite-frame-by-name request
+    -> existing GameScene atlas pipeline contract
 ```
 
-The next runtime step is to feed the player action document into the existing `enemy_actions_runtime_state::apply_update_data_frame_lookup()` path with the reconstructed player state, then bind the selected frame key to the player sprite renderer.
+The next bounded #148 runtime step is to load the selected user-owned player action document inside the Android offline-scene lifecycle and attach the validated frame request to a project-owned player render node only after the required attachment/Z-order behavior is evidenced. A visible input transition remains downstream of that integration.
 
 No original assets are stored in this repository.
