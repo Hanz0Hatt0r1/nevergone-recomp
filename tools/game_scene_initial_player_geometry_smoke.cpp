@@ -34,6 +34,10 @@ nevergone::game_scene_initial_player_sprite_request::Request ready_request() {
     result.frame_request.status = nevergone::game_scene_player_frame_request::Status::kReady;
     result.frame_request.position.x = 568.0f;
     result.frame_request.position.y = 320.0f;
+    nevergone::game_scene_type0_resource::Selection resource;
+    resource.kind = nevergone::game_scene_type0_resource::Kind::kSpriteFrameByName;
+    resource.resource_name = "player_idle_001.png";
+    result.frame_request.resource = resource;
 
     nevergone::me_actions_initial_sprite_transform::Plan transform;
     transform.position_x = 10.0f;
@@ -92,6 +96,12 @@ int main() {
     }
 
     request.status = nevergone::game_scene_initial_player_sprite_request::Status::kFrameRequestFailed;
+    assert(!geometry::build_quad(request, 100, 80, 1136, 640, &quad));
+    request = ready_request();
+    request.frame_request.status = nevergone::game_scene_player_frame_request::Status::kInvalidFrameKey;
+    assert(!geometry::build_quad(request, 100, 80, 1136, 640, &quad));
+    request = ready_request();
+    request.frame_request.resource.reset();
     assert(!geometry::build_quad(request, 100, 80, 1136, 640, &quad));
     request = ready_request();
     request.sprite_transform.reset();
