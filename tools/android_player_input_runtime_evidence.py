@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
-"""Validate before/after Android diagnostics for the recovered GameScene joystick path."""
+"""Validate and drive retained Android evidence for the recovered GameScene joystick path."""
 
 from __future__ import annotations
 
 import argparse
 import math
 import re
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
 from android_game_scene_runtime_evidence import validate_diagnostics
+
+DESIGN_WIDTH = 1136.0
+DESIGN_HEIGHT = 640.0
+JOYSTICK_CENTER_X = 204.0
+JOYSTICK_CENTER_Y = 173.0
+JOYSTICK_TEST_DELTA_X = 100.0
+BOUNDS_RE = re.compile(r"^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$")
 
 
 @dataclass(frozen=True)
@@ -35,6 +43,14 @@ class ControlSnapshot:
 class PlayerInputSnapshot:
     joystick: JoystickSnapshot
     control: ControlSnapshot
+
+
+@dataclass(frozen=True)
+class Swipe:
+    start_x: int
+    start_y: int
+    end_x: int
+    end_y: int
 
 
 def _single_match(pattern: str, text: str, label: str) -> re.Match[str]:
@@ -94,6 +110,56 @@ def parse_snapshot(text: str) -> PlayerInputSnapshot:
     return PlayerInputSnapshot(joystick=joystick_snapshot, control=control_snapshot)
 
 
+def choose_direction(text: str) -> str:
+    snapshot = parse_snapshot(text)
+    # Force a state transition rather than replaying the already-applied facing.
+    return "left" if snapshot.control.primary_state == "0x13" else "right"
+
+
+def _surface_bounds(xml_path: Path) -> tuple[int, int, int, int]:
+    try:
+        root = ET.parse(xml_path).getroot()
+    except (ET.ParseError, OSError) as error:
+        raise ValueError(f"invalid uiautomator XML {xml_path}: {error}") from error
+
+    candidates: list[tuple[int, int, int, int]] = []
+    for node in root.iter("node"):
+        class_name = node.attrib.get("class", "")
+        if class_name not in {
+            "android.opengl.GLSurfaceView",
+            "org.nevergone.recomp.GameSurfaceView",
+        } and not class_name.endswith(".GameSurfaceView"):
+            continue
+        match = BOUNDS_RE.fullmatch(node.attrib.get("bounds", ""))
+        if match is None:
+            continue
+        left, top, right, bottom = map(int, match.groups())
+        if right > left and bottom > top:
+            candidates.append((left, top, right, bottom))
+    if len(candidates) != 1:
+        raise ValueError(f"expected exactly one GameSurfaceView bounds node, found {len(candidates)}")
+    return candidates[0]
+
+
+def surface_swipe(xml_path: Path, direction: str) -> Swipe:
+    if direction not in {"left", "right"}:
+        raise ValueError(f"unsupported swipe direction: {direction!r}")
+    left, top, right, bottom = _surface_bounds(xml_path)
+    width = float(right - left)
+    height = float(bottom - top)
+
+    target_x = JOYSTICK_CENTER_X + (JOYSTICK_TEST_DELTA_X if direction == "right" else -JOYSTICK_TEST_DELTA_X)
+
+    def to_screen(design_x: float, design_y: float) -> tuple[int, int]:
+        x = left + design_x * width / DESIGN_WIDTH
+        y = top + (DESIGN_HEIGHT - design_y) * height / DESIGN_HEIGHT
+        return round(x), round(y)
+
+    start_x, start_y = to_screen(JOYSTICK_CENTER_X, JOYSTICK_CENTER_Y)
+    end_x, end_y = to_screen(target_x, JOYSTICK_CENTER_Y)
+    return Swipe(start_x=start_x, start_y=start_y, end_x=end_x, end_y=end_y)
+
+
 def validate_transition(before_text: str, after_text: str) -> tuple[PlayerInputSnapshot, PlayerInputSnapshot]:
     # Reuse the P7 proof gate so input evidence cannot be accepted from a menu,
     # parser-only state or failed renderer/staging snapshot.
@@ -129,11 +195,29 @@ def validate_transition(before_text: str, after_text: str) -> tuple[PlayerInputS
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("before", type=Path)
-    parser.add_argument("after", type=Path)
-    args = parser.parse_args()
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
+    validate_parser = subparsers.add_parser("validate")
+    validate_parser.add_argument("before", type=Path)
+    validate_parser.add_argument("after", type=Path)
+
+    direction_parser = subparsers.add_parser("choose-direction")
+    direction_parser.add_argument("diagnostics", type=Path)
+
+    swipe_parser = subparsers.add_parser("surface-swipe")
+    swipe_parser.add_argument("xml", type=Path)
+    swipe_parser.add_argument("direction", choices=("left", "right"))
+
+    args = parser.parse_args()
     try:
+        if args.command == "choose-direction":
+            print(choose_direction(args.diagnostics.read_text(encoding="utf-8")))
+            return 0
+        if args.command == "surface-swipe":
+            swipe = surface_swipe(args.xml, args.direction)
+            print(swipe.start_x, swipe.start_y, swipe.end_x, swipe.end_y)
+            return 0
+
         before_text = args.before.read_text(encoding="utf-8")
         after_text = args.after.read_text(encoding="utf-8")
         before, after = validate_transition(before_text, after_text)
