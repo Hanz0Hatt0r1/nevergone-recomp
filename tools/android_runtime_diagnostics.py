@@ -11,6 +11,7 @@ from pathlib import Path
 
 REFRESH_TEXT = "Refresh runtime diagnostics"
 SCROLL_VIEW_CLASS = "android.widget.ScrollView"
+SCROLL_DIRECTIONS = ("toward-start", "toward-end")
 BOUNDS_RE = re.compile(r"^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$")
 RESUME_RE = re.compile(r"(?:^|\s)resume events:\s*(\d+)(?:\s|$)")
 PAUSE_RE = re.compile(r"(?:^|\s)pause events:\s*(\d+)(?:\s|$)")
@@ -75,7 +76,10 @@ def _scroll_node(path: Path) -> ET.Element:
     return fallback[0]
 
 
-def scroll_swipe(path: Path) -> tuple[int, int, int, int]:
+def scroll_swipe(path: Path, direction: str = "toward-end") -> tuple[int, int, int, int]:
+    if direction not in SCROLL_DIRECTIONS:
+        raise ValueError(f"unsupported scroll direction: {direction!r}")
+
     node = _scroll_node(path)
     left, top, right, bottom = _bounds(node, "scrollable node")
     width = right - left
@@ -83,9 +87,11 @@ def scroll_swipe(path: Path) -> tuple[int, int, int, int]:
     if height < 4:
         raise ValueError("scrollable node is too short for a bounded swipe")
     x = left + width // 2
-    start_y = top + (height * 3) // 4
-    end_y = top + height // 4
-    return x, start_y, x, end_y
+    upper_y = top + height // 4
+    lower_y = top + (height * 3) // 4
+    if direction == "toward-start":
+        return x, upper_y, x, lower_y
+    return x, lower_y, x, upper_y
 
 
 def renderer_counters(path: Path) -> Counters:
@@ -123,6 +129,12 @@ def main() -> int:
 
     swipe_parser = subparsers.add_parser("scroll-swipe")
     swipe_parser.add_argument("xml", type=Path)
+    swipe_parser.add_argument(
+        "--direction",
+        choices=SCROLL_DIRECTIONS,
+        default="toward-end",
+        help="scroll content toward the start or end of the ScrollView",
+    )
 
     counters_parser = subparsers.add_parser("renderer-counters")
     counters_parser.add_argument("xml", type=Path)
@@ -133,7 +145,7 @@ def main() -> int:
         print(f"{x} {y}")
         return 0
     if args.command == "scroll-swipe":
-        start_x, start_y, end_x, end_y = scroll_swipe(args.xml)
+        start_x, start_y, end_x, end_y = scroll_swipe(args.xml, args.direction)
         print(f"{start_x} {start_y} {end_x} {end_y}")
         return 0
 
