@@ -1,6 +1,7 @@
 #include "player_control_runtime_state.h"
 
 #include <mutex>
+#include <sstream>
 
 namespace nevergone::player_control_runtime_state {
 namespace {
@@ -8,6 +9,16 @@ namespace {
 std::mutex g_mutex;
 std::uint64_t g_generation = 0;
 Snapshot g_snapshot;
+
+const char* primary_state_report_name(
+        const std::optional<player_control_contract::PrimaryControlState>& state) {
+    if (!state.has_value()) return "none";
+    switch (*state) {
+        case player_control_contract::PrimaryControlState::kState12: return "0x12";
+        case player_control_contract::PrimaryControlState::kState13: return "0x13";
+    }
+    return "invalid";
+}
 
 }  // namespace
 
@@ -43,6 +54,16 @@ bool apply_horizontal_sample(float activity_metric, float angle_degrees) {
 Snapshot snapshot() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_snapshot;
+}
+
+std::string status_report() {
+    const Snapshot state = snapshot();
+    std::ostringstream out;
+    out << "Player control runtime\n";
+    out << "generation: " << state.generation << "\n";
+    out << "primary state: " << primary_state_report_name(state.primary_state) << "\n";
+    out << "flip x: " << (state.flip_x ? "true" : "false") << "\n";
+    return out.str();
 }
 
 }  // namespace nevergone::player_control_runtime_state

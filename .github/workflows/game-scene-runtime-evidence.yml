@@ -6,8 +6,12 @@ on:
       - '.github/workflows/game-scene-runtime-evidence.yml'
       - 'tools/android_game_scene_runtime_evidence.py'
       - 'tools/test_android_game_scene_runtime_evidence.py'
+      - 'tools/android_player_input_runtime_evidence.py'
+      - 'tools/test_android_player_input_runtime_evidence.py'
       - 'tools/android_game_scene_render_evidence.sh'
+      - 'tools/android_player_input_runtime_evidence.sh'
       - 'docs/game-scene-runtime-evidence.md'
+      - 'docs/player-input-runtime-evidence.md'
 
 permissions:
   contents: read
@@ -28,8 +32,13 @@ jobs:
         run: |
           python3 -m py_compile \
             tools/android_game_scene_runtime_evidence.py \
-            tools/test_android_game_scene_runtime_evidence.py
+            tools/test_android_game_scene_runtime_evidence.py \
+            tools/android_player_input_runtime_evidence.py \
+            tools/test_android_player_input_runtime_evidence.py
           python3 tools/test_android_game_scene_runtime_evidence.py
+          python3 tools/test_android_player_input_runtime_evidence.py
 
-      - name: Parse Android capture harness
-        run: bash -n tools/android_game_scene_render_evidence.sh
+      - name: Parse Android capture harnesses
+        run: |
+          bash -n tools/android_game_scene_render_evidence.sh
+          bash -n tools/android_player_input_runtime_evidence.sh

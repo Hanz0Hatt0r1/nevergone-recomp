@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <mutex>
+#include <sstream>
 
 #include "player_control_runtime_state.h"
 
@@ -156,6 +157,20 @@ void reset() {
 Snapshot snapshot() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_snapshot;
+}
+
+std::string status_report() {
+    const Snapshot state = snapshot();
+    std::ostringstream out;
+    out << "GameScene player joystick\n";
+    out << "captured: " << (state.captured ? "true" : "false") << "\n";
+    out << "pointer id: " << state.pointer_id << "\n";
+    out << "accepted begins: " << state.accepted_begins << "\n";
+    out << "accepted moves: " << state.accepted_moves << "\n";
+    out << "design point: " << state.design_x << "," << state.design_y << "\n";
+    out << "power: " << state.power << "\n";
+    out << "angle degrees: " << state.angle_degrees << "\n";
+    return out.str();
 }
 
 }  // namespace nevergone::game_scene_player_joystick_input

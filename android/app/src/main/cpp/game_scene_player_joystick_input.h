@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 namespace nevergone::game_scene_player_joystick_input {
 
@@ -61,5 +62,8 @@ void cancel_capture();
 void reset();
 
 Snapshot snapshot();
+
+// Resource-name-free runtime diagnostics for retained Android input evidence.
+std::string status_report();
 
 }  // namespace nevergone::game_scene_player_joystick_input
