@@ -20,19 +20,34 @@ Boundary classify(const game_levels_asset_probe::Snapshot& probe) {
     if (!probe.port_node_section_readable) return Boundary::kGlobalSectionVerified;
     return Boundary::kPortNodeSectionVerified;
 }
-}  // namespace
 
-void reset() {
-    {
-        std::lock_guard<std::mutex> lock(g_mutex);
-        g_state = Snapshot{};
+void record_probe(const game_levels_asset_probe::Snapshot& probe, bool callback_source) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (callback_source) {
+        ++g_state.enter_callback_count;
+    } else {
+        ++g_state.local_enter_count;
     }
-    game_levels_runtime_state::reset();
+    ++g_state.probe_attempt_count;
+    g_state.boundary = classify(probe);
+    g_state.file_size = probe.file_size;
+    g_state.reader_size = probe.reader_size;
+    if (probe.port_node_section_readable) {
+        g_state.verified_bytes = probe.port_node_section_bytes_consumed;
+    } else if (probe.global_section_readable) {
+        g_state.verified_bytes = probe.global_section_bytes_consumed;
+    } else if (probe.actions_section_readable) {
+        g_state.verified_bytes = probe.actions_section_bytes_consumed;
+    } else if (probe.scene_section_readable) {
+        g_state.verified_bytes = probe.scene_section_bytes_consumed;
+    } else {
+        g_state.verified_bytes = 0;
+    }
 }
 
-void on_enter_game(const std::string& files_dir) {
+void load_game_levels(const std::string& files_dir, bool callback_source) {
     const auto probe = game_levels_asset_probe::probe_pvp_scene(files_dir);
-    on_enter_game_with_probe(probe);
+    record_probe(probe, callback_source);
 
     if (!probe.port_node_section_readable) {
         game_levels_runtime_state::reset();
@@ -53,25 +68,26 @@ void on_enter_game(const std::string& files_dir) {
     }
     if (runtime.model_end_offset != 0u) g_state.verified_bytes = runtime.model_end_offset;
 }
+}  // namespace
+
+void reset() {
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_state = Snapshot{};
+    }
+    game_levels_runtime_state::reset();
+}
+
+void on_enter_game(const std::string& files_dir) {
+    load_game_levels(files_dir, true);
+}
+
+void on_local_enter_game(const std::string& files_dir) {
+    load_game_levels(files_dir, false);
+}
 
 void on_enter_game_with_probe(const game_levels_asset_probe::Snapshot& probe) {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    ++g_state.enter_callback_count;
-    ++g_state.probe_attempt_count;
-    g_state.boundary = classify(probe);
-    g_state.file_size = probe.file_size;
-    g_state.reader_size = probe.reader_size;
-    if (probe.port_node_section_readable) {
-        g_state.verified_bytes = probe.port_node_section_bytes_consumed;
-    } else if (probe.global_section_readable) {
-        g_state.verified_bytes = probe.global_section_bytes_consumed;
-    } else if (probe.actions_section_readable) {
-        g_state.verified_bytes = probe.actions_section_bytes_consumed;
-    } else if (probe.scene_section_readable) {
-        g_state.verified_bytes = probe.scene_section_bytes_consumed;
-    } else {
-        g_state.verified_bytes = 0;
-    }
+    record_probe(probe, true);
 }
 
 Snapshot snapshot() {
@@ -104,6 +120,7 @@ std::string status_report() {
     out << "GameLevels enter boundary\n";
     out << "state: " << boundary_name(state.boundary) << "\n";
     out << "enter callbacks: " << state.enter_callback_count << "\n";
+    out << "local enters: " << state.local_enter_count << "\n";
     out << "probe attempts: " << state.probe_attempt_count << "\n";
     if (state.reader_size != 0) out << "scene bytes loaded: " << state.reader_size << "\n";
     if (state.verified_bytes != 0) out << "verified GameLevels stream bytes: " << state.verified_bytes << "\n";
