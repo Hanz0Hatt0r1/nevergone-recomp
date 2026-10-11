@@ -68,3 +68,5 @@ MeActionsSystem init/play
 ```
 
 `game_scene_player_frame_request` now consumes this player-specific state and no longer depends on `EnemyActionsSystem +0x26c/+0x294` readiness/frame semantics.
+
+Live original-device memory observations and the scope of the full process dump are recorded separately in [`evidence/original-runtime-memory-2026-10-11.md`](evidence/original-runtime-memory-2026-10-11.md). Those dynamic samples corroborate the frame-field interpretation; the initial value above comes from the instruction path.
