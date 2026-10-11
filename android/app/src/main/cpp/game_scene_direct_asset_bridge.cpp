@@ -3,6 +3,8 @@
 #include <limits>
 #include <mutex>
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "game_levels_runtime_state.h"
 #include "game_scene_direct_asset_requests.h"
@@ -15,16 +17,21 @@ using RequestKind = nevergone::game_scene_direct_asset_requests::Kind;
 
 std::mutex g_mutex;
 std::optional<RequestSnapshot> g_snapshot;
+std::vector<std::string> g_atlas_preload_names;
 
 jlong refresh_snapshot() {
     const auto queue = nevergone::game_levels_runtime_state::current_scene_render_queue();
+    const auto atlas_preload_names =
+            nevergone::game_levels_runtime_state::current_atlas_preload_names();
     std::lock_guard<std::mutex> lock(g_mutex);
     if (!queue.has_value()) {
         g_snapshot.reset();
+        g_atlas_preload_names.clear();
         return 0;
     }
     g_snapshot = nevergone::game_scene_direct_asset_requests::build(
             nevergone::game_scene_player_render_queue::current(*queue));
+    g_atlas_preload_names = atlas_preload_names;
     return static_cast<jlong>(g_snapshot->revision);
 }
 
@@ -52,6 +59,31 @@ Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeCount(
         return 0;
     }
     return static_cast<jint>(g_snapshot->requests.size());
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeAtlasCount(
+        JNIEnv*, jclass) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_snapshot.has_value() ||
+        g_atlas_preload_names.size() > static_cast<std::size_t>(std::numeric_limits<jint>::max())) {
+        return 0;
+    }
+    return static_cast<jint>(g_atlas_preload_names.size());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeAtlasNameAt(
+        JNIEnv* env,
+        jclass,
+        jint atlas_index) {
+    if (env == nullptr || atlas_index < 0) return nullptr;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const std::size_t index = static_cast<std::size_t>(atlas_index);
+    if (!g_snapshot.has_value() || index >= g_atlas_preload_names.size()) return nullptr;
+    const std::string& name = g_atlas_preload_names[index];
+    if (name.empty()) return nullptr;
+    return env->NewStringUTF(name.c_str());
 }
 
 extern "C" JNIEXPORT jint JNICALL
