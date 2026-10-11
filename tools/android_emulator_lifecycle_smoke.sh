@@ -33,6 +33,24 @@ wait_for_android_services() {
   exit 1
 }
 
+activity_dump() {
+  local output
+  local status
+
+  set +e
+  output="$(timeout 20s adb shell dumpsys activity activities 2>&1)"
+  status=$?
+  set -e
+
+  if [[ $status -ne 0 ]] || grep -Eqi \
+      'DUMP TIMEOUT|Broken pipe|device offline|device .* not found|no devices/emulators found|Failure calling service activity|Can.t find service: activity|connection.*closed' \
+      <<<"$output"; then
+    return 1
+  fi
+
+  printf '%s\n' "$output"
+}
+
 wait_for_activity_service() {
   local phase="$1"
   local attempt
@@ -44,7 +62,7 @@ wait_for_activity_service() {
 
   for attempt in $(seq 1 30); do
     if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == '1' ]] &&
-        adb shell dumpsys activity activities >/dev/null 2>&1; then
+        activity_dump >/dev/null; then
       return 0
     fi
     sleep 2
@@ -68,19 +86,21 @@ start_activity() {
     set -e
 
     printf '%s\n' "$output"
-    if [[ $status -eq 0 ]]; then
+    if [[ $status -eq 0 ]] && ! grep -Eqi '^Status:[[:space:]]*timeout|DUMP TIMEOUT' <<<"$output"; then
       return 0
     fi
 
-    # API 36 under software emulation can briefly lose the ActivityManager
-    # binder/adb transport even though the guest remains booted. Retry only
-    # those transport/service failures. Component, permission and application
-    # errors remain immediate hard failures.
-    if ! grep -Eqi \
+    # Under software emulation ActivityManager/adb can briefly time out or lose
+    # its binder transport while the guest stays booted. Retry only those
+    # transport/service failures. Component, permission and application errors
+    # remain immediate hard failures.
+    if [[ $status -eq 0 ]] && grep -Eqi '^Status:[[:space:]]*timeout|DUMP TIMEOUT' <<<"$output"; then
+      :
+    elif ! grep -Eqi \
         'Broken pipe|device offline|device .* not found|no devices/emulators found|Failure calling service activity|Can.t find service: activity|connection.*closed' \
         <<<"$output"; then
       echo "Activity start failed during ${phase} (status ${status})" >&2
-      return "$status"
+      return "${status:-1}"
     fi
 
     if [[ $attempt -eq 3 ]]; then
@@ -116,12 +136,33 @@ require_pid() {
 
 require_foreground() {
   local phase="$1"
-  if ! adb shell dumpsys activity activities | grep -Eq \
-      'mResumedActivity.*org\.nevergone\.recomp|topResumedActivity=.*org\.nevergone\.recomp'; then
-    echo "Never Gone Recomp is not resumed during ${phase}" >&2
-    adb shell dumpsys activity activities >&2
-    exit 1
-  fi
+  local attempt
+  local output
+
+  for attempt in 1 2 3; do
+    if output="$(activity_dump)"; then
+      if grep -Eq \
+          'mResumedActivity.*org\.nevergone\.recomp|topResumedActivity=.*org\.nevergone\.recomp' \
+          <<<"$output"; then
+        return 0
+      fi
+
+      echo "Never Gone Recomp is not resumed during ${phase}" >&2
+      printf '%s\n' "$output" >&2
+      exit 1
+    fi
+
+    if [[ $attempt -eq 3 ]]; then
+      break
+    fi
+
+    echo "Transient ActivityManager dump failure during ${phase}; retrying (${attempt}/3)" >&2
+    wait_for_activity_service "$phase"
+  done
+
+  echo "Android activity service remained unavailable while checking foreground during ${phase}" >&2
+  adb devices -l >&2 || true
+  exit 1
 }
 
 wait_for_android_services
