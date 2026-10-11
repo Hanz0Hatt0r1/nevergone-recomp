@@ -11,6 +11,7 @@
 #include "game_scene_direct_asset_requests.h"
 #include "game_scene_direct_geometry.h"
 #include "game_scene_direct_texture_gl.h"
+#include "game_scene_player_render_queue.h"
 
 namespace nevergone::game_scene_direct_renderer {
 namespace {
@@ -134,8 +135,9 @@ bool draw() {
         return false;
     }
 
-    const auto queue = game_levels_runtime_state::current_scene_render_queue();
+    auto queue = game_levels_runtime_state::current_scene_render_queue();
     if (!queue.has_value()) return false;
+    *queue = game_scene_player_render_queue::current(std::move(*queue));
 
     const auto requests = game_scene_direct_asset_requests::build(*queue);
     const auto order = game_scene_direct_geometry::ordered_texture_sprite_indices(*queue);

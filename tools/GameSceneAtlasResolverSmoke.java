@@ -86,6 +86,17 @@ public final class GameSceneAtlasResolverSmoke {
                 "gamescene/list.plist", Arrays.asList("traversal.plist"), 0.0f, 0.0f);
         assert GameSceneAtlasResolver.resolve(assets, traversal) == null;
 
+        File playerPlist = new File(assets,
+                "player/Player01_Res/p01_01_01_default.plist");
+        write(playerPlist, plist("p01_01_01_default.png", false));
+        write(new File(playerPlist.getParentFile(), "p01_01_01_default.png"), "png");
+        List<GameSceneAtlasResolver.Atlas> player =
+                GameSceneAtlasResolver.resolvePlayerDefaults(assets, 1);
+        assert player != null && player.size() == 1;
+        assert player.get(0).plistRelativePath.equals(
+                "player/Player01_Res/p01_01_01_default.plist");
+        assert GameSceneAtlasResolver.resolvePlayerDefaults(assets, 2) == null;
+
         deleteTree(root);
     }
 

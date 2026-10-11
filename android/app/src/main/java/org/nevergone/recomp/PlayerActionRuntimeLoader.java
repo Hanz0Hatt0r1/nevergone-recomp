@@ -63,4 +63,8 @@ final class PlayerActionRuntimeLoader {
     static String loadedRelativePathForTest() {
         return loadedRelativePath;
     }
+
+    static int loadedCareer() {
+        return loadedRelativePath != null ? attemptedCareer : 0;
+    }
 }

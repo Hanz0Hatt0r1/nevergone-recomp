@@ -45,6 +45,6 @@ committed role Career
     -> parsed player .actData document
 ```
 
-The remaining frame-side blocker is narrower: `EnemyActionsSystem::loadingTex()` proves that `flag_26c` becomes `1` after texture loading, but the initial write that determines `system+0x294` (`current_frame_294`) for the first `MeActionsSystem` action has not yet been established in the checked-in evidence. The reconstruction therefore does not force frame zero.
+The initial player frame is now traced through the separate `MeActionsSystem` path: `initWithFile()` and `play()` seed `+0x1a4` to zero before the first `updateData()` lookup. See [`evidence/player-initial-meactions-frame.md`](evidence/player-initial-meactions-frame.md). The `EnemyActionsSystem +0x294` state and `+0x26c` readiness byte do not apply to this player object.
 
 Once that initial current-frame transition is proven, the retained document and spawn point can be passed directly through `game_scene_player_frame_request` and attached to a project-owned renderer node without guessed coordinates or frame selection.

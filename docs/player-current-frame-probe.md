@@ -1,5 +1,10 @@
 # Initial player current-frame evidence probe
 
+**Resolution:** The probe's `EnemyActionsSystem +0x294` results do not apply to
+the initial `MeActionsSystem` player action. See
+[`evidence/player-initial-meactions-frame.md`](evidence/player-initial-meactions-frame.md)
+for the corrected `MeActionsSystem +0x1a4` seed and runtime path.
+
 Issue #148 has project-owned runtime state for the first-scene player position and a parsed initial `action28` document, but it still deliberately does not force `EnemyActionsSystem + 0x294` (`current_frame_294`) to zero.
 
 Existing evidence proves that `EnemyActionsSystem::loadingTex()` sets the visual readiness byte at `+0x26c` to `1`. Other recovered routines write `+0x294` later in action playback, including `showActionLastFrame()` and waUpdate completion/reset paths. Those writes do not establish the initial frame selected for the first `MeActionsSystem` action.
@@ -12,7 +17,7 @@ For an existing analyzed Ghidra project, the repository wrapper runs the exporte
 tools/ghidra/run_player_current_frame_probe.sh \
   /path/to/ghidra \
   /path/to/ghidra-projects \
-  NevergoneProject \
+  NevergoneProject/com.hippiegame.nevergone.apk/lib/armeabi-v7a \
   libcocos2dcpp.so
 ```
 

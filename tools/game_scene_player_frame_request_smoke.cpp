@@ -6,7 +6,6 @@
 
 int main() {
     namespace bridge = nevergone::game_scene_player_frame_request;
-    namespace runtime = nevergone::enemy_actions_runtime_state;
     namespace document = nevergone::enemy_actions_wbg_document;
     namespace prefix = nevergone::enemy_actions_wbg_prefix;
     namespace resource = nevergone::game_scene_type0_resource;
@@ -17,9 +16,9 @@ int main() {
     frame.third_string_length_i32 = 20;
     doc.primary_records.push_back(frame);
 
-    runtime::State state;
-    state.flag_26c = 1u;
-    state.current_frame_294 = 0;
+    bridge::State state;
+    state.action_document_ready = true;
+    state.current_frame_1a4 = 0;
 
     nevergone::game_scene_player_bootstrap::InitialPoint position;
     position.x = 568.0f;
@@ -30,25 +29,25 @@ int main() {
     assert(ready.resource.has_value());
     assert(ready.resource->kind == resource::Kind::kSpriteFrameByName);
     assert(ready.resource->resource_name == "player_start_001.png");
-    assert(ready.lookup.entry.selected_primary_index == 0u);
+    assert(ready.selected_primary_index == 0u);
     assert(ready.position.x == 568.0f);
     assert(ready.position.y == 448.0f);
     assert(std::string(bridge::status_name(ready.status)) == "ready");
 
-    state.flag_26c = 0u;
+    state.action_document_ready = false;
     const auto closed = bridge::build(doc, state, position);
     assert(closed.status == bridge::Status::kReadinessGateClosed);
     assert(!closed.resource.has_value());
 
-    state.flag_26c = 1u;
+    state.action_document_ready = true;
     document::Document empty_doc;
     const auto empty = bridge::build(empty_doc, state, position);
     assert(empty.status == bridge::Status::kNoPrimaryFrames);
 
-    state.current_frame_294 = 1;
+    state.current_frame_1a4 = 1;
     const auto out_of_range = bridge::build(doc, state, position);
     assert(out_of_range.status == bridge::Status::kFrameOutOfRange);
-    state.current_frame_294 = 0;
+    state.current_frame_1a4 = 0;
 
     auto invalid_position = position;
     invalid_position.x = std::numeric_limits<float>::quiet_NaN();

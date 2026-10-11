@@ -143,6 +143,12 @@ std::optional<enemy_actions_wbg_document::Document> current_document() {
     return g_document;
 }
 
+std::optional<enemy_actions_wbg_prefix::ActionFrameRecord> initial_frame_record() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_document.has_value() || g_document->primary_records.empty()) return std::nullopt;
+    return g_document->primary_records.front();
+}
+
 const char* status_name(LoadStatus status) {
     switch (status) {
         case LoadStatus::kIdle: return "idle";

@@ -6,6 +6,7 @@
 
 #include "game_levels_runtime_state.h"
 #include "game_scene_direct_asset_requests.h"
+#include "game_scene_player_render_queue.h"
 
 namespace {
 
@@ -22,7 +23,8 @@ jlong refresh_snapshot() {
         g_snapshot.reset();
         return 0;
     }
-    g_snapshot = nevergone::game_scene_direct_asset_requests::build(*queue);
+    g_snapshot = nevergone::game_scene_direct_asset_requests::build(
+            nevergone::game_scene_player_render_queue::current(*queue));
     return static_cast<jlong>(g_snapshot->revision);
 }
 

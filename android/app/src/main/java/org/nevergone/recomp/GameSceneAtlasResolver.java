@@ -11,6 +11,9 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Locale;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -38,6 +41,43 @@ final class GameSceneAtlasResolver {
     }
 
     private GameSceneAtlasResolver() {}
+
+    // MEPlayer::createActions preloads the selected career's default sprite
+    // plists. Keep the candidate set bounded and let frame resolution reject
+    // ambiguous names rather than guessing the player clothes selector.
+    static List<Atlas> resolvePlayerDefaults(File assetRoot, int career) {
+        if (assetRoot == null || career < 1 || career > 5) return null;
+        try {
+            File root = assetRoot.getCanonicalFile();
+            String prefix = root.getPath() + File.separator;
+            File directory = new File(root,
+                    String.format(Locale.ROOT, "player/Player%02d_Res", career)).getCanonicalFile();
+            if (!directory.getPath().startsWith(prefix) || !directory.isDirectory()) return null;
+            File[] files = directory.listFiles();
+            if (files == null || files.length > 512) return null;
+            Arrays.sort(files, Comparator.comparing(File::getName));
+            String namePrefix = String.format(Locale.ROOT, "p%02d_", career);
+            ArrayList<Atlas> result = new ArrayList<>();
+            for (File candidate : files) {
+                File plist = candidate.getCanonicalFile();
+                String name = plist.getName();
+                if (!plist.getPath().startsWith(directory.getPath() + File.separator) ||
+                        !plist.isFile() || !name.startsWith(namePrefix) ||
+                        !name.endsWith("_default.plist")) continue;
+                if (plist.length() <= 0L || plist.length() > MAX_PLIST_BYTES ||
+                        result.size() >= 128) return null;
+                File texture = resolveTextureForPlist(root, prefix, plist);
+                if (texture == null || !texture.isFile()) return null;
+                String plistRelative = relativePath(root, plist);
+                String textureRelative = relativePath(root, texture);
+                if (plistRelative == null || textureRelative == null) return null;
+                result.add(new Atlas(plistRelative, textureRelative));
+            }
+            return result.isEmpty() ? null : Collections.unmodifiableList(result);
+        } catch (Exception error) {
+            return null;
+        }
+    }
 
     static List<Atlas> resolve(File assetRoot, GameSceneAtlasListDiscovery.Result discovery) {
         if (assetRoot == null || discovery == null) return null;

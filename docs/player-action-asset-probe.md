@@ -58,23 +58,23 @@ The frame key is emitted as hex so arbitrary user-owned resource bytes cannot in
 
 ## Runtime frame request bridge
 
-`game_scene_player_frame_request::build()` now connects a parsed player action document to the existing renderer-facing sprite-frame resource contract. It delegates frame selection to `enemy_actions_runtime_state::apply_update_data_frame_lookup()` and does not manufacture a readiness state or current-frame index.
+`game_scene_player_frame_request::build()` connects a parsed player action document to the renderer-facing sprite-frame resource contract. The initial `MeActionsSystem::initWithFile()` and `play()` path seeds its own `+0x1a4` frame to zero; it does not use `EnemyActionsSystem +0x294` or its readiness gate. See [`evidence/player-initial-meactions-frame.md`](evidence/player-initial-meactions-frame.md).
 
 A request becomes `ready` only when:
 
-- the recovered `flag_26c` readiness gate is open;
+- the selected player action document is loaded and parsed;
 - the document contains primary frames;
-- `current_frame_294` selects an in-range primary record;
+- `current_frame_1a4` selects an in-range primary record;
 - the requested player position is finite;
 - the selected `third_string` frame key is non-empty, length-consistent with the serialized `+0x6c` value, bounded to 512 bytes, and contains no path separators or embedded NUL.
 
-On success the bridge emits `game_scene_type0_resource::Kind::kSpriteFrameByName` with the exact recovered frame key. That is the same resource kind already consumed by the GameScene atlas discovery, frame-resolution, pixel-staging and GLES texture pipeline. The bridge deliberately stops before inventing player attachment/Z-order semantics that have not yet been recovered.
+On success the bridge emits `game_scene_type0_resource::Kind::kSpriteFrameByName` with the exact recovered frame key. That is the same resource kind consumed by the GameScene atlas discovery, frame-resolution, pixel-staging and GLES texture pipeline. The initial player request is appended to the project-owned scene render queue after its action document and spawn marker are ready.
 
 `tools/game_scene_player_frame_request_smoke.cpp` protects the ready path and fail-closed behavior for a closed readiness gate, empty documents, out-of-range frame state, invalid position, traversal-like frame names, length mismatch and empty frame keys.
 
 ## Evidence boundary
 
-The existing `EnemyActionsSystem::updateData()` reconstruction proves that a selected primary frame supplies the sprite-frame lookup key from `ActionFrameRecord::third_string`. The local asset probe exposes record 0's key without claiming that record 0 is universally the runtime-selected frame. Runtime selection still depends on the recovered `current_frame_294` state and readiness gate.
+The `MeActionsSystem::initWithFile()` and `play()` path selects primary record zero for the first action. `MeActionsSystem::updateData()` requests that record's `+0x68` frame key. The local asset probe exposes this key without committing the payload.
 
 The project-owned path now reaches:
 
@@ -82,11 +82,11 @@ The project-owned path now reaches:
 pNN_actions.plist/action28/name
     -> matched user-owned .actData
     -> enemy_actions_wbg_document
-    -> recovered updateData frame selection
+    -> MeActionsSystem initial frame zero
     -> validated sprite-frame-by-name request
-    -> existing GameScene atlas pipeline contract
+    -> GameScene atlas staging and player sprite queue
 ```
 
-The next bounded #148 runtime step is to load the selected user-owned player action document inside the Android offline-scene lifecycle and attach the validated frame request to a project-owned player render node only after the required attachment/Z-order behavior is evidenced. A visible input transition remains downstream of that integration.
+The runtime now loads the selected imported action, attaches the validated initial frame to a project-owned player sprite command, and resolves the frame against imported player default atlases. A visible input transition remains downstream of this initial sprite.
 
 No original assets are stored in this repository.
