@@ -60,5 +60,6 @@ jobs:
           mkdir -p /tmp/player-action-java
           javac -d /tmp/player-action-java \
             android/app/src/main/java/org/nevergone/recomp/PlayerActionAssetResolver.java \
+            android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java \
             tools/PlayerActionAssetResolverSmoke.java
           java -cp /tmp/player-action-java org.nevergone.recomp.PlayerActionAssetResolverSmoke
