@@ -13,6 +13,11 @@ namespace nevergone::game_scene_direct_asset_requests {
 enum class Kind : std::uint8_t {
     kDirectFile = 0,
     kSpriteFrameByName = 1,
+    // Player frame names must be resolved against the career-specific player
+    // atlas set, not the GameScene preload list. Keeping this as a distinct
+    // request kind prevents unrelated scene/player atlases from making an
+    // otherwise unique frame name ambiguous.
+    kPlayerSpriteFrameByName = 2,
 };
 
 struct Request {
@@ -71,7 +76,9 @@ inline Snapshot build(const game_scene_render_queue::Queue& queue) {
         if (command.resource.kind == game_scene_type0_resource::Kind::kSpriteFrameByName &&
             !command.resource.resource_name.empty()) {
             Request request;
-            request.kind = Kind::kSpriteFrameByName;
+            request.kind = command.player_body_transform.has_value()
+                    ? Kind::kPlayerSpriteFrameByName
+                    : Kind::kSpriteFrameByName;
             request.sprite_command_index = command_index;
             request.frame_name = command.resource.resource_name;
             snapshot.requests.push_back(std::move(request));
