@@ -4,8 +4,6 @@ on:
   pull_request:
     paths:
       - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
-      - 'android/app/src/main/cpp/game_scene_player_facing_input.*'
-      - 'android/app/src/main/cpp/render_bridge.cpp'
       - 'android/app/src/main/cpp/game_scene_player_frame_request.*'
       - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.*'
       - 'android/app/src/main/cpp/game_scene_direct_geometry.*'
@@ -17,8 +15,6 @@ on:
     branches: [main]
     paths:
       - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
-      - 'android/app/src/main/cpp/game_scene_player_facing_input.*'
-      - 'android/app/src/main/cpp/render_bridge.cpp'
       - 'android/app/src/main/cpp/game_scene_player_frame_request.*'
       - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.*'
       - 'android/app/src/main/cpp/game_scene_direct_geometry.*'
@@ -43,7 +39,6 @@ jobs:
             android/app/src/main/cpp/game_scene_initial_player_sprite_request.cpp \
             android/app/src/main/cpp/player_control_contract.cpp \
             android/app/src/main/cpp/player_control_runtime_state.cpp \
-            android/app/src/main/cpp/game_scene_player_facing_input.cpp \
             tools/game_scene_player_render_queue_smoke.cpp \
             -o /tmp/game_scene_player_render_queue_smoke
           /tmp/game_scene_player_render_queue_smoke
