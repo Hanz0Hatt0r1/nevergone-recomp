@@ -20,6 +20,7 @@ constexpr std::size_t kDefaultSpritePlistCount = 9u;
 constexpr std::uint32_t kConstructionPlayerClothesId = 1u;
 constexpr std::uint32_t kConstructionPlayerColorId = 0u;
 constexpr std::uint32_t kInitialActionState = 0x1bu;
+constexpr std::uint32_t kInitialActionEntryNumber = kInitialActionState + 1u;
 
 struct InitialPoint {
     float x = 0.0f;
@@ -47,6 +48,16 @@ std::optional<InitialPoint> initial_manager_point(float win_width, float win_hei
 std::optional<ResourceNames> resource_names(
         std::uint32_t career,
         std::uint32_t player_clothes_id);
+
+// MEPlayer::createActions() iterates zero-based MEPLAYERSTATE values but looks
+// each plist record up through the one-based dictionary key "action%02d".
+// The resulting dictionary's "name" field is passed to
+// MeActionsSystem::creinitWithFile(..., state_index, ...).
+std::optional<std::string> action_entry_key(std::uint32_t state_index);
+
+constexpr const char* action_name_field() {
+    return "name";
+}
 
 constexpr const char* player_name() {
     return "SELF";
