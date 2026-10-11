@@ -92,6 +92,8 @@ add_library(nevergone_recomp SHARED
     native_binding_registry.cpp
     native_bootstrap.cpp
     offline_startup_flow.cpp
+    player_action_document_store.cpp
+    player_action_runtime_bridge.cpp
     post_scene_overlay_jni.cpp
     protorpc_bindings.cpp
     render_bridge.cpp
