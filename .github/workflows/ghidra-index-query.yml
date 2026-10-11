@@ -13,6 +13,7 @@ on:
       - 'tools/ghidra/ExportFieldStoreCandidates.java'
       - 'tools/ghidra/summarize_field_store_candidates.py'
       - 'tools/ghidra/test_summarize_field_store_candidates.py'
+      - 'tools/ghidra/run_player_current_frame_probe.sh'
       - 'docs/player-current-frame-probe.md'
       - '.github/workflows/ghidra-index-query.yml'
   push:
@@ -28,6 +29,7 @@ on:
       - 'tools/ghidra/ExportFieldStoreCandidates.java'
       - 'tools/ghidra/summarize_field_store_candidates.py'
       - 'tools/ghidra/test_summarize_field_store_candidates.py'
+      - 'tools/ghidra/run_player_current_frame_probe.sh'
       - 'docs/player-current-frame-probe.md'
       - '.github/workflows/ghidra-index-query.yml'
 
@@ -53,6 +55,7 @@ jobs:
             tools/ghidra/test_trace_pcode_flow.py \
             tools/ghidra/summarize_field_store_candidates.py \
             tools/ghidra/test_summarize_field_store_candidates.py
+          bash -n tools/ghidra/run_player_current_frame_probe.sh
       - name: Run query smoke tests
         run: |
           python tools/ghidra/test_query_full_index.py
