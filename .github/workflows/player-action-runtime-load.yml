@@ -6,13 +6,17 @@ on:
       - 'android/app/src/main/cpp/player_action_document_store.cpp'
       - 'android/app/src/main/cpp/player_action_document_store.h'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_spawn_state.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_spawn_state.h'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionAssetResolver.java'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
       - 'tools/player_action_document_store_smoke.cpp'
+      - 'tools/game_scene_player_spawn_state_smoke.cpp'
       - 'tools/PlayerActionAssetResolverSmoke.java'
       - 'docs/player-action-runtime-loading.md'
+      - 'docs/player-spawn-runtime-state.md'
       - '.github/workflows/player-action-runtime-load.yml'
   push:
     branches: [main]
@@ -20,13 +24,17 @@ on:
       - 'android/app/src/main/cpp/player_action_document_store.cpp'
       - 'android/app/src/main/cpp/player_action_document_store.h'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_spawn_state.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_spawn_state.h'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionAssetResolver.java'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
       - 'tools/player_action_document_store_smoke.cpp'
+      - 'tools/game_scene_player_spawn_state_smoke.cpp'
       - 'tools/PlayerActionAssetResolverSmoke.java'
       - 'docs/player-action-runtime-loading.md'
+      - 'docs/player-spawn-runtime-state.md'
       - '.github/workflows/player-action-runtime-load.yml'
 
 permissions:
@@ -53,6 +61,16 @@ jobs:
             tools/player_action_document_store_smoke.cpp \
             -o /tmp/player_action_document_store_smoke
           /tmp/player_action_document_store_smoke
+
+      - name: Build and run player spawn state smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/game_scene_player_entry_markers.cpp \
+            android/app/src/main/cpp/game_scene_player_spawn_state.cpp \
+            tools/game_scene_player_spawn_state_smoke.cpp \
+            -o /tmp/game_scene_player_spawn_state_smoke
+          /tmp/game_scene_player_spawn_state_smoke
 
       - name: Build and run imported player action resolver smoke
         run: |
