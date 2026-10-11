@@ -30,8 +30,9 @@ void try_offline_fresh_role_handoff(std::string* error) {
     // CreateCharacter Lua dispatch itself succeeds. Do not invent a synthetic
     // CharacterID. Instead, allow the already verified imported GameLevels
     // model to become the local continuation, and only retire CharacterName
-    // after the live render queue is actually ready.
-    game_levels_enter_transition::on_enter_game(startup::config().files_dir);
+    // after the live render queue is actually ready. The local entry API keeps
+    // diagnostics distinct from a real cpp_OnEnterGame callback.
+    game_levels_enter_transition::on_local_enter_game(startup::config().files_dir);
     const auto enter = game_levels_enter_transition::snapshot();
     if (enter.boundary != game_levels_enter_transition::Boundary::kRuntimeRenderQueueReady) {
         if (error != nullptr) {
