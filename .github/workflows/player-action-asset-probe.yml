@@ -1,0 +1,30 @@
+name: Player action asset probe
+
+on:
+  pull_request:
+    paths:
+      - 'tools/player_action_asset_probe.py'
+      - 'tools/test_player_action_asset_probe.py'
+      - '.github/workflows/player-action-asset-probe.yml'
+      - 'docs/player-action-asset-probe.md'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/player_action_asset_probe.py'
+      - 'tools/test_player_action_asset_probe.py'
+      - '.github/workflows/player-action-asset-probe.yml'
+      - 'docs/player-action-asset-probe.md'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate bounded action resource probe
+        working-directory: tools
+        run: |
+          python3 test_player_action_asset_probe.py
+          python3 player_action_asset_probe.py --help >/dev/null
