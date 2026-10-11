@@ -11,6 +11,7 @@
 #include "game_scene_direct_asset_requests.h"
 #include "game_scene_direct_geometry.h"
 #include "game_scene_direct_texture_gl.h"
+#include "game_scene_player_render_queue.h"
 
 namespace nevergone::game_scene_direct_renderer {
 namespace {
@@ -134,8 +135,9 @@ bool draw() {
         return false;
     }
 
-    const auto queue = game_levels_runtime_state::current_scene_render_queue();
+    auto queue = game_levels_runtime_state::current_scene_render_queue();
     if (!queue.has_value()) return false;
+    *queue = game_scene_player_render_queue::current(std::move(*queue));
 
     const auto requests = game_scene_direct_asset_requests::build(*queue);
     const auto order = game_scene_direct_geometry::ordered_texture_sprite_indices(*queue);
@@ -168,13 +170,24 @@ bool draw() {
         }
 
         game_scene_direct_geometry::Quad quad;
-        if (!game_scene_direct_geometry::build_quad(
-                queue->sprites[sprite_command_index].transform,
-                texture.width,
-                texture.height,
-                surface_width,
-                surface_height,
-                &quad)) {
+        const auto& command = queue->sprites[sprite_command_index];
+        const bool geometry_ready = command.player_body_transform.has_value()
+            ? game_scene_direct_geometry::build_player_quad(
+                    command.transform,
+                    *command.player_body_transform,
+                    texture.width,
+                    texture.height,
+                    surface_width,
+                    surface_height,
+                    &quad)
+            : game_scene_direct_geometry::build_quad(
+                    command.transform,
+                    texture.width,
+                    texture.height,
+                    surface_width,
+                    surface_height,
+                    &quad);
+        if (!geometry_ready) {
             return false;
         }
         prepared.push_back({texture, quad});

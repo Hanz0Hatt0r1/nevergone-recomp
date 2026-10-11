@@ -17,7 +17,7 @@ For an existing analyzed Ghidra project, the repository wrapper rechecks stores 
 tools/ghidra/run_player_current_frame_probe.sh \
   /path/to/ghidra \
   /path/to/ghidra-projects \
-  NevergoneProject \
+  NevergoneProject/com.hippiegame.nevergone.apk/lib/armeabi-v7a \
   libcocos2dcpp.so
 ```
 
@@ -28,6 +28,9 @@ artifacts/player-current-frame-probe/
 ```
 
 The wrapper uses the existing project with `-process` and `-noanalysis`; it does not import or modify original binaries. It writes only bounded derived TSV metadata and its validated summary.
+The local analyzed Nevergone project produced
+[`player-current-frame-stores.tsv`](evidence/player-current-frame-stores.tsv) and
+[`player-current-frame-summary.txt`](evidence/player-current-frame-summary.txt).
 
 ## Ghidra field-store candidate export
 

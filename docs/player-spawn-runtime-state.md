@@ -72,4 +72,4 @@ committed role Career
 
 The earlier `EnemyActionsSystem +0x26c/+0x294` assumption does not apply to the player `MeActionsSystem`. Player playback uses `MeActionsSystem +0x1a4` for the current frame and `+0x1a8` for the previous frame; `initWithFile()`/`play()` prove the initial values `0/-1`.
 
-The next visual blocker is the MeActions main-sprite local transform/facing behavior around the resolved `spriteFrameByName()` result. Once that is recovered, the existing action document, final player point and atlas staging pipeline can be composed without guessed frame selection or coordinates.
+The MeActions body-local transform is now recovered in `docs/evidence/me-actions-initial-sprite-transform.md` and composed with the final player point in the project-owned render queue. The sprite appears when the selected imported action data and matching player atlas are available.

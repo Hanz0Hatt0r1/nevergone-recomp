@@ -71,7 +71,7 @@ A request becomes `ready` only when:
 - the requested player position is finite;
 - the selected `third_string` frame key is non-empty, length-consistent with the serialized `+0x6c` value, bounded to 512 bytes, and contains no path separators or embedded NUL.
 
-On success the bridge emits `game_scene_type0_resource::Kind::kSpriteFrameByName` with the exact recovered frame key. That is the same resource kind already consumed by the GameScene atlas discovery, frame-resolution, pixel-staging and GLES texture pipeline.
+On success the bridge emits `game_scene_type0_resource::Kind::kSpriteFrameByName` with the exact recovered frame key. The initial sprite request also carries the recovered body-local transform and visible MEPlayer point. The project-owned render queue inserts it at the BattleManager scene Z boundary and uses the existing atlas, pixel staging and GLES texture pipeline.
 
 `tools/game_scene_player_frame_request_smoke.cpp` protects the recovered initial state `(current=0, previous=-1)`, ready frame-0 path and fail-closed behavior for empty documents, negative/out-of-range frame state, invalid position, traversal-like frame names, length mismatch and empty frame keys.
 
@@ -100,6 +100,6 @@ pNN_actions.plist/action28/name
     -> known MEPlayer/MeActions and GameScene/BattleManager attachment Z values
 ```
 
-The next bounded #148 visual step is to recover the MeActions main-sprite local transform/facing behavior applied around `spriteFrameByName()` and then feed the resulting player request through the existing atlas staging/GLES path. A live input transition remains downstream of that integration.
+The initial body-local transform is recorded in `docs/evidence/me-actions-initial-sprite-transform.md`. The runtime now uses it to flatten the first player sprite into a GLES quad when the selected imported action and matching player atlas are present. A live input transition remains downstream.
 
 No original assets are stored in this repository.

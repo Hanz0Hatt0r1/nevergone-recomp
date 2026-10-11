@@ -1,0 +1,38 @@
+name: GameScene player render queue
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
+      - 'android/app/src/main/cpp/game_scene_player_frame_request.*'
+      - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.*'
+      - 'android/app/src/main/cpp/game_scene_direct_geometry.*'
+      - 'tools/game_scene_player_render_queue_smoke.cpp'
+      - '.github/workflows/game-scene-player-render-queue.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
+      - 'android/app/src/main/cpp/game_scene_player_frame_request.*'
+      - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.*'
+      - 'android/app/src/main/cpp/game_scene_direct_geometry.*'
+      - 'tools/game_scene_player_render_queue_smoke.cpp'
+      - '.github/workflows/game-scene-player-render-queue.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run player render queue smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/game_scene_player_frame_request.cpp \
+            android/app/src/main/cpp/game_scene_initial_player_sprite_request.cpp \
+            tools/game_scene_player_render_queue_smoke.cpp \
+            -o /tmp/game_scene_player_render_queue_smoke
+          /tmp/game_scene_player_render_queue_smoke

@@ -8,6 +8,7 @@
 
 #include "game_scene_construction_plan.h"
 #include "game_scene_direct_asset.h"
+#include "me_actions_initial_sprite_transform.h"
 
 namespace nevergone::game_scene_render_queue {
 
@@ -20,6 +21,9 @@ struct SpriteCommand {
     // The path is relative to filesDir/assets, matching OriginalObbImporter.
     std::optional<std::string> direct_asset_relative_path;
     game_scene_construction_plan::Type0SpriteTransform transform;
+    // Present only for the first MeActionsSystem body sprite. Its geometry is
+    // local to the MEPlayer node and includes a non-central anchor.
+    std::optional<me_actions_initial_sprite_transform::Plan> player_body_transform;
 };
 
 struct Queue {

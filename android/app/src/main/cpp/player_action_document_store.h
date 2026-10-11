@@ -43,6 +43,7 @@ bool load_from_assets(
         std::size_t max_bytes = kDefaultMaxBytes);
 Snapshot snapshot();
 std::optional<enemy_actions_wbg_document::Document> current_document();
+std::optional<enemy_actions_wbg_prefix::ActionFrameRecord> initial_frame_record();
 const char* status_name(LoadStatus status);
 std::string status_report();
 

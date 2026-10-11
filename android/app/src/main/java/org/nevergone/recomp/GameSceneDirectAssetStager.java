@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -144,6 +145,19 @@ final class GameSceneDirectAssetStager {
                             -1,
                             GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME,
                             stagedCount);
+                }
+                int playerCareer = PlayerActionRuntimeLoader.loadedCareer();
+                if (playerCareer != 0) {
+                    List<GameSceneAtlasResolver.Atlas> playerAtlases =
+                            GameSceneAtlasResolver.resolvePlayerDefaults(canonicalRoot, playerCareer);
+                    if (playerAtlases == null) {
+                        return reject("player-atlas-resolution-failed", revision, count,
+                                -1, GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME,
+                                stagedCount);
+                    }
+                    ArrayList<GameSceneAtlasResolver.Atlas> combined = new ArrayList<>(atlases);
+                    combined.addAll(playerAtlases);
+                    atlases = combined;
                 }
             }
 
