@@ -30,6 +30,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Enable KVM acceleration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -c /dev/kvm
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+          ls -l /dev/kvm
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -70,9 +83,7 @@ jobs:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
           profile: pixel_2
-          # API 35 can report sys.boot_completed before the Settings service is
-          # stable under unaccelerated TCG. The action's animation helper then
-          # races that service and aborts before our smoke script can run.
-          # Animation state is irrelevant to this lifecycle/crash contract.
+          # The lifecycle contract does not depend on animation settings. Avoid
+          # the action's Settings-service animation helper entirely.
           disable-animations: false
           script: bash tools/android_emulator_lifecycle_smoke.sh
