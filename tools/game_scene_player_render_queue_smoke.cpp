@@ -32,6 +32,7 @@ int main() {
     frame.float_values[10] = 1.0f;
     frame.float_values[11] = 1.0f;
 
+    player_control_runtime_state::reset();
     const auto ready = game_scene_player_render_queue::with_initial_player(scene, spawn, &frame);
     assert(ready.sprites.size() == 3u);
     assert(ready.sprite_frame_lookup_count == 1u);
@@ -39,12 +40,30 @@ int main() {
     assert(ready.sprites[1].transform.position_x == 600.0f);
     assert(ready.sprites[1].transform.position_y == 468.0f);
     assert(ready.sprites[1].player_body_transform.has_value());
+    assert(!ready.sprites[1].player_body_transform->flip_x);
     assert(ready.sprites[1].layer_z_index == 7u);
     const auto requests = game_scene_direct_asset_requests::build(ready);
     assert(requests.requests.size() == 1u);
     assert(requests.requests[0].sprite_command_index == 1u);
     assert(requests.requests[0].frame_name == "player_001.png");
     assert(requests.requests[0].player_body);
+
+    assert(player_control_runtime_state::apply_primary_state(
+            player_control_contract::PrimaryControlState::kState12));
+    const auto left_facing =
+            game_scene_player_render_queue::with_initial_player(scene, spawn, &frame);
+    assert(left_facing.sprites[1].player_body_transform.has_value());
+    assert(left_facing.sprites[1].player_body_transform->flip_x);
+
+    assert(player_control_runtime_state::apply_horizontal_sample(1.0f, 0.0f));
+    const auto right_facing =
+            game_scene_player_render_queue::with_initial_player(scene, spawn, &frame);
+    assert(right_facing.sprites[1].player_body_transform.has_value());
+    assert(!right_facing.sprites[1].player_body_transform->flip_x);
+
+    const auto generation = player_control_runtime_state::snapshot().generation;
+    assert(!player_control_runtime_state::apply_horizontal_sample(0.01f, 180.0f));
+    assert(player_control_runtime_state::snapshot().generation == generation);
 
     auto absent = game_scene_player_render_queue::with_initial_player(scene, spawn, nullptr);
     assert(absent.sprites.size() == 2u);
