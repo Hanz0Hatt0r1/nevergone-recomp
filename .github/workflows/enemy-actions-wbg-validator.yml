@@ -41,8 +41,9 @@ jobs:
           data += struct.pack('<12f', *[float(i) for i in range(1, 13)])
           data += b'\x01'
           data += struct.pack('<if', 22, 4.0)
-          for _ in range(3):
-              data += struct.pack('<iB', 0, 0)
+          for value in (b'', b'', b'frame.png'):
+              data += struct.pack('<iB', len(value), 0)
+              data += value
           data += struct.pack('<i', 0)  # Section B
           data += struct.pack('<i', 0)  # Section C
           data += struct.pack('<6i', *([0] * 6))  # Section D
@@ -58,10 +59,12 @@ jobs:
         run: |
           /tmp/enemy_actions_wbg_validate /tmp/synthetic.wbg | tee /tmp/report.txt
           grep -Fx 'parse_status=ok' /tmp/report.txt
-          grep -Fx 'input_bytes=158' /tmp/report.txt
-          grep -Fx 'bytes_consumed=156' /tmp/report.txt
+          grep -Fx 'input_bytes=167' /tmp/report.txt
+          grep -Fx 'bytes_consumed=165' /tmp/report.txt
           grep -Fx 'trailing_bytes=2' /tmp/report.txt
           grep -Fx 'primary_records=1' /tmp/report.txt
+          grep -Fx 'primary_record0_frame_key_length=9' /tmp/report.txt
+          grep -Fx 'primary_record0_frame_key_hex=6672616d652e706e67' /tmp/report.txt
           grep -Fx 'versioned_groups=6' /tmp/report.txt
           grep -Fx 'combo_tuples=1' /tmp/report.txt
           grep -Fx 'combo_array_94=1' /tmp/report.txt
@@ -106,6 +109,8 @@ jobs:
           grep -F '"relative_path":"gamescene/b/SECOND.WBG"' /tmp/batch.jsonl
           grep -F '"relative_path":"gamescene/c/third.actData"' /tmp/batch.jsonl
           grep -F '"parse_status":"ok"' /tmp/batch.jsonl
+          grep -F '"primary_record0_frame_key_length":9' /tmp/batch.jsonl
+          grep -F '"primary_record0_frame_key_hex":"6672616d652e706e67"' /tmp/batch.jsonl
           grep -Fx 'summary files=3 passed=3 failed=0' /tmp/batch.summary
 
       - name: Validate batch scanner failure codes
