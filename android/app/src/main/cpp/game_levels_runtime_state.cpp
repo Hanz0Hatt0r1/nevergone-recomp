@@ -11,6 +11,7 @@
 
 #include "game_levels_model.h"
 #include "game_levels_scene_instance.h"
+#include "game_scene_construction_diagnostics.h"
 #include "game_scene_construction_plan.h"
 #include "game_scene_render_queue.h"
 #include "hp_data_reader.h"
@@ -40,6 +41,8 @@ void refresh_current_scene_locked() {
     g_state.current_construction_layer_count = 0u;
     g_state.current_construction_object_count = 0u;
     g_state.current_construction_ignored_layer_count = 0u;
+    g_state.current_unresolved_type_distinct_count = 0u;
+    g_state.current_unresolved_type_summary.clear();
     g_state.current_scene_render_queue_ready = false;
     g_state.current_render_sprite_count = 0u;
     g_state.current_render_sprite_frame_lookup_count = 0u;
@@ -72,6 +75,12 @@ void refresh_current_scene_locked() {
     g_state.current_construction_layer_count = g_scene_construction_plan->layers.size();
     g_state.current_construction_object_count = g_scene_construction_plan->object_count;
     g_state.current_construction_ignored_layer_count = g_scene_construction_plan->ignored_source_layer_count;
+    const auto unresolved_types =
+            game_scene_construction_diagnostics::summarize_unresolved_types(
+                    *g_scene_construction_plan);
+    g_state.current_unresolved_type_distinct_count = unresolved_types.distinct_type_count;
+    g_state.current_unresolved_type_summary =
+            game_scene_construction_diagnostics::format_unresolved_types(unresolved_types);
 
     g_scene_render_queue = game_scene_render_queue::build(*g_scene_construction_plan);
     g_state.current_scene_render_queue_ready = true;
@@ -239,6 +248,12 @@ std::string status_report() {
         out << "construction layers: " << state.current_construction_layer_count << "\n";
         out << "construction objects: " << state.current_construction_object_count << "\n";
         out << "ignored source layers: " << state.current_construction_ignored_layer_count << "\n";
+        out << "unresolved construction type kinds: "
+            << state.current_unresolved_type_distinct_count << "\n";
+        if (!state.current_unresolved_type_summary.empty()) {
+            out << "unresolved type histogram: "
+                << state.current_unresolved_type_summary << "\n";
+        }
     }
     if (state.current_scene_render_queue_ready) {
         out << "scene render queue: ready\n";
