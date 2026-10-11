@@ -68,6 +68,14 @@ def expect_invalid(before: str, after: str) -> None:
     raise AssertionError("expected invalid player input evidence")
 
 
+def expect_swipe_invalid(xml: Path) -> None:
+    try:
+        module.surface_swipe(xml, "right")
+    except ValueError:
+        return
+    raise AssertionError("expected GameSurfaceView bounds lookup to fail closed")
+
+
 def main() -> int:
     before = diagnostics(begins=4, moves=9, generation=7, state="none", flip=False)
     after = diagnostics(begins=5, moves=11, generation=8, state="0x13", flip=False)
@@ -109,16 +117,45 @@ def main() -> int:
         assert left.end_x == 104
         assert left.end_y == 567
 
+        # Real-device Android 13 UIAutomator evidence flattens the custom
+        # GameSurfaceView to an app-owned plain android.view.View. The surface
+        # is uniquely focusable and id-less; the navigation view is not.
+        xml.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<hierarchy>'
+            '<node class="android.view.View" package="org.nevergone.recomp" '
+            'resource-id="" focusable="true" bounds="[76,0][2340,612]" />'
+            '<node class="android.view.View" package="org.nevergone.recomp" '
+            'resource-id="android:id/navigationBarBackground" focusable="false" '
+            'bounds="[76,1021][2340,1080]" />'
+            '</hierarchy>',
+            encoding="utf-8",
+        )
+        right = module.surface_swipe(xml, "right")
+        assert right.start_x == 483
+        assert right.start_y == 447
+        assert right.end_x == 682
+        assert right.end_y == 447
+        left = module.surface_swipe(xml, "left")
+        assert left.end_x == 283
+        assert left.end_y == 447
+
+        xml.write_text(
+            '<hierarchy>'
+            '<node class="android.view.View" package="org.nevergone.recomp" '
+            'resource-id="" focusable="true" bounds="[0,0][100,100]" />'
+            '<node class="android.view.View" package="org.nevergone.recomp" '
+            'resource-id="" focusable="true" bounds="[100,0][200,100]" />'
+            '</hierarchy>',
+            encoding="utf-8",
+        )
+        expect_swipe_invalid(xml)
+
         xml.write_text(
             '<hierarchy><node class="android.widget.TextView" bounds="[0,0][100,100]" /></hierarchy>',
             encoding="utf-8",
         )
-        try:
-            module.surface_swipe(xml, "right")
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("expected missing GameSurfaceView bounds to fail closed")
+        expect_swipe_invalid(xml)
 
     print("Android player input runtime evidence validator smoke: ok")
     return 0

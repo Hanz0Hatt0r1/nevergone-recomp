@@ -123,6 +123,16 @@ def main() -> int:
         assert proof.unresolved_render_objects == 1
         assert proof.deferred_pairs == 1
 
+        # The runtime model exposes the base GameLevels queue while the direct
+        # renderer stages a live queue after player/joystick composition. A
+        # composed overlay may therefore make requests/drawn exceed the base.
+        report = replace(root, "render sprites: 12", "render sprites: 9")
+        proof = module.validate(module.parse_report(report))
+        assert proof is not None
+        assert proof.render_sprites == 9
+        assert proof.staging_requests == 10
+        assert proof.drawn_sprites == 10
+
         xml = root / "window.xml"
         xml.write_text(
             '<?xml version="1.0" encoding="UTF-8"?>'
@@ -140,7 +150,7 @@ def main() -> int:
         expect_invalid(replace(root, "staged: 10", "staged: 9"))
         expect_invalid(replace(root, "drawn frames: 16", "drawn frames: 0"))
         expect_invalid(replace(root, "last static sprites: 10", "last static sprites: 9"))
-        expect_invalid(replace(root, "render sprites: 12", "render sprites: 9"))
+        expect_invalid(replace(root, "render sprites: 12", "render sprites: 0"))
 
         report = write_report(root, status="fail", diagnostics="capture failed\n")
         module.validate(module.parse_report(report), require_pass=False)

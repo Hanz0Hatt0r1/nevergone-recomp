@@ -46,14 +46,15 @@ The adb serial and build fingerprint are not written to the report.
 - original APK and OBB assets are reported present;
 - `GameLevels enter boundary` is `runtime-render-queue-ready`;
 - the runtime model, scene instance, construction plan and render queue are all ready;
-- the render queue contains at least one sprite;
+- the base GameLevels render queue contains at least one sprite;
 - `GameScene asset staging` is `ready`, has at least one successful staging attempt, a nonzero live revision, a nonempty request set and `staged == requests`;
 - `GameScene static renderer` has a ready shader and a nonzero surface;
 - at least one draw attempt and one successful drawn frame are recorded;
 - the last drawn static sprite count is nonzero and matches the completely staged request count;
-- that drawn static count does not exceed the runtime render-queue sprite count;
 - both retained evidence files match the SHA-256 values in the report;
 - the screen capture is a PNG with nonzero dimensions.
+
+`render sprites` is the base queue produced by the loaded `GameLevels` scene. Before the direct renderer creates asset requests it composes project-owned live overlays through `game_scene_player_render_queue`, including the recovered joystick dock and, when available, the player frame. Therefore the staged/drawn count may legitimately exceed the base `render sprites` count. The fail-closed post-composition invariant is `last static sprites == requests == staged`, not `last static sprites <= render sprites`.
 
 The validator deliberately does **not** require `deferred scene-action pairs` or `unresolved render objects` to be zero. P7 only requires the evidence-backed static scene/background layer to render safely. Those counters are surfaced in the successful validator summary so the next blocker to full scene fidelity and player spawn remains explicit.
 
