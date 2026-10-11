@@ -1,0 +1,39 @@
+name: GameScene player joystick render
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_player_joystick_input.h'
+      - 'android/app/src/main/cpp/game_scene_player_joystick_render_queue.h'
+      - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
+      - 'android/app/src/main/cpp/game_scene_direct_asset_requests.h'
+      - 'android/app/src/main/cpp/game_scene_direct_geometry.*'
+      - 'tools/game_scene_player_joystick_render_queue_smoke.cpp'
+      - '.github/workflows/game-scene-player-joystick-render.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_player_joystick_input.h'
+      - 'android/app/src/main/cpp/game_scene_player_joystick_render_queue.h'
+      - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
+      - 'android/app/src/main/cpp/game_scene_direct_asset_requests.h'
+      - 'android/app/src/main/cpp/game_scene_direct_geometry.*'
+      - 'tools/game_scene_player_joystick_render_queue_smoke.cpp'
+      - '.github/workflows/game-scene-player-joystick-render.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run joystick render-queue smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/game_scene_direct_geometry.cpp \
+            tools/game_scene_player_joystick_render_queue_smoke.cpp \
+            -o /tmp/game_scene_player_joystick_render_queue_smoke
+          /tmp/game_scene_player_joystick_render_queue_smoke
