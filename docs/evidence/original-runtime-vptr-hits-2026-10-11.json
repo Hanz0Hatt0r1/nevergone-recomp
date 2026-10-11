@@ -1,0 +1,470 @@
+{
+  "pid": "25803",
+  "regions": 680,
+  "scanned_bytes": 68562944,
+  "errors": 0,
+  "hits": [
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xb2148000",
+      "mapping": "0xb213e000-0xb214e000",
+      "offset": 40960
+    },
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xb2148300",
+      "mapping": "0xb213e000-0xb214e000",
+      "offset": 41728
+    },
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xb2148600",
+      "mapping": "0xb213e000-0xb214e000",
+      "offset": 42496
+    },
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xb2148900",
+      "mapping": "0xb213e000-0xb214e000",
+      "offset": 43264
+    },
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xb2148c00",
+      "mapping": "0xb213e000-0xb214e000",
+      "offset": 44032
+    },
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xb2148f00",
+      "mapping": "0xb213e000-0xb214e000",
+      "offset": 44800
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb45a4000",
+      "mapping": "0xb459d000-0xb45ca000",
+      "offset": 28672
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb45a4700",
+      "mapping": "0xb459d000-0xb45ca000",
+      "offset": 30464
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb45a4e00",
+      "mapping": "0xb459d000-0xb45ca000",
+      "offset": 32256
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb45a5500",
+      "mapping": "0xb459d000-0xb45ca000",
+      "offset": 34048
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb45a5c00",
+      "mapping": "0xb459d000-0xb45ca000",
+      "offset": 35840
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb45a6300",
+      "mapping": "0xb459d000-0xb45ca000",
+      "offset": 37632
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb45a6a00",
+      "mapping": "0xb459d000-0xb45ca000",
+      "offset": 39424
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4ed8000",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 4096
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4ed8700",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 5888
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4ed8e00",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 7680
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4ed9500",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 9472
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4ed9c00",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 11264
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4eda300",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 13056
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4edaa00",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 14848
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4edb100",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 16640
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4edb800",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 18432
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4edbf00",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 20224
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4edc600",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 22016
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4edcd00",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 23808
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4edd400",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 25600
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4eddb00",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 27392
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4ede200",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 29184
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb4ede900",
+      "mapping": "0xb4ed7000-0xb4ee2000",
+      "offset": 30976
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f3000",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 122880
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f3700",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 124672
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f3e00",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 126464
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f4500",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 128256
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f4c00",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 130048
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f5300",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 131840
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f5a00",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 133632
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f6100",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 135424
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f6800",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 137216
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f6f00",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 139008
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f7600",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 140800
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f7d00",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 142592
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f8400",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 144384
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f8b00",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 146176
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f9200",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 147968
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb58f9900",
+      "mapping": "0xb58d5000-0xb5963000",
+      "offset": 149760
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6ce9000",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 356352
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6ce9700",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 358144
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6ce9e00",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 359936
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6cea500",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 361728
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6ceac00",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 363520
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6ceb300",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 365312
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6ceba00",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 367104
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6cec100",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 368896
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6cec800",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 370688
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6cecf00",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 372480
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6ced600",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 374272
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6cedd00",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 376064
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6cee400",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 377856
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6ceeb00",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 379648
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6cef200",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 381440
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xb6cef900",
+      "mapping": "0xb6c92000-0xb6cfe000",
+      "offset": 383232
+    },
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xcd6a0100",
+      "mapping": "0xcd69a000-0xcd6a1000",
+      "offset": 24832
+    },
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xcd6a0400",
+      "mapping": "0xcd69a000-0xcd6a1000",
+      "offset": 25600
+    },
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xcd6a0700",
+      "mapping": "0xcd69a000-0xcd6a1000",
+      "offset": 26368
+    },
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xcd6a0a00",
+      "mapping": "0xcd69a000-0xcd6a1000",
+      "offset": 27136
+    },
+    {
+      "type": "EnemyActionsSystem",
+      "address": "0xcd6a0d00",
+      "mapping": "0xcd69a000-0xcd6a1000",
+      "offset": 27904
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55b5000",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 65536
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55b5700",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 67328
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55b6500",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 70912
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55b7a00",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 76288
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55b8800",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 79872
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55b9600",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 83456
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55b9d00",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 85248
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55ba400",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 87040
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55bab00",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 88832
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55bb200",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 90624
+    },
+    {
+      "type": "MeActionsSystem",
+      "address": "0xd55bb900",
+      "mapping": "0xd55a5000-0xd55c0000",
+      "offset": 92416
+    }
+  ]
+}
