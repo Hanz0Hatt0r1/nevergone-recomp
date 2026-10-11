@@ -43,11 +43,26 @@ During `GameScene::loadingTex()`:
 3. an object enters the special path only when `GameSceneLayerObjectData + 0x14 == 6`;
 4. its `+0x58` value is compared against `GameLevels + 0x40` at ELF `0x003467a2..0x003467ac`;
 5. `GameLevels + 0x40` is independently proven by `GetPortNodeLinkPortNode(EVENT_PORT_TYPE)` to be the retained numeric **event-port type**;
-6. on a match, `loadingTex()` copies the object's point at `+0x1c`, applies the original scene/window transform, assigns the transformed point into `GameScene + 0x4c4`, and calls the primary `MEPlayer::setPlayerPos()` at ELF `0x00346866`.
+6. on a match, `loadingTex()` copies the object's point at `+0x1c`, applies the scene/window transform, assigns the transformed point into `GameScene + 0x4c4`, and calls the primary `MEPlayer::setPlayerPos()` at ELF `0x00346866`.
 
 This establishes a real first-scene player-placement contract: type-6 objects are filtered by the current event-port type and matching objects drive `MEPlayer::setPlayerPos()`. Multiple matches are not collapsed to a guessed unique marker; the original loop executes the path for each match in traversal order.
 
-`game_scene_player_entry_markers::collect()` encodes only the proven pre-transform selection boundary. It visits the first 11 layers, preserves object order, selects type `6`, compares `tail_i32` bit-for-bit with the retained event-port type, and returns the raw serialized points. Missing type tails or non-finite matching coordinates fail closed.
+`game_scene_player_entry_markers::collect()` encodes that proven selection boundary. It visits the first 11 layers, preserves object order, selects type `6`, compares `tail_i32` bit-for-bit with the retained event-port type, and returns the raw serialized points. Missing type tails or non-finite matching coordinates fail closed.
+
+## Proven offline coordinate transform
+
+The offline path after a matching type-6 object is now instruction-complete for the point that reaches `GameScene + 0x4c4`.
+
+`loadingTex()` copies the object point, adds the literal `40.0f` to its Y component, calls `CCDirector::getWinSize()`, and then constructs the final point as:
+
+```text
+player_x = source_x - win_width  * 0.5
+player_y = source_y + 40.0 - win_height * 0.5
+```
+
+The relevant constants loaded in the original are `0.5f` at the loop prologue and `40.0f` from the literal pool used immediately after the type-6 point copy. The resulting `CCPoint` is assigned to `GameScene + 0x4c4` at ELF `0x00346828` and passed to `MEPlayer::setPlayerPos()` at `0x00346866`.
+
+`game_scene_player_entry_markers::transform_offline()` implements exactly this conversion with runtime window dimensions. It rejects non-finite coordinates/dimensions and non-positive window sizes. The smoke regression includes the recovered 1136×640 design resolution: raw `(600, 300)` becomes `(32, 20)`.
 
 ## Proven live player-position cursor
 
@@ -71,11 +86,11 @@ Together with the type-6 `loadingTex()` path, this proves that `GameScene + 0x4c
 The project now has two separately proven position inputs:
 
 - `GameSceneStartPoint`: the scene-list `playerStartXPos/YPos` pair stored by the original in `GameLevelsData + 0x34`;
-- `game_scene_player_entry_markers`: ordered type-6 binary scene objects whose type tail matches the current event-port type and whose point enters the original `MEPlayer::setPlayerPos()` path.
+- `game_scene_player_entry_markers`: ordered type-6 binary scene objects whose type tail matches the current event-port type, plus the exact offline transform from their raw point to the live player-position coordinate space.
 
 They must not be conflated. No direct value-flow edge has yet been proven from `GameLevelsData + 0x34` to `GameScene + 0x4c4` or to the type-6 object point.
 
-The safe next implementation boundary for #148 is therefore narrower than before: reproduce the proven offline transform from a selected type-6 object's raw `+0x1c` point into the `GameScene + 0x4c4` coordinate space, then attach a minimal project-owned player visual/input state to that transformed point. Player resource selection still requires its own evidence.
+The position side of the first offline spawn boundary is now modeled without guessed coordinates. The next bounded #148 blocker is the minimum player construction/resource contract: determine what creates the primary `MEPlayer`, what visual/action asset is required for the first visible frame, and which input state can safely move the project-owned player after placement. Camera and online-only behavior remain separate boundaries.
 
 ## Reproduction
 
@@ -86,4 +101,4 @@ python tools/ghidra/player_spawn_evidence.py
 python tools/ghidra/query_full_index.py callees GameScene::loadGameSceneList --limit 100
 ```
 
-The instruction-level observations above come from the user-owned binary identified by hash. Only derived addresses, field offsets, register/stack flow, and behavioral contracts are retained in the repository; the original binary remains outside Git.
+The instruction-level observations above come from the user-owned binary identified by hash. Only derived addresses, field offsets, register/stack flow, constants, and behavioral contracts are retained in the repository; the original binary remains outside Git.
