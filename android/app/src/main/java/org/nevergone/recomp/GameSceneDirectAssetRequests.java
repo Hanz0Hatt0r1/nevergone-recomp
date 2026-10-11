@@ -8,21 +8,32 @@ final class GameSceneDirectAssetRequests {
 
     private static native long nativeRefresh();
     private static native int nativeCount();
+    private static native int nativeAtlasCount();
+    private static native String nativeAtlasNameAt(int atlasIndex);
     private static native int nativeKindAt(int requestIndex);
     private static native String nativeValueAt(int requestIndex);
     private static native String nativePathAt(int requestIndex);
     private static native int nativeSpriteCommandIndexAt(int requestIndex);
     private static native boolean nativeIsPlayerBodyAt(int requestIndex);
 
-    // Refresh atomically captures the current native request snapshot. Count,
-    // kind/value and spriteCommandIndexAt read that same snapshot until refresh
-    // is called again, so one GL-frame staging pass cannot mix two scene queues.
+    // Refresh atomically captures the current native request snapshot together
+    // with the retained GameLevels atlas-preload list. All accessors below read
+    // that same snapshot until refresh is called again, so one GL staging pass
+    // cannot mix two scene queues/resource lists.
     static long refresh() {
         return nativeRefresh();
     }
 
     static int count() {
         return nativeCount();
+    }
+
+    static int atlasCount() {
+        return nativeAtlasCount();
+    }
+
+    static String atlasNameAt(int atlasIndex) {
+        return nativeAtlasNameAt(atlasIndex);
     }
 
     static int kindAt(int requestIndex) {
