@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import sys
+import tempfile
 
 MODULE_PATH = Path(__file__).with_name("android_player_input_runtime_evidence.py")
 spec = importlib.util.spec_from_file_location("android_player_input_runtime_evidence", MODULE_PATH)
@@ -75,6 +76,8 @@ def main() -> int:
     assert parsed_after.joystick.accepted_moves == 11
     assert parsed_after.control.primary_state == "0x13"
     assert not parsed_after.control.flip_x
+    assert module.choose_direction(before) == "right"
+    assert module.choose_direction(after) == "left"
 
     before_left = diagnostics(begins=5, moves=11, generation=8, state="0x13", flip=False)
     after_left = diagnostics(begins=6, moves=14, generation=9, state="0x12", flip=True)
@@ -87,6 +90,35 @@ def main() -> int:
     expect_invalid(before_left, diagnostics(begins=6, moves=14, generation=9, state="0x12", flip=False))
     expect_invalid(before, after.replace("state: runtime-render-queue-ready", "state: runtime-model-ready"))
     expect_invalid(before, after.replace("captured: false", "captured: true", 1))
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        xml = Path(temp_dir) / "window.xml"
+        xml.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<hierarchy>'
+            '<node class="org.nevergone.recomp.GameSurfaceView" bounds="[0,100][1136,740]" />'
+            '</hierarchy>',
+            encoding="utf-8",
+        )
+        right = module.surface_swipe(xml, "right")
+        assert right.start_x == 204
+        assert right.start_y == 567
+        assert right.end_x == 304
+        assert right.end_y == 567
+        left = module.surface_swipe(xml, "left")
+        assert left.end_x == 104
+        assert left.end_y == 567
+
+        xml.write_text(
+            '<hierarchy><node class="android.widget.TextView" bounds="[0,0][100,100]" /></hierarchy>',
+            encoding="utf-8",
+        )
+        try:
+            module.surface_swipe(xml, "right")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("expected missing GameSurfaceView bounds to fail closed")
 
     print("Android player input runtime evidence validator smoke: ok")
     return 0
