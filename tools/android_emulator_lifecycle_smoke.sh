@@ -137,9 +137,13 @@ require_pid() {
 require_foreground() {
   local phase="$1"
   local attempt
-  local output
+  local output=''
 
-  for attempt in 1 2 3; do
+  # ActivityManager on the unaccelerated Linux runner can acknowledge am start
+  # before its resumed-activity bookkeeping converges, and dumpsys itself can
+  # transiently time out. Give both conditions a bounded recovery window while
+  # still requiring the app process to stay alive and surfacing real crashes.
+  for attempt in $(seq 1 6); do
     if output="$(activity_dump)"; then
       if grep -Eq \
           'mResumedActivity.*org\.nevergone\.recomp|topResumedActivity=.*org\.nevergone\.recomp' \
@@ -147,21 +151,35 @@ require_foreground() {
         return 0
       fi
 
-      echo "Never Gone Recomp is not resumed during ${phase}" >&2
-      printf '%s\n' "$output" >&2
-      exit 1
-    fi
+      if ! adb shell pidof "$PACKAGE" | grep -q '[0-9]'; then
+        echo "Never Gone Recomp has no live process while checking foreground during ${phase}" >&2
+        fatal_check "$phase"
+        exit 1
+      fi
 
-    if [[ $attempt -eq 3 ]]; then
+      fatal_check "$phase"
+      if [[ $attempt -lt 6 ]]; then
+        echo "Never Gone Recomp is not resumed yet during ${phase}; retrying (${attempt}/6)" >&2
+        sleep 2
+        continue
+      fi
       break
     fi
 
-    echo "Transient ActivityManager dump failure during ${phase}; retrying (${attempt}/3)" >&2
-    wait_for_activity_service "$phase"
+    fatal_check "$phase"
+    if [[ $attempt -lt 6 ]]; then
+      echo "Transient ActivityManager dump failure during ${phase}; retrying (${attempt}/6)" >&2
+      wait_for_activity_service "$phase" || true
+      sleep 2
+    fi
   done
 
-  echo "Android activity service remained unavailable while checking foreground during ${phase}" >&2
-  adb devices -l >&2 || true
+  echo "Never Gone Recomp did not become foreground during ${phase}" >&2
+  if [[ -n "$output" ]]; then
+    printf '%s\n' "$output" >&2
+  else
+    adb devices -l >&2 || true
+  fi
   exit 1
 }
 
