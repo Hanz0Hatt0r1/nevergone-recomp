@@ -12,6 +12,9 @@
 
 #include "client_callback_bridge.h"
 #include "game_clock.h"
+#include "game_levels_enter_transition.h"
+#include "game_scene_player_facing_input.h"
+#include "game_scene_player_spawn_state.h"
 #include "management_role_selection_compositor.h"
 #include "splash_sequence_state.h"
 #include "tap_to_start_state.h"
@@ -405,6 +408,20 @@ void on_draw_frame() {
 
 void on_touch(int action, int pointer_id, float x, float y) {
     g_touch_count.fetch_add(1, std::memory_order_relaxed);
+
+    if (nevergone::game_levels_enter_transition::snapshot().boundary ==
+            nevergone::game_levels_enter_transition::Boundary::kRuntimeRenderQueueReady) {
+        const auto spawn = nevergone::game_scene_player_spawn_state::snapshot();
+        if (spawn.status == nevergone::game_scene_player_spawn_state::Status::kReady &&
+            nevergone::game_scene_player_facing_input::on_touch(
+                    action, pointer_id, x, y,
+                    g_width.load(std::memory_order_relaxed),
+                    g_height.load(std::memory_order_relaxed),
+                    spawn.source_scene_index, spawn.scene_guid)) {
+            record_touch(action, pointer_id, x, y);
+            return;
+        }
+    }
 
     if (nevergone::management_role_selection_compositor::on_touch(
             action, pointer_id, x, y)) {

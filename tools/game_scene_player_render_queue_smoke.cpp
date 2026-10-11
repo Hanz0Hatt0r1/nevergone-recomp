@@ -2,6 +2,7 @@
 
 #include "game_scene_direct_asset_requests.h"
 #include "game_scene_player_render_queue.h"
+#include "game_scene_player_facing_input.h"
 
 int main() {
     using namespace nevergone;
@@ -64,6 +65,36 @@ int main() {
     const auto generation = player_control_runtime_state::snapshot().generation;
     assert(!player_control_runtime_state::apply_horizontal_sample(0.01f, 180.0f));
     assert(player_control_runtime_state::snapshot().generation == generation);
+
+    // The Android gesture bridge feeds the same recovered state model.
+    game_scene_player_facing_input::reset();
+    assert(!game_scene_player_facing_input::on_touch(
+            0, 7, 700, 500, 1000, 600, 2, scene.guid));
+    assert(game_scene_player_facing_input::on_touch(
+            0, 7, 200, 500, 1000, 600, 2, scene.guid));
+    assert(game_scene_player_facing_input::on_touch(
+            2, 7, 120, 500, 1000, 600, 2, scene.guid));
+    assert(player_control_runtime_state::snapshot().primary_state ==
+           player_control_contract::PrimaryControlState::kState12);
+    assert(!game_scene_player_facing_input::on_touch(
+            2, 8, 280, 500, 1000, 600, 2, scene.guid));
+    const auto turned = game_scene_player_render_queue::with_initial_player(scene, spawn, &frame);
+    assert(turned.sprites[1].player_body_transform->flip_x);
+    assert(turned.sprites[1].transform.position_x == ready.sprites[1].transform.position_x);
+    assert(game_scene_direct_asset_requests::build(turned).revision == requests.revision);
+    assert(game_scene_player_facing_input::on_touch(
+            1, 7, 120, 500, 1000, 600, 2, scene.guid));
+    assert(game_scene_player_facing_input::on_touch(
+            0, 8, 200, 500, 1000, 600, 2, scene.guid));
+    assert(game_scene_player_facing_input::on_touch(
+            2, 8, 280, 500, 1000, 600, 2, scene.guid));
+    assert(player_control_runtime_state::snapshot().primary_state ==
+           player_control_contract::PrimaryControlState::kState13);
+    assert(game_scene_player_facing_input::on_touch(
+            3, 8, 280, 500, 1000, 600, 2, scene.guid));
+    assert(game_scene_player_facing_input::on_touch(
+            0, 9, 200, 500, 1000, 600, 3, "next-scene"));
+    assert(!player_control_runtime_state::snapshot().primary_state.has_value());
 
     auto absent = game_scene_player_render_queue::with_initial_player(scene, spawn, nullptr);
     assert(absent.sprites.size() == 2u);
