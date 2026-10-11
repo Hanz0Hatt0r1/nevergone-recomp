@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <limits>
 
 namespace nevergone::game_scene_player_bootstrap {
 namespace {
@@ -45,7 +46,7 @@ std::optional<InitialPoint> initial_manager_point(float win_width, float win_hei
 
 std::optional<ResourceNames> resource_names(
         std::uint32_t career,
-        std::uint32_t color_file_id) {
+        std::uint32_t player_clothes_id) {
     if (!valid_offline_career(career)) return std::nullopt;
 
     ResourceNames result;
@@ -56,11 +57,18 @@ std::optional<ResourceNames> resource_names(
         result.default_sprite_plists[index] = format_name(
             "p%02u_%02u_%02u_default.plist",
             career,
-            color_file_id,
+            player_clothes_id,
             static_cast<std::uint32_t>(index + 1u));
         if (result.default_sprite_plists[index].empty()) return std::nullopt;
     }
     return result;
+}
+
+std::optional<std::string> action_entry_key(std::uint32_t state_index) {
+    if (state_index == std::numeric_limits<std::uint32_t>::max()) return std::nullopt;
+    const auto key = format_name("action%02u", state_index + 1u);
+    if (key.empty()) return std::nullopt;
+    return key;
 }
 
 }  // namespace nevergone::game_scene_player_bootstrap
