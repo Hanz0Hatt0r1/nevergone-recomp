@@ -27,6 +27,7 @@ enum class Boundary {
 struct Snapshot {
     Boundary boundary = Boundary::kIdle;
     std::uint64_t enter_callback_count = 0;
+    std::uint64_t local_enter_count = 0;
     std::uint64_t probe_attempt_count = 0;
     std::uint64_t file_size = 0;
     std::size_t reader_size = 0;
@@ -34,7 +35,15 @@ struct Snapshot {
 };
 
 void reset();
+
+// Callback-driven recovered online boundary.
 void on_enter_game(const std::string& files_dir);
+
+// Project-owned serverless preservation boundary. It loads the same verified
+// GameLevels model but does not increment/claim an original enter callback.
+void on_local_enter_game(const std::string& files_dir);
+
+// Probe-injection helper used by callback-path host tests.
 void on_enter_game_with_probe(const game_levels_asset_probe::Snapshot& probe);
 Snapshot snapshot();
 const char* boundary_name(Boundary boundary);
