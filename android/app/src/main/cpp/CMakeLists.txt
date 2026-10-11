@@ -64,6 +64,7 @@ add_library(nevergone_recomp SHARED
     game_scene_player_frame_request.cpp
     game_scene_initial_player_sprite_request.cpp
     game_scene_player_spawn_state.cpp
+    game_scene_player_joystick_input.cpp
     game_levels_actions_section.cpp
     game_levels_asset_probe.cpp
     game_levels_enter_transition.cpp
