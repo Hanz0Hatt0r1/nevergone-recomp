@@ -12,8 +12,8 @@ int main() {
     assert(bootstrap::valid_offline_career(5u));
     assert(!bootstrap::valid_offline_career(6u));
     assert(std::string(bootstrap::player_name()) == "SELF");
-    assert(bootstrap::kConstructionResourceSelector == 1u);
-    assert(bootstrap::kConstructionComparedResourceField == 0u);
+    assert(bootstrap::kConstructionPlayerClothesId == 1u);
+    assert(bootstrap::kConstructionPlayerColorId == 0u);
     assert(bootstrap::kInitialActionState == 0x1bu);
 
     const auto point = bootstrap::initial_manager_point(1136.0f, 640.0f);
@@ -37,10 +37,10 @@ int main() {
     assert(career5->default_sprite_plists.back() == "p05_00_09_default.plist");
 
     // printf's %02 width is a minimum, not a range restriction. Keep a
-    // recovered resource selector lossless instead of inventing a 0..99 bound.
-    const auto wide_color = bootstrap::resource_names(3u, 123u);
-    assert(wide_color.has_value());
-    assert(wide_color->default_sprite_plists.front() == "p03_123_01_default.plist");
+    // recovered player-clothes id lossless instead of inventing a 0..99 bound.
+    const auto wide_clothes = bootstrap::resource_names(3u, 123u);
+    assert(wide_clothes.has_value());
+    assert(wide_clothes->default_sprite_plists.front() == "p03_123_01_default.plist");
 
     assert(!bootstrap::resource_names(0u, 1u).has_value());
     assert(!bootstrap::resource_names(6u, 1u).has_value());
