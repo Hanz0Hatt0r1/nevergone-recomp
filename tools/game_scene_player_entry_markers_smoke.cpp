@@ -8,6 +8,7 @@ using nevergone::game_levels_scene_instance::LayerInstance;
 using nevergone::game_levels_scene_instance::SceneInstance;
 using nevergone::game_levels_scene_prefix::ObjectRecord;
 using nevergone::game_scene_player_entry_markers::collect;
+using nevergone::game_scene_player_entry_markers::resolve_offline_player_position;
 using nevergone::game_scene_player_entry_markers::transform_offline;
 
 namespace {
@@ -74,6 +75,20 @@ int main() {
     assert(position->x == 32.0f);
     assert(position->y == 20.0f);
 
+    // MEPlayer::getPlayerPos() adds bootstrap +0x240 to scene offset +0x248.
+    // Because loadingTex calls setPlayerPos for every matching marker, the
+    // second event-0 marker is the final retained first-scene position here.
+    auto resolved = resolve_offline_player_position(scene, 0u, 1136.0f, 640.0f);
+    assert(resolved.has_value());
+    assert(resolved->marker.source_layer_index == 7u);
+    assert(resolved->marker.source_object_index == 0u);
+    assert(resolved->bootstrap_position.x == 568.0f);
+    assert(resolved->bootstrap_position.y == 448.0f);
+    assert(resolved->scene_offset.x == -573.5f);
+    assert(resolved->scene_offset.y == -271.75f);
+    assert(resolved->visible_position.x == -5.5f);
+    assert(resolved->visible_position.y == 176.25f);
+
     auto event1 = collect(scene, 1u);
     assert(event1.has_value());
     assert(event1->size() == 1u);
@@ -81,22 +96,34 @@ int main() {
     assert((*event1)[0].source_x == 10.0f);
     assert((*event1)[0].source_y == 20.0f);
 
+    auto resolved_event1 = resolve_offline_player_position(scene, 1u, 1136.0f, 640.0f);
+    assert(resolved_event1.has_value());
+    assert(resolved_event1->visible_position.x == 10.0f);
+    assert(resolved_event1->visible_position.y == 188.0f);
+
     SceneInstance malformed;
     LayerInstance bad_layer;
     bad_layer.objects.push_back(object(6, 0, 1.0f, 2.0f, false));
     malformed.layers.push_back(bad_layer);
     assert(!collect(malformed, 0u).has_value());
+    assert(!resolve_offline_player_position(malformed, 0u, 1136.0f, 640.0f).has_value());
 
     SceneInstance non_finite;
     LayerInstance nan_layer;
     nan_layer.objects.push_back(object(6, 0, std::nanf(""), 2.0f));
     non_finite.layers.push_back(nan_layer);
     assert(!collect(non_finite, 0u).has_value());
+    assert(!resolve_offline_player_position(non_finite, 0u, 1136.0f, 640.0f).has_value());
+
+    SceneInstance no_marker;
+    no_marker.layers.push_back(LayerInstance{});
+    assert(!resolve_offline_player_position(no_marker, 0u, 1136.0f, 640.0f).has_value());
 
     const auto marker = (*event0)[0];
     assert(!transform_offline(marker, 0.0f, 640.0f).has_value());
     assert(!transform_offline(marker, 1136.0f, -1.0f).has_value());
     assert(!transform_offline(marker, std::nanf(""), 640.0f).has_value());
+    assert(!resolve_offline_player_position(scene, 0u, 0.0f, 640.0f).has_value());
 
     return 0;
 }

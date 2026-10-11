@@ -1,6 +1,6 @@
 # Player spawn runtime state
 
-Issue #148 now materializes the already recovered type-6 player-entry contract as live project-owned runtime state.
+Issue #148 materializes the recovered type-6 player-entry contract as live project-owned runtime state. The retained point now follows the complete `MEPlayer` position model rather than treating the type-6 transform as a final coordinate.
 
 ## Source state
 
@@ -8,43 +8,68 @@ The state is refreshed only after the offline GameLevels render queue is ready. 
 
 - `game_levels_runtime_state::current_scene_instance()`;
 - the retained `stored_event_port_type`;
-- the current GameScene renderer surface dimensions.
+- the current GameScene renderer surface dimensions as a live-renderer readiness/revision key.
 
-No scene-list `playerStartXPos/YPos` fallback is used because no value-flow edge has been proven from that metadata pair to the live `GameScene + 0x4c4` cursor.
+No scene-list `playerStartXPos/YPos` fallback is used because no value-flow edge has been proven from that metadata pair to the live type-6 `loadingTex()` position path.
 
-## Ordered type-6 application
+## Design-space type-6 position
 
-`game_scene_player_spawn_state::refresh()` delegates marker selection to the existing evidence-backed `game_scene_player_entry_markers::collect()` contract and applies the exact offline transform to every matching marker in source traversal order:
+The original configures `setDesignResolutionSize(1136, 640, 0)` (Cocos2d-x ExactFit) before the relevant `CCDirector::getWinSize()` calls. The type-6 transform therefore operates in the recovered 1136x640 design coordinate space, not raw physical GLES pixel dimensions:
 
 ```text
-player_x = source_x - surface_width  * 0.5
-player_y = source_y + 40.0 - surface_height * 0.5
+scene_offset_x = source_x - 1136 * 0.5
+scene_offset_y = source_y + 40.0 - 640 * 0.5
 ```
 
-The original `GameScene::loadingTex()` calls `MEPlayer::setPlayerPos()` for every matching type-6 marker rather than enforcing uniqueness. The project-owned state preserves that behavior: every valid marker is counted/applied and the final observable position is the last transformed match.
+`MEPlayer::initWithMEName()` retains the construction/bootstrap point at `MEPlayer +0x240`. For the primary offline player, `MEPlayerManager::initMEPlayerManager()` constructs that point as:
 
-Missing markers, malformed matching records, non-finite coordinates and invalid surface dimensions fail closed and clear the retained position.
+```text
+bootstrap_x = 1136 * 0.5 = 568
+bootstrap_y = 640 * 0.7 = 448
+```
+
+`MEPlayer::setPlayerPos()` stores the transformed type-6 point at `MEPlayer +0x248` and sets the active action node to the sum. `MEPlayer::getPlayerPos()` independently returns the same sum:
+
+```text
+player_x = bootstrap_x + scene_offset_x
+player_y = bootstrap_y + scene_offset_y
+```
+
+Thus at this design resolution the final visible first-scene point simplifies to:
+
+```text
+player_x = source_x
+player_y = source_y + 168
+```
+
+The original `GameScene::loadingTex()` calls `MEPlayer::setPlayerPos()` for every matching type-6 marker rather than enforcing uniqueness. The project preserves that ordered overwrite behavior: all matches are counted and the final live position comes from the last matching marker.
+
+Missing markers, malformed matching records, non-finite coordinates and invalid live surface dimensions fail closed and clear the retained position.
 
 ## Android lifecycle
 
-`PlayerActionRuntimeLoader.stageIfNeeded()` already runs from the GL-thread GameScene asset staging path. It now refreshes the player spawn state while the live scene queue is active. The native bridge reads surface dimensions from `game_scene_direct_renderer::snapshot()`, which is synchronized from the current GLES viewport before the static GameScene draw.
+`PlayerActionRuntimeLoader.stageIfNeeded()` runs from the GL-thread GameScene asset staging path and refreshes player spawn state while the live scene queue is active. Physical surface dimensions remain part of the state identity so context/viewport changes trigger a refresh, but they no longer distort Cocos design-space coordinates.
 
 Explicit imported-asset invalidation also resets this spawn state along with the parsed player action document.
 
 ## Current #148 boundary
 
-The project now owns both inputs required before constructing a visible player node:
+The project now owns both inputs required before constructing the first visible player node:
 
 ```text
-live GameLevels scene + event-port type + surface size
+live GameLevels scene + event-port type
     -> ordered matching type-6 markers
-    -> exact transformed player position
+    -> design-space scene offset
+    -> MEPlayer bootstrap + scene offset
+    -> final visible player point
 
 committed role Career
     -> pNN_actions.plist/action28/name
     -> parsed player .actData document
+    -> MeActions current frame 0
+    -> ActionFrameData +0x68 frame key
 ```
 
-The remaining frame-side blocker is narrower: `EnemyActionsSystem::loadingTex()` proves that `flag_26c` becomes `1` after texture loading, but the initial write that determines `system+0x294` (`current_frame_294`) for the first `MeActionsSystem` action has not yet been established in the checked-in evidence. The reconstruction therefore does not force frame zero.
+The earlier `EnemyActionsSystem +0x26c/+0x294` assumption does not apply to the player `MeActionsSystem`. Player playback uses `MeActionsSystem +0x1a4` for the current frame and `+0x1a8` for the previous frame; `initWithFile()`/`play()` prove the initial values `0/-1`.
 
-Once that initial current-frame transition is proven, the retained document and spawn point can be passed directly through `game_scene_player_frame_request` and attached to a project-owned renderer node without guessed coordinates or frame selection.
+The next visual blocker is the MeActions main-sprite local transform/facing behavior around the resolved `spriteFrameByName()` result. Once that is recovered, the existing action document, final player point and atlas staging pipeline can be composed without guessed frame selection or coordinates.

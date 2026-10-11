@@ -56,6 +56,12 @@ jobs:
             tools/ghidra/summarize_field_store_candidates.py \
             tools/ghidra/test_summarize_field_store_candidates.py
           bash -n tools/ghidra/run_player_current_frame_probe.sh
+          grep -q "'MeActionsSystem'" tools/ghidra/run_player_current_frame_probe.sh
+          grep -q '0x1a4' tools/ghidra/run_player_current_frame_probe.sh
+          if grep -q '0x294' tools/ghidra/run_player_current_frame_probe.sh; then
+            echo 'player current-frame probe regressed to EnemyActionsSystem +0x294' >&2
+            exit 1
+          fi
       - name: Run query smoke tests
         run: |
           python tools/ghidra/test_query_full_index.py

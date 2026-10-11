@@ -57,13 +57,26 @@ int main() {
     assert(state.source_object_index == 0u);
     assert(state.source_x == 650.0f);
     assert(state.source_y == 350.0f);
-    assert(state.player_x == 82.0f);
-    assert(state.player_y == 70.0f);
+    assert(state.bootstrap_x == 568.0f);
+    assert(state.bootstrap_y == 448.0f);
+    assert(state.scene_offset_x == 82.0f);
+    assert(state.scene_offset_y == 70.0f);
+    assert(state.player_x == 650.0f);
+    assert(state.player_y == 518.0f);
     const auto current = spawn::current_position();
     assert(current.has_value());
-    assert(current->x == 82.0f);
-    assert(current->y == 70.0f);
+    assert(current->x == 650.0f);
+    assert(current->y == 518.0f);
     assert(std::string(spawn::status_name(state.status)) == "ready");
+
+    // Physical GLES size does not alter the Cocos design-space player point.
+    assert(spawn::refresh(scene, 7u, 1920, 1080));
+    state = spawn::snapshot();
+    assert(state.generation == 2u);
+    assert(state.surface_width == 1920);
+    assert(state.surface_height == 1080);
+    assert(state.player_x == 650.0f);
+    assert(state.player_y == 518.0f);
 
     assert(!spawn::refresh(scene, 99u, 1136, 640));
     state = spawn::snapshot();

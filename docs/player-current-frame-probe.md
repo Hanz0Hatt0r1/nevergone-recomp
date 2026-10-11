@@ -1,12 +1,17 @@
 # Initial player current-frame evidence probe
 
-Issue #148 has project-owned runtime state for the first-scene player position and a parsed initial `action28` document, but it still deliberately does not force `EnemyActionsSystem + 0x294` (`current_frame_294`) to zero.
+Issue #148 now has a corrected player-specific current-frame contract. Earlier probe revisions targeted `+0x294`, which is an `EnemyActionsSystem` frame field and must not be reused for the first player `MeActionsSystem` action.
 
-Existing evidence proves that `EnemyActionsSystem::loadingTex()` sets the visual readiness byte at `+0x26c` to `1`. Other recovered routines write `+0x294` later in action playback, including `showActionLastFrame()` and waUpdate completion/reset paths. Those writes do not establish the initial frame selected for the first `MeActionsSystem` action.
+Instruction-level evidence from the original Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so` (SHA-256 `94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`) identifies the player fields as:
 
-## One-command headless run
+- `MeActionsSystem +0x1a4`: current frame;
+- `MeActionsSystem +0x1a8`: previous frame.
 
-For an existing analyzed Ghidra project, the repository wrapper runs the exporter and validator in one command:
+`MeActionsSystem::initWithFile()` writes `0` to `+0x1a4` and `-1` to `+0x1a8`. `MeActionsSystem::play()` repeats those values immediately before selecting `objectAtIndex(+0x1a4)` and calling `updateData()`. The initial player action therefore starts at primary frame index 0.
+
+## One-command headless regression probe
+
+For an existing analyzed Ghidra project, the repository wrapper rechecks stores to the corrected player current-frame field:
 
 ```bash
 tools/ghidra/run_player_current_frame_probe.sh \
@@ -22,28 +27,17 @@ An optional fifth argument selects the output directory. The default is:
 artifacts/player-current-frame-probe/
 ```
 
-The wrapper uses the existing project with `-process` and `-noanalysis`; it does not import or modify original binaries. It writes only the bounded derived TSV and its validated summary.
+The wrapper uses the existing project with `-process` and `-noanalysis`; it does not import or modify original binaries. It writes only bounded derived TSV metadata and its validated summary.
 
 ## Ghidra field-store candidate export
 
-`tools/ghidra/ExportFieldStoreCandidates.java` performs a bounded High P-code scan of functions whose names contain one of the requested class tokens. For every `STORE`, it recursively follows the destination-address dependency chain and emits a candidate only when the chain contains an exact `PTRSUB` or `INT_ADD` with the requested constant field offset.
-
-The wrapper invokes the equivalent of:
+`tools/ghidra/ExportFieldStoreCandidates.java` performs a bounded High P-code scan of matching functions. The wrapper invokes the equivalent of:
 
 ```text
-ExportFieldStoreCandidates.java "EnemyActionsSystem;MeActionsSystem" 0x294 /tmp/player-current-frame-stores.tsv
+ExportFieldStoreCandidates.java "MeActionsSystem" 0x1a4 /tmp/player-current-frame-stores.tsv
 ```
 
-The TSV contains derived metadata only:
-
-- containing function entry/name;
-- STORE P-code address/time;
-- requested field offset;
-- matching address-expression opcode and P-code location;
-- base/value dependency tokens;
-- whether the stored value is a constant and, when it is, that constant value.
-
-It does not export instruction bytes, assembly/disassembly text, decompiler C text, original strings, resources, or assets.
+The generic exporter follows STORE destination-address dependencies and emits a row only when the chain contains an exact `PTRSUB` or `INT_ADD` with the requested constant offset. The TSV contains derived metadata only: containing function identity, STORE P-code identity, requested field offset, matching address-expression metadata and bounded value-dependency/constant metadata. It does not export instruction bytes, disassembly, decompiler C text, original strings, resources or assets.
 
 ## Validation
 
@@ -51,20 +45,23 @@ The headless wrapper runs the same validator automatically. It can also be invok
 
 ```bash
 python3 tools/ghidra/summarize_field_store_candidates.py \
-  /tmp/player-current-frame-stores.tsv --field-offset 0x294
+  /tmp/player-current-frame-stores.tsv --field-offset 0x1a4
 ```
 
-The validator fails closed on schema errors, wrong field offsets, unsupported address opcodes, contradictory constant metadata and duplicate STORE identities. The summary separates constant stores (especially literal zero) from values derived through other P-code operations.
+The validator fails closed on schema errors, wrong field offsets, unsupported address opcodes, contradictory constant metadata and duplicate STORE identities.
 
-A constant-zero candidate is **not by itself sufficient** to claim the initial player frame is zero. The candidate must still be associated with the construction/initial-action path for `MeActionsSystem::creinitWithFile` or an immediately following proven transition. This avoids confusing later waUpdate reset behavior with first-spawn initialization.
+The generic candidate summary remains supporting metadata rather than semantic proof by itself. The semantic association is supplied by the bounded instruction path recorded in `docs/evidence/me-actions-initial-frame.md`: the zero stores occur in `MeActionsSystem::initWithFile()` and `MeActionsSystem::play()`, and `play()` immediately uses `+0x1a4` to select the primary frame before `updateData()`.
 
-## Acceptance for the next runtime step
+## Runtime consequence
 
-The frame blocker is closed only when derived evidence establishes all of the following:
+The previous frame blocker is closed for the initial action:
 
-1. a write/transition that determines `+0x294` for the initial `action28` `MeActionsSystem` instance;
-2. the value written or the deterministic source of that value;
-3. ordering relative to `loadingTex()`/the point where `+0x26c` becomes ready;
-4. no ambiguity with unrelated later action-update/reset paths.
+```text
+MeActionsSystem init/play
+    -> current frame +0x1a4 = 0
+    -> primary_records[0]
+    -> ActionFrameData +0x68
+    -> spriteFrameByName(frame key)
+```
 
-Once these are established, the existing `player_action_document_store`, `game_scene_player_spawn_state`, and `game_scene_player_frame_request` can be composed into the first visible project-owned player sprite without guessed frame selection.
+`game_scene_player_frame_request` now consumes this player-specific state and no longer depends on `EnemyActionsSystem +0x26c/+0x294` readiness/frame semantics.
