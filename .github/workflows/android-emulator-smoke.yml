@@ -8,6 +8,8 @@ on:
     paths:
       - '.github/workflows/android-emulator-smoke.yml'
       - 'tools/android_emulator_lifecycle_smoke.sh'
+      - 'tools/android_runtime_diagnostics.py'
+      - 'tools/test_android_runtime_diagnostics.py'
 
 permissions:
   contents: read
@@ -49,6 +51,13 @@ jobs:
           echo 'KVM acceleration is available to the Android emulator.'
           ls -l /dev/kvm
 
+      - name: Test runtime diagnostics parser
+        run: |
+          python3 -m py_compile \
+            tools/android_runtime_diagnostics.py \
+            tools/test_android_runtime_diagnostics.py
+          python3 tools/test_android_runtime_diagnostics.py
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -89,7 +98,5 @@ jobs:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
           profile: pixel_2
-          # The lifecycle contract does not depend on animation settings. Avoid
-          # the action's Settings-service animation helper entirely.
           disable-animations: false
           script: bash tools/android_emulator_lifecycle_smoke.sh
