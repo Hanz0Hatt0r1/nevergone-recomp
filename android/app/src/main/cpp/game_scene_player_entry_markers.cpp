@@ -34,4 +34,21 @@ std::optional<std::vector<Marker>> collect(
     return markers;
 }
 
+std::optional<OfflinePosition> transform_offline(
+        const Marker& marker,
+        float win_width,
+        float win_height) {
+    if (!std::isfinite(marker.source_x) || !std::isfinite(marker.source_y) ||
+            !std::isfinite(win_width) || !std::isfinite(win_height) ||
+            win_width <= 0.0f || win_height <= 0.0f) {
+        return std::nullopt;
+    }
+
+    OfflinePosition result;
+    result.x = marker.source_x - win_width * 0.5f;
+    result.y = marker.source_y + 40.0f - win_height * 0.5f;
+    if (!std::isfinite(result.x) || !std::isfinite(result.y)) return std::nullopt;
+    return result;
+}
+
 }  // namespace nevergone::game_scene_player_entry_markers
