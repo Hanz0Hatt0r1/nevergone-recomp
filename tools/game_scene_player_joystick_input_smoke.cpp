@@ -74,7 +74,10 @@ int main() {
     // Native containsTouchLocation uses strict distance < hitRadius.
     assert(!joystick::on_touch(0, 8, 369.0f, 467.0f, 1136, 640));
     assert(joystick::on_touch(0, 8, 368.0f, 467.0f, 1136, 640));
-    assert(joystick::on_touch(3, 8, 368.0f, 467.0f, 1136, 640));
+    // ACTION_CANCEL terminates the entire Android gesture even when actionIndex
+    // reports a different pointer from the one that originally captured it.
+    assert(joystick::on_touch(3, 99, 900.0f, 100.0f, 1136, 640));
+    assert(!joystick::snapshot().captured);
 
     // Invalid/out-of-surface coordinates fail closed.
     assert(!joystick::surface_to_design(0, 640, 1.0f, 1.0f, &design_x, &design_y));
