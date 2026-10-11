@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <limits>
 
 namespace nevergone::game_scene_player_bootstrap {
 namespace {
@@ -61,6 +62,13 @@ std::optional<ResourceNames> resource_names(
         if (result.default_sprite_plists[index].empty()) return std::nullopt;
     }
     return result;
+}
+
+std::optional<std::string> action_entry_key(std::uint32_t state_index) {
+    if (state_index == std::numeric_limits<std::uint32_t>::max()) return std::nullopt;
+    const auto key = format_name("action%02u", state_index + 1u);
+    if (key.empty()) return std::nullopt;
+    return key;
 }
 
 }  // namespace nevergone::game_scene_player_bootstrap
