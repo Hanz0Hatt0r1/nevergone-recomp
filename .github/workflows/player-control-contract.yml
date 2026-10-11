@@ -1,0 +1,40 @@
+name: Player control contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/player_control_contract.cpp'
+      - 'android/app/src/main/cpp/player_control_contract.h'
+      - 'tools/player_control_contract_smoke.cpp'
+      - 'docs/player-control-state-evidence.md'
+      - '.github/workflows/player-control-contract.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/player_control_contract.cpp'
+      - 'android/app/src/main/cpp/player_control_contract.h'
+      - 'tools/player_control_contract_smoke.cpp'
+      - 'docs/player-control-state-evidence.md'
+      - '.github/workflows/player-control-contract.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: player-control-contract-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run player control contract smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/player_control_contract_smoke.cpp \
+            android/app/src/main/cpp/player_control_contract.cpp \
+            -o /tmp/player_control_contract_smoke
+          /tmp/player_control_contract_smoke
