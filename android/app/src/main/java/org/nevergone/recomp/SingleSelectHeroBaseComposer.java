@@ -9,6 +9,15 @@ import java.util.Locale;
 final class SingleSelectHeroBaseComposer {
     private static final String BACKGROUND_FRAME = "xrbeijing.png";
 
+    private static volatile boolean atlasDecoded;
+    private static volatile boolean backgroundExtracted;
+    private static volatile int heroTablesRetained;
+    private static volatile int careerRunesRetained;
+    private static volatile int confirmFramesRetained;
+    private static volatile String heroTableFailure = "not staged";
+    private static volatile String careerRuneFailure = "not staged";
+    private static volatile String confirmFailure = "not staged";
+
     private static native void nativeClearHeroTables();
     private static native boolean nativeUploadHeroTable(
             int tableIndex,
@@ -42,21 +51,57 @@ final class SingleSelectHeroBaseComposer {
 
     private SingleSelectHeroBaseComposer() {}
 
+    private static void resetStatus() {
+        atlasDecoded = false;
+        backgroundExtracted = false;
+        heroTablesRetained = 0;
+        careerRunesRetained = 0;
+        confirmFramesRetained = 0;
+        heroTableFailure = "none";
+        careerRuneFailure = "none";
+        confirmFailure = "none";
+    }
+
+    static String statusReport() {
+        return "SingleSelectHero staging\n" +
+                "atlas decoded: " + (atlasDecoded ? "yes" : "no") + "\n" +
+                "background extracted: " + (backgroundExtracted ? "yes" : "no") + "\n" +
+                "hero tables retained: " + heroTablesRetained + "/4\n" +
+                "career runes retained: " + careerRunesRetained + "/10\n" +
+                "confirm frames retained: " + confirmFramesRetained + "/4\n" +
+                "hero table failure: " + heroTableFailure + "\n" +
+                "career rune failure: " + careerRuneFailure + "\n" +
+                "confirm failure: " + confirmFailure;
+    }
+
     static SingleLoginAtlasComposer.AtlasLayer composeBackground(File plistFile, File atlasFile)
             throws Exception {
         nativeClearHeroTables();
         nativeClearCareerRunes();
         nativeClearConfirmControl();
+        resetStatus();
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
         Bitmap atlas = BitmapFactory.decodeFile(atlasFile.getAbsolutePath(), options);
-        if (atlas == null) return null;
+        if (atlas == null) {
+            heroTableFailure = "atlas decode failed";
+            careerRuneFailure = "atlas decode failed";
+            confirmFailure = "atlas decode failed";
+            return null;
+        }
+        atlasDecoded = true;
 
         try {
             SingleLoginAtlasComposer.AtlasLayer background =
                     extractLayer(plistFile, atlas, BACKGROUND_FRAME);
-            if (background == null) return null;
+            if (background == null) {
+                heroTableFailure = "background frame missing or invalid";
+                careerRuneFailure = "background frame missing or invalid";
+                confirmFailure = "background frame missing or invalid";
+                return null;
+            }
+            backgroundExtracted = true;
 
             // HeroTable is part of the same shipped atlas and is loaded on this
             // GL thread so the native compositor can select frames at runtime
@@ -73,7 +118,14 @@ final class SingleSelectHeroBaseComposer {
                             variant);
                     SingleLoginAtlasComposer.AtlasLayer layer =
                             extractLayer(plistFile, atlas, frameName);
-                    if (layer == null || !nativeUploadHeroTable(
+                    if (layer == null) {
+                        heroTableFailure = "missing/invalid " + frameName +
+                                " after " + outputIndex + " accepted";
+                        nativeClearHeroTables();
+                        heroTablesRetained = 0;
+                        break;
+                    }
+                    if (!nativeUploadHeroTable(
                             outputIndex,
                             layer.width,
                             layer.height,
@@ -82,10 +134,14 @@ final class SingleSelectHeroBaseComposer {
                             layer.sourceWidth,
                             layer.sourceHeight,
                             layer.pixels)) {
+                        heroTableFailure = "native upload rejected " + frameName +
+                                " after " + outputIndex + " accepted";
                         nativeClearHeroTables();
+                        heroTablesRetained = 0;
                         break;
                     }
                     outputIndex++;
+                    heroTablesRetained = outputIndex;
                 }
                 if (outputIndex != career * 2) break;
             }
@@ -94,6 +150,7 @@ final class SingleSelectHeroBaseComposer {
             // Each item has a normal xrfuwenNN frame and a pressed
             // xrfuwenfaguangNN frame; all five recovered career tags are valid.
             int runeIndex = 0;
+            boolean runeFailed = false;
             for (int tag = 1; tag <= 5; tag++) {
                 String[] frameNames = {
                         String.format(Locale.ROOT, "xrfuwen%02d.png", tag),
@@ -102,7 +159,11 @@ final class SingleSelectHeroBaseComposer {
                 for (String frameName : frameNames) {
                     SingleLoginAtlasComposer.AtlasLayer layer =
                             extractLayer(plistFile, atlas, frameName);
-                    if (layer == null || !nativeUploadCareerRune(
+                    if (layer == null) {
+                        careerRuneFailure = "missing/invalid " + frameName +
+                                " after " + runeIndex + " accepted";
+                        runeFailed = true;
+                    } else if (!nativeUploadCareerRune(
                             runeIndex,
                             layer.width,
                             layer.height,
@@ -111,13 +172,19 @@ final class SingleSelectHeroBaseComposer {
                             layer.sourceWidth,
                             layer.sourceHeight,
                             layer.pixels)) {
+                        careerRuneFailure = "native upload rejected " + frameName +
+                                " after " + runeIndex + " accepted";
+                        runeFailed = true;
+                    }
+                    if (runeFailed) {
                         nativeClearCareerRunes();
-                        runeIndex = -1;
+                        careerRunesRetained = 0;
                         break;
                     }
                     runeIndex++;
+                    careerRunesRetained = runeIndex;
                 }
-                if (runeIndex < 0) break;
+                if (runeFailed) break;
             }
 
             // Recovered Confirm hierarchy at the shared (836,70) center:
@@ -129,9 +196,17 @@ final class SingleSelectHeroBaseComposer {
                     "btn_e.png",
             };
             for (int frameIndex = 0; frameIndex < confirmFrames.length; frameIndex++) {
+                String frameName = confirmFrames[frameIndex];
                 SingleLoginAtlasComposer.AtlasLayer layer =
-                        extractLayer(plistFile, atlas, confirmFrames[frameIndex]);
-                if (layer == null || !nativeUploadConfirmFrame(
+                        extractLayer(plistFile, atlas, frameName);
+                if (layer == null) {
+                    confirmFailure = "missing/invalid " + frameName +
+                            " after " + frameIndex + " accepted";
+                    nativeClearConfirmControl();
+                    confirmFramesRetained = 0;
+                    break;
+                }
+                if (!nativeUploadConfirmFrame(
                         frameIndex,
                         layer.width,
                         layer.height,
@@ -140,9 +215,13 @@ final class SingleSelectHeroBaseComposer {
                         layer.sourceWidth,
                         layer.sourceHeight,
                         layer.pixels)) {
+                    confirmFailure = "native upload rejected " + frameName +
+                            " after " + frameIndex + " accepted";
                     nativeClearConfirmControl();
+                    confirmFramesRetained = 0;
                     break;
                 }
+                confirmFramesRetained = frameIndex + 1;
             }
             return background;
         } finally {
