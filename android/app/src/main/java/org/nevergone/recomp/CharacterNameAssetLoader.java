@@ -14,11 +14,11 @@ import java.util.Locale;
 final class CharacterNameAssetLoader {
     private static final String[] IMAGE_FILES = {
             "Login/ChooseHero/Redbottom.png",
-            "ServerList/RANDOMName.png",
-            "ServerList/RANDOM.png",
-            "Common/btn_standard_a.png",
-            "Common/btn_standard_b.png",
-            "Common/btn_standard_c.png"
+            "gamescene_ui/ServerList/RANDOMName.png",
+            "gamescene_ui/ServerList/RANDOM.png",
+            "gamescene_ui/Common/btn_standard_a.png",
+            "gamescene_ui/Common/btn_standard_b.png",
+            "gamescene_ui/Common/btn_standard_c.png"
     };
     private static final int FONT_SIZE = 20;
     private static final long MAX_PIXELS = 16_777_216L;

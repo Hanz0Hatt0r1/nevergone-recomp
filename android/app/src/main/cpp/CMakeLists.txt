@@ -60,6 +60,7 @@ add_library(nevergone_recomp SHARED
     game_scene_direct_texture_cache.cpp
     game_scene_direct_texture_gl.cpp
     game_scene_frame_asset_bridge.cpp
+    game_scene_player_bootstrap.cpp
     game_scene_player_entry_markers.cpp
     game_scene_player_joystick_input.cpp
     game_scene_player_frame_request.cpp

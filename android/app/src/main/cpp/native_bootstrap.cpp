@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "app_delegate_state.h"
+#include "character_name_state.h"
 #include "choose_hero_action_state.h"
 #include "choose_hero_background_compositor.h"
 #include "choose_hero_black_cloud_compositor.h"
@@ -168,6 +169,7 @@ std::string bootstrap_info() {
     out << nevergone::standalone_hero_save_metadata::status_report(runtime.files_dir);
     out << nevergone::login_lua_session::status_report();
     out << nevergone::offline_startup_flow::status_report();
+    out << nevergone::character_name_state::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::game_levels_enter_transition::status_report();
     out << nevergone::game_scene_direct_renderer::status_report();
