@@ -12,6 +12,8 @@
 
 #include "client_callback_bridge.h"
 #include "game_clock.h"
+#include "game_levels_enter_transition.h"
+#include "game_scene_player_joystick_input.h"
 #include "management_role_selection_compositor.h"
 #include "splash_sequence_state.h"
 #include "tap_to_start_state.h"
@@ -325,6 +327,11 @@ void draw_fallback_phase() {
     glDisableVertexAttribArray(0);
 }
 
+bool game_scene_route_active() {
+    return nevergone::game_levels_enter_transition::snapshot().boundary ==
+        nevergone::game_levels_enter_transition::Boundary::kRuntimeRenderQueueReady;
+}
+
 void sync_tap_to_start() {
     const std::uint64_t tick = nevergone::game_clock::tick_count();
     nevergone::tap_to_start_state::sync_scene(
@@ -345,6 +352,7 @@ void on_surface_created() {
     g_surface_generation.fetch_add(1, std::memory_order_relaxed);
     nevergone::game_clock::reset();
     nevergone::tap_to_start_state::reset();
+    nevergone::game_scene_player_joystick_input::cancel_capture();
     g_splash_texture = 0;
     g_splash_width = 0;
     g_splash_height = 0;
@@ -393,6 +401,11 @@ void on_surface_changed(int width, int height) {
 void on_draw_frame() {
     (void)nevergone::game_clock::advance();
     sync_tap_to_start();
+    if (game_scene_route_active()) {
+        nevergone::game_scene_player_joystick_input::tick();
+    } else {
+        nevergone::game_scene_player_joystick_input::cancel_capture();
+    }
     glClear(GL_COLOR_BUFFER_BIT);
     if (g_splash_texture != 0) {
         draw_splash();
@@ -405,6 +418,18 @@ void on_draw_frame() {
 
 void on_touch(int action, int pointer_id, float x, float y) {
     g_touch_count.fetch_add(1, std::memory_order_relaxed);
+
+    if (game_scene_route_active() &&
+        nevergone::game_scene_player_joystick_input::on_touch(
+            action,
+            pointer_id,
+            x,
+            y,
+            g_width.load(std::memory_order_relaxed),
+            g_height.load(std::memory_order_relaxed))) {
+        record_touch(action, pointer_id, x, y);
+        return;
+    }
 
     if (nevergone::management_role_selection_compositor::on_touch(
             action, pointer_id, x, y)) {
@@ -427,6 +452,7 @@ void on_touch(int action, int pointer_id, float x, float y) {
 void on_app_pause() {
     g_app_resumed.store(false, std::memory_order_relaxed);
     g_pause_count.fetch_add(1, std::memory_order_relaxed);
+    nevergone::game_scene_player_joystick_input::cancel_capture();
     nevergone::game_clock::pause();
 }
 
@@ -461,6 +487,13 @@ std::string status_report() {
         << " generation=" << tap_state.scene_generation
         << " auto-login=" << (tap_state.auto_login_request_pending ? "pending" : "idle")
         << " accepted=" << tap_state.accepted_touches << "\n";
+    const auto joystick = nevergone::game_scene_player_joystick_input::snapshot();
+    out << "player joystick: " << (joystick.captured ? "captured" : "idle")
+        << " pointer=" << joystick.pointer_id
+        << " power=" << joystick.power
+        << " angle=" << joystick.angle_degrees
+        << " begins=" << joystick.accepted_begins
+        << " moves=" << joystick.accepted_moves << "\n";
     out << "touch events: " << g_touch_count.load(std::memory_order_relaxed) << "\n";
     {
         std::lock_guard<std::mutex> lock(g_touch_mutex);
