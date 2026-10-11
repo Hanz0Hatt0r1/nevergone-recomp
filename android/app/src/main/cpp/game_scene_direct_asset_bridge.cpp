@@ -65,6 +65,7 @@ Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeKindAt(
     switch (request->kind) {
         case RequestKind::kDirectFile: return 0;
         case RequestKind::kSpriteFrameByName: return 1;
+        case RequestKind::kPlayerSpriteFrameByName: return 2;
     }
     return -1;
 }
@@ -84,6 +85,7 @@ Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeValueAt(
             value = &request->relative_path;
             break;
         case RequestKind::kSpriteFrameByName:
+        case RequestKind::kPlayerSpriteFrameByName:
             value = &request->frame_name;
             break;
     }
