@@ -47,6 +47,11 @@ def validate_one(validator: Path, root: Path, path: Path, require_eof: bool) -> 
         "relative_path": path.relative_to(root).as_posix(),
         "validator_exit": completed.returncode,
     }
+    string_fields = {
+        "parse_status",
+        "eof_policy",
+        "primary_record0_frame_key_hex",
+    }
     for key in (
         "parse_status",
         "input_bytes",
@@ -54,6 +59,8 @@ def validate_one(validator: Path, root: Path, path: Path, require_eof: bool) -> 
         "trailing_bytes",
         "header_word0",
         "primary_records",
+        "primary_record0_frame_key_length",
+        "primary_record0_frame_key_hex",
         "compact_records",
         "nested_groups",
         "nested_records",
@@ -69,7 +76,7 @@ def validate_one(validator: Path, root: Path, path: Path, require_eof: bool) -> 
     ):
         if key in values:
             value: object = values[key]
-            if key not in {"parse_status", "eof_policy"}:
+            if key not in string_fields:
                 try:
                     value = int(values[key])
                 except ValueError:
