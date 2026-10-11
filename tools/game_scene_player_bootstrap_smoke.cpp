@@ -12,8 +12,8 @@ int main() {
     assert(bootstrap::valid_offline_career(5u));
     assert(!bootstrap::valid_offline_career(6u));
     assert(std::string(bootstrap::player_name()) == "SELF");
-    assert(bootstrap::kInitialResourceSelector == 1u);
-    assert(bootstrap::kInitialComparedResourceField == 0u);
+    assert(bootstrap::kConstructionResourceSelector == 1u);
+    assert(bootstrap::kConstructionComparedResourceField == 0u);
     assert(bootstrap::kInitialActionState == 0x1bu);
 
     const auto point = bootstrap::initial_manager_point(1136.0f, 640.0f);
@@ -23,20 +23,6 @@ int main() {
     assert(!bootstrap::initial_manager_point(0.0f, 640.0f).has_value());
     assert(!bootstrap::initial_manager_point(1136.0f, -1.0f).has_value());
     assert(!bootstrap::initial_manager_point(std::nanf(""), 640.0f).has_value());
-
-    const auto initial1 = bootstrap::initial_resource_names(1u);
-    assert(initial1.has_value());
-    assert(initial1->actions_plist == "p01_actions.plist");
-    assert(initial1->default_sprite_plists.front() == "p01_01_01_default.plist");
-    assert(initial1->default_sprite_plists.back() == "p01_01_09_default.plist");
-
-    const auto initial5 = bootstrap::initial_resource_names(5u);
-    assert(initial5.has_value());
-    assert(initial5->actions_plist == "p05_actions.plist");
-    assert(initial5->default_sprite_plists.front() == "p05_01_01_default.plist");
-    assert(initial5->default_sprite_plists.back() == "p05_01_09_default.plist");
-    assert(!bootstrap::initial_resource_names(0u).has_value());
-    assert(!bootstrap::initial_resource_names(6u).has_value());
 
     const auto career1 = bootstrap::resource_names(1u, 2u);
     assert(career1.has_value());
