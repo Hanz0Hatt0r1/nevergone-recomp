@@ -1,0 +1,54 @@
+name: MeActions initial sprite transform
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/me_actions_initial_sprite_transform.h'
+      - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.cpp'
+      - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.h'
+      - 'android/app/src/main/cpp/game_scene_player_frame_request.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_frame_request.h'
+      - 'android/app/src/main/cpp/me_actions_runtime_state.h'
+      - 'tools/me_actions_initial_sprite_transform_smoke.cpp'
+      - 'tools/game_scene_initial_player_sprite_request_smoke.cpp'
+      - 'docs/evidence/me-actions-initial-sprite-transform.md'
+      - '.github/workflows/me-actions-initial-sprite-transform.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/me_actions_initial_sprite_transform.h'
+      - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.cpp'
+      - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.h'
+      - 'android/app/src/main/cpp/game_scene_player_frame_request.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_frame_request.h'
+      - 'android/app/src/main/cpp/me_actions_runtime_state.h'
+      - 'tools/me_actions_initial_sprite_transform_smoke.cpp'
+      - 'tools/game_scene_initial_player_sprite_request_smoke.cpp'
+      - 'docs/evidence/me-actions-initial-sprite-transform.md'
+      - '.github/workflows/me-actions-initial-sprite-transform.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run initial sprite transform smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/me_actions_initial_sprite_transform_smoke.cpp \
+            -o /tmp/me_actions_initial_sprite_transform_smoke
+          /tmp/me_actions_initial_sprite_transform_smoke
+      - name: Build and run composed initial player sprite request smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/game_scene_player_frame_request.cpp \
+            android/app/src/main/cpp/game_scene_initial_player_sprite_request.cpp \
+            tools/game_scene_initial_player_sprite_request_smoke.cpp \
+            -o /tmp/game_scene_initial_player_sprite_request_smoke
+          /tmp/game_scene_initial_player_sprite_request_smoke
