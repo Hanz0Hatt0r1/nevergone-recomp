@@ -32,6 +32,17 @@ bool read_file(const std::string& path, std::vector<std::uint8_t>* out) {
     return true;
 }
 
+std::string hex_encode(const std::string& value) {
+    static constexpr char kHex[] = "0123456789abcdef";
+    std::string encoded;
+    encoded.reserve(value.size() * 2u);
+    for (const unsigned char byte : value) {
+        encoded.push_back(kHex[(byte >> 4u) & 0x0fu]);
+        encoded.push_back(kHex[byte & 0x0fu]);
+    }
+    return encoded;
+}
+
 std::size_t nested_record_count(
         const nevergone::enemy_actions_wbg_prefix::NestedActionFrameBlock& block) {
     std::size_t total = 0;
@@ -57,6 +68,13 @@ void print_summary(
     std::cout << "trailing_bytes=" << document.trailing_bytes << '\n';
     std::cout << "header_word0=" << document.prefix.first_i32 << '\n';
     std::cout << "primary_records=" << document.primary_records.size() << '\n';
+    if (!document.primary_records.empty()) {
+        const auto& first = document.primary_records.front();
+        std::cout << "primary_record0_frame_key_length="
+                  << first.third_string_length_i32 << '\n';
+        std::cout << "primary_record0_frame_key_hex="
+                  << hex_encode(first.third_string) << '\n';
+    }
     std::cout << "compact_records=" << document.compact_block.records.size() << '\n';
     std::cout << "nested_groups=" << document.nested_block.groups.size() << '\n';
     std::cout << "nested_records=" << nested_record_count(document.nested_block) << '\n';
