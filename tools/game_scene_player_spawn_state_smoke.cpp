@@ -27,6 +27,7 @@ int main() {
     namespace scene_ns = nevergone::game_levels_scene_instance;
 
     scene_ns::SceneInstance scene;
+    scene.source_scene_index = 3u;
     scene.guid = "scene-0";
 
     scene_ns::LayerInstance layer0;
@@ -46,6 +47,8 @@ int main() {
     auto state = spawn::snapshot();
     assert(state.status == spawn::Status::kReady);
     assert(state.generation == 1u);
+    assert(state.source_scene_index == 3u);
+    assert(state.scene_guid == "scene-0");
     assert(state.event_port_type == 7u);
     assert(state.matching_marker_count == 2u);
     assert(state.applied_marker_count == 2u);
@@ -65,6 +68,8 @@ int main() {
     assert(!spawn::refresh(scene, 99u, 1136, 640));
     state = spawn::snapshot();
     assert(state.status == spawn::Status::kNoMatchingMarker);
+    assert(state.source_scene_index == 3u);
+    assert(state.scene_guid == "scene-0");
     assert(state.matching_marker_count == 0u);
     assert(!spawn::current_position().has_value());
 
