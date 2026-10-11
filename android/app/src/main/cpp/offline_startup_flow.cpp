@@ -50,6 +50,15 @@ void on_auto_login_compat_success(std::uint64_t scene_generation) {
     resolve_route_if_possible_locked();
 }
 
+bool on_fresh_role_local_enter() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_state.route == Route::kGameLevels) return true;
+    if (g_state.route != Route::kOpeningDialogue) return false;
+    g_state.route = Route::kGameLevels;
+    ++g_state.fresh_role_local_enter_count;
+    return true;
+}
+
 Snapshot snapshot() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_state;
@@ -65,6 +74,8 @@ const char* route_name(Route route) {
             return "opening-dialogue";
         case Route::kChooseRole:
             return "choose-role";
+        case Route::kGameLevels:
+            return "game-levels";
     }
     return "unknown";
 }
@@ -82,6 +93,7 @@ std::string status_report() {
     }
     out << "offline auto-login successes: " << state.auto_login_success_count << "\n";
     out << "offline role routes resolved: " << state.route_resolution_count << "\n";
+    out << "offline fresh-role local enters: " << state.fresh_role_local_enter_count << "\n";
     return out.str();
 }
 
