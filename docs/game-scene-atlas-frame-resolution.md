@@ -14,6 +14,14 @@ The metadata resolver accepts:
 
 Every plist and texture path is canonicalized beneath the imported asset root. Plists larger than 4 MiB are rejected.
 
+## Recovered atlas filename lookup
+
+`CCSpriteFrameCache::addSpriteFramesWithFile()` resolves the supplied plist through `CCFileUtils`, so the filename contract is the same one installed by `AppDelegate::AddAllSearchPath()`.
+
+The recovered search vector contains the writable `assets` root first and then exactly 59 child directories in fixed order. The clean-room resolver now reproduces that complete sequence. For a basename or relative resource name it returns the first existing canonical plist in that order, matching Cocos search-path precedence. A later duplicate basename no longer causes a false ambiguity failure. Path traversal or canonical escape outside the imported root still fails closed.
+
+This matters for the first-playable runtime evidence: after the PVP preload source was corrected, the device reported `atlas preload names: 1` but `atlas-resolution-failed`. That proves the binary `LoadGL_Global` name reached Java and localizes the next failure to filename lookup. The previous Java implementation searched only six GameScene directories and rejected duplicate matches even though the original runtime has a complete ordered search path. The resolver now follows the recovered original behavior instead.
+
 ## Resolved TexturePacker fields
 
 For a unique matching frame, the resolver retains only fields already observed in the user's TexturePacker metadata inventory:
@@ -28,7 +36,7 @@ For a unique matching frame, the resolver retains only fields already observed i
 
 The returned value also records the atlas index, canonical frame name, resolved plist path and resolved texture path. Trim rectangles must remain inside the declared source size and all size fields must be positive.
 
-Exact frame names and aliases are both supported. Membership must be unique across the recovered preload list; ambiguous matches fail closed rather than inventing an atlas priority or overwrite rule.
+Exact frame names and aliases are both supported. Frame membership must still be unique across the already ordered preload list; ambiguous frame definitions fail closed rather than inventing atlas overwrite semantics.
 
 ## Pixel reconstruction
 
@@ -49,7 +57,7 @@ The existing GameScene asset snapshot contains both proven static type-0 resourc
 - `CCSprite::create(file)` direct-file resources;
 - `spriteFrameByName` atlas-backed resources.
 
-The request revision hashes resource kind, command index and path/frame name. The same JNI refresh now captures the retained GameLevels preload names together with that request snapshot, preventing one GL staging pass from mixing two scene revisions. For PVP, no scene-list plist rediscovery is performed: Java resolves exactly the ordered binary GameLevels names retained by the native parser.
+The request revision hashes resource kind, command index and path/frame name. The same JNI refresh captures the retained GameLevels preload names together with that request snapshot, preventing one GL staging pass from mixing two scene revisions. For PVP, no scene-list plist rediscovery is performed: Java resolves exactly the ordered binary GameLevels names retained by the native parser.
 
 Java stages every request for that exact revision before `GameSceneDirectAssetStore.finish()` publishes anything. Frame resolution happens against the same app-private imported root; referenced atlas bitmaps are bounded and cached only for the current staging pass. A missing, malformed, ambiguous or out-of-bounds frame cancels the pending revision, leaving the previous complete texture set untouched.
 
@@ -78,14 +86,16 @@ The native bootstrap diagnostics also include the static GameScene renderer stat
 
 XML parsing disables external entities and DTD loading. Files are confined to the imported asset root, malformed frame dictionaries are rejected, excessive aliases are bounded, invalid geometry returns no frame, and atlas decode/staging is bounded by per-image and per-pass pixel limits.
 
-No proprietary image or plist payload is committed to the repository. Synthetic fixtures cover ordered-list resolution, metadata lookup, pixel reconstruction and diagnostic state; Android compile/renderer workflows cover the integration surface.
+No proprietary image or plist payload is committed to the repository. Synthetic fixtures cover ordered search-path lookup, metadata lookup, pixel reconstruction and diagnostic state; Android compile/renderer workflows cover the integration surface.
 
 ## Remaining P7 boundary
 
-The previous real-device `atlas-list-discovery-failed` is now addressed at its recovered source boundary. The remaining proof is another runtime integration pass:
+The current device evidence has progressed through both earlier boundaries: `atlas-list-discovery-failed` was eliminated by using the binary GameLevels preload array, and the resulting `atlas-resolution-failed` is now addressed by reproducing the complete recovered Cocos search path and first-match precedence.
+
+The next runtime integration pass should:
 
 1. exercise the fresh-role offline handoff into `GameLevels` with user-owned imported data;
-2. confirm `GameLevels runtime model` reports a nonzero atlas preload count;
-3. confirm the real first-scene revision stages every required atlas-backed sprite and reaches `GameScene asset staging: ready`;
-4. confirm the static GLES renderer records successful drawn frames and visually inspect the retained screenshot;
+2. confirm `GameLevels runtime model` still reports the nonzero atlas preload count;
+3. confirm whether the real first-scene revision now reaches `GameScene asset staging: ready`, or records the next concrete frame/decode boundary;
+4. if staging succeeds, confirm the static GLES renderer records successful drawn frames and visually inspect the retained screenshot;
 5. then run the joystick/player-input evidence harness against that live scene.
