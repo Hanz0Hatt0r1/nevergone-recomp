@@ -107,6 +107,8 @@ int main() {
     Probe probe;
     transition::on_enter_game_with_probe(probe);
     assert(transition::snapshot().boundary == Boundary::kFilesDirUnconfigured);
+    assert(transition::snapshot().enter_callback_count == 1u);
+    assert(transition::snapshot().local_enter_count == 0u);
     probe.configured = true;
     transition::on_enter_game_with_probe(probe);
     assert(transition::snapshot().boundary == Boundary::kAssetMissing);
@@ -161,6 +163,8 @@ int main() {
     state = transition::snapshot();
     assert(state.boundary == Boundary::kRuntimeModelReady);
     assert(state.verified_bytes == model_only.size());
+    assert(state.enter_callback_count == 1u);
+    assert(state.local_enter_count == 0u);
     auto retained = runtime::snapshot();
     assert(retained.status == runtime::LoadStatus::kReady);
     assert(retained.model_end_offset == model_only.size());
@@ -175,10 +179,12 @@ int main() {
     transition::reset();
     const auto with_start_scene = start_scene_fixture();
     write_fixture(scene, with_start_scene);
-    transition::on_enter_game(root.string());
+    transition::on_local_enter_game(root.string());
     state = transition::snapshot();
     assert(state.boundary == Boundary::kRuntimeRenderQueueReady);
     assert(state.verified_bytes == with_start_scene.size());
+    assert(state.enter_callback_count == 0u);
+    assert(state.local_enter_count == 1u);
     retained = runtime::snapshot();
     assert(retained.status == runtime::LoadStatus::kReady);
     assert(retained.current_port_node_index == 0u);
@@ -208,6 +214,8 @@ int main() {
     assert(live_queue->sprites.empty());
 
     assert(transition::status_report().find("runtime-render-queue-ready") != std::string::npos);
+    assert(transition::status_report().find("enter callbacks: 0") != std::string::npos);
+    assert(transition::status_report().find("local enters: 1") != std::string::npos);
     assert(transition::status_report().find("scene render queue: ready") != std::string::npos);
 
     transition::reset();
