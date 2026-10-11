@@ -79,13 +79,42 @@ public final class GameSceneAtlasResolverSmoke {
         // to replacing the plist extension with .png when that key is empty.
         assert !atlases.get(1).textureRelativePath.contains("ignored-nested-name");
 
+        // The reconstructed lookup now follows the complete AddAllSearchPath
+        // order, not only GameScene directories. A basename in `other` is a
+        // valid first match because that directory precedes the GameScene roots.
+        File otherPlist = new File(assets, "other/global.plist");
+        write(otherPlist, plist(null, false));
+        write(new File(assets, "other/global.png"), "png");
+        List<GameSceneAtlasResolver.Atlas> other =
+                GameSceneAtlasResolver.resolve(assets, Arrays.asList("global.plist"));
+        assert other != null && other.size() == 1;
+        assert other.get(0).plistRelativePath.equals("other/global.plist");
+        assert other.get(0).textureRelativePath.equals("other/global.png");
+
+        // The writable assets root itself is the first Cocos search path. A
+        // later duplicate in gamescene must not make the lookup ambiguous.
         File duplicateRoot = new File(assets, "duplicate.plist");
         File duplicateGameScene = new File(assets, "gamescene/duplicate.plist");
         write(duplicateRoot, plist(null, false));
         write(new File(assets, "duplicate.png"), "png");
         write(duplicateGameScene, plist(null, false));
         write(new File(assets, "gamescene/duplicate.png"), "png");
-        assert GameSceneAtlasResolver.resolve(assets, Arrays.asList("duplicate.plist")) == null;
+        List<GameSceneAtlasResolver.Atlas> duplicate =
+                GameSceneAtlasResolver.resolve(assets, Arrays.asList("duplicate.plist"));
+        assert duplicate != null && duplicate.size() == 1;
+        assert duplicate.get(0).plistRelativePath.equals("duplicate.plist");
+        assert duplicate.get(0).textureRelativePath.equals("duplicate.png");
+
+        // Child-directory duplicates preserve the recovered order as well:
+        // `other` precedes `sound` in AddAllSearchPath().
+        write(new File(assets, "other/ordered.plist"), plist(null, false));
+        write(new File(assets, "other/ordered.png"), "png");
+        write(new File(assets, "sound/ordered.plist"), plist(null, false));
+        write(new File(assets, "sound/ordered.png"), "png");
+        List<GameSceneAtlasResolver.Atlas> ordered =
+                GameSceneAtlasResolver.resolve(assets, Arrays.asList("ordered.plist"));
+        assert ordered != null && ordered.size() == 1;
+        assert ordered.get(0).plistRelativePath.equals("other/ordered.plist");
 
         File traversalPlist = new File(assets, "gamescene/traversal.plist");
         write(traversalPlist, plist("../outside.png", false));
