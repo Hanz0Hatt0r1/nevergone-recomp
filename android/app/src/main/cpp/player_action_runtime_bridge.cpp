@@ -29,7 +29,7 @@ jint current_offline_career() {
 }  // namespace
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeIsOfflineSceneRenderQueueReady(
+Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeIsOfflineSceneRenderQueueReady(
         JNIEnv*, jclass) {
     return nevergone::game_levels_runtime_state::snapshot().current_scene_render_queue_ready
             ? JNI_TRUE
@@ -37,13 +37,13 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeIsOfflineSceneRenderQueueReady(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeCurrentOfflineCareer(
+Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeCurrentOfflineCareer(
         JNIEnv*, jclass) {
     return current_offline_career();
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeLoadPlayerActionDocument(
+Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeLoadPlayerActionDocument(
         JNIEnv* env,
         jclass,
         jstring relative_path) {
@@ -56,7 +56,7 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeLoadPlayerActionDocument(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeResetPlayerActionDocument(
+Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeResetPlayerActionDocument(
         JNIEnv*, jclass) {
     nevergone::player_action_document_store::reset();
 }
