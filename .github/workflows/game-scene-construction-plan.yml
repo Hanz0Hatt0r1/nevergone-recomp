@@ -7,6 +7,8 @@ on:
       - 'android/app/src/main/cpp/game_scene_construction_plan.cpp'
       - 'android/app/src/main/cpp/game_scene_construction_plan.h'
       - 'android/app/src/main/cpp/game_scene_construction_diagnostics.h'
+      - 'android/app/src/main/cpp/game_scene_player_bootstrap.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_bootstrap.h'
       - 'android/app/src/main/cpp/game_scene_player_entry_markers.cpp'
       - 'android/app/src/main/cpp/game_scene_player_entry_markers.h'
       - 'android/app/src/main/cpp/game_scene_type0_resource.h'
@@ -24,6 +26,8 @@ on:
       - 'android/app/src/main/cpp/game_scene_construction_plan.cpp'
       - 'android/app/src/main/cpp/game_scene_construction_plan.h'
       - 'android/app/src/main/cpp/game_scene_construction_diagnostics.h'
+      - 'android/app/src/main/cpp/game_scene_player_bootstrap.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_bootstrap.h'
       - 'android/app/src/main/cpp/game_scene_player_entry_markers.cpp'
       - 'android/app/src/main/cpp/game_scene_player_entry_markers.h'
       - 'android/app/src/main/cpp/game_scene_type0_resource.h'
@@ -64,5 +68,6 @@ jobs:
             -I android/app/src/main/cpp \
             tools/game_scene_player_entry_markers_smoke.cpp \
             android/app/src/main/cpp/game_scene_player_entry_markers.cpp \
+            android/app/src/main/cpp/game_scene_player_bootstrap.cpp \
             -o /tmp/game_scene_player_entry_markers_smoke
           /tmp/game_scene_player_entry_markers_smoke

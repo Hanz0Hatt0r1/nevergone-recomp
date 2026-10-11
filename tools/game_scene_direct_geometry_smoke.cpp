@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 #include "game_scene_direct_geometry.h"
@@ -82,6 +83,27 @@ int main() {
     assert(!geometry::build_quad(transform, 0, 50, 1136, 640, &quad));
     assert(!geometry::build_quad(transform, 100, 50, 0, 640, &quad));
     assert(!geometry::build_quad(transform, 100, 50, 1136, 640, nullptr));
+
+    // The player body has its own anchor and local transform under the
+    // MEPlayer world point. The flattened quad must preserve both levels.
+    Transform player_node;
+    player_node.position_x = 600.0f;
+    player_node.position_y = 468.0f;
+    nevergone::me_actions_initial_sprite_transform::Plan body;
+    body.position_x = 12.0f;
+    body.position_y = -4.0f;
+    body.anchor_x = 0.5f;
+    body.anchor_y = 0.25f;
+    body.scale_x = 1.0f;
+    body.scale_y = 1.0f;
+    assert(geometry::build_player_quad(player_node, body, 100, 50, 1136, 640, &quad));
+    assert(near(quad.positions[0], 2.0f * 562.0f / 1136.0f - 1.0f));
+    assert(near(quad.positions[1], 2.0f * 501.5f / 640.0f - 1.0f));
+    body.flip_x = true;
+    assert(geometry::build_player_quad(player_node, body, 100, 50, 1136, 640, &quad));
+    assert(quad.tex_coords[0] == 1.0f && quad.tex_coords[4] == 0.0f);
+    body.scale_x = std::numeric_limits<float>::quiet_NaN();
+    assert(!geometry::build_player_quad(player_node, body, 100, 50, 1136, 640, &quad));
 
     nevergone::game_scene_render_queue::Queue queue;
     queue.sprites.push_back(direct_sprite(1u, 5));   // index 0

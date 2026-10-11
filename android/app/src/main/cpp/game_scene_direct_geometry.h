@@ -29,6 +29,15 @@ bool build_quad(
         int surface_height,
         Quad* out);
 
+bool build_player_quad(
+        const game_scene_construction_plan::Type0SpriteTransform& player_node,
+        const me_actions_initial_sprite_transform::Plan& body,
+        int texture_width,
+        int texture_height,
+        int surface_width,
+        int surface_height,
+        Quad* out);
+
 // Filter the already recovered layer/object traversal order down to direct-file
 // sprites. `child_z_order` belongs to the sprite child inside each distinct
 // GameSceneObject and must not reorder separate GameSceneObject instances.

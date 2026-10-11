@@ -29,20 +29,17 @@ bool valid_frame_key(const std::string& value, std::int32_t serialized_length) {
 
 Request build(
         const enemy_actions_wbg_document::Document& document,
-        State state,
+        me_actions_runtime_state::State state,
         game_scene_player_bootstrap::InitialPoint position) {
     Request result;
     result.position = position;
-    if (!state.action_document_ready) {
-        result.status = Status::kReadinessGateClosed;
-        return result;
-    }
-    if (document.primary_records.empty()) {
+    result.lookup = me_actions_runtime_state::apply_update_data_frame_lookup(document, state);
+
+    if (!result.lookup.has_primary_frames) {
         result.status = Status::kNoPrimaryFrames;
         return result;
     }
-    if (state.current_frame_1a4 < 0 ||
-        static_cast<std::size_t>(state.current_frame_1a4) >= document.primary_records.size()) {
+    if (!result.lookup.current_frame_in_range || !result.lookup.should_lookup_sprite_frame) {
         result.status = Status::kFrameOutOfRange;
         return result;
     }
@@ -50,16 +47,14 @@ Request build(
         result.status = Status::kInvalidPosition;
         return result;
     }
-    result.selected_primary_index = static_cast<std::size_t>(state.current_frame_1a4);
-    const auto& frame = document.primary_records[result.selected_primary_index];
-    if (!valid_frame_key(frame.third_string, frame.third_string_length_i32)) {
+    if (!valid_frame_key(result.lookup.frame_name_68, result.lookup.frame_name_length_6c)) {
         result.status = Status::kInvalidFrameKey;
         return result;
     }
 
     game_scene_type0_resource::Selection resource;
     resource.kind = game_scene_type0_resource::Kind::kSpriteFrameByName;
-    resource.resource_name = frame.third_string;
+    resource.resource_name = result.lookup.frame_name_68;
     result.resource = std::move(resource);
     result.status = Status::kReady;
     return result;
@@ -67,7 +62,6 @@ Request build(
 
 const char* status_name(Status status) {
     switch (status) {
-        case Status::kReadinessGateClosed: return "readiness-gate-closed";
         case Status::kNoPrimaryFrames: return "no-primary-frames";
         case Status::kFrameOutOfRange: return "frame-out-of-range";
         case Status::kInvalidPosition: return "invalid-position";

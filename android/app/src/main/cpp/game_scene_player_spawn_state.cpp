@@ -3,12 +3,14 @@
 #include <mutex>
 #include <sstream>
 
+#include "game_scene_direct_geometry.h"
+
 namespace nevergone::game_scene_player_spawn_state {
 namespace {
 
 std::mutex g_mutex;
 Snapshot g_state;
-std::optional<game_scene_player_entry_markers::OfflinePosition> g_position;
+std::optional<game_scene_player_bootstrap::InitialPoint> g_position;
 
 void begin_refresh_locked(
         const game_levels_scene_instance::SceneInstance& scene,
@@ -42,6 +44,10 @@ bool refresh(
     std::lock_guard<std::mutex> lock(g_mutex);
     begin_refresh_locked(scene, event_port_type, surface_width, surface_height);
 
+    // Surface dimensions still gate live renderer readiness and identify the
+    // active GLES revision. Player coordinates themselves are Cocos design-space
+    // values because the original configured 1136x640 ExactFit before querying
+    // CCDirector::getWinSize().
     if (surface_width <= 0 || surface_height <= 0) {
         g_state.status = Status::kInvalidSurface;
         return false;
@@ -58,30 +64,31 @@ bool refresh(
         return false;
     }
 
-    // loadingTex() applies every matching type-6 marker in source traversal
-    // order. MEPlayer::setPlayerPos() therefore leaves the last successful
-    // transformed marker as the observable live position. Preserve the same
-    // ordered overwrite semantics instead of inventing a uniqueness rule.
-    for (const auto& marker : *markers) {
-        const auto position = game_scene_player_entry_markers::transform_offline(
-                marker,
-                static_cast<float>(surface_width),
-                static_cast<float>(surface_height));
-        if (!position.has_value()) {
-            g_state.status = Status::kTransformFailed;
-            g_position.reset();
-            return false;
-        }
-
-        ++g_state.applied_marker_count;
-        g_state.source_layer_index = marker.source_layer_index;
-        g_state.source_object_index = marker.source_object_index;
-        g_state.source_x = marker.source_x;
-        g_state.source_y = marker.source_y;
-        g_state.player_x = position->x;
-        g_state.player_y = position->y;
-        g_position = *position;
+    const auto resolved = game_scene_player_entry_markers::resolve_offline_player_position(
+            scene,
+            event_port_type,
+            game_scene_direct_geometry::kDesignWidth,
+            game_scene_direct_geometry::kDesignHeight);
+    if (!resolved.has_value()) {
+        g_state.status = Status::kTransformFailed;
+        return false;
     }
+
+    // loadingTex() executes setPlayerPos() for every matching marker. The
+    // resolved helper models the resulting final state (the last match) and the
+    // two-part MEPlayer position: bootstrap + scene offset.
+    g_state.applied_marker_count = markers->size();
+    g_state.source_layer_index = resolved->marker.source_layer_index;
+    g_state.source_object_index = resolved->marker.source_object_index;
+    g_state.source_x = resolved->marker.source_x;
+    g_state.source_y = resolved->marker.source_y;
+    g_state.bootstrap_x = resolved->bootstrap_position.x;
+    g_state.bootstrap_y = resolved->bootstrap_position.y;
+    g_state.scene_offset_x = resolved->scene_offset.x;
+    g_state.scene_offset_y = resolved->scene_offset.y;
+    g_state.player_x = resolved->visible_position.x;
+    g_state.player_y = resolved->visible_position.y;
+    g_position = resolved->visible_position;
 
     g_state.status = Status::kReady;
     return true;
@@ -92,7 +99,7 @@ Snapshot snapshot() {
     return g_state;
 }
 
-std::optional<game_scene_player_entry_markers::OfflinePosition> current_position() {
+std::optional<game_scene_player_bootstrap::InitialPoint> current_position() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_position;
 }
@@ -126,6 +133,8 @@ std::string status_report() {
         out << "source marker: layer " << state.source_layer_index
             << ", object " << state.source_object_index << "\n";
         out << "source point: " << state.source_x << ", " << state.source_y << "\n";
+        out << "bootstrap point: " << state.bootstrap_x << ", " << state.bootstrap_y << "\n";
+        out << "scene offset: " << state.scene_offset_x << ", " << state.scene_offset_y << "\n";
         out << "player point: " << state.player_x << ", " << state.player_y << "\n";
     }
     return out.str();

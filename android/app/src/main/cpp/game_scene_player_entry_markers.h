@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "game_levels_scene_instance.h"
+#include "game_scene_player_bootstrap.h"
 
 namespace nevergone::game_scene_player_entry_markers {
 
@@ -19,9 +20,19 @@ struct Marker {
     float source_y = 0.0f;
 };
 
+// This is the exact point passed by GameScene::loadingTex() to
+// MEPlayer::setPlayerPos(). MEPlayer stores it at +0x248 and getPlayerPos()
+// later adds the construction/bootstrap point retained at +0x240.
 struct OfflinePosition {
     float x = 0.0f;
     float y = 0.0f;
+};
+
+struct ResolvedOfflinePlayerPosition {
+    Marker marker;
+    game_scene_player_bootstrap::InitialPoint bootstrap_position;
+    OfflinePosition scene_offset;
+    game_scene_player_bootstrap::InitialPoint visible_position;
 };
 
 // Mirrors the proven selection boundary in GameScene::loadingTex(): visit the
@@ -41,6 +52,17 @@ std::optional<std::vector<Marker>> collect(
 // non-positive window dimensions fail closed.
 std::optional<OfflinePosition> transform_offline(
         const Marker& marker,
+        float win_width,
+        float win_height);
+
+// Resolves the visible first-scene player point through the exact two-part
+// MEPlayer position model:
+//   getPlayerPos() = bootstrap(+0x240) + scene_offset(+0x248)
+// loadingTex calls setPlayerPos for every matching type-6 marker, so the final
+// state after traversal is determined by the last matching marker.
+std::optional<ResolvedOfflinePlayerPosition> resolve_offline_player_position(
+        const game_levels_scene_instance::SceneInstance& scene,
+        std::uint32_t stored_event_port_type,
         float win_width,
         float win_height);
 

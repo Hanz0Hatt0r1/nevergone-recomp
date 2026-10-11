@@ -1,6 +1,8 @@
 #pragma once
 
-#include "game_scene_player_frame_request.h"
+#include <algorithm>
+
+#include "game_scene_initial_player_sprite_request.h"
 #include "game_scene_player_spawn_state.h"
 #include "game_scene_render_queue.h"
 #include "player_action_document_store.h"
@@ -17,24 +19,25 @@ inline game_scene_render_queue::Queue with_initial_player(
 
     enemy_actions_wbg_document::Document document;
     document.primary_records.push_back(*initial_frame);
-    game_scene_player_frame_request::State state;
-    state.action_document_ready = true;
-    state.current_frame_1a4 = 0;  // MeActionsSystem::initWithFile and play().
-    const auto request = game_scene_player_frame_request::build(
-            document, state, {spawn.player_x, spawn.player_y});
-    if (request.status != game_scene_player_frame_request::Status::kReady ||
-        !request.resource.has_value()) return queue;
+    const auto request = game_scene_initial_player_sprite_request::build(
+            document, {spawn.player_x, spawn.player_y});
+    if (request.status != game_scene_initial_player_sprite_request::Status::kReady ||
+        !request.frame_request.resource.has_value() ||
+        !request.sprite_transform.has_value()) return queue;
 
     game_scene_render_queue::SpriteCommand player;
-    player.resource = *request.resource;
-    // The source marker and the proven GameScene Y correction locate the
-    // sprite in the same design space as the static GameScene objects.
-    player.transform.position_x = spawn.source_x;
-    player.transform.position_y = spawn.source_y + 40.0f;
-    player.layer_z_index = 11u;
+    player.resource = *request.frame_request.resource;
+    player.transform.position_x = spawn.player_x;
+    player.transform.position_y = spawn.player_y;
+    player.player_body_transform = *request.sprite_transform;
+    // BattleManager is a GameScene child at z=7. Same-z scene children were
+    // added earlier, so place this branch after layer 7 and before layer 8.
+    player.layer_z_index = 7u;
     player.source_layer_index = 11u;
     player.source_object_index = 0u;
-    queue.sprites.push_back(std::move(player));
+    const auto insertion = std::find_if(queue.sprites.begin(), queue.sprites.end(),
+            [](const auto& sprite) { return sprite.layer_z_index > 7u; });
+    queue.sprites.insert(insertion, std::move(player));
     ++queue.sprite_frame_lookup_count;
     return queue;
 }

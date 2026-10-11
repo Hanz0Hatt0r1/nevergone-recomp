@@ -58,35 +58,48 @@ The frame key is emitted as hex so arbitrary user-owned resource bytes cannot in
 
 ## Runtime frame request bridge
 
-`game_scene_player_frame_request::build()` connects a parsed player action document to the renderer-facing sprite-frame resource contract. The initial `MeActionsSystem::initWithFile()` and `play()` path seeds its own `+0x1a4` frame to zero; it does not use `EnemyActionsSystem +0x294` or its readiness gate. See [`evidence/player-initial-meactions-frame.md`](evidence/player-initial-meactions-frame.md).
+`game_scene_player_frame_request::build()` connects a parsed player action document to the existing renderer-facing sprite-frame resource contract using the **player-specific** `MeActionsSystem` runtime state.
+
+Instruction-level evidence now proves that both `MeActionsSystem::initWithFile()` and `MeActionsSystem::play()` initialize current frame `+0x1a4` to `0` and previous frame `+0x1a8` to `-1`. `play()` immediately selects primary frame 0 and calls `updateData()`. The latter reads the current frame from `+0x1a4` and resolves the selected `ActionFrameData +0x68` through `CCSpriteFrameCache::spriteFrameByName()`.
+
+This is intentionally separate from `EnemyActionsSystem`: the earlier bridge incorrectly reused EnemyActions runtime offsets `+0x26c/+0x294`. Those fields do not define the player `MeActionsSystem` playback cursor.
 
 A request becomes `ready` only when:
 
-- the selected player action document is loaded and parsed;
-- the document contains primary frames;
+- the parsed document contains primary frames;
 - `current_frame_1a4` selects an in-range primary record;
 - the requested player position is finite;
 - the selected `third_string` frame key is non-empty, length-consistent with the serialized `+0x6c` value, bounded to 512 bytes, and contains no path separators or embedded NUL.
 
-On success the bridge emits `game_scene_type0_resource::Kind::kSpriteFrameByName` with the exact recovered frame key. That is the same resource kind consumed by the GameScene atlas discovery, frame-resolution, pixel-staging and GLES texture pipeline. The initial player request is appended to the project-owned scene render queue after its action document and spawn marker are ready.
+On success the bridge emits `game_scene_type0_resource::Kind::kSpriteFrameByName` with the exact recovered frame key. The initial sprite request also carries the recovered body-local transform and visible MEPlayer point. The project-owned render queue inserts it at the BattleManager scene Z boundary and uses the existing atlas, pixel staging and GLES texture pipeline.
 
-`tools/game_scene_player_frame_request_smoke.cpp` protects the ready path and fail-closed behavior for a closed readiness gate, empty documents, out-of-range frame state, invalid position, traversal-like frame names, length mismatch and empty frame keys.
+`tools/game_scene_player_frame_request_smoke.cpp` protects the recovered initial state `(current=0, previous=-1)`, ready frame-0 path and fail-closed behavior for empty documents, negative/out-of-range frame state, invalid position, traversal-like frame names, length mismatch and empty frame keys.
+
+## Position and attachment boundary
+
+The first player point is also now more precise. `MEPlayer` retains its construction/bootstrap point at `+0x240` and the later `setPlayerPos()` argument at `+0x248`; `MEPlayer::getPlayerPos()` and `setPlayerPos()` both use their sum as the active action-node position.
+
+For the primary offline player the bootstrap point is `(0.5 * win_width, 0.7 * win_height)`. The type-6 scene-entry transform is therefore a scene offset, not the final visible point by itself. `game_scene_player_entry_markers::resolve_offline_player_position()` composes the two values and uses the last matching type-6 marker, matching the original loading loop's repeated `setPlayerPos()` calls.
+
+The active `MeActionsSystem` is attached to `MEPlayer` with child Z `2`, while `BattleManager` is attached to `GameScene` with Z `7`. These facts narrow the eventual renderer insertion point without inventing an arbitrary player Z order.
+
+Detailed addresses and field evidence are recorded in `docs/evidence/me-actions-initial-frame.md`.
 
 ## Evidence boundary
-
-The `MeActionsSystem::initWithFile()` and `play()` path selects primary record zero for the first action. `MeActionsSystem::updateData()` requests that record's `+0x68` frame key. The local asset probe exposes this key without committing the payload.
 
 The project-owned path now reaches:
 
 ```text
 pNN_actions.plist/action28/name
     -> matched user-owned .actData
-    -> enemy_actions_wbg_document
-    -> MeActionsSystem initial frame zero
+    -> enemy_actions_wbg_document parser
+    -> MeActions initial state (frame 0)
+    -> ActionFrameData +0x68 frame key
     -> validated sprite-frame-by-name request
-    -> GameScene atlas staging and player sprite queue
+    -> recovered first-scene visible player position
+    -> known MEPlayer/MeActions and GameScene/BattleManager attachment Z values
 ```
 
-The runtime now loads the selected imported action, attaches the validated initial frame to a project-owned player sprite command, and resolves the frame against imported player default atlases. A visible input transition remains downstream of this initial sprite.
+The initial body-local transform is recorded in `docs/evidence/me-actions-initial-sprite-transform.md`. The runtime now uses it to flatten the first player sprite into a GLES quad when the selected imported action and matching player atlas are present. A live input transition remains downstream.
 
 No original assets are stored in this repository.

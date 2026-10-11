@@ -170,13 +170,24 @@ bool draw() {
         }
 
         game_scene_direct_geometry::Quad quad;
-        if (!game_scene_direct_geometry::build_quad(
-                queue->sprites[sprite_command_index].transform,
-                texture.width,
-                texture.height,
-                surface_width,
-                surface_height,
-                &quad)) {
+        const auto& command = queue->sprites[sprite_command_index];
+        const bool geometry_ready = command.player_body_transform.has_value()
+            ? game_scene_direct_geometry::build_player_quad(
+                    command.transform,
+                    *command.player_body_transform,
+                    texture.width,
+                    texture.height,
+                    surface_width,
+                    surface_height,
+                    &quad)
+            : game_scene_direct_geometry::build_quad(
+                    command.transform,
+                    texture.width,
+                    texture.height,
+                    surface_width,
+                    surface_height,
+                    &quad);
+        if (!geometry_ready) {
             return false;
         }
         prepared.push_back({texture, quad});

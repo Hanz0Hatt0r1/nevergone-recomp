@@ -1,5 +1,5 @@
 candidate_stores=2
 constant_stores=1
 constant_zero_stores=1
-candidate[0]=002bbe84|EnemyActionsSystem::startFrameIdx|002bbe8c:19|value=derived|base=register:register:00000020:4
-candidate[1]=002bd9e2|EnemyActionsSystem::play|002bda18:65|value=0x0|base=register:register:00000020:4
+candidate[0]=003392f6|MeActionsSystem::startFrameIdx|003392fe:19|value=derived|base=register:register:00000020:4
+candidate[1]=0033b7c6|MeActionsSystem::play|0033b802:70|value=0x0|base=register:register:00000020:4
