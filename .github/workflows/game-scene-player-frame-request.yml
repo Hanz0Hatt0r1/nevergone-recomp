@@ -1,0 +1,45 @@
+name: GameScene player frame request
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_player_frame_request.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_frame_request.h'
+      - 'android/app/src/main/cpp/enemy_actions_runtime_state.cpp'
+      - 'android/app/src/main/cpp/enemy_actions_runtime_state.h'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/game_scene_player_frame_request_smoke.cpp'
+      - 'docs/player-action-asset-probe.md'
+      - '.github/workflows/game-scene-player-frame-request.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_player_frame_request.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_frame_request.h'
+      - 'android/app/src/main/cpp/enemy_actions_runtime_state.cpp'
+      - 'android/app/src/main/cpp/enemy_actions_runtime_state.h'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/game_scene_player_frame_request_smoke.cpp'
+      - 'docs/player-action-asset-probe.md'
+      - '.github/workflows/game-scene-player-frame-request.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build player frame request bridge smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/enemy_actions_combo_consumer.cpp \
+            android/app/src/main/cpp/enemy_actions_runtime_state.cpp \
+            android/app/src/main/cpp/game_scene_player_frame_request.cpp \
+            tools/game_scene_player_frame_request_smoke.cpp \
+            -o /tmp/game_scene_player_frame_request_smoke
+      - name: Run player frame request bridge smoke
+        run: /tmp/game_scene_player_frame_request_smoke
