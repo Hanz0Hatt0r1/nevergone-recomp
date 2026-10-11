@@ -45,12 +45,12 @@ The harness:
 1. refreshes and retains the baseline runtime diagnostics;
 2. requires the existing P7 GameScene renderer/staging proof to be valid;
 3. chooses the horizontal direction opposite the currently retained player state, guaranteeing that a successful gesture must advance the reconstructed control generation;
-4. reads the actual `GameSurfaceView` bounds from uiautomator and maps the recovered 1136x640 fixed joystick center `(204,173)` into physical screen coordinates;
+4. reads the actual gameplay surface bounds from uiautomator and maps the recovered 1136x640 fixed joystick center `(204,173)` into physical screen coordinates;
 5. injects a normal Android 600 ms swipe from the recovered center to `x +/- 100` design units, which remains inside both the native 165-unit begin radius and 290-unit update radius;
 6. retains before/after PNG screenshots and refreshed diagnostics;
 7. validates the transition with `tools/android_player_input_runtime_evidence.py`.
 
-The helper intentionally fails closed if the live UI dump does not expose exactly one usable `GameSurfaceView` bounds node.
+The preferred UIAutomator identity is the concrete `GameSurfaceView`/`GLSurfaceView` class. On the tested Android 13 device UIAutomator flattened that custom view to `android.view.View`. When no explicit surface class is exposed, the harness accepts exactly one fallback node only when it is owned by `org.nevergone.recomp`, has no resource id, is focusable, and has positive bounds. Multiple fallback candidates still fail closed; system/navigation views are excluded by the package/id/focusability contract.
 
 ## Machine acceptance rule
 
