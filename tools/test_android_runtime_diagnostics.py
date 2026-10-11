@@ -46,6 +46,8 @@ def main() -> int:
         )
         assert module.refresh_center(xml) == (300, 940)
         assert module.scroll_swipe(xml) == (540, 1550, 540, 1050)
+        assert module.scroll_swipe(xml, "toward-end") == (540, 1550, 540, 1050)
+        assert module.scroll_swipe(xml, "toward-start") == (540, 1050, 540, 1550)
         counters = module.renderer_counters(xml)
         assert counters.resume == 3
         assert counters.pause == 2
@@ -93,6 +95,7 @@ def main() -> int:
             'bounds="[20,800][1060,1800]" />',
         )
         assert module.scroll_swipe(xml) == (540, 1550, 540, 1050)
+        assert module.scroll_swipe(xml, "toward-start") == (540, 1050, 540, 1550)
 
         # An explicit accessibility scroll target wins over a non-scrollable
         # ScrollView fallback, keeping the selection deterministic.
@@ -102,6 +105,9 @@ def main() -> int:
             '<node scrollable="false" class="android.widget.ScrollView" bounds="[0,1000][800,1600]" />',
         )
         assert module.scroll_swipe(xml) == (400, 750, 400, 250)
+        assert module.scroll_swipe(xml, "toward-start") == (400, 250, 400, 750)
+
+        expect_value_error(lambda: module.scroll_swipe(xml, "sideways"))
 
         write_xml(xml, '<node scrollable="false" bounds="[0,0][100,100]" />')
         expect_value_error(lambda: module.scroll_swipe(xml))

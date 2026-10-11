@@ -1,0 +1,46 @@
+name: Android runtime shell syntax
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/android-runtime-shell-syntax.yml'
+      - 'tools/android_emulator_lifecycle_smoke.sh'
+      - 'tools/android_16k_runtime_smoke.sh'
+      - 'tools/android_arm64_runtime_smoke.sh'
+      - 'tools/android_runtime_evidence.py'
+      - 'tools/test_android_runtime_evidence.py'
+      - 'tools/test_android_lifecycle_failure_diagnostics.sh'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-runtime-shell-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse Android runtime harnesses
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n tools/android_emulator_lifecycle_smoke.sh
+          bash -n tools/android_16k_runtime_smoke.sh
+          bash -n tools/android_arm64_runtime_smoke.sh
+          bash -n tools/test_android_lifecycle_failure_diagnostics.sh
+
+      - name: Validate runtime evidence parser
+        run: |
+          python3 -m py_compile \
+            tools/android_runtime_evidence.py \
+            tools/test_android_runtime_evidence.py
+          python3 tools/test_android_runtime_evidence.py
+
+      - name: Test bounded lifecycle failure diagnostics
+        run: bash tools/test_android_lifecycle_failure_diagnostics.sh
