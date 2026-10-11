@@ -59,6 +59,21 @@ def main() -> int:
         )
         assert module.refresh_center(xml) == (300, 240)
 
+        # Android Buttons commonly expose textAllCaps in uiautomator even when
+        # the Java source label uses title case. Treat presentation casing as
+        # irrelevant without weakening the exactly-one-control requirement.
+        write_xml(
+            xml,
+            '<node text="REFRESH RUNTIME DIAGNOSTICS" bounds="[32,916][1888,1042]" />',
+        )
+        assert module.refresh_center(xml) == (960, 979)
+
+        write_xml(
+            xml,
+            '<node text="  Refresh   runtime diagnostics  " bounds="[100,200][500,280]" />',
+        )
+        assert module.refresh_center(xml) == (300, 240)
+
         write_xml(
             xml,
             '<node text="Refresh runtime diagnostics" bounds="[10,10][10,20]" />',
@@ -68,7 +83,7 @@ def main() -> int:
         write_xml(
             xml,
             '<node text="Refresh runtime diagnostics" bounds="[0,0][100,100]" />'
-            '<node text="Refresh runtime diagnostics" bounds="[100,0][200,100]" />',
+            '<node text="REFRESH RUNTIME DIAGNOSTICS" bounds="[100,0][200,100]" />',
         )
         expect_value_error(lambda: module.refresh_center(xml))
 
