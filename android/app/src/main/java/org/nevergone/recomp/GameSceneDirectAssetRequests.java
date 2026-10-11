@@ -3,6 +3,7 @@ package org.nevergone.recomp;
 final class GameSceneDirectAssetRequests {
     static final int KIND_DIRECT_FILE = 0;
     static final int KIND_SPRITE_FRAME_BY_NAME = 1;
+    static final int KIND_PLAYER_SPRITE_FRAME_BY_NAME = 2;
 
     private GameSceneDirectAssetRequests() {}
 
