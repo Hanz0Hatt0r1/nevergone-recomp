@@ -14,13 +14,70 @@ import java.util.Locale;
 
 /** Resolves recovered ordered atlas plist names and their texture images. */
 final class GameSceneAtlasResolver {
-    private static final String[] GAME_SCENE_SEARCH_ROOTS = {
+    // AppDelegate::AddAllSearchPath() installs the writable assets root first,
+    // then these 59 child directories in exactly this order. Cocos file lookup
+    // uses first-match semantics, so atlas lookup must preserve that precedence
+    // instead of rejecting duplicate basenames found in later search roots.
+    private static final String[] COCOS_SEARCH_ROOTS = {
+            "player",
+            "player/Player01_Res",
+            "player/Player01_Res/Weapons_Res",
+            "player/Player01_Res/bz_res",
+            "player/Player02_Res",
+            "player/Player02_Res/Weapons_Res",
+            "player/Player02_Res/bz_res",
+            "player/Player03_Res",
+            "player/Player03_Res/Weapons_Res",
+            "player/actions_data/adata/p01/normal",
+            "player/actions_data/adata/p02/normal",
+            "player/actions_data/adata/p03/normal",
+            "player/actions_data/T_adata/normal",
+            "other",
+            "sound",
+            "sound/ENCV",
+            "sound/UI_Sound",
+            "sound/player01_sound",
+            "sound/player02_sound",
+            "sound/player03_sound",
             "gamescene",
             "gamescene/gs_actions/res",
             "gamescene/task",
             "gamescene/gs_list",
             "gamescene/scene_data_files",
-            "gamescene/gs_res_image_file"
+            "gamescene/gs_res_image_file",
+            "shader",
+            "controls_ui",
+            "enemy",
+            "enemy/enemy_t_res",
+            "enemy/eo_files",
+            "enemy/enemy_ai",
+            "pets",
+            "pets/pets_t_res",
+            "pets/pets_ai",
+            "lansquenet",
+            "lansquenet/l_t_res",
+            "lansquenet/lansquenet_ai",
+            "NPC",
+            "NPC/npc_e_res",
+            "weapons",
+            "equips",
+            "Login/ChooseHero",
+            "Login/LoginScreenUI",
+            "NewMap",
+            "NewMap/CL_UI",
+            "opengame_ui",
+            "ChooseHero",
+            "gamescene_ui",
+            "gamescene_ui/loading_UI",
+            "gamescene_ui/WH_UI",
+            "gamescene_ui/WS_UI",
+            "gamescene_ui/GameOver_UI",
+            "gamescene_ui/CI_UI",
+            "gamescene_ui/ST_UI",
+            "gamescene_ui/Store_UI",
+            "gamescene_ui/EndlessMooe_ui",
+            "gamescene_ui/SingleLogin_UI/actions",
+            "NPC/n14"
     };
     private static final long MAX_PLIST_BYTES = 4L * 1024L * 1024L;
 
@@ -90,7 +147,7 @@ final class GameSceneAtlasResolver {
             String rootPrefix = canonicalRoot.getPath() + File.separator;
             ArrayList<Atlas> result = new ArrayList<>(atlasNames.size());
             for (String atlasName : atlasNames) {
-                File plist = resolveUniquePlist(canonicalRoot, rootPrefix, atlasName);
+                File plist = resolveFirstPlist(canonicalRoot, rootPrefix, atlasName);
                 if (plist == null || plist.length() <= 0L || plist.length() > MAX_PLIST_BYTES) return null;
                 File texture = resolveTextureForPlist(canonicalRoot, rootPrefix, plist);
                 if (texture == null || !texture.isFile()) return null;
@@ -105,30 +162,25 @@ final class GameSceneAtlasResolver {
         }
     }
 
-    private static File resolveUniquePlist(File root, String rootPrefix, String resourceName) throws Exception {
-        if (!isSafeResource(resourceName)) return null;
-        ArrayList<File> candidates = new ArrayList<>();
-        addCandidate(root, rootPrefix, resourceName, candidates);
-        for (String searchRoot : GAME_SCENE_SEARCH_ROOTS) {
-            addCandidate(root, rootPrefix, searchRoot + "/" + resourceName, candidates);
-        }
-        File found = null;
-        for (File candidate : candidates) {
-            if (!candidate.isFile()) continue;
-            if (found != null && !found.equals(candidate)) return null;
-            found = candidate;
-        }
-        return found;
-    }
-
-    private static void addCandidate(
+    private static File resolveFirstPlist(
             File root,
             String rootPrefix,
-            String relative,
-            List<File> candidates) throws Exception {
-        File candidate = new File(root, relative).getCanonicalFile();
-        if (!candidate.getPath().startsWith(rootPrefix)) return;
-        if (!candidates.contains(candidate)) candidates.add(candidate);
+            String resourceName) throws Exception {
+        if (!isSafeResource(resourceName)) return null;
+
+        File direct = candidate(root, rootPrefix, resourceName);
+        if (direct != null && direct.isFile()) return direct;
+
+        for (String searchRoot : COCOS_SEARCH_ROOTS) {
+            File resolved = candidate(root, rootPrefix, searchRoot + "/" + resourceName);
+            if (resolved != null && resolved.isFile()) return resolved;
+        }
+        return null;
+    }
+
+    private static File candidate(File root, String rootPrefix, String relative) throws Exception {
+        File value = new File(root, relative).getCanonicalFile();
+        return value.getPath().startsWith(rootPrefix) ? value : null;
     }
 
     private static File resolveTextureForPlist(

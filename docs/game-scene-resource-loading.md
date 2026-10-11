@@ -6,7 +6,7 @@ This note records clean-room resource-loading behavior recovered from the user's
 
 `AppDelegate::applicationDidFinishLaunching()` starts at `0x00291ac0` and calls `AppDelegate::AddAllSearchPath()` at `0x002915d8` before the first scene is run.
 
-`AddAllSearchPath()` builds the resource search-path vector and invokes the `CCFileUtils` virtual slot at object-vtable offset `+0x34`. The shipped `CCFileUtils` vtable at `0x00925e70` resolves that slot to `CCFileUtils::setSearchPaths(...)` at `0x0053334c` (Thumb symbol value `0x0053334d`). The recovered path strings include:
+`AddAllSearchPath()` builds the resource search-path vector and invokes the `CCFileUtils` virtual slot at object-vtable offset `+0x34`. The shipped `CCFileUtils` vtable at `0x00925e70` resolves that slot to `CCFileUtils::setSearchPaths(...)` at `0x0053334c` (Thumb symbol value `0x0053334d`). The complete reconstructed list is retained in `docs/resource-search-paths.md`: the writable `assets` root is first, followed by exactly 59 child directories in recovered order. The GameScene subset includes:
 
 - `gamescene`
 - `gamescene/gs_actions/res`
@@ -70,10 +70,13 @@ The project already reconstructs the first part of `LoadGL_Global()` as `game_le
 
 Real-device evidence exposed why the previous implementation failed closed: the imported `gamescene/gs_list` plists contained entries for other `.sceneData` resources and no entry whose `gamedatafile` basename was `pvp_scene.glData`. Trying to rediscover a `gsresfile04` array for PVP therefore produced `atlas-list-discovery-failed` even though the binary `pvp_scene.glData` model itself had already loaded successfully.
 
-The clean-room first-playable renderer now keeps these two sources separate:
+After sourcing PVP names directly from `LoadGL_Global`, the next device run reported `atlas preload names: 1` and advanced the failure to `atlas-resolution-failed`. That proves the binary preload source is now live and narrows the remaining boundary to Cocos filename lookup. The earlier Java resolver searched only six GameScene directories and rejected duplicate basenames as ambiguous. Both behaviors diverged from the already recovered `AddAllSearchPath()` contract: `CCFileUtils` receives the writable root plus all 59 child directories and resolves a filename using their established order. The project therefore now mirrors that complete order and uses the first existing canonical match, while still rejecting path escape/traversal.
+
+The clean-room first-playable renderer keeps these resource sources separate:
 
 - generic scene-list `GameLevelsData`: use its recovered `gsresfile04` array;
 - binary PVP `GameLevels`: use the ordered `LoadGL_Global` strings retained from `GameLevels + 0x24`;
+- atlas filename lookup: use the complete recovered `AddAllSearchPath()` order with first-match semantics;
 - direct-file sprite: resolve the proven imported image search path immediately;
 - scene-action pair: defer to the separate action-system reconstruction.
 
@@ -105,11 +108,11 @@ This direct lookup is significant for TexturePacker variants that also contain a
 `GameSceneAtlasResolver` reproduces only those proven rules for user-imported assets:
 
 - accept an ordered recovered atlas-name list from either the binary GameLevels global array or a genuine scene-list `gsresfile04` source;
-- resolve each plist beneath the recovered GameScene search roots;
-- require a unique existing plist match rather than inventing precedence when multiple imported files match one resource name;
-- honor direct `metadata.textureFileName` relative to the plist directory;
+- search the writable imported asset root first, then the complete 59 recovered `AddAllSearchPath()` child directories in original order;
+- use the first existing plist match exactly as Cocos filename lookup does, rather than treating later duplicate basenames as an error;
+- honor direct `metadata.textureFileName` relative to the resolved plist directory;
 - otherwise use the same plist basename with a `.png` extension;
-- require the resulting texture file to remain under the imported asset root and to exist;
+- require the resulting plist/texture paths to remain under the imported asset root and require the texture file to exist;
 - reject traversal and malformed resource paths.
 
 With this boundary, staging can combine the live `spriteFrameByName` request snapshot with the exact ordered preload list, locate requested frame metadata, decode only user-owned atlas pixels, and retain TexturePacker source-size/offset information for rendering.
