@@ -10,6 +10,8 @@ constexpr float kPi = 3.14159265358979323846f;
 bool finite_request(
         const game_scene_initial_player_sprite_request::Request& request) {
     if (request.status != game_scene_initial_player_sprite_request::Status::kReady ||
+            request.frame_request.status != game_scene_player_frame_request::Status::kReady ||
+            !request.frame_request.resource.has_value() ||
             !request.sprite_transform.has_value()) {
         return false;
     }
