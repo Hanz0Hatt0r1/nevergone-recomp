@@ -22,6 +22,12 @@ Therefore `playerStartXPos` and `playerStartYPos` are evidence-backed scene-list
 
 Later in the same function, the resolved call graph contains `cocos2d::CCPoint::CCPoint` at Ghidra `0x003513b8` and `cocos2d::CCPoint::operator=` at `0x003513c2`. This proves that the loader also constructs/assigns a `CCPoint` after parsing the scene entry, but the metadata index does not encode register/stack dataflow, so it does not by itself prove that the two start-position floats feed that exact point.
 
+## Project-owned retention
+
+`GameSceneAtlasListDiscovery.Result` now retains both values as finite `float` scene-entry metadata alongside the already recovered scene-list path and ordered `gsresfile04` atlas list. Missing, malformed or non-finite start-position values make that candidate fail closed.
+
+This retention does not move a node, instantiate a player, alter the render queue, or infer any camera/control state. Existing atlas staging consumes only `atlasPlists`; the new values are evidence-bearing metadata for the next player-construction boundary.
+
 ## Not yet proven
 
 The checked-in resolved call graph contains no caller edge to `GameScene::adjustPlayerPos(int)`. Indirect calls and unresolved references are outside the exported call graph, so absence of an edge is not proof that the function is unused.
@@ -36,7 +42,7 @@ Current evidence therefore does **not** prove:
 
 ## Safe implementation consequence
 
-It is now safe to preserve `playerStartXPos` and `playerStartYPos` as typed floating-point **scene-list metadata** when extending the project-owned scene-list model. It is not yet safe to apply them to a reconstructed player transform or claim first-player spawn parity.
+It is safe to preserve `playerStartXPos` and `playerStartYPos` as typed floating-point **scene-list metadata**. It is not yet safe to apply them to a reconstructed player transform or claim first-player spawn parity.
 
 The next evidence step should recover the dataflow/consumer boundary around the parsed floats, the later `CCPoint` assignment, or `GameScene::adjustPlayerPos(int)`. A targeted local Ghidra/unidbg probe can close that gap without guessing player internals.
 
