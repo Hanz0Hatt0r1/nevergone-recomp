@@ -17,6 +17,7 @@ DESIGN_HEIGHT = 640.0
 JOYSTICK_CENTER_X = 204.0
 JOYSTICK_CENTER_Y = 173.0
 JOYSTICK_TEST_DELTA_X = 100.0
+PACKAGE_NAME = "org.nevergone.recomp"
 BOUNDS_RE = re.compile(r"^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$")
 
 
@@ -116,13 +117,23 @@ def choose_direction(text: str) -> str:
     return "left" if snapshot.control.primary_state == "0x13" else "right"
 
 
+def _node_bounds(node: ET.Element) -> tuple[int, int, int, int] | None:
+    match = BOUNDS_RE.fullmatch(node.attrib.get("bounds", ""))
+    if match is None:
+        return None
+    left, top, right, bottom = map(int, match.groups())
+    if right <= left or bottom <= top:
+        return None
+    return left, top, right, bottom
+
+
 def _surface_bounds(xml_path: Path) -> tuple[int, int, int, int]:
     try:
         root = ET.parse(xml_path).getroot()
     except (ET.ParseError, OSError) as error:
         raise ValueError(f"invalid uiautomator XML {xml_path}: {error}") from error
 
-    candidates: list[tuple[int, int, int, int]] = []
+    explicit: list[tuple[int, int, int, int]] = []
     for node in root.iter("node"):
         class_name = node.attrib.get("class", "")
         if class_name not in {
@@ -130,15 +141,37 @@ def _surface_bounds(xml_path: Path) -> tuple[int, int, int, int]:
             "org.nevergone.recomp.GameSurfaceView",
         } and not class_name.endswith(".GameSurfaceView"):
             continue
-        match = BOUNDS_RE.fullmatch(node.attrib.get("bounds", ""))
-        if match is None:
+        bounds = _node_bounds(node)
+        if bounds is not None:
+            explicit.append(bounds)
+    if len(explicit) == 1:
+        return explicit[0]
+    if len(explicit) > 1:
+        raise ValueError(f"expected exactly one GameSurfaceView bounds node, found {len(explicit)}")
+
+    # On the tested Android 13/libcore stack UIAutomator flattens the custom
+    # GLSurfaceView subclass to android.view.View. The actual render surface is
+    # still uniquely identifiable as the app-owned, focusable, id-less View;
+    # system/navigation Views carry resource ids and are not focusable.
+    fallback: list[tuple[int, int, int, int]] = []
+    for node in root.iter("node"):
+        if node.attrib.get("class", "") != "android.view.View":
             continue
-        left, top, right, bottom = map(int, match.groups())
-        if right > left and bottom > top:
-            candidates.append((left, top, right, bottom))
-    if len(candidates) != 1:
-        raise ValueError(f"expected exactly one GameSurfaceView bounds node, found {len(candidates)}")
-    return candidates[0]
+        if node.attrib.get("package", "") != PACKAGE_NAME:
+            continue
+        if node.attrib.get("resource-id", ""):
+            continue
+        if node.attrib.get("focusable", "") != "true":
+            continue
+        bounds = _node_bounds(node)
+        if bounds is not None:
+            fallback.append(bounds)
+    if len(fallback) != 1:
+        raise ValueError(
+            "expected exactly one GameSurfaceView or app-owned focusable plain View bounds node, "
+            f"found {len(fallback)}"
+        )
+    return fallback[0]
 
 
 def surface_swipe(xml_path: Path, direction: str) -> Swipe:
