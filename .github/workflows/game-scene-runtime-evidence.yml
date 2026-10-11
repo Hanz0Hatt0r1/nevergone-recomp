@@ -1,0 +1,35 @@
+name: GameScene runtime evidence
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/game-scene-runtime-evidence.yml'
+      - 'tools/android_game_scene_runtime_evidence.py'
+      - 'tools/test_android_game_scene_runtime_evidence.py'
+      - 'tools/android_game_scene_render_evidence.sh'
+      - 'docs/game-scene-runtime-evidence.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: game-scene-runtime-evidence-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Python evidence tooling
+        run: |
+          python3 -m py_compile \
+            tools/android_game_scene_runtime_evidence.py \
+            tools/test_android_game_scene_runtime_evidence.py
+          python3 tools/test_android_game_scene_runtime_evidence.py
+
+      - name: Parse Android capture harness
+        run: bash -n tools/android_game_scene_render_evidence.sh
