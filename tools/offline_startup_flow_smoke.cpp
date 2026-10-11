@@ -51,6 +51,7 @@ int main() {
     reset();
     on_auto_login_compat_success(0);
     assert(snapshot().route == Route::kInactive);
+    assert(!on_fresh_role_local_enter());
 
     set_standalone_hero_presence(false);
     on_auto_login_compat_success(1);
@@ -61,9 +62,20 @@ int main() {
     assert(!state.has_standalone_heroes);
     assert(state.auto_login_success_count == 1);
     assert(state.route_resolution_count == 1);
+    assert(state.fresh_role_local_enter_count == 0);
+
+    // The project-owned serverless continuation is legal only from the fresh
+    // role route. It is idempotent once GameLevels owns the surface.
+    assert(on_fresh_role_local_enter());
+    state = snapshot();
+    assert(state.route == Route::kGameLevels);
+    assert(state.fresh_role_local_enter_count == 1);
+    assert(on_fresh_role_local_enter());
+    assert(snapshot().fresh_role_local_enter_count == 1);
 
     on_auto_login_compat_success(1);
     assert(snapshot().auto_login_success_count == 1);
+    assert(snapshot().route == Route::kGameLevels);
 
     reset();
     write_file(directory + "/DMG_02.sData");
@@ -77,6 +89,8 @@ int main() {
     assert(state.has_standalone_heroes);
     assert(state.auto_login_success_count == 1);
     assert(state.route_resolution_count == 1);
+    assert(!on_fresh_role_local_enter());
+    assert(snapshot().fresh_role_local_enter_count == 0);
 
     write_file(directory + "/DMG_01.sData");
     slots = standalone_hero_slots(directory);
@@ -88,6 +102,7 @@ int main() {
     state = snapshot();
     assert(state.route == Route::kRoleProbePending);
     assert(!state.standalone_hero_presence_known);
+    assert(!on_fresh_role_local_enter());
     set_standalone_hero_presence(false);
     assert(snapshot().route == Route::kOpeningDialogue);
 
