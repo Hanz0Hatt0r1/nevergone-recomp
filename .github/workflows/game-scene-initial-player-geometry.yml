@@ -1,0 +1,51 @@
+name: GameScene initial player geometry
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_initial_player_geometry.cpp'
+      - 'android/app/src/main/cpp/game_scene_initial_player_geometry.h'
+      - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.cpp'
+      - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.h'
+      - 'android/app/src/main/cpp/game_scene_direct_geometry.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_geometry.h'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/game_scene_initial_player_geometry_smoke.cpp'
+      - 'docs/player-initial-quad.md'
+      - '.github/workflows/game-scene-initial-player-geometry.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_initial_player_geometry.cpp'
+      - 'android/app/src/main/cpp/game_scene_initial_player_geometry.h'
+      - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.cpp'
+      - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.h'
+      - 'android/app/src/main/cpp/game_scene_direct_geometry.cpp'
+      - 'android/app/src/main/cpp/game_scene_direct_geometry.h'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/game_scene_initial_player_geometry_smoke.cpp'
+      - 'docs/player-initial-quad.md'
+      - '.github/workflows/game-scene-initial-player-geometry.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run initial player geometry smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/game_scene_direct_geometry.cpp \
+            android/app/src/main/cpp/game_scene_initial_player_geometry.cpp \
+            tools/game_scene_initial_player_geometry_smoke.cpp \
+            -o /tmp/game_scene_initial_player_geometry_smoke
+          /tmp/game_scene_initial_player_geometry_smoke
+      - name: Verify Android native source registration
+        run: |
+          grep -q 'game_scene_initial_player_sprite_request.cpp' android/app/src/main/cpp/CMakeLists.txt
+          grep -q 'game_scene_initial_player_geometry.cpp' android/app/src/main/cpp/CMakeLists.txt
