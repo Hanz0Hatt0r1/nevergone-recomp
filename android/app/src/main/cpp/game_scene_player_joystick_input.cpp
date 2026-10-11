@@ -23,6 +23,15 @@ bool finite(float value) {
     return std::isfinite(value);
 }
 
+void release_capture_locked() {
+    g_snapshot.captured = false;
+    g_snapshot.pointer_id = -1;
+    g_snapshot.design_x = kCenterX;
+    g_snapshot.design_y = kCenterY;
+    g_snapshot.power = 0.0f;
+    g_snapshot.angle_degrees = 0.0f;
+}
+
 bool update_sample_locked(float design_x, float design_y, bool count_move) {
     const float local_x = design_x - kCenterX;
     const float local_y = design_y - kCenterY;
@@ -78,6 +87,15 @@ bool on_touch(
         surface_width, surface_height, surface_x, surface_y, &design_x, &design_y);
 
     std::lock_guard<std::mutex> lock(g_mutex);
+    if (action == kActionCancel) {
+        // Android ACTION_CANCEL terminates the whole gesture, not merely the
+        // pointer at actionIndex. Release an owned joystick pointer regardless
+        // of which pointer id GameSurfaceView reports for the cancel event.
+        if (!g_snapshot.captured) return false;
+        release_capture_locked();
+        return true;
+    }
+
     if (action == kActionDown || action == kActionPointerDown) {
         if (g_snapshot.captured || !mapped) return false;
         const float dx = design_x - kCenterX;
@@ -99,13 +117,8 @@ bool on_touch(
         return true;
     }
 
-    if (action == kActionUp || action == kActionPointerUp || action == kActionCancel) {
-        g_snapshot.captured = false;
-        g_snapshot.pointer_id = -1;
-        g_snapshot.design_x = kCenterX;
-        g_snapshot.design_y = kCenterY;
-        g_snapshot.power = 0.0f;
-        g_snapshot.angle_degrees = 0.0f;
+    if (action == kActionUp || action == kActionPointerUp) {
+        release_capture_locked();
         return true;
     }
 
@@ -126,12 +139,7 @@ void tick() {
 
 void cancel_capture() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    g_snapshot.captured = false;
-    g_snapshot.pointer_id = -1;
-    g_snapshot.design_x = kCenterX;
-    g_snapshot.design_y = kCenterY;
-    g_snapshot.power = 0.0f;
-    g_snapshot.angle_degrees = 0.0f;
+    release_capture_locked();
 }
 
 Snapshot snapshot() {
