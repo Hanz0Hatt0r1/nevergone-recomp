@@ -221,13 +221,14 @@ print_runtime_ui_excerpt() {
 }
 
 scroll_runtime_ui() {
+  local direction="${1:-toward-end}"
   local swipe
   local start_x
   local start_y
   local end_x
   local end_y
 
-  if ! swipe="$(python3 tools/android_runtime_diagnostics.py scroll-swipe "$LOCAL_UI_XML" 2>/dev/null)"; then
+  if ! swipe="$(python3 tools/android_runtime_diagnostics.py scroll-swipe "$LOCAL_UI_XML" --direction "$direction" 2>/dev/null)"; then
     return 1
   fi
   read -r start_x start_y end_x end_y <<<"$swipe"
@@ -237,24 +238,36 @@ scroll_runtime_ui() {
 
 find_refresh_center() {
   local phase="$1"
+  local pass
   local attempt
+  local direction
   local center
 
-  for attempt in 1 2 3 4 5; do
-    if ! dump_runtime_ui; then
-      echo "Could not dump runtime UI during ${phase} (${attempt}/5)" >&2
-      sleep 1
-      continue
-    fi
-    if center="$(python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" 2>/dev/null)"; then
-      printf '%s\n' "$center"
-      return 0
-    fi
+  for pass in toward-start toward-end; do
+    direction="$pass"
+    for attempt in 1 2 3 4 5; do
+      if ! dump_runtime_ui; then
+        echo "Could not dump runtime UI during ${phase} (${direction} ${attempt}/5)" >&2
+        sleep 1
+        continue
+      fi
+      if center="$(python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" 2>/dev/null)"; then
+        printf '%s\n' "$center"
+        return 0
+      fi
 
-    echo "Refresh diagnostics control is outside the current UI viewport during ${phase}; scrolling (${attempt}/5)" >&2
-    scroll_runtime_ui || true
-    sleep 1
+      echo "Refresh diagnostics control is outside the current UI viewport during ${phase}; scrolling ${direction} (${attempt}/5)" >&2
+      scroll_runtime_ui "$direction" || true
+      sleep 1
+    done
   done
+
+  # Check once more after the final bounded swipe so a control that entered the
+  # viewport on that gesture is not missed.
+  if dump_runtime_ui && center="$(python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" 2>/dev/null)"; then
+    printf '%s\n' "$center"
+    return 0
+  fi
 
   echo "Could not locate Refresh runtime diagnostics during ${phase}" >&2
   python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" >&2 || true
@@ -278,7 +291,7 @@ read_renderer_counters() {
       return 0
     fi
 
-    scroll_runtime_ui || true
+    scroll_runtime_ui toward-end || true
     sleep 1
   done
 
