@@ -15,6 +15,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_direct_geometry.h'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionAssetResolver.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/ImportedPlistXml.java'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
       - 'tools/player_action_document_store_smoke.cpp'
@@ -38,6 +39,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_direct_geometry.h'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionAssetResolver.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/ImportedPlistXml.java'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
       - 'tools/player_action_document_store_smoke.cpp'
@@ -89,6 +91,7 @@ jobs:
           mkdir -p /tmp/player-action-java
           javac -d /tmp/player-action-java \
             android/app/src/main/java/org/nevergone/recomp/PlayerActionAssetResolver.java \
+            android/app/src/main/java/org/nevergone/recomp/ImportedPlistXml.java \
             android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java \
             tools/PlayerActionAssetResolverSmoke.java
           java -cp /tmp/player-action-java org.nevergone.recomp.PlayerActionAssetResolverSmoke

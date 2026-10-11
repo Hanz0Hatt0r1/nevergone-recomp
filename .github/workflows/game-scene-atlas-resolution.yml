@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasListDiscovery.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/ImportedPlistXml.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasResolver.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasFrameResolver.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasFramePixels.java'
@@ -12,6 +13,7 @@ on:
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetRequests.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
       - 'tools/GameSceneAtlasResolverSmoke.java'
+      - 'tools/ImportedPlistXmlSmoke.java'
       - 'tools/GameSceneAtlasFrameResolverSmoke.java'
       - 'tools/GameSceneAtlasFramePixelsSmoke.java'
       - 'tools/GameSceneAssetStagingDiagnosticsSmoke.java'
@@ -19,6 +21,7 @@ on:
   pull_request:
     paths:
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasListDiscovery.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/ImportedPlistXml.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasResolver.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasFrameResolver.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasFramePixels.java'
@@ -26,6 +29,7 @@ on:
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetRequests.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
       - 'tools/GameSceneAtlasResolverSmoke.java'
+      - 'tools/ImportedPlistXmlSmoke.java'
       - 'tools/GameSceneAtlasFrameResolverSmoke.java'
       - 'tools/GameSceneAtlasFramePixelsSmoke.java'
       - 'tools/GameSceneAssetStagingDiagnosticsSmoke.java'
@@ -47,17 +51,21 @@ jobs:
           javac -Xlint:all -Werror \
             -d /tmp/nevergone-atlas-resolver-classes \
             android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasListDiscovery.java \
+            android/app/src/main/java/org/nevergone/recomp/ImportedPlistXml.java \
             android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasResolver.java \
             android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasFrameResolver.java \
             android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasFramePixels.java \
             android/app/src/main/java/org/nevergone/recomp/GameSceneAssetStagingDiagnostics.java \
             android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetRequests.java \
             tools/GameSceneAtlasResolverSmoke.java \
+            tools/ImportedPlistXmlSmoke.java \
             tools/GameSceneAtlasFrameResolverSmoke.java \
             tools/GameSceneAtlasFramePixelsSmoke.java \
             tools/GameSceneAssetStagingDiagnosticsSmoke.java
           java -ea -cp /tmp/nevergone-atlas-resolver-classes \
             org.nevergone.recomp.GameSceneAtlasResolverSmoke
+          java -ea -cp /tmp/nevergone-atlas-resolver-classes \
+            org.nevergone.recomp.ImportedPlistXmlSmoke
           java -ea -cp /tmp/nevergone-atlas-resolver-classes \
             org.nevergone.recomp.GameSceneAtlasFrameResolverSmoke
           java -ea -cp /tmp/nevergone-atlas-resolver-classes \

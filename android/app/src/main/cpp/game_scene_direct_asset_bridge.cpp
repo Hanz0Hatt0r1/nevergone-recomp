@@ -118,3 +118,11 @@ Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeSpriteCommandIndexA
     if (command_index > static_cast<std::size_t>(std::numeric_limits<jint>::max())) return -1;
     return static_cast<jint>(command_index);
 }
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeIsPlayerBodyAt(
+        JNIEnv*, jclass, jint request_index) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const auto* request = request_at(request_index);
+    return request != nullptr && request->player_body ? JNI_TRUE : JNI_FALSE;
+}
