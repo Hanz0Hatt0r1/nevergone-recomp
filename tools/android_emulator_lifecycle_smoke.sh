@@ -242,10 +242,49 @@ require_foreground() {
   exit 1
 }
 
+restore_runtime_ui_foreground() {
+  local phase="$1"
+
+  fatal_check "$phase"
+  if ! adb shell pidof "$PACKAGE" | grep -q '[0-9]'; then
+    echo "Never Gone Recomp has no live process while restoring runtime UI during ${phase}" >&2
+    return 1
+  fi
+
+  echo "Runtime UI is not focused on Never Gone Recomp during ${phase}; restoring foreground" >&2
+  # start_activity writes the am-start transcript to stdout. This function is
+  # reached beneath command substitutions that expect only coordinates or
+  # counters, so keep the recovery transcript on stderr.
+  if ! start_activity "${phase} UI restore" >&2; then
+    return 1
+  fi
+  sleep 2
+  require_foreground "${phase} UI restore"
+}
+
 dump_runtime_ui() {
-  timeout 15s adb shell uiautomator dump "$REMOTE_UI_XML" >/dev/null
-  timeout 5s adb exec-out cat "$REMOTE_UI_XML" >"$LOCAL_UI_XML"
-  [[ -s "$LOCAL_UI_XML" ]]
+  local phase="$1"
+  local attempt
+
+  for attempt in 1 2 3; do
+    rm -f "$LOCAL_UI_XML"
+    timeout 5s adb shell rm -f "$REMOTE_UI_XML" >/dev/null 2>&1 || true
+
+    if timeout 15s adb shell uiautomator dump "$REMOTE_UI_XML" >/dev/null 2>&1 &&
+        timeout 5s adb exec-out cat "$REMOTE_UI_XML" >"$LOCAL_UI_XML" 2>/dev/null &&
+        [[ -s "$LOCAL_UI_XML" ]] &&
+        grep -Fq "package=\"$PACKAGE\"" "$LOCAL_UI_XML"; then
+      return 0
+    fi
+
+    if [[ $attempt -lt 3 ]]; then
+      echo "Runtime UI dump is not Never Gone Recomp during ${phase}; restoring foreground (${attempt}/3)" >&2
+      restore_runtime_ui_foreground "$phase" || return 1
+      sleep 1
+    fi
+  done
+
+  return 1
 }
 
 print_runtime_ui_excerpt() {
@@ -283,7 +322,7 @@ find_refresh_center() {
   # control begins below the initial viewport instead.
   for pass in toward-start toward-end; do
     for attempt in 1 2 3 4 5; do
-      if ! dump_runtime_ui; then
+      if ! dump_runtime_ui "$phase"; then
         echo "Could not dump runtime UI during ${phase} (${pass} ${attempt}/5)" >&2
         sleep 1
         continue
@@ -301,7 +340,7 @@ find_refresh_center() {
 
   # Check once more after the final bounded swipe so a control that entered the
   # viewport on that gesture is not missed.
-  if dump_runtime_ui && center="$(python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" 2>/dev/null)"; then
+  if dump_runtime_ui "$phase" && center="$(python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" 2>/dev/null)"; then
     printf '%s\n' "$center"
     return 0
   fi
@@ -318,7 +357,7 @@ read_renderer_counters() {
   local counters
 
   for attempt in 1 2 3 4 5; do
-    if ! dump_runtime_ui; then
+    if ! dump_runtime_ui "$phase"; then
       echo "Could not dump renderer diagnostics during ${phase} (${attempt}/5)" >&2
       sleep 1
       continue
