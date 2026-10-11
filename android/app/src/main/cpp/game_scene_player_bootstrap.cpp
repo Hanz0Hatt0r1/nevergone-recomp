@@ -63,4 +63,8 @@ std::optional<ResourceNames> resource_names(
     return result;
 }
 
+std::optional<ResourceNames> initial_resource_names(std::uint32_t career) {
+    return resource_names(career, kInitialResourceSelector);
+}
+
 }  // namespace nevergone::game_scene_player_bootstrap
