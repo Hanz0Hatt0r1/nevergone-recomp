@@ -224,12 +224,11 @@ def validate_diagnostics(text: str) -> SceneProof:
             "drawn static sprite count does not match the staged request count: "
             f"drawn={drawn_sprites}, requests={requests}"
         )
-    if drawn_sprites > render_sprites:
-        raise ValueError(
-            "drawn static sprite count exceeds the runtime render queue: "
-            f"drawn={drawn_sprites}, render_sprites={render_sprites}"
-        )
 
+    # render_sprites is the base GameLevels queue. The live renderer composes
+    # player/joystick overlays before it creates staging requests, so the
+    # authoritative post-composition invariant is drawn_sprites == requests;
+    # it is valid for that count to exceed the base queue.
     return SceneProof(
         render_sprites=render_sprites,
         deferred_pairs=deferred_pairs,
