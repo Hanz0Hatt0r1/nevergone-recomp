@@ -209,6 +209,25 @@ scroll_runtime_ui() {
   timeout 5s adb shell input swipe "$start_x" "$start_y" "$end_x" "$end_y" 250 >/dev/null
 }
 
+scroll_runtime_ui_up() {
+  local swipe
+  local start_x
+  local start_y
+  local end_x
+  local end_y
+
+  if ! swipe="$(python3 tools/android_runtime_diagnostics.py scroll-swipe "$LOCAL_UI_XML" 2>/dev/null)"; then
+    return 1
+  fi
+  read -r start_x start_y end_x end_y <<<"$swipe"
+  [[ -n "$start_x" && -n "$start_y" && -n "$end_x" && -n "$end_y" ]]
+  # scroll-swipe describes a downward-document gesture (finger bottom -> top).
+  # The diagnostics button precedes the large status TextView, so when Android
+  # restores the ScrollView near that TextView we must reverse the gesture to
+  # move back toward the controls instead of scrolling farther past them.
+  timeout 5s adb shell input swipe "$end_x" "$end_y" "$start_x" "$start_y" 250 >/dev/null
+}
+
 find_refresh_center() {
   local phase="$1"
   local attempt
@@ -225,8 +244,8 @@ find_refresh_center() {
       return 0
     fi
 
-    echo "Refresh diagnostics control is outside the current UI viewport during ${phase}; scrolling (${attempt}/5)" >&2
-    scroll_runtime_ui || true
+    echo "Refresh diagnostics control is above the current UI viewport during ${phase}; scrolling back (${attempt}/5)" >&2
+    scroll_runtime_ui_up || true
     sleep 1
   done
 
