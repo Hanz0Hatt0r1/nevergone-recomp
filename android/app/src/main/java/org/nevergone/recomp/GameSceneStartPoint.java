@@ -17,6 +17,13 @@ final class GameSceneStartPoint {
         this.y = y;
     }
 
+    static GameSceneStartPoint from(GameSceneAtlasListDiscovery.Result discovery) {
+        if (discovery == null) {
+            throw new IllegalArgumentException("GameScene discovery is required");
+        }
+        return of(discovery.playerStartXPos, discovery.playerStartYPos);
+    }
+
     static GameSceneStartPoint of(float x, float y) {
         if (!Float.isFinite(x) || !Float.isFinite(y)) {
             throw new IllegalArgumentException("GameScene start point must be finite");
