@@ -100,6 +100,9 @@ final class GameSceneAssetStagingDiagnostics {
         if (kind == GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME) {
             return "sprite-frame-by-name";
         }
+        if (kind == GameSceneDirectAssetRequests.KIND_PLAYER_SPRITE_FRAME_BY_NAME) {
+            return "player-sprite-frame-by-name";
+        }
         return "unknown";
     }
 }
