@@ -4,11 +4,31 @@ Issue #148 has project-owned runtime state for the first-scene player position a
 
 Existing evidence proves that `EnemyActionsSystem::loadingTex()` sets the visual readiness byte at `+0x26c` to `1`. Other recovered routines write `+0x294` later in action playback, including `showActionLastFrame()` and waUpdate completion/reset paths. Those writes do not establish the initial frame selected for the first `MeActionsSystem` action.
 
+## One-command headless run
+
+For an existing analyzed Ghidra project, the repository wrapper runs the exporter and validator in one command:
+
+```bash
+tools/ghidra/run_player_current_frame_probe.sh \
+  /path/to/ghidra \
+  /path/to/ghidra-projects \
+  NevergoneProject \
+  libcocos2dcpp.so
+```
+
+An optional fifth argument selects the output directory. The default is:
+
+```text
+artifacts/player-current-frame-probe/
+```
+
+The wrapper uses the existing project with `-process` and `-noanalysis`; it does not import or modify original binaries. It writes only the bounded derived TSV and its validated summary.
+
 ## Ghidra field-store candidate export
 
 `tools/ghidra/ExportFieldStoreCandidates.java` performs a bounded High P-code scan of functions whose names contain one of the requested class tokens. For every `STORE`, it recursively follows the destination-address dependency chain and emits a candidate only when the chain contains an exact `PTRSUB` or `INT_ADD` with the requested constant field offset.
 
-For the player-frame blocker, run the script against the analyzed Nevergone 1.0.9 ARMv7 `libcocos2dcpp.so` program:
+The wrapper invokes the equivalent of:
 
 ```text
 ExportFieldStoreCandidates.java "EnemyActionsSystem;MeActionsSystem" 0x294 /tmp/player-current-frame-stores.tsv
@@ -27,7 +47,7 @@ It does not export instruction bytes, assembly/disassembly text, decompiler C te
 
 ## Validation
 
-Validate and summarize the exported metadata with:
+The headless wrapper runs the same validator automatically. It can also be invoked directly:
 
 ```bash
 python3 tools/ghidra/summarize_field_store_candidates.py \
