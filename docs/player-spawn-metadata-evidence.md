@@ -20,13 +20,27 @@ The resolved calls immediately following those references establish the scalar c
 
 Therefore `playerStartXPos` and `playerStartYPos` are evidence-backed scene-list **floating-point values**. Treating them as integer-only or textual runtime state would contradict the recovered call sequence.
 
-Later in the same function, the resolved call graph contains `cocos2d::CCPoint::CCPoint` at Ghidra `0x003513b8` and `cocos2d::CCPoint::operator=` at `0x003513c2`. This proves that the loader also constructs/assigns a `CCPoint` after parsing the scene entry, but the broad metadata index does not encode register/stack/SSA dataflow, so call proximity alone does not prove that the two start-position floats feed that exact point.
+## Proven ARMv7 value flow into GameLevelsData
+
+A bounded Thumb-2 disassembly check against the user-owned 1.0.9 `libcocos2dcpp.so` (SHA-256 `94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`) closes the previous call-proximity ambiguity without retaining the proprietary binary in Git.
+
+Inside `GameScene::loadGameSceneList(char const*)`:
+
+- the X `CCString::floatValue` result at ELF `0x003412e8` is stored at stack offset `+0x18`;
+- the Y result at ELF `0x00341308` is stored at stack offset `+0x1c`;
+- at ELF `0x003413b2` and `0x003413b6`, those exact stack words are loaded into `r1` and `r2` while `r0` points at a temporary `CCPoint`;
+- the call at ELF `0x003413b8` is `cocos2d::CCPoint::CCPoint(float, float)`;
+- immediately afterward, `r0` is formed as `GameLevelsData + 0x34`, the temporary point is passed in `r1`, and `CCPoint::operator=` is called at ELF `0x003413c2`.
+
+This establishes real value flow, not address proximity: the parsed `playerStartXPos`/`playerStartYPos` pair constructs a `CCPoint`, and that point is retained in the scene entry's `GameLevelsData` object at offset `+0x34`.
 
 ## Project-owned retention
 
 `GameSceneAtlasListDiscovery.Result` retains both values as finite `float` scene-entry metadata alongside the already recovered scene-list path and ordered `gsresfile04` atlas list. Missing, malformed or non-finite start-position values make that candidate fail closed.
 
-This retention does not move a node, instantiate a player, alter the render queue, or infer any camera/control state. Existing atlas staging consumes only `atlasPlists`; the start values are evidence-bearing metadata for the next player-construction boundary.
+`GameSceneStartPoint` now provides the project-owned typed representation of the proven `CCPoint` pair and can be constructed directly from a discovered scene entry. It deliberately carries only finite X/Y values. It does not move a node, instantiate a player, alter the render queue, or infer any camera/control state.
+
+Existing atlas staging still consumes only `atlasPlists`; the start point is evidence-bearing state for the next player-construction boundary.
 
 ## Not yet proven
 
@@ -34,27 +48,24 @@ The checked-in resolved call graph contains no caller edge to `GameScene::adjust
 
 Current evidence therefore does **not** prove:
 
-- when the parsed start-position pair is applied to the local player;
-- whether the later `CCPoint` assignment is the retained player-start point or another scene-entry point;
+- when the retained `GameLevelsData + 0x34` start point is applied to the local player;
 - what the `int` argument of `GameScene::adjustPlayerPos(int)` selects;
 - the player node/class field that ultimately receives the position;
 - camera or control initialization relative to the first placement.
 
 ## Safe implementation consequence
 
-It is safe to preserve `playerStartXPos` and `playerStartYPos` as typed floating-point **scene-list metadata**. It is not yet safe to apply them to a reconstructed player transform or claim first-player spawn parity.
+It is now safe to preserve `playerStartXPos` and `playerStartYPos` as one typed project-owned scene start point corresponding to the original `GameLevelsData + 0x34` `CCPoint` field. It is still not safe to apply that point to a reconstructed player transform or claim first-player spawn parity until an onward consumer is proven.
 
-The next bounded evidence step is `tools/ghidra/ExportFunctionPcodeFlow.java` plus `tools/ghidra/trace_pcode_flow.py`. Export high P-code metadata for `GameScene::loadGameSceneList`, then test whether each `CCString::floatValue` output reaches the `CCPoint` constructor through actual varnode dependencies rather than address proximity. See `docs/ghidra/function-pcode-flow.md`.
-
-Even a proven `floatValue -> CCPoint` path would only identify the point construction. Player-node placement still requires an onward consumer/dataflow edge or independent evidence for `GameScene::adjustPlayerPos(int)`.
+The next bounded evidence step is to trace consumers of the `GameLevelsData + 0x34` field and/or recover the caller/value contract of `GameScene::adjustPlayerPos(int)`. `tools/ghidra/ExportFunctionPcodeFlow.java` plus `tools/ghidra/trace_pcode_flow.py` remain useful for any path whose register/stack dataflow is not obvious from a bounded disassembly window; see `docs/ghidra/function-pcode-flow.md`.
 
 ## Reproduction
 
-The checked-in evidence can be reproduced without the original APK/OBB or Ghidra project:
+The checked-in metadata evidence can be reproduced without the original APK/OBB or Ghidra project:
 
 ```bash
 python tools/ghidra/player_spawn_evidence.py
 python tools/ghidra/query_full_index.py callees GameScene::loadGameSceneList --limit 100
 ```
 
-The deeper value-flow export runs only against the user's analyzed Ghidra project and should remain local unless its sanitized metadata output is intentionally added as new evidence.
+The instruction-level value-flow observation above comes from the user-owned binary identified by hash. Only the derived addresses, register/stack flow, and field offset are retained in this repository; the original binary remains outside Git.
