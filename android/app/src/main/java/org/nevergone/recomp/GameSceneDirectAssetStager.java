@@ -32,6 +32,7 @@ final class GameSceneDirectAssetStager {
     static void invalidate() {
         failedRevision = 0L;
         GameSceneAssetStagingDiagnostics.reset();
+        PlayerActionRuntimeLoader.invalidate();
         GameSceneDirectAssetStore.clear();
     }
 
@@ -58,6 +59,7 @@ final class GameSceneDirectAssetStager {
     }
 
     static boolean stageIfNeeded(File assetRoot) {
+        PlayerActionRuntimeLoader.stageIfNeeded(assetRoot);
         long revision = GameSceneDirectAssetRequests.refresh();
         long activeRevision = GameSceneDirectAssetStore.activeRevision();
         if (revision == 0L) {
