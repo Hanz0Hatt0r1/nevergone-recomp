@@ -36,7 +36,10 @@ std::vector<std::uint8_t> fixture() {
     append_f32(&out, 0.5f); append_u32(&out, 0u); append_u32(&out, 0u); append_u32(&out, 0u);
     append_string(&out, "b", 0x12u); append_f32(&out, 3.0f); append_f32(&out, 4.0f); append_u32(&out, 0u);
     append_u32(&out, 0u);
-    append_u32(&out, 0u); append_u32(&out, 11u); append_u32(&out, 12u); append_u32(&out, 0u); append_u32(&out, 0u); append_u32(&out, 0u);
+    append_u32(&out, 2u);
+    append_string(&out, "pvp_scene_default.plist", 0x41u);
+    append_string(&out, "pvp_scene_effect.plist", 0x42u);
+    append_u32(&out, 11u); append_u32(&out, 12u); append_u32(&out, 0u); append_u32(&out, 0u); append_u32(&out, 0u);
     append_u32(&out, 2u);
     append_port(&out, "a", true, "b");
     append_port(&out, "b", false, "");
@@ -61,6 +64,7 @@ int main() {
 
     runtime::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
+    assert(runtime::current_atlas_preload_names().empty());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
@@ -70,6 +74,11 @@ int main() {
     assert(state.load_attempt_count == 1u);
     assert(state.reader_size == bytes.size());
     assert(state.model_end_offset == bytes.size());
+    assert(state.atlas_preload_name_count == 2u);
+    const auto atlas_names = runtime::current_atlas_preload_names();
+    assert(atlas_names.size() == 2u);
+    assert(atlas_names[0] == "pvp_scene_default.plist");
+    assert(atlas_names[1] == "pvp_scene_effect.plist");
     assert(state.current_port_node_index == 0u);
     assert(state.current_scene_index == 0u);
     assert(state.current_scene_guid == "a");
@@ -125,6 +134,8 @@ int main() {
     assert(state.current_scene_construction_plan_ready);
     assert(state.current_construction_layer_count == 0u);
     assert(state.current_scene_render_queue_ready);
+    assert(state.atlas_preload_name_count == 2u);
+    assert(runtime::current_atlas_preload_names() == atlas_names);
     scene = runtime::current_scene_instance();
     assert(scene.has_value());
     assert(scene->source_scene_index == 1u);
@@ -164,6 +175,8 @@ int main() {
     assert(!runtime::load_file(path.string(), 1u));
     assert(runtime::snapshot().status == runtime::LoadStatus::kTooLarge);
     assert(runtime::snapshot().load_attempt_count == 2u);
+    assert(runtime::snapshot().atlas_preload_name_count == 0u);
+    assert(runtime::current_atlas_preload_names().empty());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
@@ -172,6 +185,7 @@ int main() {
     assert(!runtime::load_pvp_scene((root / "missing-root").string()));
     assert(runtime::snapshot().status == runtime::LoadStatus::kMissing);
     assert(runtime::snapshot().load_attempt_count == 3u);
+    assert(runtime::current_atlas_preload_names().empty());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
@@ -179,6 +193,7 @@ int main() {
     std::filesystem::remove_all(root);
     runtime::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
+    assert(runtime::current_atlas_preload_names().empty());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
