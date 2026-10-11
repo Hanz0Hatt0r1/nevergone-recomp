@@ -4,7 +4,7 @@ The repository contains a structural clean-room parser for the currently recover
 
 `tools/enemy_actions_wbg_validate.cpp` is the host-side bridge for this work. The historical `wbg` name follows the original method name; native evidence shows that `loadWBGFile` does not impose a `.wbg` suffix. The caller supplies the filename, and original APK resources use `.actData`.
 
-The validator does not bundle, upload, or modify game assets. It reads a local action-data file, runs the project-owned parser, and prints only a structural summary.
+The validator does not bundle, upload, or modify game assets. It reads a local action-data file, runs the project-owned parser, and prints only a structural summary plus one bounded renderer handoff field described below.
 
 ## Build
 
@@ -33,6 +33,7 @@ The validator is suffix-agnostic; the batch scanner selects known action-data su
 
 - input size, recovered bytes consumed, and trailing bytes;
 - header word and primary-record count;
+- for primary record 0 only, `third_string_length_i32` and the exact `third_string` bytes hex-encoded as `primary_record0_frame_key_hex`;
 - Section B compact-record count;
 - Section C nested group/record totals;
 - Section D selected group count and record total;
@@ -40,7 +41,7 @@ The validator is suffix-agnostic; the batch scanner selects known action-data su
 - Section F tuple count plus derived `+0x94/+0x98/+0x9c` object counts;
 - Section G entry count.
 
-The tool deliberately does not print parsed strings, proprietary payload bytes, or complete record contents.
+Native evidence already identifies a selected primary record's `third_string` as the sprite-frame lookup key used by `EnemyActionsSystem::updateData()`. Hex encoding preserves that bounded identifier while preventing arbitrary action-data bytes from injecting extra line-oriented report fields. The tool does not print other parsed strings, proprietary payload bytes, or complete record contents, and record 0 is not claimed to be universally selected at runtime.
 
 ## Batch validation of an imported asset tree
 
@@ -55,7 +56,7 @@ python tools/validate_enemy_actions_wbg_tree.py \
   > /tmp/nevergone-action-validation.jsonl
 ```
 
-The scanner sorts relative paths for deterministic reports and recognizes mixed-case suffixes such as `action.actData`, `ACTION.ACTDATA`, `action.wbg`, and `ACTION.WBG`.
+The scanner sorts relative paths for deterministic reports and recognizes mixed-case suffixes such as `action.actData`, `ACTION.ACTDATA`, `action.wbg`, and `ACTION.WBG`. It preserves the bounded record-0 frame-key length/hex fields when present.
 
 Batch exit codes:
 
@@ -100,6 +101,6 @@ Single-file exit codes:
 
 ## Evidence boundary
 
-A successful run proves only that the recovered stream topology accepts that particular user-owned file and yields internally bounded section counts. It does not prove gameplay semantics, `ActionFrameData` field meanings, enemy spawning, combat behavior, or universal EOF behavior.
+A successful run proves only that the recovered stream topology accepts that particular user-owned file and yields internally bounded section counts. The record-0 frame-key field proves only the decoded value present in that record; runtime frame selection remains governed by the reconstructed `current_frame_294` state/readiness path. Validation does not prove enemy spawning, combat behavior, or universal EOF behavior.
 
 See `docs/evidence/enemy-actions-actdata-validation.md` for the first genuine APK-backed validation set and the native filename/path evidence.
