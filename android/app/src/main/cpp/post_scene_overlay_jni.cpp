@@ -12,9 +12,8 @@
 #include "single_select_hero_confirm_compositor.h"
 #include "startup_contract.h"
 
-namespace nevergone::splash_layer_renderer {
-void draw();
-}
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeDrawSplashLayers(JNIEnv*, jclass);
 
 namespace {
 
@@ -81,8 +80,8 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     }
 }
 
-void draw_post_scene_layers(JNIEnv*, jclass) {
-    nevergone::splash_layer_renderer::draw();
+void draw_post_scene_layers(JNIEnv* env, jclass clazz) {
+    Java_org_nevergone_recomp_GameSurfaceView_nativeDrawSplashLayers(env, clazz);
     nevergone::single_select_hero_confirm_compositor::draw();
 }
 
