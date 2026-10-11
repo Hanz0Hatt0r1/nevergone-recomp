@@ -29,21 +29,17 @@ bool valid_frame_key(const std::string& value, std::int32_t serialized_length) {
 
 Request build(
         const enemy_actions_wbg_document::Document& document,
-        enemy_actions_runtime_state::State state,
+        me_actions_runtime_state::State state,
         game_scene_player_bootstrap::InitialPoint position) {
     Request result;
     result.position = position;
-    result.lookup = enemy_actions_runtime_state::apply_update_data_frame_lookup(document, state);
+    result.lookup = me_actions_runtime_state::apply_update_data_frame_lookup(document, state);
 
-    if (!result.lookup.entry.readiness_gate_open) {
-        result.status = Status::kReadinessGateClosed;
-        return result;
-    }
-    if (!result.lookup.entry.has_primary_frames) {
+    if (!result.lookup.has_primary_frames) {
         result.status = Status::kNoPrimaryFrames;
         return result;
     }
-    if (!result.lookup.entry.current_frame_in_range || !result.lookup.should_lookup_sprite_frame) {
+    if (!result.lookup.current_frame_in_range || !result.lookup.should_lookup_sprite_frame) {
         result.status = Status::kFrameOutOfRange;
         return result;
     }
@@ -66,7 +62,6 @@ Request build(
 
 const char* status_name(Status status) {
     switch (status) {
-        case Status::kReadinessGateClosed: return "readiness-gate-closed";
         case Status::kNoPrimaryFrames: return "no-primary-frames";
         case Status::kFrameOutOfRange: return "frame-out-of-range";
         case Status::kInvalidPosition: return "invalid-position";

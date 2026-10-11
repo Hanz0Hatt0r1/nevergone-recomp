@@ -2,15 +2,14 @@
 
 #include <optional>
 
-#include "enemy_actions_runtime_state.h"
 #include "game_scene_player_bootstrap.h"
 #include "game_scene_type0_resource.h"
+#include "me_actions_runtime_state.h"
 
 namespace nevergone::game_scene_player_frame_request {
 
 enum class Status {
-    kReadinessGateClosed = 0,
-    kNoPrimaryFrames,
+    kNoPrimaryFrames = 0,
     kFrameOutOfRange,
     kInvalidPosition,
     kInvalidFrameKey,
@@ -18,19 +17,19 @@ enum class Status {
 };
 
 struct Request {
-    Status status = Status::kReadinessGateClosed;
-    enemy_actions_runtime_state::UpdateDataFrameLookupResult lookup;
+    Status status = Status::kNoPrimaryFrames;
+    me_actions_runtime_state::UpdateDataFrameLookupResult lookup;
     game_scene_player_bootstrap::InitialPoint position;
     std::optional<game_scene_type0_resource::Selection> resource;
 };
 
-// Converts the evidence-backed EnemyActionsSystem::updateData() frame lookup
-// into the exact sprite-frame resource request consumed by the existing
-// GameScene atlas staging pipeline. The caller owns the runtime State; this
-// bridge intentionally does not guess readiness/current-frame transitions.
+// Converts the evidence-backed MeActionsSystem player-frame lookup into the
+// exact sprite-frame resource request consumed by the existing GameScene atlas
+// staging pipeline. The caller owns the MeActions runtime state; this bridge
+// does not reuse EnemyActionsSystem offsets/readiness semantics.
 Request build(
         const enemy_actions_wbg_document::Document& document,
-        enemy_actions_runtime_state::State state,
+        me_actions_runtime_state::State state,
         game_scene_player_bootstrap::InitialPoint position);
 
 const char* status_name(Status status);

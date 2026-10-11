@@ -6,8 +6,13 @@ on:
       - 'android/app/src/main/cpp/player_action_document_store.cpp'
       - 'android/app/src/main/cpp/player_action_document_store.h'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_bootstrap.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_bootstrap.h'
+      - 'android/app/src/main/cpp/game_scene_player_entry_markers.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_entry_markers.h'
       - 'android/app/src/main/cpp/game_scene_player_spawn_state.cpp'
       - 'android/app/src/main/cpp/game_scene_player_spawn_state.h'
+      - 'android/app/src/main/cpp/game_scene_direct_geometry.h'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionAssetResolver.java'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java'
@@ -24,8 +29,13 @@ on:
       - 'android/app/src/main/cpp/player_action_document_store.cpp'
       - 'android/app/src/main/cpp/player_action_document_store.h'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_bootstrap.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_bootstrap.h'
+      - 'android/app/src/main/cpp/game_scene_player_entry_markers.cpp'
+      - 'android/app/src/main/cpp/game_scene_player_entry_markers.h'
       - 'android/app/src/main/cpp/game_scene_player_spawn_state.cpp'
       - 'android/app/src/main/cpp/game_scene_player_spawn_state.h'
+      - 'android/app/src/main/cpp/game_scene_direct_geometry.h'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionAssetResolver.java'
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java'
@@ -66,6 +76,7 @@ jobs:
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
             -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/game_scene_player_bootstrap.cpp \
             android/app/src/main/cpp/game_scene_player_entry_markers.cpp \
             android/app/src/main/cpp/game_scene_player_spawn_state.cpp \
             tools/game_scene_player_spawn_state_smoke.cpp \

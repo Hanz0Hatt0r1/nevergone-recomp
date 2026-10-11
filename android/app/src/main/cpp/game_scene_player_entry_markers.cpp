@@ -51,4 +51,37 @@ std::optional<OfflinePosition> transform_offline(
     return result;
 }
 
+std::optional<ResolvedOfflinePlayerPosition> resolve_offline_player_position(
+        const game_levels_scene_instance::SceneInstance& scene,
+        std::uint32_t stored_event_port_type,
+        float win_width,
+        float win_height) {
+    const auto markers = collect(scene, stored_event_port_type);
+    if (!markers.has_value() || markers->empty()) return std::nullopt;
+
+    const auto bootstrap = game_scene_player_bootstrap::initial_manager_point(
+            win_width,
+            win_height);
+    if (!bootstrap.has_value()) return std::nullopt;
+
+    // loadingTex invokes setPlayerPos() for every matching marker in traversal
+    // order. MEPlayer +0x248 is overwritten on each call, therefore the final
+    // first-scene state retains the last matching marker.
+    const Marker& marker = markers->back();
+    const auto offset = transform_offline(marker, win_width, win_height);
+    if (!offset.has_value()) return std::nullopt;
+
+    ResolvedOfflinePlayerPosition result;
+    result.marker = marker;
+    result.bootstrap_position = *bootstrap;
+    result.scene_offset = *offset;
+    result.visible_position.x = bootstrap->x + offset->x;
+    result.visible_position.y = bootstrap->y + offset->y;
+    if (!std::isfinite(result.visible_position.x) ||
+            !std::isfinite(result.visible_position.y)) {
+        return std::nullopt;
+    }
+    return result;
+}
+
 }  // namespace nevergone::game_scene_player_entry_markers

@@ -7,8 +7,8 @@ Usage:
   tools/ghidra/run_player_current_frame_probe.sh \
     <ghidra-home> <project-dir> <project-name> <program-name> [output-dir]
 
-Runs the bounded +0x294 STORE-candidate exporter against an already analyzed
-Ghidra program, then validates/summarizes the derived TSV metadata.
+Runs the bounded MeActionsSystem +0x1a4 STORE-candidate exporter against an
+already analyzed Ghidra program, then validates/summarizes the derived metadata.
 EOF
   exit 2
 }
@@ -62,8 +62,8 @@ rm -f "$TSV" "$SUMMARY"
   -noanalysis \
   -scriptPath "$SCRIPT_DIR" \
   -postScript ExportFieldStoreCandidates.java \
-    'EnemyActionsSystem;MeActionsSystem' \
-    0x294 \
+    'MeActionsSystem' \
+    0x1a4 \
     "$TSV"
 
 if [[ ! -s "$TSV" ]]; then
@@ -71,6 +71,6 @@ if [[ ! -s "$TSV" ]]; then
   exit 1
 fi
 
-python3 "$SUMMARIZER" "$TSV" --field-offset 0x294 | tee "$SUMMARY"
+python3 "$SUMMARIZER" "$TSV" --field-offset 0x1a4 | tee "$SUMMARY"
 
 echo "player current-frame probe complete: $OUTPUT_DIR"
