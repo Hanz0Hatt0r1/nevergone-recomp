@@ -119,8 +119,29 @@ start_activity() {
 
 fatal_check() {
   local phase="$1"
-  if adb logcat -d | grep -E 'FATAL EXCEPTION|Fatal signal.*org\.nevergone\.recomp'; then
+  local logcat
+  local java_fatal
+  local native_fatal
+
+  logcat="$(adb logcat -d 2>/dev/null || true)"
+  java_fatal="$(grep -E -A 30 'FATAL EXCEPTION' <<<"$logcat" || true)"
+  native_fatal="$(grep -E -B 5 -A 30 'Fatal signal.*org\.nevergone\.recomp' <<<"$logcat" || true)"
+
+  # A Google APIs emulator can contain unrelated framework/application crashes.
+  # Treat a Java FATAL as Nevergone evidence only when AndroidRuntime identifies
+  # this package in the same bounded fatal block. Native fatal signals already
+  # carry the process/package identity in the matching line.
+  if grep -Eq "Process:[[:space:]]*${PACKAGE}([,[:space:]]|$)" <<<"$java_fatal" ||
+      [[ -n "$native_fatal" ]]; then
     echo "Never Gone Recomp crashed during ${phase}" >&2
+    echo '--- bounded Nevergone fatal logcat context ---' >&2
+    if grep -Eq "Process:[[:space:]]*${PACKAGE}([,[:space:]]|$)" <<<"$java_fatal"; then
+      printf '%s\n' "$java_fatal" | tail -n 80 >&2
+    fi
+    if [[ -n "$native_fatal" ]]; then
+      printf '%s\n' "$native_fatal" | tail -n 80 >&2
+    fi
+    echo '--- end Nevergone fatal logcat context ---' >&2
     exit 1
   fi
 }
