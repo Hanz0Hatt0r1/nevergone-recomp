@@ -7,9 +7,49 @@ REMOTE_UI_XML='/sdcard/nevergone-runtime-window.xml'
 LOCAL_UI_XML="$(mktemp)"
 APK="$(find android/app/build/outputs/apk/debug -name '*.apk' -print -quit)"
 
+capture_failure_diagnostics() {
+  local activity_output
+
+  echo '--- Never Gone Recomp lifecycle failure diagnostics ---' >&2
+  printf 'android_sdk=%s\n' "$(timeout 5s adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)" >&2
+  printf 'primary_abi=%s\n' "$(timeout 5s adb shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r' || true)" >&2
+  printf 'page_size=%s\n' "$(timeout 5s adb shell getconf PAGE_SIZE 2>/dev/null | tr -d '\r[:space:]' || true)" >&2
+
+  echo '--- adb devices ---' >&2
+  timeout 5s adb devices -l >&2 || true
+
+  echo '--- bounded ActivityManager state ---' >&2
+  set +e
+  activity_output="$(timeout 10s adb shell dumpsys activity activities 2>&1)"
+  set -e
+  printf '%s\n' "$activity_output" |
+    grep -E -C 4 \
+      'org\.nevergone\.recomp|mResumedActivity|topResumedActivity|DUMP TIMEOUT|Broken pipe|Can.t find service|Failure calling service activity' |
+    tail -n 120 >&2 || true
+
+  echo '--- bounded Nevergone/AndroidRuntime logcat ---' >&2
+  timeout 10s adb logcat -d -t 400 2>&1 |
+    grep -E 'org\.nevergone\.recomp|AndroidRuntime|FATAL EXCEPTION|Fatal signal' |
+    tail -n 160 >&2 || true
+
+  echo '--- bounded package state ---' >&2
+  timeout 10s adb shell dumpsys package "$PACKAGE" 2>&1 |
+    grep -E 'versionCode=|versionName=|primaryCpuAbi=|secondaryCpuAbi=|pkgFlags=|stopped=' |
+    tail -n 80 >&2 || true
+  echo '--- end lifecycle failure diagnostics ---' >&2
+}
+
 cleanup() {
+  local status=$?
+  trap - EXIT
+
+  if (( status != 0 )); then
+    capture_failure_diagnostics || true
+  fi
+
   rm -f "$LOCAL_UI_XML"
-  adb shell rm -f "$REMOTE_UI_XML" >/dev/null 2>&1 || true
+  timeout 5s adb shell rm -f "$REMOTE_UI_XML" >/dev/null 2>&1 || true
+  exit "$status"
 }
 trap cleanup EXIT
 
@@ -238,9 +278,6 @@ read_renderer_counters() {
       return 0
     fi
 
-    # The status TextView follows the refresh button in the ScrollView. If it is
-    # still below the viewport after tapping refresh, advance the same bounded
-    # scroll region and poll again rather than manufacturing zero counters.
     scroll_runtime_ui || true
     sleep 1
   done

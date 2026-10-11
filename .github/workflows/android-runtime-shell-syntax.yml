@@ -9,6 +9,7 @@ on:
       - 'tools/android_arm64_runtime_smoke.sh'
       - 'tools/android_runtime_evidence.py'
       - 'tools/test_android_runtime_evidence.py'
+      - 'tools/test_android_lifecycle_failure_diagnostics.sh'
 
 permissions:
   contents: read
@@ -32,6 +33,7 @@ jobs:
           bash -n tools/android_emulator_lifecycle_smoke.sh
           bash -n tools/android_16k_runtime_smoke.sh
           bash -n tools/android_arm64_runtime_smoke.sh
+          bash -n tools/test_android_lifecycle_failure_diagnostics.sh
 
       - name: Validate runtime evidence parser
         run: |
@@ -39,3 +41,6 @@ jobs:
             tools/android_runtime_evidence.py \
             tools/test_android_runtime_evidence.py
           python3 tools/test_android_runtime_evidence.py
+
+      - name: Test bounded lifecycle failure diagnostics
+        run: bash tools/test_android_lifecycle_failure_diagnostics.sh
