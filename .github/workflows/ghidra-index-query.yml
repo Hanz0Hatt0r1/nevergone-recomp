@@ -7,6 +7,9 @@ on:
       - 'tools/ghidra/test_query_full_index.py'
       - 'tools/ghidra/player_spawn_evidence.py'
       - 'tools/ghidra/test_player_spawn_evidence.py'
+      - 'tools/ghidra/ExportFunctionPcodeFlow.java'
+      - 'tools/ghidra/trace_pcode_flow.py'
+      - 'tools/ghidra/test_trace_pcode_flow.py'
       - '.github/workflows/ghidra-index-query.yml'
   push:
     branches: [main]
@@ -15,6 +18,9 @@ on:
       - 'tools/ghidra/test_query_full_index.py'
       - 'tools/ghidra/player_spawn_evidence.py'
       - 'tools/ghidra/test_player_spawn_evidence.py'
+      - 'tools/ghidra/ExportFunctionPcodeFlow.java'
+      - 'tools/ghidra/trace_pcode_flow.py'
+      - 'tools/ghidra/test_trace_pcode_flow.py'
       - '.github/workflows/ghidra-index-query.yml'
 
 permissions:
@@ -34,11 +40,14 @@ jobs:
             tools/ghidra/query_full_index.py \
             tools/ghidra/test_query_full_index.py \
             tools/ghidra/player_spawn_evidence.py \
-            tools/ghidra/test_player_spawn_evidence.py
+            tools/ghidra/test_player_spawn_evidence.py \
+            tools/ghidra/trace_pcode_flow.py \
+            tools/ghidra/test_trace_pcode_flow.py
       - name: Run query smoke tests
         run: |
           python tools/ghidra/test_query_full_index.py
           python tools/ghidra/test_player_spawn_evidence.py
+          python tools/ghidra/test_trace_pcode_flow.py
       - name: Query checked-in SingleLogin metadata
         run: |
           python tools/ghidra/query_full_index.py functions SingleLoginLayer --limit 5
