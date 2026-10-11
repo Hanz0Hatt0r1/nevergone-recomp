@@ -12,6 +12,7 @@ final class GameSceneDirectAssetRequests {
     private static native String nativeValueAt(int requestIndex);
     private static native String nativePathAt(int requestIndex);
     private static native int nativeSpriteCommandIndexAt(int requestIndex);
+    private static native boolean nativeIsPlayerBodyAt(int requestIndex);
 
     // Refresh atomically captures the current native request snapshot. Count,
     // kind/value and spriteCommandIndexAt read that same snapshot until refresh
@@ -38,5 +39,9 @@ final class GameSceneDirectAssetRequests {
 
     static int spriteCommandIndexAt(int requestIndex) {
         return nativeSpriteCommandIndexAt(requestIndex);
+    }
+
+    static boolean isPlayerBodyAt(int requestIndex) {
+        return nativeIsPlayerBodyAt(requestIndex);
     }
 }

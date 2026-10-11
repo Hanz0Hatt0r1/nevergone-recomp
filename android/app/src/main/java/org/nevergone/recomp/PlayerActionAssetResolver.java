@@ -117,20 +117,8 @@ final class PlayerActionAssetResolver {
     }
 
     private static String resolveActionName(File plist, String actionKey) throws Exception {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setNamespaceAware(false);
-        factory.setXIncludeAware(false);
-        factory.setExpandEntityReferences(false);
-        trySetFeature(factory, "http://apache.org/xml/features/disallow-doctype-decl", true);
-        trySetFeature(factory, "http://xml.org/sax/features/external-general-entities", false);
-        trySetFeature(factory, "http://xml.org/sax/features/external-parameter-entities", false);
-        trySetFeature(factory, "http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        builder.setEntityResolver((publicId, systemId) -> new InputSource(new StringReader("")));
-        Document document;
-        try (FileInputStream input = new FileInputStream(plist)) {
-            document = builder.parse(input);
-        }
+        Document document = ImportedPlistXml.parse(plist, MAX_PLIST_BYTES);
+        if (document == null) return null;
         Element plistRoot = document.getDocumentElement();
         Element rootDict = plistRoot != null ? firstChildElement(plistRoot, "dict") : null;
         Element action = valueForKey(rootDict, actionKey);
