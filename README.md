@@ -7,9 +7,23 @@ The goal is to reconstruct the original game runtime as maintainable source code
 > [!IMPORTANT]
 > The project is **not yet a playable recompilation**. It is well beyond bootstrap/research: the repository now has a modern Android/NDK runtime, embedded Lua 5.2.3, user-owned APK/OBB import, reconstructed startup/login/ChooseHero state, bounded GameLevels parsing, retained scene state, a live GameScene render queue, GLES2 texture upload and direct-sprite drawing, atlas/plist discovery and texture resolution, plus bounded native evidence for save/combat-related systems. The main blocker is no longer basic rendering infrastructure; it is closing the **contiguous on-device path** from server selection through ChooseHero/enter-game into a first scene whose default sprite-frame resources, player spawn and input all work together.
 
+
+## Readiness review (2026-10-11)
+
+**Assessment scope:** repository documentation and its reported implementation status; this is not a fresh successful Android device test. Percentages are planning estimates, not measured code coverage.
+
+- **Strict technical-alpha gate:** P0-P2 complete, P3-P9 not yet contiguous-complete: **3/10 (30%)**.
+- **Engineering progress estimate:** approximately **55% toward technical alpha**, including non-contiguous downstream infrastructure.
+- **Playable alpha:** **not reached**. No proven continuous path to a visible, controllable player with enemy interaction.
+- **Release readiness:** **not ready**; compatibility, gameplay, persistence and real-device end-to-end evidence remain missing.
+
+**Next acceptance evidence required:** (1) P3 server selection confirmed on device, (2) P4-P5 hero selection and deterministic enter-game transition, (3) P6-P7 complete first scene with atlas sprite-frame extraction, (4) P8-P9 spawned player and visible input, (5) P10 persistence, followed by combat smoke and Android 15/16 arm64/16 KiB device validation.
+
+**Evidence discipline:** unidbg JNI_OnLoad and synthetic native probes establish isolated behavior, not full game compatibility. EnemyActions Sections A-G parsing is structural only; do not describe it as working combat until genuine imported payloads and live consumers are validated.
+
 ## Current state
 
-As of **2026-10-10**, `main` includes:
+As documented through **2026-10-10** (readiness review **2026-10-11**), `main` includes:
 
 - a modern Gradle/CMake Android application with project-owned C++/JNI code;
 - `armeabi-v7a` and `arm64-v8a` build targets;
