@@ -25,6 +25,14 @@ std::optional<PrimaryControlState> horizontal_primary_state(
     return std::nullopt;
 }
 
+std::optional<bool> facing_flip_x(PrimaryControlState state) {
+    switch (state) {
+        case PrimaryControlState::kState12: return true;
+        case PrimaryControlState::kState13: return false;
+    }
+    return std::nullopt;
+}
+
 std::array<TickDispatch, 4> tick_dispatches(
         std::int32_t dir_combo,
         std::int32_t direction,

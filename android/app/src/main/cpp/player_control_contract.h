@@ -30,10 +30,15 @@ struct TickDispatch {
 
 // Mirrors only the bounded horizontal-state assignment observed in
 // Controls::onCCJoyStickUpdate. It deliberately does not infer movement speed,
-// facing names, or a displacement from joystick power.
+// acceleration, or a displacement from joystick power.
 std::optional<PrimaryControlState> horizontal_primary_state(
     float activity_metric,
     float angle_degrees);
+
+// Recovered MEPlayer::setControlsState()/filpPlayer() facing contract:
+// state 0x12 requests flip-X=true and state 0x13 requests flip-X=false.
+// The optional return keeps invalid enum casts fail-closed.
+std::optional<bool> facing_flip_x(PrimaryControlState state);
 
 // Mirrors the recovered GameScene::tick dispatch order into the player path:
 // dir-combo, direction, function, then primary controls.

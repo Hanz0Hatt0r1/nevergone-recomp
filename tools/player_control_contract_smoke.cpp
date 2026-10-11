@@ -24,6 +24,10 @@ int main() {
     assert(!contract::horizontal_primary_state(
         1.0f, std::numeric_limits<float>::infinity()).has_value());
 
+    assert(contract::facing_flip_x(State::kState12) == true);
+    assert(contract::facing_flip_x(State::kState13) == false);
+    assert(!contract::facing_flip_x(static_cast<State>(0x7f)).has_value());
+
     const auto dispatches = contract::tick_dispatches(7, 8, 9, 0x13);
     assert(dispatches[0].target == Target::kDirCombo);
     assert(dispatches[0].state == 7);
