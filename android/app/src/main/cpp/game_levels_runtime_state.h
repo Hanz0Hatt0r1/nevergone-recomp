@@ -42,6 +42,8 @@ struct Snapshot {
     std::size_t current_construction_layer_count = 0;
     std::size_t current_construction_object_count = 0;
     std::size_t current_construction_ignored_layer_count = 0;
+    std::size_t current_unresolved_type_distinct_count = 0;
+    std::string current_unresolved_type_summary;
     bool current_scene_render_queue_ready = false;
     std::size_t current_render_sprite_count = 0;
     std::size_t current_render_sprite_frame_lookup_count = 0;
