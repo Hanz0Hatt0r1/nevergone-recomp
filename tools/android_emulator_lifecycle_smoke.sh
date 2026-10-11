@@ -17,8 +17,8 @@ wait_for_android_services() {
     if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == '1' ]] &&
         adb shell cmd package list packages >/dev/null 2>&1 &&
         adb shell true >/dev/null 2>&1; then
-      # The unaccelerated API 35 emulator can briefly reconnect after reporting
-      # boot complete. Require a second healthy round-trip before installation.
+      # An unaccelerated emulator can briefly reconnect after reporting boot
+      # complete. Require a second healthy round-trip before installation.
       sleep 2
       if adb shell cmd package list packages >/dev/null 2>&1 &&
           adb shell true >/dev/null 2>&1; then
@@ -31,6 +31,68 @@ wait_for_android_services() {
   echo 'Android services did not become stable before lifecycle smoke' >&2
   adb devices -l >&2 || true
   exit 1
+}
+
+wait_for_activity_service() {
+  local phase="$1"
+  local attempt
+
+  if ! timeout 30s adb wait-for-device; then
+    echo "Android device did not reconnect during ${phase}" >&2
+    return 1
+  fi
+
+  for attempt in $(seq 1 30); do
+    if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == '1' ]] &&
+        adb shell dumpsys activity activities >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+
+  echo "Android activity service did not recover during ${phase}" >&2
+  adb devices -l >&2 || true
+  return 1
+}
+
+start_activity() {
+  local phase="$1"
+  local attempt
+  local output
+  local status
+
+  for attempt in 1 2 3; do
+    set +e
+    output="$(adb shell am start -W -n "$COMPONENT" 2>&1)"
+    status=$?
+    set -e
+
+    printf '%s\n' "$output"
+    if [[ $status -eq 0 ]]; then
+      return 0
+    fi
+
+    # API 36 under software emulation can briefly lose the ActivityManager
+    # binder/adb transport even though the guest remains booted. Retry only
+    # those transport/service failures. Component, permission and application
+    # errors remain immediate hard failures.
+    if ! grep -Eqi \
+        'Broken pipe|device offline|device .* not found|no devices/emulators found|Failure calling service activity|Can.t find service: activity|connection.*closed' \
+        <<<"$output"; then
+      echo "Activity start failed during ${phase} (status ${status})" >&2
+      return "$status"
+    fi
+
+    if [[ $attempt -eq 3 ]]; then
+      break
+    fi
+
+    echo "Transient Android activity-service failure during ${phase}; retrying (${attempt}/3)" >&2
+    wait_for_activity_service "$phase"
+  done
+
+  echo "Android activity service remained unavailable during ${phase}" >&2
+  return 1
 }
 
 fatal_check() {
@@ -67,7 +129,7 @@ adb install -r "$APK"
 adb logcat -c
 
 # Initial foreground launch.
-adb shell am start -W -n "$COMPONENT"
+start_activity 'initial launch'
 sleep 5
 INITIAL_PID="$(require_pid 'initial launch')"
 require_foreground 'initial launch'
@@ -81,7 +143,7 @@ PAUSED_PID="$(require_pid 'home pause')"
 [[ "$PAUSED_PID" == "$INITIAL_PID" ]]
 fatal_check 'home pause'
 
-adb shell am start -W -n "$COMPONENT"
+start_activity 'resume'
 sleep 3
 RESUMED_PID="$(require_pid 'resume')"
 [[ "$RESUMED_PID" == "$INITIAL_PID" ]]
@@ -95,7 +157,7 @@ adb shell input keyevent KEYCODE_BACK
 sleep 2
 RECREATE_PID="$(require_pid 'activity finish')"
 [[ "$RECREATE_PID" == "$INITIAL_PID" ]]
-adb shell am start -W -n "$COMPONENT"
+start_activity 'activity recreation'
 sleep 3
 RECREATED_PID="$(require_pid 'activity recreation')"
 [[ "$RECREATED_PID" == "$INITIAL_PID" ]]
@@ -110,7 +172,7 @@ if adb shell pidof "$PACKAGE" | grep -q '[0-9]'; then
   echo 'Never Gone Recomp process survived force-stop' >&2
   exit 1
 fi
-adb shell am start -W -n "$COMPONENT"
+start_activity 'cold restart'
 sleep 3
 require_pid 'cold restart' >/dev/null
 require_foreground 'cold restart'
