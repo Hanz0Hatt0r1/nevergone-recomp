@@ -7,9 +7,49 @@ REMOTE_UI_XML='/sdcard/nevergone-runtime-window.xml'
 LOCAL_UI_XML="$(mktemp)"
 APK="$(find android/app/build/outputs/apk/debug -name '*.apk' -print -quit)"
 
+capture_failure_diagnostics() {
+  local activity_output
+
+  echo '--- Never Gone Recomp lifecycle failure diagnostics ---' >&2
+  printf 'android_sdk=%s\n' "$(timeout 5s adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)" >&2
+  printf 'primary_abi=%s\n' "$(timeout 5s adb shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r' || true)" >&2
+  printf 'page_size=%s\n' "$(timeout 5s adb shell getconf PAGE_SIZE 2>/dev/null | tr -d '\r[:space:]' || true)" >&2
+
+  echo '--- adb devices ---' >&2
+  timeout 5s adb devices -l >&2 || true
+
+  echo '--- bounded ActivityManager state ---' >&2
+  set +e
+  activity_output="$(timeout 10s adb shell dumpsys activity activities 2>&1)"
+  set -e
+  printf '%s\n' "$activity_output" |
+    grep -E -C 4 \
+      'org\.nevergone\.recomp|mResumedActivity|topResumedActivity|DUMP TIMEOUT|Broken pipe|Can.t find service|Failure calling service activity' |
+    tail -n 120 >&2 || true
+
+  echo '--- bounded Nevergone/AndroidRuntime logcat ---' >&2
+  timeout 10s adb logcat -d -t 400 2>&1 |
+    grep -E 'org\.nevergone\.recomp|AndroidRuntime|FATAL EXCEPTION|Fatal signal' |
+    tail -n 160 >&2 || true
+
+  echo '--- bounded package state ---' >&2
+  timeout 10s adb shell dumpsys package "$PACKAGE" 2>&1 |
+    grep -E 'versionCode=|versionName=|primaryCpuAbi=|secondaryCpuAbi=|pkgFlags=|stopped=' |
+    tail -n 80 >&2 || true
+  echo '--- end lifecycle failure diagnostics ---' >&2
+}
+
 cleanup() {
+  local status=$?
+  trap - EXIT
+
+  if (( status != 0 )); then
+    capture_failure_diagnostics || true
+  fi
+
   rm -f "$LOCAL_UI_XML"
-  adb shell rm -f "$REMOTE_UI_XML" >/dev/null 2>&1 || true
+  timeout 5s adb shell rm -f "$REMOTE_UI_XML" >/dev/null 2>&1 || true
+  exit "$status"
 }
 trap cleanup EXIT
 
@@ -216,13 +256,14 @@ print_runtime_ui_excerpt() {
 }
 
 scroll_runtime_ui() {
+  local direction="${1:-toward-end}"
   local swipe
   local start_x
   local start_y
   local end_x
   local end_y
 
-  if ! swipe="$(python3 tools/android_runtime_diagnostics.py scroll-swipe "$LOCAL_UI_XML" 2>/dev/null)"; then
+  if ! swipe="$(python3 tools/android_runtime_diagnostics.py scroll-swipe "$LOCAL_UI_XML" --direction "$direction" 2>/dev/null)"; then
     return 1
   fi
   read -r start_x start_y end_x end_y <<<"$swipe"
@@ -230,45 +271,40 @@ scroll_runtime_ui() {
   timeout 5s adb shell input swipe "$start_x" "$start_y" "$end_x" "$end_y" 250 >/dev/null
 }
 
-scroll_runtime_ui_up() {
-  local swipe
-  local start_x
-  local start_y
-  local end_x
-  local end_y
-
-  if ! swipe="$(python3 tools/android_runtime_diagnostics.py scroll-swipe "$LOCAL_UI_XML" 2>/dev/null)"; then
-    return 1
-  fi
-  read -r start_x start_y end_x end_y <<<"$swipe"
-  [[ -n "$start_x" && -n "$start_y" && -n "$end_x" && -n "$end_y" ]]
-  # scroll-swipe describes a downward-document gesture (finger bottom -> top).
-  # The diagnostics button precedes the large status TextView, so when Android
-  # restores the ScrollView near that TextView we must reverse the gesture to
-  # move back toward the controls instead of scrolling farther past them.
-  timeout 5s adb shell input swipe "$end_x" "$end_y" "$start_x" "$start_y" 250 >/dev/null
-}
-
 find_refresh_center() {
   local phase="$1"
+  local pass
   local attempt
   local center
 
-  for attempt in 1 2 3 4 5; do
-    if ! dump_runtime_ui; then
-      echo "Could not dump runtime UI during ${phase} (${attempt}/5)" >&2
-      sleep 1
-      continue
-    fi
-    if center="$(python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" 2>/dev/null)"; then
-      printf '%s\n' "$center"
-      return 0
-    fi
+  # The refresh button precedes the large diagnostics TextView. Android may
+  # restore the ScrollView near that TextView, so search toward the document
+  # start first. A bounded second pass toward the end covers layouts where the
+  # control begins below the initial viewport instead.
+  for pass in toward-start toward-end; do
+    for attempt in 1 2 3 4 5; do
+      if ! dump_runtime_ui; then
+        echo "Could not dump runtime UI during ${phase} (${pass} ${attempt}/5)" >&2
+        sleep 1
+        continue
+      fi
+      if center="$(python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" 2>/dev/null)"; then
+        printf '%s\n' "$center"
+        return 0
+      fi
 
-    echo "Refresh diagnostics control is above the current UI viewport during ${phase}; scrolling back (${attempt}/5)" >&2
-    scroll_runtime_ui_up || true
-    sleep 1
+      echo "Refresh diagnostics control is outside the current UI viewport during ${phase}; scrolling ${pass} (${attempt}/5)" >&2
+      scroll_runtime_ui "$pass" || true
+      sleep 1
+    done
   done
+
+  # Check once more after the final bounded swipe so a control that entered the
+  # viewport on that gesture is not missed.
+  if dump_runtime_ui && center="$(python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" 2>/dev/null)"; then
+    printf '%s\n' "$center"
+    return 0
+  fi
 
   echo "Could not locate Refresh runtime diagnostics during ${phase}" >&2
   python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" >&2 || true
@@ -292,7 +328,7 @@ read_renderer_counters() {
       return 0
     fi
 
-    scroll_runtime_ui || true
+    scroll_runtime_ui toward-end || true
     sleep 1
   done
 
