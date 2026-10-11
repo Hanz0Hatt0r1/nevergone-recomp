@@ -29,6 +29,7 @@
 #include "render_bridge.h"
 #include "server_selection_compositor.h"
 #include "server_selection_state.h"
+#include "single_select_hero_state.h"
 #include "standalone_hero_save_metadata.h"
 #include "startup_contract.h"
 
@@ -171,6 +172,7 @@ std::string bootstrap_info() {
     out << nevergone::standalone_hero_save_metadata::status_report(runtime.files_dir);
     out << nevergone::login_lua_session::status_report();
     out << nevergone::offline_startup_flow::status_report();
+    out << nevergone::single_select_hero_state::status_report();
     out << nevergone::character_name_state::status_report();
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::game_levels_enter_transition::status_report();
@@ -229,6 +231,14 @@ Java_org_nevergone_recomp_MainActivity_nativeBootstrapInfo(JNIEnv* env, jclass) 
     if (!staging.empty()) {
         info.append("\n");
         info.append(staging);
+    }
+    const std::string single_select_staging = java_static_string_report(
+            env,
+            "org/nevergone/recomp/SingleSelectHeroBaseComposer",
+            "statusReport");
+    if (!single_select_staging.empty()) {
+        info.append("\n");
+        info.append(single_select_staging);
     }
     return env->NewStringUTF(info.c_str());
 }
