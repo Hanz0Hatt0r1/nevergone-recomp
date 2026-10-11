@@ -159,8 +159,29 @@ start_activity() {
 
 fatal_check() {
   local phase="$1"
-  if adb logcat -d | grep -E 'FATAL EXCEPTION|Fatal signal.*org\.nevergone\.recomp'; then
+  local logcat
+  local java_fatal
+  local native_fatal
+
+  logcat="$(adb logcat -d 2>/dev/null || true)"
+  java_fatal="$(grep -E -A 30 'FATAL EXCEPTION' <<<"$logcat" || true)"
+  native_fatal="$(grep -E -B 5 -A 30 'Fatal signal.*org\.nevergone\.recomp' <<<"$logcat" || true)"
+
+  # A Google APIs emulator can contain unrelated framework/application crashes.
+  # Treat a Java FATAL as Nevergone evidence only when AndroidRuntime identifies
+  # this package in the same bounded fatal block. Native fatal signals already
+  # carry the process/package identity in the matching line.
+  if grep -Eq "Process:[[:space:]]*${PACKAGE}([,[:space:]]|$)" <<<"$java_fatal" ||
+      [[ -n "$native_fatal" ]]; then
     echo "Never Gone Recomp crashed during ${phase}" >&2
+    echo '--- bounded Nevergone fatal logcat context ---' >&2
+    if grep -Eq "Process:[[:space:]]*${PACKAGE}([,[:space:]]|$)" <<<"$java_fatal"; then
+      printf '%s\n' "$java_fatal" | tail -n 80 >&2
+    fi
+    if [[ -n "$native_fatal" ]]; then
+      printf '%s\n' "$native_fatal" | tail -n 80 >&2
+    fi
+    echo '--- end Nevergone fatal logcat context ---' >&2
     exit 1
   fi
 }
@@ -179,9 +200,9 @@ require_pid() {
 require_foreground() {
   local phase="$1"
   local attempt
-  local output
+  local output=''
 
-  for attempt in 1 2 3; do
+  for attempt in $(seq 1 6); do
     if output="$(activity_dump)"; then
       if grep -Eq \
           'mResumedActivity.*org\.nevergone\.recomp|topResumedActivity=.*org\.nevergone\.recomp' \
@@ -189,21 +210,35 @@ require_foreground() {
         return 0
       fi
 
-      echo "Never Gone Recomp is not resumed during ${phase}" >&2
-      printf '%s\n' "$output" >&2
-      exit 1
-    fi
+      if ! adb shell pidof "$PACKAGE" | grep -q '[0-9]'; then
+        echo "Never Gone Recomp has no live process while checking foreground during ${phase}" >&2
+        fatal_check "$phase"
+        exit 1
+      fi
 
-    if [[ $attempt -eq 3 ]]; then
+      fatal_check "$phase"
+      if [[ $attempt -lt 6 ]]; then
+        echo "Never Gone Recomp is not resumed yet during ${phase}; retrying (${attempt}/6)" >&2
+        sleep 2
+        continue
+      fi
       break
     fi
 
-    echo "Transient ActivityManager dump failure during ${phase}; retrying (${attempt}/3)" >&2
-    wait_for_activity_service "$phase"
+    fatal_check "$phase"
+    if [[ $attempt -lt 6 ]]; then
+      echo "Transient ActivityManager dump failure during ${phase}; retrying (${attempt}/6)" >&2
+      wait_for_activity_service "$phase" || true
+      sleep 2
+    fi
   done
 
-  echo "Android activity service remained unavailable while checking foreground during ${phase}" >&2
-  adb devices -l >&2 || true
+  echo "Never Gone Recomp did not become foreground during ${phase}" >&2
+  if [[ -n "$output" ]]; then
+    printf '%s\n' "$output" >&2
+  else
+    adb devices -l >&2 || true
+  fi
   exit 1
 }
 
@@ -240,14 +275,16 @@ find_refresh_center() {
   local phase="$1"
   local pass
   local attempt
-  local direction
   local center
 
+  # The refresh button precedes the large diagnostics TextView. Android may
+  # restore the ScrollView near that TextView, so search toward the document
+  # start first. A bounded second pass toward the end covers layouts where the
+  # control begins below the initial viewport instead.
   for pass in toward-start toward-end; do
-    direction="$pass"
     for attempt in 1 2 3 4 5; do
       if ! dump_runtime_ui; then
-        echo "Could not dump runtime UI during ${phase} (${direction} ${attempt}/5)" >&2
+        echo "Could not dump runtime UI during ${phase} (${pass} ${attempt}/5)" >&2
         sleep 1
         continue
       fi
@@ -256,8 +293,8 @@ find_refresh_center() {
         return 0
       fi
 
-      echo "Refresh diagnostics control is outside the current UI viewport during ${phase}; scrolling ${direction} (${attempt}/5)" >&2
-      scroll_runtime_ui "$direction" || true
+      echo "Refresh diagnostics control is outside the current UI viewport during ${phase}; scrolling ${pass} (${attempt}/5)" >&2
+      scroll_runtime_ui "$pass" || true
       sleep 1
     done
   done
