@@ -4,6 +4,8 @@
 #include <string>
 
 #include "game_levels_runtime_state.h"
+#include "game_scene_direct_renderer.h"
+#include "game_scene_player_spawn_state.h"
 #include "player_action_document_store.h"
 #include "role_selection_state.h"
 #include "startup_contract.h"
@@ -43,6 +45,36 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeCurrentOfflineCareer(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeRefreshPlayerSpawnState(
+        JNIEnv*, jclass) {
+    const auto levels = nevergone::game_levels_runtime_state::snapshot();
+    const auto renderer = nevergone::game_scene_direct_renderer::snapshot();
+    const auto existing = nevergone::game_scene_player_spawn_state::snapshot();
+
+    if (levels.current_scene_instance_ready && levels.current_scene_index.has_value() &&
+        existing.status == nevergone::game_scene_player_spawn_state::Status::kReady &&
+        existing.source_scene_index == *levels.current_scene_index &&
+        existing.scene_guid == levels.current_scene_guid &&
+        existing.event_port_type == levels.stored_event_port_type &&
+        existing.surface_width == renderer.surface_width &&
+        existing.surface_height == renderer.surface_height) {
+        return JNI_TRUE;
+    }
+
+    const auto scene = nevergone::game_levels_runtime_state::current_scene_instance();
+    if (!scene.has_value()) {
+        nevergone::game_scene_player_spawn_state::reset();
+        return JNI_FALSE;
+    }
+    const bool ready = nevergone::game_scene_player_spawn_state::refresh(
+            *scene,
+            levels.stored_event_port_type,
+            renderer.surface_width,
+            renderer.surface_height);
+    return ready ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeLoadPlayerActionDocument(
         JNIEnv* env,
         jclass,
@@ -59,4 +91,5 @@ extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeResetPlayerActionDocument(
         JNIEnv*, jclass) {
     nevergone::player_action_document_store::reset();
+    nevergone::game_scene_player_spawn_state::reset();
 }
