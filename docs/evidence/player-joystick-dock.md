@@ -8,9 +8,9 @@ This note records the bounded visual boundary for the fixed GameScene joystick i
 
 `CCJoyStick::setDockTexture(char const*)` at ELF `0x0029651c` clears the dock container, calls `CCSprite::create(resourceName)`, and adds the resulting sprite as a child of the dock container.
 
-## Controls initializer
+## Controls initializer and active-state switch
 
-`Controls::init()` at ELF `0x00297e2c` creates the fixed joystick, places its node at design coordinate `(204, 173)`, and then calls:
+`Controls::init()` at ELF `0x00297e2c` creates the fixed joystick, places its node at design coordinate `(204, 173)`, and calls:
 
 ```text
 CCJoyStick::setDockTexture("Dock.png")
@@ -18,25 +18,41 @@ CCJoyStick::setDockTexture("Dock.png")
 
 The literal `Dock.png` is present in the immutable ARMv7 library at `.rodata`/file offset `0x769c8d`. The same `Controls::init()` body does not call `setBallTexture` or `setStickTexture`, so this reconstruction does not invent ball/stick artwork.
 
-`AppDelegate::AddAllSearchPath()` separately proves that `controls_ui` is one of the installed Cocos search paths below `<files>/assets`. The clean-room asset request therefore resolves the basename call to the explicit imported-tree path:
+The active/inactive dock transition is also direct native evidence:
+
+- `Controls::onCCJoyStickActivated(CCNode*)` at ELF `0x00296760` verifies the callback node is the retained joystick at `Controls +0x124`, then calls `setDockTexture("Dock_s.png")`; its PC-relative literal resolves to `.rodata`/file offset `0x769c56`.
+- `Controls::onCCJoyStickDeactivated(CCNode*)` at ELF `0x002970d4` performs the same retained-node check, then calls `setDockTexture("Dock.png")` before clearing the live Controls sample/state fields.
+
+Therefore the evidence-backed visual state is:
+
+```text
+not captured -> Dock.png
+captured     -> Dock_s.png
+release      -> Dock.png
+```
+
+`Dock_activated_01.png` and `Dock_activated_02.png` also exist as strings in the library, but they are not arguments to these `setDockTexture` call sites and are not assigned to this joystick boundary.
+
+`AppDelegate::AddAllSearchPath()` separately proves that `controls_ui` is one of the installed Cocos search paths below `<files>/assets`. The clean-room asset requests therefore resolve the basename calls to explicit imported-tree paths:
 
 ```text
 controls_ui/Dock.png
+controls_ui/Dock_s.png
 ```
 
-The base APK does not contain a `Dock.png` ZIP entry. As with the existing GameScene and player asset pipeline, the image is expected from the user's imported/extracted original data rather than committed to this repository.
+The base APK does not contain either dock PNG as a ZIP entry. As with the existing GameScene and player asset pipeline, the images are expected from the user's imported/extracted original data rather than committed to this repository.
 
 ## Reconstructed rendering boundary
 
-`game_scene_player_joystick_render_queue` appends one direct-file command after the world/player commands:
+`game_scene_player_joystick_render_queue` appends one direct-file command after the world/player commands. It reads the already recovered joystick capture state and chooses:
 
-- resource basename: `Dock.png`;
-- imported relative path: `controls_ui/Dock.png`;
+- inactive resource: `Dock.png` / `controls_ui/Dock.png`;
+- active resource: `Dock_s.png` / `controls_ui/Dock_s.png`;
 - design position: `(204, 173)`;
 - rotation: `0`;
 - scale: `(1,1)`;
 - centered texture geometry.
 
-Appending the command last models the controls layer as a screen-space overlay in the current flat direct renderer. It also keeps the dock inside the existing transactional `GameSceneDirectAssetRequests` revision, so Java staging and native GL drawing cannot disagree about the texture set.
+Appending the command last models the controls layer as a screen-space overlay in the current flat direct renderer. The selected path participates in the existing `GameSceneDirectAssetRequests` hash, so touch activation/deactivation changes the transactional revision. Java staging and native GL drawing therefore cannot silently retain the inactive image after the joystick becomes active, or vice versa.
 
-No activated dock variant, movable knob, opacity animation, or additional joystick artwork is assigned here. Strings such as `Dock_activated_01.png` and `Dock_activated_02.png` exist in the binary, but their runtime call path has not yet been proven and is therefore outside this boundary.
+A movable knob/stick sprite, opacity animation, and any use of the two `Dock_activated_*` strings remain outside this boundary until their actual runtime path is proven.
