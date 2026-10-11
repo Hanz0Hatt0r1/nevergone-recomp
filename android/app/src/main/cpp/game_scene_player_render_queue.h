@@ -6,6 +6,7 @@
 #include "game_scene_player_spawn_state.h"
 #include "game_scene_render_queue.h"
 #include "player_action_document_store.h"
+#include "player_control_runtime_state.h"
 
 namespace nevergone::game_scene_player_render_queue {
 
@@ -29,7 +30,15 @@ inline game_scene_render_queue::Queue with_initial_player(
     player.resource = *request.frame_request.resource;
     player.transform.position_x = spawn.player_x;
     player.transform.position_y = spawn.player_y;
-    player.player_body_transform = *request.sprite_transform;
+    auto body_transform = *request.sprite_transform;
+    const auto control = player_control_runtime_state::snapshot();
+    if (control.primary_state.has_value()) {
+        // MEPlayer::filpPlayer(bool, ...) forwards the recovered facing flag to
+        // MeActionsSystem::filpAction(bool), which calls CCSprite::setFlipX on
+        // the body sprite without changing its local frame geometry.
+        body_transform.flip_x = control.flip_x;
+    }
+    player.player_body_transform = body_transform;
     // BattleManager is a GameScene child at z=7. Same-z scene children were
     // added earlier, so place this branch after layer 7 and before layer 8.
     player.layer_z_index = 7u;
