@@ -21,7 +21,7 @@ int main() {
     base.source_scene_index = 4u;
     base.guid = "synthetic-scene";
 
-    const auto queue = joystick::with_dock(base);
+    const auto queue = joystick::with_dock(base, false);
     assert(queue.sprites.size() == 1u);
     assert(queue.direct_file_count == 1u);
     assert(queue.sprite_frame_lookup_count == 0u);
@@ -46,6 +46,20 @@ int main() {
     assert(requests.requests[0].sprite_command_index == 0u);
     assert(requests.requests[0].relative_path == "controls_ui/Dock.png");
     assert(!requests.requests[0].player_body);
+
+    const auto active_queue = joystick::with_dock(base, true);
+    assert(active_queue.sprites.size() == 1u);
+    const auto& active_dock = active_queue.sprites.back();
+    assert(active_dock.resource.resource_name == "Dock_s.png");
+    assert(active_dock.direct_asset_relative_path.has_value());
+    assert(*active_dock.direct_asset_relative_path == "controls_ui/Dock_s.png");
+    const auto active_requests =
+            nevergone::game_scene_direct_asset_requests::build(active_queue);
+    assert(active_requests.requests.size() == 1u);
+    assert(active_requests.requests[0].relative_path == "controls_ui/Dock_s.png");
+    // Touch activation must force a fresh transactional asset revision so the
+    // Java stager and GL texture cache cannot retain the inactive dock image.
+    assert(active_requests.revision != requests.revision);
 
     // A 100x80 imported Dock.png is centered on the recovered joystick node.
     nevergone::game_scene_direct_geometry::Quad quad;
