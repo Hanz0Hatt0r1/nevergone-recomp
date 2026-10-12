@@ -1,0 +1,35 @@
+name: Minimal runtime save
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/minimal_runtime_save.*'
+      - 'android/app/src/main/cpp/minimal_runtime_save_runtime.*'
+      - 'android/app/src/main/cpp/game_scene_player_motion_restore.h'
+      - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'tools/minimal_runtime_save_smoke.cpp'
+      - '.github/workflows/minimal-runtime-save.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/minimal_runtime_save.*'
+      - 'android/app/src/main/cpp/minimal_runtime_save_runtime.*'
+      - 'android/app/src/main/cpp/game_scene_player_motion_restore.h'
+      - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'tools/minimal_runtime_save_smoke.cpp'
+      - '.github/workflows/minimal-runtime-save.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run minimal save smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/minimal_runtime_save_smoke.cpp \
+            android/app/src/main/cpp/minimal_runtime_save.cpp \
+            android/app/src/main/cpp/minimal_runtime_save_runtime.cpp \
+            -o /tmp/minimal_runtime_save_smoke
+          /tmp/minimal_runtime_save_smoke
