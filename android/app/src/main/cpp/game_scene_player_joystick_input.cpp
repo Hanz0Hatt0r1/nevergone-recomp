@@ -4,6 +4,8 @@
 #include <mutex>
 #include <sstream>
 
+#include "game_clock.h"
+#include "game_scene_player_motion_state.h"
 #include "player_control_runtime_state.h"
 
 namespace nevergone::game_scene_player_joystick_input {
@@ -89,8 +91,6 @@ bool on_touch(
 
     std::lock_guard<std::mutex> lock(g_mutex);
     if (action == kActionCancel) {
-        // Android ACTION_CANCEL terminates the whole gesture, not merely the
-        // pointer at actionIndex.
         if (!g_snapshot.captured) return false;
         release_capture_locked();
         return true;
@@ -101,7 +101,6 @@ bool on_touch(
         const float dx = design_x - kCenterX;
         const float dy = design_y - kCenterY;
         const float distance = std::sqrt(dx * dx + dy * dy);
-        // CCJoyStick::containsTouchLocation accepts only distance < radius.
         if (!finite(distance) || distance >= kHitRadius) return false;
         g_snapshot.captured = true;
         g_snapshot.pointer_id = pointer_id;
@@ -126,15 +125,38 @@ bool on_touch(
 }
 
 void tick() {
+    const std::uint64_t game_tick = game_clock::tick_count();
     float power = 0.0f;
     float angle = 0.0f;
+    float direction_x = 0.0f;
+    float direction_y = 0.0f;
+    bool captured = false;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
-        if (!g_snapshot.captured) return;
-        power = g_snapshot.power;
-        angle = g_snapshot.angle_degrees;
+        captured = g_snapshot.captured;
+        if (captured) {
+            power = g_snapshot.power;
+            angle = g_snapshot.angle_degrees;
+            const float local_x = g_snapshot.design_x - kCenterX;
+            const float local_y = g_snapshot.design_y - kCenterY;
+            const float length = std::sqrt(local_x * local_x + local_y * local_y);
+            if (finite(length) && length > 0.0f) {
+                direction_x = local_x / length;
+                direction_y = local_y / length;
+            }
+        }
     }
-    (void)player_control_runtime_state::apply_horizontal_sample(power, angle);
+
+    // Consuming every fixed tick, including neutral ticks, prevents a later
+    // joystick activation from applying movement accumulated while idle.
+    bool active = false;
+    if (captured) {
+        // Runtime capture proves Controls +0x168 is the normalized direction and
+        // +0x160 is the separate activity sample used by the 0.05 threshold.
+        active = player_control_runtime_state::apply_horizontal_sample(power, angle);
+    }
+    (void)game_scene_player_motion_state::advance_normal_sample(
+            game_tick, active, direction_x, direction_y);
 }
 
 void cancel_capture() {
@@ -152,6 +174,7 @@ void reset() {
         g_snapshot.accepted_moves = accepted_moves;
     }
     player_control_runtime_state::reset();
+    game_scene_player_motion_state::reset();
 }
 
 Snapshot snapshot() {
@@ -170,6 +193,7 @@ std::string status_report() {
     out << "design point: " << state.design_x << "," << state.design_y << "\n";
     out << "power: " << state.power << "\n";
     out << "angle degrees: " << state.angle_degrees << "\n";
+    out << game_scene_player_motion_state::status_report();
     return out.str();
 }
 

@@ -4,6 +4,7 @@
 
 #include "game_scene_initial_player_sprite_request.h"
 #include "game_scene_player_joystick_render_queue.h"
+#include "game_scene_player_motion_state.h"
 #include "game_scene_player_spawn_state.h"
 #include "game_scene_render_queue.h"
 #include "player_action_document_store.h"
@@ -27,10 +28,18 @@ inline game_scene_render_queue::Queue with_initial_player(
         !request.frame_request.resource.has_value() ||
         !request.sprite_transform.has_value()) return queue;
 
+    float player_x = spawn.player_x;
+    float player_y = spawn.player_y;
+    const auto motion = game_scene_player_motion_state::snapshot();
+    if (motion.ready && motion.spawn_generation == spawn.generation) {
+        player_x += motion.offset_x;
+        player_y += motion.offset_y;
+    }
+
     game_scene_render_queue::SpriteCommand player;
     player.resource = *request.frame_request.resource;
-    player.transform.position_x = spawn.player_x;
-    player.transform.position_y = spawn.player_y;
+    player.transform.position_x = player_x;
+    player.transform.position_y = player_y;
     auto body_transform = *request.sprite_transform;
     const auto control = player_control_runtime_state::snapshot();
     if (control.primary_state.has_value()) {
