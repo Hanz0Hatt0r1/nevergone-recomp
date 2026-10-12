@@ -1,7 +1,7 @@
 #include <cassert>
-#include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <string>
 
 #include "game_scene_player_motion_state.h"
@@ -56,9 +56,8 @@ int main() {
     spawn.source_scene_index = source.scene_index;
     spawn.scene_guid = source.scene_guid;
 
-    // Simulate the fresh process: runtime globals and motion cursor start empty,
-    // normal game flow binds the new player, then the sidecar may restore only
-    // because scene GUID/index/player all match.
+    // Simulate a fresh process: normal game flow binds the player first, then
+    // the sidecar may restore only because scene GUID/index/player all match.
     runtime::reset_session();
     motion::reset();
     assert(motion::sync_spawn(spawn.generation, 1u, 500u));
@@ -75,8 +74,7 @@ int main() {
     assert(runtime::snapshot().restore_count == 1u);
 
     // A different reconstructed scene cannot be forced by the save. The record
-    // stays pending and becomes applicable if normal flow later reaches the
-    // matching identity.
+    // stays pending and becomes applicable if normal flow later reaches it.
     runtime::reset_session();
     motion::reset();
     spawn_ns::Snapshot other = spawn;
@@ -92,6 +90,30 @@ int main() {
     assert(motion::sync_spawn(spawn.generation, 1u, 601u));
     assert(runtime::restore_for_spawn(files_dir, spawn, 1u, 601u));
     assert(motion::snapshot().offset_x == source.motion_offset_x);
+
+    // Snapshot-driven autosave writes the first changed motion immediately and
+    // throttles further changed generations until 35 logical ticks have passed.
+    runtime::reset_session();
+    spawn.generation = 100u;
+    motion::Snapshot autosave_motion;
+    autosave_motion.ready = true;
+    autosave_motion.generation = 10u;
+    autosave_motion.spawn_generation = spawn.generation;
+    autosave_motion.player_index = 1u;
+    autosave_motion.applied_steps = 1u;
+    autosave_motion.offset_x = 7.0f;
+    autosave_motion.offset_y = 9.0f;
+    assert(runtime::autosave_if_due(files_dir, spawn, autosave_motion, 1000u));
+    assert(runtime::snapshot().capture_count == 1u);
+
+    autosave_motion.generation = 11u;
+    autosave_motion.offset_x = 8.0f;
+    assert(runtime::autosave_if_due(files_dir, spawn, autosave_motion, 1001u));
+    assert(runtime::snapshot().capture_count == 1u);
+    assert(runtime::autosave_if_due(files_dir, spawn, autosave_motion, 1035u));
+    assert(runtime::snapshot().capture_count == 2u);
+    assert(save::read(files_dir, &disk));
+    assert(disk.motion_offset_x == 8.0f);
 
     // Corrupt on-disk data fails before touching the bound motion cursor.
     {
