@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <utility>
 
 #include "scene_action_initial_frame_pixel_store.h"
 #include "scene_action_pair_document_store.h"
