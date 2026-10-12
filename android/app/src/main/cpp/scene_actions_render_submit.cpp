@@ -1,6 +1,7 @@
 #include "scene_actions_render_submit.h"
 
 #include "scene_actions_gles_compositor.h"
+#include "scene_actions_klhuo_system_inputs.h"
 
 namespace nevergone::scene_actions_render_submit {
 
@@ -29,6 +30,10 @@ Result submit(
         return {SubmitStatus::kRejected, prepared.status};
     }
     return {SubmitStatus::kSubmitted, prepared.status};
+}
+
+Result submit_initial_klhuo(const scene_actions_active_playback::SlotState& state) {
+    return submit(state, scene_actions_klhuo_system_inputs::initial());
 }
 
 }  // namespace nevergone::scene_actions_render_submit
