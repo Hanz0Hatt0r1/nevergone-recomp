@@ -92,6 +92,7 @@ final class GameSceneDirectAssetStager {
         int currentRequestKind = -1;
         int stagedCount = 0;
         Map<String, Bitmap> atlasBitmaps = new HashMap<>();
+        Map<String, GameSceneAtlasFrameResolver.Prepared> playerFrameResolvers = new HashMap<>();
         try {
             File canonicalRoot = assetRoot.getCanonicalFile();
             String rootPrefix = canonicalRoot.getPath() + File.separator;
@@ -146,6 +147,7 @@ final class GameSceneDirectAssetStager {
             }
 
             List<GameSceneAtlasResolver.Atlas> sceneAtlases = null;
+            GameSceneAtlasFrameResolver.Prepared sceneFrameResolver = null;
             if (needsSceneAtlases) {
                 int atlasCount = GameSceneDirectAssetRequests.atlasCount();
                 if (atlasCount <= 0 || atlasCount > MAX_ATLAS_PRELOAD_NAMES) {
@@ -175,6 +177,17 @@ final class GameSceneDirectAssetStager {
                 if (sceneAtlases == null || sceneAtlases.isEmpty()) {
                     return reject(
                             "atlas-resolution-failed",
+                            revision,
+                            count,
+                            -1,
+                            GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME,
+                            stagedCount);
+                }
+                sceneFrameResolver =
+                        GameSceneAtlasFrameResolver.prepare(canonicalRoot, sceneAtlases);
+                if (sceneFrameResolver == null) {
+                    return reject(
+                            "frame-resolution-failed",
                             revision,
                             count,
                             -1,
@@ -274,24 +287,41 @@ final class GameSceneDirectAssetStager {
                     continue;
                 }
 
-                List<GameSceneAtlasResolver.Atlas> atlases;
+                GameSceneAtlasFrameResolver.Prepared frameResolver;
                 if (playerRequests[requestIndex]) {
-                    atlases = GameSceneAtlasResolver.resolve(
-                            canonicalRoot,
-                            Collections.singletonList(playerAtlasPlists[requestIndex]));
-                    if (atlases == null || atlases.isEmpty()) {
-                        return reject(
-                                "player-atlas-resolution-failed",
-                                revision,
-                                count,
-                                requestIndex,
-                                kind,
-                                stagedCount);
+                    String playerAtlasPlist = playerAtlasPlists[requestIndex];
+                    frameResolver = playerFrameResolvers.get(playerAtlasPlist);
+                    if (frameResolver == null) {
+                        List<GameSceneAtlasResolver.Atlas> playerAtlases =
+                                GameSceneAtlasResolver.resolve(
+                                        canonicalRoot,
+                                        Collections.singletonList(playerAtlasPlist));
+                        if (playerAtlases == null || playerAtlases.isEmpty()) {
+                            return reject(
+                                    "player-atlas-resolution-failed",
+                                    revision,
+                                    count,
+                                    requestIndex,
+                                    kind,
+                                    stagedCount);
+                        }
+                        frameResolver =
+                                GameSceneAtlasFrameResolver.prepare(canonicalRoot, playerAtlases);
+                        if (frameResolver == null) {
+                            return reject(
+                                    "frame-resolution-failed",
+                                    revision,
+                                    count,
+                                    requestIndex,
+                                    kind,
+                                    stagedCount);
+                        }
+                        playerFrameResolvers.put(playerAtlasPlist, frameResolver);
                     }
                 } else {
-                    atlases = sceneAtlases;
+                    frameResolver = sceneFrameResolver;
                 }
-                if (atlases == null) {
+                if (frameResolver == null) {
                     return reject(
                             "atlas-resolution-failed",
                             revision,
@@ -300,8 +330,7 @@ final class GameSceneDirectAssetStager {
                             kind,
                             stagedCount);
                 }
-                GameSceneAtlasFrameResolver.Frame frame =
-                        GameSceneAtlasFrameResolver.resolve(canonicalRoot, atlases, value);
+                GameSceneAtlasFrameResolver.Frame frame = frameResolver.resolve(value);
                 if (frame == null) {
                     return reject(
                             "frame-resolution-failed",
