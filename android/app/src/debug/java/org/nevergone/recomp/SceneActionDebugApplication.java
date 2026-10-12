@@ -161,9 +161,12 @@ public final class SceneActionDebugApplication extends Application
             Choreographer.getInstance().removeFrameCallback(this);
             callbackPosted = false;
         }
-        GameSurfaceView target = surface;
-        if (resetRuntime && target != null) {
-            target.queueEvent(SceneActionLiveRuntime::reset);
+        if (resetRuntime && (started || SceneActionLiveRuntime.started())) {
+            // MainActivity stops its GLSurfaceView before ActivityLifecycleCallbacks
+            // receives onActivityPaused(), so no GL-thread tick can race this reset.
+            // reset() only clears controller/document/pixel runtime state; it issues
+            // no GLES calls and therefore must not be deferred until a later resume.
+            SceneActionLiveRuntime.reset();
         }
         resumedActivity = null;
         surface = null;
