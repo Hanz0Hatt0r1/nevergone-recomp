@@ -2,8 +2,10 @@ package org.nevergone.recomp;
 
 public final class GameSceneAtlasFramePixelsSmoke {
     private static GameSceneAtlasFrameResolver.Frame frame(
-            int width,
-            int height,
+            int textureWidth,
+            int textureHeight,
+            int spriteWidth,
+            int spriteHeight,
             int sourceWidth,
             int sourceHeight,
             int offsetX,
@@ -16,16 +18,26 @@ public final class GameSceneAtlasFramePixelsSmoke {
                 "frame.png",
                 "frame.png",
                 atlas,
-                new int[]{0, 0, width, height},
-                new int[]{0, 0, width, height},
+                new int[]{0, 0, textureWidth, textureHeight},
+                new int[]{0, 0, spriteWidth, spriteHeight},
                 new int[]{offsetX, offsetY},
-                new int[]{width, height},
+                new int[]{spriteWidth, spriteHeight},
                 new int[]{sourceWidth, sourceHeight},
                 rotated);
     }
 
+    private static GameSceneAtlasFrameResolver.Frame plainFrame(
+            int width,
+            int height,
+            int sourceWidth,
+            int sourceHeight,
+            int offsetX,
+            int offsetY) {
+        return frame(width, height, width, height, sourceWidth, sourceHeight, offsetX, offsetY, false);
+    }
+
     public static void main(String[] args) {
-        GameSceneAtlasFrameResolver.Frame plain = frame(2, 2, 4, 4, 0, 0, false);
+        GameSceneAtlasFrameResolver.Frame plain = plainFrame(2, 2, 4, 4, 0, 0);
         assert GameSceneAtlasFramePixels.packedWidth(plain) == 2;
         assert GameSceneAtlasFramePixels.packedHeight(plain) == 2;
         GameSceneAtlasFramePixels.Asset plainAsset =
@@ -39,10 +51,13 @@ public final class GameSceneAtlasFramePixelsSmoke {
         assert plainAsset.pixels[10] == 4;
         assert plainAsset.pixels[0] == 0;
 
-        // Logical trim is 3x2. TexturePacker stores a clockwise-rotated frame
-        // physically as 2x3: [4 1] [5 2] [6 3]. Reconstruction restores the
-        // unrotated 3x2 sprite before placing it in the 5x4 source rectangle.
-        GameSceneAtlasFrameResolver.Frame rotated = frame(3, 2, 5, 4, 0, 0, true);
+        // TexturePacker format-3 stores textureRect in the physical atlas
+        // orientation. A logical 3x2 sprite rotated clockwise occupies a 2x3
+        // textureRect: [4 1] [5 2] [6 3]. This mirrors the shipped Never Gone
+        // plist shape where rotated frames have spriteSize W/H and textureRect
+        // H/W, rather than the synthetic same-dimension shape used previously.
+        GameSceneAtlasFrameResolver.Frame rotated =
+                frame(2, 3, 3, 2, 5, 4, 0, 0, true);
         assert GameSceneAtlasFramePixels.packedWidth(rotated) == 2;
         assert GameSceneAtlasFramePixels.packedHeight(rotated) == 3;
         GameSceneAtlasFramePixels.Asset rotatedAsset =
@@ -57,7 +72,7 @@ public final class GameSceneAtlasFramePixelsSmoke {
         assert rotatedAsset.pixels[12] == 5;
         assert rotatedAsset.pixels[13] == 6;
 
-        GameSceneAtlasFrameResolver.Frame offset = frame(2, 1, 6, 5, 1, -1, false);
+        GameSceneAtlasFrameResolver.Frame offset = plainFrame(2, 1, 6, 5, 1, -1);
         GameSceneAtlasFramePixels.Asset offsetAsset =
                 GameSceneAtlasFramePixels.reconstruct(offset, 2, 1, new int[]{7, 8});
         assert offsetAsset != null;
@@ -67,7 +82,14 @@ public final class GameSceneAtlasFramePixelsSmoke {
         assert GameSceneAtlasFramePixels.reconstruct(rotated, 3, 2, new int[6]) == null;
         assert GameSceneAtlasFramePixels.reconstruct(plain, 2, 2, new int[3]) == null;
 
-        GameSceneAtlasFrameResolver.Frame escaping = frame(4, 4, 4, 4, 1, 0, false);
+        // A rotated frame with unswapped textureRect/spriteSize dimensions is
+        // inconsistent with the recovered format-3 plist representation.
+        GameSceneAtlasFrameResolver.Frame malformedRotated =
+                frame(3, 2, 3, 2, 5, 4, 0, 0, true);
+        assert GameSceneAtlasFramePixels.reconstruct(
+                malformedRotated, 3, 2, new int[6]) == null;
+
+        GameSceneAtlasFrameResolver.Frame escaping = plainFrame(4, 4, 4, 4, 1, 0);
         assert GameSceneAtlasFramePixels.reconstruct(escaping, 4, 4, new int[16]) == null;
     }
 }
