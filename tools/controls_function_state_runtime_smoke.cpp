@@ -37,13 +37,15 @@ int main() {
     assert(state.function_state == 0x1cu);
     assert(!state.has_pending_base_action);
 
-    // B retains its recovered extra MEPlayer guard in the live diagnostic.
+    // From initial action state 0x1b the native B baseline falls through to
+    // action state 0x1d. B remains marked guarded because other live MEPlayer
+    // histories can select the alternate 0x11/force=true path.
     runtime::reset();
     assert(runtime::advance_sample(true, b, 0u, 0u, 1u));
     state = runtime::snapshot();
     assert(state.function_state == 8u);
-    assert(state.pending_meplayer_state == 0x11u);
-    assert(state.pending_force);
+    assert(state.pending_meplayer_state == 0x1du);
+    assert(!state.pending_force);
     assert(state.pending_has_additional_guard);
 
     // A + a fresh primary combo 10 inside the 0.4-second window synthesizes
