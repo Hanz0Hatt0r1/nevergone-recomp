@@ -139,6 +139,7 @@ add_library(nevergone_recomp SHARED
     tutorial_gameplay_state.cpp
     tutorial_loading_assets_jni.cpp
     tutorial_loading_compositor.cpp
+    tutorial_session_state.cpp
     xml_validation_binding.cpp
 )
 
