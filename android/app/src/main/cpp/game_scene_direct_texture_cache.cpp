@@ -28,8 +28,6 @@ void destroy_textures(Backend& backend, std::vector<Texture>* textures) {
 
 void reset_for_new_context() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    // Texture names from a lost EGL context are already invalid. Do not pass
-    // them to glDeleteTextures through the new context.
     g_source_revision = 0;
     g_textures.clear();
     g_last_sync_succeeded = false;
@@ -65,9 +63,29 @@ bool sync(Backend& backend) {
         game_scene_direct_asset_store::Asset asset;
         if (!game_scene_direct_asset_store::copy_active_asset(request_index, &asset) ||
             asset.request_index != request_index ||
-            asset.width <= 0 || asset.height <= 0 ||
-            asset.argb_pixels.empty() ||
             !seen_sprite_commands.insert(asset.sprite_command_index).second) {
+            destroy_textures(backend, &pending);
+            g_last_sync_succeeded = false;
+            return false;
+        }
+
+        Texture texture;
+        texture.request_index = request_index;
+        texture.sprite_command_index = asset.sprite_command_index;
+        texture.hidden = asset.hidden;
+        texture.pixel_format = asset.pixel_format;
+
+        if (asset.hidden) {
+            if (asset.width != 0 || asset.height != 0 || !asset.argb_pixels.empty()) {
+                destroy_textures(backend, &pending);
+                g_last_sync_succeeded = false;
+                return false;
+            }
+            pending.push_back(texture);
+            continue;
+        }
+
+        if (asset.width <= 0 || asset.height <= 0 || asset.argb_pixels.empty()) {
             destroy_textures(backend, &pending);
             g_last_sync_succeeded = false;
             return false;
@@ -85,10 +103,6 @@ bool sync(Backend& backend) {
             return false;
         }
 
-        Texture texture;
-        texture.request_index = request_index;
-        texture.sprite_command_index = asset.sprite_command_index;
-        texture.pixel_format = asset.pixel_format;
         texture.width = asset.width;
         texture.height = asset.height;
         texture.handle = handle;
