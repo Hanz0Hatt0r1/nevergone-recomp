@@ -5,8 +5,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Resolves spriteFrameByName requests against the recovered ordered atlas list. */
 final class GameSceneAtlasFrameResolver {
@@ -71,51 +73,57 @@ final class GameSceneAtlasFrameResolver {
     }
 
     /**
-     * One immutable plist snapshot for a staging pass.
+     * One immutable sprite-frame-cache snapshot for a staging pass.
      *
-     * The shipped runtime preloads sprite sheets into CCSpriteFrameCache before
-     * spriteFrameByName lookups. Keeping the parsed DOMs here reproduces that
-     * important loading shape without retaining them beyond the caller-owned
-     * staging pass.
+     * The shipped cocos2d-x 2.1.2 CCSpriteFrameCache preloads sheets in order.
+     * Canonical duplicate frame names are skipped after the first load, while
+     * aliases from accepted frames use the cache's latest mapping. Build those
+     * indexes once so spriteFrameByName lookups are O(1) and preserve the
+     * recovered cache precedence without retaining state between revisions.
      */
     static final class Prepared {
-        private final List<PreparedAtlas> atlases;
+        private final Map<String, PreparedFrame> framesByName;
+        private final Map<String, String> aliases;
 
-        Prepared(List<PreparedAtlas> atlases) {
-            this.atlases = atlases;
+        Prepared(
+                Map<String, PreparedFrame> framesByName,
+                Map<String, String> aliases) {
+            this.framesByName = framesByName;
+            this.aliases = aliases;
         }
 
         Frame resolve(String requestedName) {
             if (!isSafeFrameName(requestedName)) return null;
-            Frame resolved = null;
-            for (PreparedAtlas prepared : atlases) {
-                Match match = findFrame(prepared.frames, requestedName);
-                if (match == null) continue;
-                Frame candidate = parseFrame(
-                        prepared.atlasIndex,
-                        requestedName,
-                        match,
-                        prepared.atlas);
-                if (candidate == null || resolved != null) {
-                    // Fail closed on malformed matching metadata or duplicate
-                    // membership, exactly as the one-shot resolver does.
-                    return null;
-                }
-                resolved = candidate;
+
+            PreparedFrame prepared = framesByName.get(requestedName);
+            String canonicalName = requestedName;
+            if (prepared == null) {
+                canonicalName = aliases.get(requestedName);
+                if (canonicalName == null) return null;
+                prepared = framesByName.get(canonicalName);
+                if (prepared == null) return null;
             }
-            return resolved;
+
+            return parseFrame(
+                    prepared.atlasIndex,
+                    requestedName,
+                    new Match(canonicalName, prepared.frame),
+                    prepared.atlas);
         }
     }
 
-    private static final class PreparedAtlas {
+    private static final class PreparedFrame {
         final int atlasIndex;
         final GameSceneAtlasResolver.Atlas atlas;
-        final Element frames;
+        final Element frame;
 
-        PreparedAtlas(int atlasIndex, GameSceneAtlasResolver.Atlas atlas, Element frames) {
+        PreparedFrame(
+                int atlasIndex,
+                GameSceneAtlasResolver.Atlas atlas,
+                Element frame) {
             this.atlasIndex = atlasIndex;
             this.atlas = atlas;
-            this.frames = frames;
+            this.frame = frame;
         }
     }
 
@@ -147,7 +155,8 @@ final class GameSceneAtlasFrameResolver {
             File canonicalRoot = assetRoot.getCanonicalFile();
             if (!canonicalRoot.isDirectory()) return null;
             String rootPrefix = canonicalRoot.getPath() + File.separator;
-            ArrayList<PreparedAtlas> preparedAtlases = new ArrayList<>(atlases.size());
+            LinkedHashMap<String, PreparedFrame> framesByName = new LinkedHashMap<>();
+            HashMap<String, String> aliases = new HashMap<>();
 
             for (int atlasIndex = 0; atlasIndex < atlases.size(); ++atlasIndex) {
                 GameSceneAtlasResolver.Atlas atlas = atlases.get(atlasIndex);
@@ -166,38 +175,65 @@ final class GameSceneAtlasFrameResolver {
                 Element plistRoot = document.getDocumentElement();
                 Element rootDict = plistRoot != null ? firstChildElement(plistRoot, "dict") : null;
                 Element frames = rootDict != null ? valueForKey(rootDict, "frames") : null;
-                if (frames != null && !"dict".equals(frames.getTagName())) {
-                    // The old one-shot lookup treated a non-dict frames value as
-                    // no membership in this atlas rather than inventing a parse.
-                    frames = null;
+                if (frames == null) continue;
+                if (!"dict".equals(frames.getTagName())) {
+                    // Preserve the clean-room fail-closed boundary for malformed
+                    // imported plist structure instead of guessing membership.
+                    return null;
                 }
-                preparedAtlases.add(new PreparedAtlas(atlasIndex, atlas, frames));
+                if (!indexFrames(atlasIndex, atlas, frames, framesByName, aliases)) {
+                    return null;
+                }
             }
-            return new Prepared(preparedAtlases);
+            return new Prepared(framesByName, aliases);
         } catch (Exception error) {
             return null;
         }
     }
 
-    private static Match findFrame(Element frames, String requestedName) {
-        if (frames == null || !"dict".equals(frames.getTagName())) return null;
-
-        Match found = null;
+    private static boolean indexFrames(
+            int atlasIndex,
+            GameSceneAtlasResolver.Atlas atlas,
+            Element frames,
+            Map<String, PreparedFrame> framesByName,
+            Map<String, String> aliases) {
         for (Node node = frames.getFirstChild(); node != null; node = node.getNextSibling()) {
             if (!(node instanceof Element)) continue;
             Element key = (Element) node;
             if (!"key".equals(key.getTagName())) continue;
-            String canonicalName = trimmedText(key);
-            if (!isSafeFrameName(canonicalName)) return null;
-            Element frame = nextElement(key);
-            if (frame == null || !"dict".equals(frame.getTagName())) return null;
 
-            boolean matches = requestedName.equals(canonicalName) || aliasMatches(frame, requestedName);
-            if (!matches) continue;
-            if (found != null) return null;
-            found = new Match(canonicalName, frame);
+            String canonicalName = trimmedText(key);
+            if (!isSafeFrameName(canonicalName)) return false;
+            Element frame = nextElement(key);
+            if (frame == null || !"dict".equals(frame.getTagName())) return false;
+
+            // cocos2d-x 2.1.2 checks m_pSpriteFrames before parsing a new
+            // frame and continues immediately when the canonical key is already
+            // present. The first preloaded frame therefore wins and the skipped
+            // duplicate contributes no aliases either.
+            if (framesByName.containsKey(canonicalName)) continue;
+            framesByName.put(canonicalName, new PreparedFrame(atlasIndex, atlas, frame));
+
+            Element aliasArray = valueForKey(frame, "aliases");
+            if (aliasArray == null) continue;
+            if (!"array".equals(aliasArray.getTagName())) return false;
+            int aliasCount = 0;
+            for (Node aliasNode = aliasArray.getFirstChild();
+                    aliasNode != null;
+                    aliasNode = aliasNode.getNextSibling()) {
+                if (!(aliasNode instanceof Element)) continue;
+                if (++aliasCount > MAX_ALIASES) return false;
+                Element item = (Element) aliasNode;
+                if (!"string".equals(item.getTagName())) return false;
+                String alias = trimmedText(item);
+                if (!isSafeFrameName(alias)) return false;
+
+                // The original warns on an existing alias but still calls
+                // setObject(frameKey, alias), so the latest accepted alias wins.
+                aliases.put(alias, canonicalName);
+            }
         }
-        return found;
+        return true;
     }
 
     private static Frame parseFrame(
@@ -222,23 +258,6 @@ final class GameSceneAtlasFrameResolver {
         return new Frame(
                 atlasIndex, requestedName, match.canonicalName, atlas,
                 textureRect, colorRect, offset, spriteSize, sourceSize, rotated.booleanValue());
-    }
-
-    private static boolean aliasMatches(Element frame, String requestedName) {
-        Element aliases = valueForKey(frame, "aliases");
-        if (aliases == null) return false;
-        if (!"array".equals(aliases.getTagName())) return false;
-        int count = 0;
-        for (Node node = aliases.getFirstChild(); node != null; node = node.getNextSibling()) {
-            if (!(node instanceof Element)) continue;
-            if (++count > MAX_ALIASES) return false;
-            Element item = (Element) node;
-            if (!"string".equals(item.getTagName())) return false;
-            String alias = trimmedText(item);
-            if (!isSafeFrameName(alias)) return false;
-            if (requestedName.equals(alias)) return true;
-        }
-        return false;
     }
 
     private static Document parseDocument(File plist) throws Exception {
