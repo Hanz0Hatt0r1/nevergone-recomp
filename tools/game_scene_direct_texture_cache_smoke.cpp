@@ -82,6 +82,25 @@ void publish_revision(
     assert(store::finish(revision));
 }
 
+void publish_hidden_revision(
+        std::uint64_t revision,
+        std::size_t hidden_sprite_command,
+        std::size_t visible_sprite_command) {
+    namespace store = nevergone::game_scene_direct_asset_store;
+    assert(store::begin(revision, 2u));
+    assert(store::upload_hidden(revision, 0u, hidden_sprite_command));
+    const std::uint32_t pixels[] = {0xff001122u, 0xff334455u};
+    assert(store::upload(
+            revision,
+            1u,
+            visible_sprite_command,
+            2,
+            1,
+            pixels,
+            2u));
+    assert(store::finish(revision));
+}
+
 bool contains(
         const std::vector<nevergone::game_scene_direct_texture_cache::TextureHandle>& values,
         nevergone::game_scene_direct_texture_cache::TextureHandle needle) {
@@ -116,20 +135,19 @@ int main() {
     cache::Texture texture3;
     assert(cache::texture_for_sprite_command(7u, &texture7));
     assert(cache::texture_for_sprite_command(3u, &texture3));
+    assert(!texture7.hidden);
     assert(texture7.request_index == 0u);
     assert(texture7.pixel_format == cache::PixelFormat::kRgba8888);
     assert(texture7.handle == 1u);
+    assert(!texture3.hidden);
     assert(texture3.request_index == 1u);
     assert(texture3.pixel_format == cache::PixelFormat::kRgba4444);
     assert(texture3.handle == 2u);
 
-    // The same completed store revision must not re-upload textures.
     assert(cache::sync(backend));
     assert(backend.create_calls == 2u);
     assert(backend.destroyed.empty());
 
-    // Fail after creating the first texture of a replacement revision. The
-    // partial replacement is destroyed while the previous revision remains.
     publish_revision(102u, {9u, 11u});
     backend.fail_on_create_call = 4u;
     assert(!cache::sync(backend));
@@ -143,7 +161,6 @@ int main() {
     assert(cache::texture_for_sprite_command(7u, &texture7));
     assert(texture7.handle == 1u);
 
-    // Retry succeeds and only then releases the prior active revision.
     backend.fail_on_create_call = 0u;
     assert(cache::sync(backend));
     state = cache::snapshot();
@@ -160,18 +177,35 @@ int main() {
     assert(texture11.handle == 5u);
     assert(!cache::texture_for_sprite_command(7u, &texture7));
 
-    // No live pixel-store revision releases the current-context textures.
+    // Hidden assets remain part of the atomic request revision but require no
+    // backend allocation and carry a zero handle/dimensions into the renderer.
+    publish_hidden_revision(103u, 17u, 19u);
+    const std::size_t creates_before_hidden_sync = backend.create_calls;
+    assert(cache::sync(backend));
+    state = cache::snapshot();
+    assert(state.source_revision == 103u);
+    assert(state.texture_count == 2u);
+    assert(backend.create_calls == creates_before_hidden_sync + 1u);
+    cache::Texture texture17;
+    cache::Texture texture19;
+    assert(cache::texture_for_sprite_command(17u, &texture17));
+    assert(texture17.hidden);
+    assert(texture17.request_index == 0u);
+    assert(texture17.handle == 0u);
+    assert(texture17.width == 0);
+    assert(texture17.height == 0);
+    assert(cache::texture_for_sprite_command(19u, &texture19));
+    assert(!texture19.hidden);
+    assert(texture19.handle != 0u);
+
     store::clear();
     assert(cache::sync(backend));
     state = cache::snapshot();
     assert(state.source_revision == 0u);
     assert(state.texture_count == 0u);
-    assert(contains(backend.destroyed, 4u));
-    assert(contains(backend.destroyed, 5u));
+    assert(contains(backend.destroyed, texture19.handle));
 
-    // Context loss is different: old GL names are invalid already and must be
-    // forgotten without routing them through the new context's delete backend.
-    publish_revision(103u, {13u});
+    publish_revision(104u, {13u});
     assert(cache::sync(backend));
     cache::Texture texture13;
     assert(cache::texture_for_sprite_command(13u, &texture13));
