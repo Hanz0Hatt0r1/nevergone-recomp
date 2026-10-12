@@ -101,6 +101,7 @@ add_library(nevergone_recomp SHARED
     management_role_action_control_compositor.cpp
     management_role_selection_compositor.cpp
     management_role_selection_view.cpp
+    meplayer_function_gate_contract.cpp
     native_binding_registry.cpp
     native_bootstrap.cpp
     offline_startup_flow.cpp
