@@ -10,6 +10,13 @@ std::mutex g_mutex;
 Snapshot g_snapshot{};
 std::uint64_t g_generation = 0;
 
+bool queue_desired_action_locked(std::uint32_t action_state) {
+    if (g_snapshot.desired_action_state == action_state) return false;
+    g_snapshot.desired_action_state = action_state;
+    ++g_snapshot.desired_revision;
+    return true;
+}
+
 }  // namespace
 
 void reset() {
@@ -57,10 +64,64 @@ bool observe_tutorial_event_count(std::uint64_t tutorial_event_count) {
         return false;
     }
 
-    g_snapshot.desired_action_state = kTutorialJumpActionState;
-    ++g_snapshot.desired_revision;
-    ++g_snapshot.accepted_tutorial_jump_count;
+    const bool queued = queue_desired_action_locked(kTutorialJumpActionState);
+    if (queued) ++g_snapshot.accepted_tutorial_jump_count;
+    if (!queued) ++g_snapshot.rejected_tutorial_jump_count;
     if (delta > 1u) g_snapshot.rejected_tutorial_jump_count += delta - 1u;
+    return queued;
+}
+
+bool observe_base_function_state(
+        std::uint64_t function_generation,
+        std::uint32_t function_state,
+        bool has_pending_base_action,
+        std::uint32_t pending_meplayer_state,
+        bool pending_has_additional_guard) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_snapshot.ready || function_generation == 0u ||
+        function_generation <= g_snapshot.observed_function_generation) {
+        return false;
+    }
+
+    g_snapshot.observed_function_generation = function_generation;
+
+    // Controls publishes a new runtime generation every frame. Only function
+    // state edges correspond to a fresh setFunctionState request for this live
+    // reconstruction; holding a button must not continuously reload its action.
+    if (function_state == g_snapshot.observed_function_state) return false;
+    g_snapshot.observed_function_state = function_state;
+
+    // Release/neutral is an observed edge, but the original setFunctionState(0)
+    // does not unconditionally return to state 0x1b. That depends on action
+    // completion/isActionDone(), which is not reconstructed yet.
+    if (function_state == 0u) return false;
+
+    if (!has_pending_base_action) {
+        ++g_snapshot.rejected_function_action_count;
+        return false;
+    }
+
+    std::uint32_t accepted_action = 0u;
+    if (function_state == 7u && pending_meplayer_state == kBaseAActionState &&
+        !pending_has_additional_guard) {
+        accepted_action = kBaseAActionState;
+    } else if (function_state == 8u &&
+               pending_meplayer_state == kBaselineBActionState &&
+               pending_has_additional_guard &&
+               g_snapshot.current_action_state == kInitialActionState &&
+               g_snapshot.desired_action_state == kInitialActionState) {
+        // B is accepted only for the exact currently reconstructed baseline.
+        // Other B branches need the live +0x1f0/+0x1f8 guard fields.
+        accepted_action = kBaselineBActionState;
+    } else {
+        // C remains driven by the existing tutorial-event boundary for now, and
+        // guarded/unsupported function branches fail closed here.
+        ++g_snapshot.rejected_function_action_count;
+        return false;
+    }
+
+    if (!queue_desired_action_locked(accepted_action)) return false;
+    ++g_snapshot.accepted_function_action_count;
     return true;
 }
 
@@ -91,6 +152,11 @@ std::string status_report() {
     out << "tutorial input events observed: " << state.observed_tutorial_event_count << "\n";
     out << "accepted tutorial jumps: " << state.accepted_tutorial_jump_count << "\n";
     out << "rejected tutorial jumps: " << state.rejected_tutorial_jump_count << "\n";
+    out << "observed function generation: " << state.observed_function_generation << "\n";
+    out << "observed function state: 0x" << std::hex << state.observed_function_state
+        << std::dec << "\n";
+    out << "accepted function actions: " << state.accepted_function_action_count << "\n";
+    out << "rejected function actions: " << state.rejected_function_action_count << "\n";
     return out.str();
 }
 
