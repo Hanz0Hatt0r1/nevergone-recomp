@@ -52,14 +52,11 @@ std::vector<std::uint8_t> make_document() {
     append_u32(&bytes, 1u);
     append_primary_record(&bytes);
 
-    // Trap compact count, nested outer count, six legacy versioned groups,
-    // then the fixed-tail count are all empty in this focused composition case.
     append_u32(&bytes, 0u);
     append_i32(&bytes, 0);
     for (int i = 0; i < 6; ++i) append_i32(&bytes, 0);
     append_i32(&bytes, 0);
 
-    // One combo tuple because the primary record count is one.
     append_i32(&bytes, 3);
     append_i32(&bytes, 5);
     append_i32(&bytes, 7);
@@ -67,7 +64,6 @@ std::vector<std::uint8_t> make_document() {
     append_f32(&bytes, 1.25f);
     append_f32(&bytes, 2.5f);
 
-    // Final reciprocal table: ActionFrameData+0x5c receives 1.0f / 4.0f.
     append_i32(&bytes, 4);
     return bytes;
 }
@@ -82,10 +78,20 @@ int main() {
     assert(document.core.primary.prefix.record_count == 1u);
     assert(document.core.primary.records.size() == 1u);
     assert(document.combo.tuples.size() == 1u);
+
+    // The combo parser's derived values are run-boundary records, not copies of
+    // the current serialized tuple fields. With one tuple, the last-tuple rule
+    // closes the initial run, so both +0x94/+0x98 begin at boundary index 0 and
+    // retain initial state 1. +0x90 still carries third-int + 1 per tuple.
+    assert(document.combo.array_90_values.size() == 1u);
+    assert(document.combo.array_90_values[0].field_1c == 8);
     assert(document.combo.array_94_values.size() == 1u);
-    assert(document.combo.array_94_values[0].field_14 == 11);
+    assert(document.combo.array_94_values[0].field_14 == 0);
+    assert(document.combo.array_94_values[0].field_1c == 1);
     assert(document.combo.array_98_values.size() == 1u);
-    assert(document.combo.array_98_values[0].field_14 == 6);
+    assert(document.combo.array_98_values[0].field_14 == 0);
+    assert(document.combo.array_98_values[0].field_1c == 1);
+
     assert(document.final_table.entries.size() == 1u);
     assert(document.final_table.entries[0].serialized_value == 4);
     assert(document.final_table.entries[0].reciprocal_value == 0.25f);
@@ -101,8 +107,6 @@ int main() {
     assert(trailing.bytes_consumed == bytes.size());
     assert(trailing.trailing_bytes == 2u);
 
-    // Final-table truncation must fail transactionally, not publish a core or
-    // combo-only partial document.
     nevergone::hp_data::Reader truncated(bytes.data(), bytes.size() - 1u);
     trap::Document unchanged;
     unchanged.bytes_consumed = 777u;
