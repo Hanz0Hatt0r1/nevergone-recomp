@@ -57,6 +57,15 @@ int main() {
     state = live::snapshot();
     assert(state.desired_action_state == 0x20u);
     assert(state.accepted_tutorial_jump_count == 1u);
+
+    // A pressed while action33 is still pending must not replace that document.
+    // The edge remains reconsiderable because observed_function_state is not
+    // advanced until the previous desired revision has committed.
+    assert(!live::observe_base_function_state(9u, 7u, true, 0x02u, false));
+    state = live::snapshot();
+    assert(state.desired_action_state == 0x20u);
+    assert(state.observed_function_state == 0u);
+
     assert(live::commit_loaded_action(0x20u));
 
     // Base A is a proven direct function branch and can replace the loaded jump
