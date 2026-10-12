@@ -32,6 +32,12 @@ bool dimensions_match(int width, int height, std::size_t pixel_count) {
     return expected == pixel_count && expected <= kMaxPixelsPerAsset;
 }
 
+bool supported_format(game_scene_texture_format::PixelFormat pixel_format) {
+    using game_scene_texture_format::PixelFormat;
+    return pixel_format == PixelFormat::kRgba8888 ||
+            pixel_format == PixelFormat::kRgba4444;
+}
+
 }  // namespace
 
 void clear() {
@@ -55,11 +61,16 @@ bool upload(
         std::uint64_t revision,
         std::size_t request_index,
         std::size_t sprite_command_index,
+        game_scene_texture_format::PixelFormat pixel_format,
         int width,
         int height,
         const std::uint32_t* argb_pixels,
         std::size_t pixel_count) {
-    if (argb_pixels == nullptr || !dimensions_match(width, height, pixel_count)) return false;
+    if (argb_pixels == nullptr ||
+        !supported_format(pixel_format) ||
+        !dimensions_match(width, height, pixel_count)) {
+        return false;
+    }
 
     std::lock_guard<std::mutex> lock(g_mutex);
     if (revision == 0 || revision != g_pending_revision ||
@@ -77,6 +88,7 @@ bool upload(
     Asset asset;
     asset.request_index = request_index;
     asset.sprite_command_index = sprite_command_index;
+    asset.pixel_format = pixel_format;
     asset.width = width;
     asset.height = height;
     asset.argb_pixels.assign(argb_pixels, argb_pixels + pixel_count);
