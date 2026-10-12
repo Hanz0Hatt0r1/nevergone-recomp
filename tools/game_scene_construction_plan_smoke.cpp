@@ -47,6 +47,25 @@ int main() {
     assert(!gkanniu.initially_visible);
     assert(resource_ns::select("klhuo-1.png").kind == resource_ns::Kind::kSceneActionPair);
 
+    const char* hidden_after_init[] = {
+        "klhuoguang-6.png",
+        "klhuoguang-8.png",
+        "kldimianhuoguang-1.png",
+        "kldimianhuoguang-2.png",
+        "klqianjingkanshouguang.png",
+        "klhuoguang-1.png",
+        "gjbeijing02.png",
+        "gjzhongjing04.png",
+    };
+    for (const char* name : hidden_after_init) {
+        const auto selection = resource_ns::select(name);
+        assert(selection.kind == resource_ns::Kind::kSpriteFrameByName);
+        assert(selection.resource_name == name);
+        assert(!selection.initially_visible);
+        assert(resource_ns::is_hidden_after_init(name));
+    }
+    assert(!resource_ns::is_hidden_after_init("background.png"));
+
     SceneInstance scene;
     scene.source_scene_index = 7u;
     scene.guid = "scene-guid";
@@ -63,19 +82,20 @@ int main() {
     scene.layers[0].objects.push_back(make_object(0, "background.png"));
     scene.layers[0].objects.push_back(make_object(0, "gktianchong.png"));
     scene.layers[0].objects.push_back(make_object(0, "gkanniu2.png"));
+    scene.layers[0].objects.push_back(make_object(0, "klhuoguang-6.png"));
     scene.layers[0].objects.push_back(make_object(0, "klhuo-1.png"));
     scene.layers[0].objects.push_back(make_object(4, "type-four"));
     scene.layers[3].objects.push_back(make_object(6, "type-six"));
     scene.layers[10].objects.push_back(make_object(1, "type-one"));
     scene.layers[11].objects.push_back(make_object(0, "ignored.png"));
-    scene.object_count = 8u;
+    scene.object_count = 9u;
 
     const auto plan = plan_ns::build(scene);
     assert(plan.source_scene_index == 7u);
     assert(plan.guid == "scene-guid");
     assert(plan.layers.size() == plan_ns::kLoadingTexLayerSlotCount);
     assert(plan.ignored_source_layer_count == 1u);
-    assert(plan.object_count == 7u);
+    assert(plan.object_count == 8u);
 
     for (std::size_t z = 0; z < plan.layers.size(); ++z) {
         assert(plan.layers[z].z_index == z);
@@ -83,7 +103,7 @@ int main() {
         assert(plan.layers[z].first_float == static_cast<float>(z) + 0.25f);
     }
 
-    assert(plan.layers[0].objects.size() == 5u);
+    assert(plan.layers[0].objects.size() == 6u);
     const auto& cached = plan.layers[0].objects[0];
     assert(cached.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
     assert(cached.type0_resource.has_value());
@@ -113,12 +133,19 @@ int main() {
     assert(!hidden.type0_resource->initially_visible);
     assert(hidden.type0_sprite_transform.has_value());
 
-    const auto& action_pair = plan.layers[0].objects[3];
+    const auto& hidden_cached = plan.layers[0].objects[3];
+    assert(hidden_cached.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
+    assert(hidden_cached.type0_resource->kind == resource_ns::Kind::kSpriteFrameByName);
+    assert(hidden_cached.type0_resource->resource_name == "klhuoguang-6.png");
+    assert(!hidden_cached.type0_resource->initially_visible);
+    assert(hidden_cached.type0_sprite_transform.has_value());
+
+    const auto& action_pair = plan.layers[0].objects[4];
     assert(action_pair.construction_kind == plan_ns::ObjectConstructionKind::kType0SceneActionPair);
     assert(action_pair.type0_resource->kind == resource_ns::Kind::kSceneActionPair);
     assert(!action_pair.type0_sprite_transform.has_value());
 
-    const auto& type4 = plan.layers[0].objects[4];
+    const auto& type4 = plan.layers[0].objects[5];
     assert(type4.construction_kind == plan_ns::ObjectConstructionKind::kUnresolved);
     assert(!type4.type0_resource.has_value());
     assert(!type4.type0_sprite_transform.has_value());
