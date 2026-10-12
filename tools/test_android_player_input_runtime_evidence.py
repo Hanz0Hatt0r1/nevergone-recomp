@@ -31,6 +31,7 @@ unresolved render objects: 1
 GameScene static renderer
 shader: ready
 surface: 1080x1920
+camera eye x: 0
 draw attempts: 18
 drawn frames: 16
 last static sprites: 10
