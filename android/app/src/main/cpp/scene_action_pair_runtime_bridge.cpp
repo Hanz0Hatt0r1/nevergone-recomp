@@ -5,6 +5,7 @@
 #include "scene_action_initial_frame_pixel_store.h"
 #include "scene_action_pair_document_store.h"
 #include "scene_action_pair_initial_frame_runtime.h"
+#include "scene_actions_current_frame_resource.h"
 #include "startup_contract.h"
 
 namespace {
@@ -24,6 +25,21 @@ std::optional<nevergone::scene_actions_initial_frame::Plan> initial_frame_for_sl
             ? nevergone::scene_action_pair_document_store::Slot::kBorn
             : nevergone::scene_action_pair_document_store::Slot::kIdle;
     return nevergone::scene_action_pair_initial_frame_runtime::current(target);
+}
+
+std::optional<nevergone::scene_actions_current_frame_resource::Plan> current_frame_for_slot(
+        jint slot,
+        jint frame_index) {
+    if ((slot != 0 && slot != 1) || frame_index < 0) return std::nullopt;
+    const auto target = slot == 0
+            ? nevergone::scene_action_pair_document_store::Slot::kBorn
+            : nevergone::scene_action_pair_document_store::Slot::kIdle;
+    const auto document = nevergone::scene_action_pair_document_store::current_document(target);
+    if (!document.has_value()) return std::nullopt;
+    return nevergone::scene_actions_current_frame_resource::build(
+            *document,
+            static_cast<std::size_t>(frame_index),
+            static_cast<std::uint8_t>(slot));
 }
 
 }  // namespace
@@ -76,6 +92,29 @@ extern "C" JNIEXPORT jint JNICALL
 Java_org_nevergone_recomp_SceneActionPairRuntimeLoader_nativeInitialMode(
         JNIEnv*, jclass, jint slot) {
     const auto plan = initial_frame_for_slot(slot);
+    return plan.has_value() ? static_cast<jint>(plan->mode_24e) : -1;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_SceneActionPairRuntimeLoader_nativeCurrentAtlasPlist(
+        JNIEnv* env, jclass, jint slot, jint frame_index) {
+    const auto plan = current_frame_for_slot(slot, frame_index);
+    if (!plan.has_value()) return nullptr;
+    return env->NewStringUTF(plan->atlas_plist.c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_SceneActionPairRuntimeLoader_nativeCurrentFrameName(
+        JNIEnv* env, jclass, jint slot, jint frame_index) {
+    const auto plan = current_frame_for_slot(slot, frame_index);
+    if (!plan.has_value()) return nullptr;
+    return env->NewStringUTF(plan->frame_name.c_str());
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_nevergone_recomp_SceneActionPairRuntimeLoader_nativeCurrentMode(
+        JNIEnv*, jclass, jint slot, jint frame_index) {
+    const auto plan = current_frame_for_slot(slot, frame_index);
     return plan.has_value() ? static_cast<jint>(plan->mode_24e) : -1;
 }
 
