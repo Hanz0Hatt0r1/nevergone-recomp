@@ -15,10 +15,13 @@ constexpr int kRuneCount = 5;
 constexpr int kFrameCount = kRuneCount * 2;
 constexpr int kRuntimeVisibleRuneCount = 2;
 
-// Presentation-only bridge between the GLES-independent touch router and the
-// existing compositor. Runtime heap evidence from the shipped character-select
-// scene retains five tagged menu items, while only tags 1 and 2 are visible / active.
+// Runtime heap captures retain five tagged menu items, while only tags 1 and 2
+// are visible / active on this shipped character-select screen. A second capture
+// with another selected career proves that the matching faguang frame remains
+// visible after the touch gesture ends, so selected and pressed presentation are
+// tracked independently.
 inline std::atomic<int> g_pressed_render_tag{0};
+inline std::atomic<int> g_selected_render_tag{0};
 
 struct FrameGeometry {
     int width = 0;
@@ -66,10 +69,19 @@ inline int pressed_render_tag() {
     return enabled_tag(tag) ? tag : 0;
 }
 
+inline void set_selected_render_tag(int tag) {
+    g_selected_render_tag.store(enabled_tag(tag) ? tag : 0, std::memory_order_relaxed);
+}
+
+inline int selected_render_tag() {
+    const int tag = g_selected_render_tag.load(std::memory_order_relaxed);
+    return enabled_tag(tag) ? tag : 0;
+}
+
 inline int frame_index(int tag, bool pressed) {
     if (!valid_tag(tag)) return -1;
-    const bool show_pressed = pressed || pressed_render_tag() == tag;
-    return (tag - 1) * 2 + (show_pressed ? 1 : 0);
+    const bool show_glow = pressed || pressed_render_tag() == tag || selected_render_tag() == tag;
+    return (tag - 1) * 2 + (show_glow ? 1 : 0);
 }
 
 inline float center_y(int tag) {
@@ -100,9 +112,6 @@ inline bool surface_transform(
     return true;
 }
 
-// CCMenuItemSprite uses the untrimmed normal sprite content size for its touch
-// rectangle. The visible atlas quad may be smaller because TexturePacker trim
-// offsets are applied only while drawing.
 inline SurfaceRect hit_rect_for_surface(
         int source_width,
         int source_height,
