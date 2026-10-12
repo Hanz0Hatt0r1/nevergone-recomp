@@ -50,11 +50,21 @@ The adb serial and build fingerprint are not written to the report.
 - `GameScene asset staging` is `ready`, has at least one successful staging attempt, a nonzero live revision, a nonempty request set and `staged == requests`;
 - `GameScene static renderer` has a ready shader and a nonzero surface;
 - at least one draw attempt and one successful drawn frame are recorded;
-- the last drawn static sprite count is nonzero and matches the completely staged request count;
+- the last drawn static sprite count is nonzero and does not exceed the completely staged request count;
 - both retained evidence files match the SHA-256 values in the report;
 - the screen capture is a PNG with nonzero dimensions.
 
-`render sprites` is the base queue produced by the loaded `GameLevels` scene. Before the direct renderer creates asset requests it composes project-owned live overlays through `game_scene_player_render_queue`, including the recovered joystick dock and, when available, the player frame. Therefore the staged/drawn count may legitimately exceed the base `render sprites` count. The fail-closed post-composition invariant is `last static sprites == requests == staged`, not `last static sprites <= render sprites`.
+`render sprites` is the base queue produced by the loaded `GameLevels` scene. Before the direct renderer creates asset requests it composes project-owned live overlays through `game_scene_player_render_queue`, including the recovered joystick dock and, when available, the player frame. Therefore the staged/drawn count may legitimately exceed the base `render sprites` count.
+
+PR #358 also reconstructed the original ordinary `GameSceneObject` null-frame fallback: a missing cached scene frame becomes `empty.png` and is immediately hidden. The clean-room renderer represents that state as a transactional hidden asset slot. Hidden slots still count in `requests` and `staged`, are validated by the native texture cache, but intentionally submit no GLES quad. Consequently the post-composition proof invariant is now:
+
+```text
+staged == requests
+0 < last static sprites <= requests
+hidden slots == requests - last static sprites
+```
+
+A successful renderer frame is required before that difference is interpreted as hidden slots. The renderer resolves every request through the complete texture revision and skips only entries explicitly marked hidden, so the relaxed count does not turn incomplete staging, bad textures, invalid geometry or GLES errors into a passing proof.
 
 The validator deliberately does **not** require `deferred scene-action pairs` or `unresolved render objects` to be zero. P7 only requires the evidence-backed static scene/background layer to render safely. Those counters are surfaced in the successful validator summary so the next blocker to full scene fidelity and player spawn remains explicit.
 
@@ -74,4 +84,4 @@ Do not commit captures containing user-owned runtime data. Commit only code, syn
 
 ## Relation to issue #147
 
-A passing report proves the technical static-render boundary and produces the visual artifact needed for review. It does not by itself assert that every dynamic/animated GameScene object has been reconstructed. Record the retained `unresolved render objects` and `deferred scene-action pairs` values when closing P7; those values define the next implementation boundary before player creation/spawn.
+A passing report proves the technical static-render boundary and produces the visual artifact needed for review. It does not by itself assert that every dynamic/animated GameScene object has been reconstructed. Record the retained `hidden_slots`, `unresolved render objects` and `deferred scene-action pairs` values when closing P7; those values define the next implementation boundary before player creation/spawn.
