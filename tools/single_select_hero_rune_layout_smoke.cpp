@@ -19,15 +19,15 @@ void assert_rect(
 int main() {
     namespace layout = nevergone::single_select_hero_rune_layout;
     layout::set_pressed_render_tag(0);
+    layout::set_selected_render_tag(0);
     assert(layout::pressed_render_tag() == 0);
+    assert(layout::selected_render_tag() == 0);
     assert(layout::frame_index(1, false) == 0);
     assert(layout::frame_index(1, true) == 1);
     assert(layout::frame_index(5, true) == 9);
     assert(layout::frame_index(0, false) == -1);
     assert(layout::frame_index(6, false) == -1);
 
-    // Shipped runtime objects retain tags 1..5, but the captured stable
-    // SingleSelectHero state exposes only tags 1 and 2 for rendering/input.
     assert(layout::runtime_visible_tag(1));
     assert(layout::runtime_visible_tag(2));
     assert(!layout::runtime_visible_tag(3));
@@ -44,16 +44,34 @@ int main() {
     assert(close_enough(layout::opacity(4), 0.0f));
     assert(close_enough(layout::opacity(5), 0.0f));
 
-    // Hidden tags must never publish a pressed presentation state even though
-    // their atlas frames remain addressable for fidelity/debug inspection.
-    layout::set_pressed_render_tag(2);
-    assert(layout::pressed_render_tag() == 2);
+    // Stable original-game captures with Dawn then Higgs show persistent glow
+    // moving from rune 1 to rune 2 without an active touch gesture.
+    layout::set_selected_render_tag(1);
+    assert(layout::selected_render_tag() == 1);
+    assert(layout::frame_index(1, false) == 1);
+    assert(layout::frame_index(2, false) == 2);
+    layout::set_selected_render_tag(2);
+    assert(layout::selected_render_tag() == 2);
+    assert(layout::frame_index(1, false) == 0);
     assert(layout::frame_index(2, false) == 3);
+
+    // A press still forces glow independently, including on the non-selected
+    // visible career, then selected presentation persists after press clears.
+    layout::set_pressed_render_tag(1);
+    assert(layout::pressed_render_tag() == 1);
+    assert(layout::frame_index(1, false) == 1);
+    assert(layout::frame_index(2, false) == 3);
+    layout::set_pressed_render_tag(0);
+    assert(layout::frame_index(1, false) == 0);
+    assert(layout::frame_index(2, false) == 3);
+
+    // Hidden tags cannot publish either selected or pressed presentation.
+    layout::set_selected_render_tag(3);
+    assert(layout::selected_render_tag() == 0);
     layout::set_pressed_render_tag(3);
     assert(layout::pressed_render_tag() == 0);
     assert(layout::frame_index(3, false) == 4);
-    layout::set_pressed_render_tag(99);
-    assert(layout::pressed_render_tag() == 0);
+    layout::set_selected_render_tag(0);
 
     assert(close_enough(layout::center_y(1), 495.0f));
     assert(close_enough(layout::center_y(2), 405.0f));
@@ -61,8 +79,6 @@ int main() {
     assert(close_enough(layout::center_y(4), 225.0f));
     assert(close_enough(layout::center_y(5), 135.0f));
 
-    // Recovered untrimmed source sizes from the shipped atlas. Only the two
-    // runtime-visible tags produce active touch rectangles in this scene state.
     assert_rect(layout::hit_rect_for_surface(79, 99, 1, 1136, 640),
                 528.5f, 95.5f, 607.5f, 194.5f);
     assert_rect(layout::hit_rect_for_surface(87, 89, 2, 1136, 640),
@@ -78,11 +94,9 @@ int main() {
     assert(!layout::hit_rect_for_surface(0, 99, 1, 1136, 640).valid);
     assert(!layout::hit_rect_for_surface(79, 99, 0, 1136, 640).valid);
 
-    // Aspect-fit mapping preserves the content rect on a 2x surface.
     assert_rect(layout::hit_rect_for_surface(79, 99, 1, 2272, 1280),
                 1057.0f, 191.0f, 1215.0f, 389.0f);
 
-    // Visible drawing still honors TexturePacker trims independently of hit size.
     layout::FrameGeometry career_one;
     career_one.width = 79;
     career_one.height = 99;
@@ -100,11 +114,8 @@ int main() {
     career_two.source_height = 89;
     quad = layout::quad_for_surface(career_two, 2, 1136, 640);
     assert(quad.valid);
-    // Trimmed visible top is 193.5, while the touch rect begins at 190.5.
     assert(close_enough(quad.y0, 1.0f - 193.5f * 2.0f / 640.0f));
 
-    // Geometry for hidden atlas frames remains representable; presentation and
-    // input visibility are controlled independently by runtime_visible_tag().
     layout::FrameGeometry career_three;
     career_three.width = 75;
     career_three.height = 95;
