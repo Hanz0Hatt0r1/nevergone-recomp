@@ -27,6 +27,7 @@ int main() {
     state.parent_y = 135.0f;
     state.child_z_order = 9;
     state.playback.mode_24e = 0u;
+    state.playback.done_1a8 = false;
     state.playback.frame_index_250 = 0u;
 
     nevergone::scene_action_initial_frame_pixel_store::Asset asset;
