@@ -5,15 +5,28 @@
 namespace controller = nevergone::scene_actions_runtime_controller;
 namespace docs = nevergone::scene_action_pair_document_store;
 namespace trigger = nevergone::scene_action_trigger_plan;
+namespace combo = nevergone::trap_actions_combo_section;
 
 static nevergone::trap_actions_document::Document document() {
     nevergone::trap_actions_document::Document out;
+    out.core.primary.prefix.record_count = 2u;
     out.core.primary.records.resize(2);
     out.final_table.primary_record_count = 2;
     out.final_table.entries = {
         {100, 10.0f, 0x5cu},
         {100, 10.0f, 0x5cu},
     };
+    out.combo.primary_record_count = 2u;
+    out.combo.tuples.resize(2u);
+    out.combo.array_90_values.resize(2u);
+    combo::DerivedActionComboValue a94;
+    a94.target_array_offset = combo::kArray94Offset;
+    a94.field_18 = 1;
+    out.combo.array_94_values = {a94};
+    combo::DerivedActionComboValue a98;
+    a98.target_array_offset = combo::kArray98Offset;
+    a98.field_18 = 1;
+    out.combo.array_98_values = {a98};
     return out;
 }
 
