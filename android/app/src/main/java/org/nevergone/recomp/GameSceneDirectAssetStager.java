@@ -444,10 +444,19 @@ final class GameSceneDirectAssetStager {
                         frame.textureY,
                         packedWidth,
                         packedHeight);
-                GameSceneAtlasFramePixels.Asset reconstructed =
-                        GameSceneAtlasFramePixels.reconstruct(
+
+                // Static scene sprites use CCSpriteFrame-style trim metadata:
+                // upload only the logical trimmed pixels and retain the center
+                // offset for native quad placement. The player body keeps the
+                // previous untrimmed compatibility texture because its recovered
+                // body transform can use an arbitrary anchor.
+                final boolean playerBody = playerRequests[requestIndex];
+                GameSceneAtlasFramePixels.Asset stagedFrame = playerBody
+                        ? GameSceneAtlasFramePixels.reconstruct(
+                                frame, packedWidth, packedHeight, packedPixels)
+                        : GameSceneAtlasFramePixels.extractTrimmed(
                                 frame, packedWidth, packedHeight, packedPixels);
-                if (reconstructed == null) {
+                if (stagedFrame == null) {
                     return reject(
                             "frame-reconstruction-failed",
                             revision,
@@ -456,13 +465,25 @@ final class GameSceneDirectAssetStager {
                             kind,
                             stagedCount);
                 }
-                if (!GameSceneDirectAssetStore.upload(
-                        revision,
-                        requestIndex,
-                        spriteCommandIndex,
-                        reconstructed.width,
-                        reconstructed.height,
-                        reconstructed.pixels)) {
+
+                final boolean uploaded = playerBody
+                        ? GameSceneDirectAssetStore.upload(
+                                revision,
+                                requestIndex,
+                                spriteCommandIndex,
+                                stagedFrame.width,
+                                stagedFrame.height,
+                                stagedFrame.pixels)
+                        : GameSceneDirectAssetStore.uploadFrame(
+                                revision,
+                                requestIndex,
+                                spriteCommandIndex,
+                                frame.offsetX,
+                                frame.offsetY,
+                                stagedFrame.width,
+                                stagedFrame.height,
+                                stagedFrame.pixels);
+                if (!uploaded) {
                     return reject(
                             "store-upload-failed",
                             revision,
