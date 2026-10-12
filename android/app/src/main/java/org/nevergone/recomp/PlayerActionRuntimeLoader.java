@@ -14,6 +14,7 @@ final class PlayerActionRuntimeLoader {
     private static native boolean nativeRefreshPlayerSpawnState();
     private static native boolean nativeLoadPlayerActionDocument(String relativePath);
     private static native void nativeResetPlayerActionDocument();
+    private static native String nativeStatusReport();
 
     static void invalidate() {
         attemptedCareer = 0;
@@ -54,6 +55,17 @@ final class PlayerActionRuntimeLoader {
         if (!nativeLoadPlayerActionDocument(resolved.actionDataRelativePath)) return false;
         loadedRelativePath = resolved.actionDataRelativePath;
         return spawnReady;
+    }
+
+    static String statusReport() {
+        String nativeReport = nativeStatusReport();
+        StringBuilder out = new StringBuilder();
+        if (nativeReport != null && !nativeReport.isEmpty()) out.append(nativeReport);
+        out.append("loader attempted career: ").append(attemptedCareer).append('\n');
+        out.append("loader document retained: ")
+                .append(loadedRelativePath != null ? "yes" : "no")
+                .append('\n');
+        return out.toString();
     }
 
     static int attemptedCareerForTest() {

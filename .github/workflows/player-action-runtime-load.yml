@@ -6,6 +6,7 @@ on:
       - 'android/app/src/main/cpp/player_action_document_store.cpp'
       - 'android/app/src/main/cpp/player_action_document_store.h'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'android/app/src/main/cpp/player_offline_career.h'
       - 'android/app/src/main/cpp/game_scene_player_bootstrap.cpp'
       - 'android/app/src/main/cpp/game_scene_player_bootstrap.h'
       - 'android/app/src/main/cpp/game_scene_player_entry_markers.cpp'
@@ -19,6 +20,7 @@ on:
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
       - 'tools/player_action_document_store_smoke.cpp'
+      - 'tools/player_offline_career_smoke.cpp'
       - 'tools/game_scene_player_spawn_state_smoke.cpp'
       - 'tools/PlayerActionAssetResolverSmoke.java'
       - 'docs/player-action-runtime-loading.md'
@@ -30,6 +32,7 @@ on:
       - 'android/app/src/main/cpp/player_action_document_store.cpp'
       - 'android/app/src/main/cpp/player_action_document_store.h'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'android/app/src/main/cpp/player_offline_career.h'
       - 'android/app/src/main/cpp/game_scene_player_bootstrap.cpp'
       - 'android/app/src/main/cpp/game_scene_player_bootstrap.h'
       - 'android/app/src/main/cpp/game_scene_player_entry_markers.cpp'
@@ -43,6 +46,7 @@ on:
       - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
       - 'tools/player_action_document_store_smoke.cpp'
+      - 'tools/player_offline_career_smoke.cpp'
       - 'tools/game_scene_player_spawn_state_smoke.cpp'
       - 'tools/PlayerActionAssetResolverSmoke.java'
       - 'docs/player-action-runtime-loading.md'
@@ -73,6 +77,14 @@ jobs:
             tools/player_action_document_store_smoke.cpp \
             -o /tmp/player_action_document_store_smoke
           /tmp/player_action_document_store_smoke
+
+      - name: Build and run offline player career smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/player_offline_career_smoke.cpp \
+            -o /tmp/player_offline_career_smoke
+          /tmp/player_offline_career_smoke
 
       - name: Build and run player spawn state smoke
         run: |
