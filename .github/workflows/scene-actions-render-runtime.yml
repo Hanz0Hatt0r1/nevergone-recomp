@@ -1,0 +1,30 @@
+name: SceneActions render runtime
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_render_runtime.h'
+      - 'android/app/src/main/cpp/scene_actions_render_frame_plan.h'
+      - 'android/app/src/main/cpp/scene_actions_active_playback.h'
+      - 'tools/scene_actions_render_runtime_smoke.cpp'
+      - '.github/workflows/scene-actions-render-runtime.yml'
+  push:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_render_runtime.h'
+      - 'android/app/src/main/cpp/scene_actions_render_frame_plan.h'
+      - 'android/app/src/main/cpp/scene_actions_active_playback.h'
+      - 'tools/scene_actions_render_runtime_smoke.cpp'
+      - '.github/workflows/scene-actions-render-runtime.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run SceneActions render-runtime smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/scene_actions_render_runtime_smoke.cpp \
+            -o /tmp/scene_actions_render_runtime_smoke
+          /tmp/scene_actions_render_runtime_smoke
