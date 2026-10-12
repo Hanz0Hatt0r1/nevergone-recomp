@@ -19,8 +19,11 @@ struct State {
     bool combo_hit_active_185 = false;
     bool combo_type_24c = false;
     bool combo_latched_24d = false;
-    std::int32_t last_frame_14c = -1;
-    std::int32_t secondary_last_170 = -1;
+    // +0x14c is the previous frame index used to suppress redundant updateData().
+    std::int32_t previous_frame_14c = -1;
+    std::int32_t secondary_previous_170 = -1;
+    // +0x180 is a distinct terminal/segment last-frame field. play() starts it at 1.
+    std::int32_t terminal_last_frame_180 = 1;
     std::size_t frame_index_250 = 0;
     std::size_t boundary_cursor_94_25c = 0;
     std::size_t boundary_cursor_98_260 = 0;
@@ -50,13 +53,14 @@ inline std::optional<State> build(
     state.first_update_15c = true;
     state.done_1a8 = false;
     state.end_184 = false;
-    // initWithFile() initializes +0x185/+0x24c/+0x24d to zero and play()
-    // does not overwrite them before the first waUpdate().
-    state.combo_hit_active_185 = false;
+    // initWithFile() starts +0x185 at zero, but play() explicitly writes it to 1
+    // before the first waUpdate(). +0x24c/+0x24d are reset to zero by play().
+    state.combo_hit_active_185 = true;
     state.combo_type_24c = false;
     state.combo_latched_24d = false;
-    state.last_frame_14c = -1;
-    state.secondary_last_170 = -1;
+    state.previous_frame_14c = -1;
+    state.secondary_previous_170 = -1;
+    state.terminal_last_frame_180 = 1;
     state.frame_index_250 = 0u;
     state.boundary_cursor_94_25c = 0u;
     state.boundary_cursor_98_260 = 0u;
