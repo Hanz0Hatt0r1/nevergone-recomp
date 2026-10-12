@@ -17,38 +17,44 @@ cold start
   -> scene instantiated
   -> player spawned
   -> player input visible on screen
+  -> minimal save
+  -> process restart
+  -> minimal restore
 ```
 
-A checkpoint counts as complete only when every preceding checkpoint is also complete in the same project-owned runtime path. Disconnected downstream probes are useful evidence, but they do not advance the playable-path completion marker.
+A checkpoint counts as complete only when every preceding checkpoint is also complete in the same project-owned runtime path. Disconnected downstream probes and host regressions are useful implementation evidence, but they do not advance the contiguous real-device completion marker by themselves.
 
 ## Checkpoints
 
 | ID | Checkpoint | Definition of done | Current state |
 | --- | --- | --- | --- |
-| P0 | Clean launch | Project-owned APK starts without the original native library. | Done |
-| P1 | Original data available | User-owned APK/OBB import is available and runtime search paths can find imported data. | Done |
-| P2 | Startup/login | Reconstructed AppDelegate/Lua startup reaches the login/management path. | Done |
-| P3 | Server selection | Server list renders, accepts selection and confirmation, and emits exactly one project-owned enter request. | In progress |
-| P4 | ChooseHero | Role data renders, selection/focus/profile state is usable, and role choice reaches reconstructed login Lua. | In progress, substantial |
-| P5 | Enter-game transition | Confirmed role selection deterministically enters the next offline route without original native code. | In progress |
-| P6 | GameLevels load | Required scene data is found and parsed through all fields needed by the first offline scene. | In progress; bounded prefix verified |
-| P7 | Scene instantiated | A project-owned scene graph is built and rendered from imported original data. | Not yet |
-| P8 | Player spawned | Player entity/visual state appears at an evidence-backed spawn point. | Not yet |
-| P9 | Input visible | User input changes player state visibly in the first offline scene. | Not yet |
-| P10 | Minimal persistence | Save -> process restart -> restore works for the minimal vertical slice. | Not yet |
+| P0 | Clean launch | Project-owned APK starts without the original native library. | **Done** |
+| P1 | Original data available | User-owned APK/OBB import is available and runtime search paths can find imported data. | **Done** |
+| P2 | Startup/login | Reconstructed AppDelegate/Lua startup reaches the login/management path. | **Done** |
+| P3 | Server selection | Server list renders, accepts selection and confirmation, and emits exactly one project-owned enter request. | **Done** — tracked issue #144 closed |
+| P4 | ChooseHero | Role data renders, selection/focus/profile state is usable, and role choice reaches reconstructed login Lua. | **Done** for the tracked existing-role route — issue #145 closed |
+| P5 | Enter-game transition | Confirmed role selection deterministically enters the next offline route without original native code. | **Done** for the tracked existing-role route — issue #145 closed |
+| P6 | GameLevels load | Required scene data is found and parsed through all fields needed by the first offline scene-construction boundary. | **Done** — tracked issue #146 closed |
+| P7 | Scene instantiated | A project-owned scene graph is built and rendered from imported original data. | **In progress** — renderer/import/capture path exists; contiguous retained real-device proof still required |
+| P8 | Player spawned | Player entity/visual state appears at an evidence-backed spawn point. | **In progress** — spawn/frame/render implementation exists; contiguous real-device proof still required |
+| P9 | Input visible | User input changes player state visibly in the first offline scene. | **In progress** — joystick/facing/dock implementation exists; contiguous real-device proof still required |
+| P10 | Minimal persistence | Save -> process restart -> restore works for the minimal vertical slice. | **Implemented, proof pending** — bounded sidecar/autosave/restart-restore runtime and host regression exist; contiguous real-device restart/restore evidence still required |
 
-The primary progress number is the highest **contiguous** completed checkpoint.
+The primary progress number remains the highest **contiguous** completed checkpoint. Until the P7-P9 path is accepted on a real Android device with user-owned imported data, implementation beyond P6 does not change that strict marker.
 
 ## Current critical path
 
-Until P9 is reached, work that directly shortens this chain has priority:
+The implementation bottleneck has moved beyond startup and core rendering infrastructure. The current critical path is:
 
-1. finish server-selection and ChooseHero transitions;
-2. extend `GameLevels` only to the next proven binary boundary;
-3. build the first project-owned scene from imported `gamescene` data;
-4. spawn the player using recovered player/config data;
-5. route minimal input to player movement/state;
-6. add one enemy/combat interaction only after the scene/input slice is stable.
+1. retain one contiguous real-device P7 capture that visibly renders the first offline scene from imported data;
+2. verify the already reconstructed player spawn/frame path in that same scene and retain P8 evidence;
+3. record one actual Android gesture producing a visible player/control state change and retain P9 evidence;
+4. run the implemented P10 sidecar flow through a real process restart and retain restored player-motion evidence;
+5. resolve the fresh-role `CreateCharacter` callback boundary only if the chosen contiguous acceptance route requires fresh-role creation;
+6. validate the structural EnemyActions/TrapActions work against genuine user-owned data and connect the minimum first combat interaction;
+7. retain API 35/36 arm64 physical-device evidence.
+
+SceneActions work may proceed in parallel where it directly improves the first playable scene, but unrecovered spatial trigger and global PRNG behavior must remain explicit evidence boundaries rather than guessed runtime logic.
 
 ## Parallel work lanes
 
@@ -56,9 +62,9 @@ Parallel agents/processes should take non-overlapping lanes.
 
 | Lane | Scope | Typical directories/data | Blocking output |
 | --- | --- | --- | --- |
-| P1A - critical runtime | Server -> ChooseHero -> enter-game -> first scene integration | `android/`, login/management/scene runtime | advances P3-P9 |
-| P1B - scene formats | `GameLevels`, `HPData`, scene/action/state-machine formats | `gamescene/*` | parser/model required by P6-P7 |
-| P1C - player/combat | player, enemy, NPC, weapons/equipment behavior | `player`, `enemy`, `NPC`, `weapons`, `equips` | spawn/input/combat models |
+| P1A - critical runtime | First-scene integration, SceneActions, contiguous P7-P9 route | `android/`, scene runtime, renderer/input | advances P7-P9 |
+| P1B - scene formats | `GameLevels`, `HPData`, scene/action/state-machine formats | `gamescene/*`, parsers | evidence/models required by scene runtime |
+| P1C - player/combat | player, enemy, NPC, weapons/equipment behavior | `player`, `enemy`, `NPC`, `weapons`, `equips` | P8/P9/combat models |
 | P1D - tooling/platform | resource indexing, Android CI/device checks, evidence tooling | `tools/`, `.github/`, Android platform | keeps all lanes reproducible |
 
 A lane should not take work already active in another lane unless explicitly handing it over.
@@ -80,13 +86,13 @@ Prefer a complete vertical task over many micro-PRs that do not create a new obs
 
 ## Resource policy
 
-Original APK/OBB files and extracted proprietary assets remain outside this repository. Local indexes generated by `tools/resource_index.py` may be used to coordinate work. Share aggregate summaries or hashed-path indexes where possible; do not commit original file contents.
+Original APK/OBB files and extracted proprietary assets remain outside this repository. Local indexes generated by project tools may be used to coordinate work. Share aggregate summaries or hashed-path indexes where possible; do not commit original file contents.
 
 ## Alpha gates
 
 ### Technical alpha
 
-Reached when P0-P9 pass in a real Android runtime using user-owned imported data.
+Reached when P0-P9 pass in one real Android runtime path using user-owned imported data.
 
 ### Early playable alpha
 
@@ -94,7 +100,7 @@ Technical alpha plus:
 
 - at least one enemy interaction;
 - damage/death loop;
-- minimal save/restore;
+- minimal save/restore proven through process restart;
 - no blocking crash in the first gameplay slice.
 
 ### Release-readiness gate
