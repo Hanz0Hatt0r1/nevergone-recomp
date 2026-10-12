@@ -29,6 +29,18 @@ bool build_quad(
         int surface_height,
         Quad* out);
 
+// Same type-0 sprite geometry with the recovered CCNode skewX applied before
+// scale/rotation. This matches the Cocos2d-x node transform order used by the
+// original gkshu01..08 CCSkewTo actions. Zero skew is identical to build_quad().
+bool build_quad_with_skew_x(
+        const game_scene_construction_plan::Type0SpriteTransform& transform,
+        float skew_x_degrees,
+        int texture_width,
+        int texture_height,
+        int surface_width,
+        int surface_height,
+        Quad* out);
+
 bool build_player_quad(
         const game_scene_construction_plan::Type0SpriteTransform& player_node,
         const me_actions_initial_sprite_transform::Plan& body,
@@ -38,16 +50,9 @@ bool build_player_quad(
         int surface_height,
         Quad* out);
 
-// Filter the already recovered layer/object traversal order down to direct-file
-// sprites. `child_z_order` belongs to the sprite child inside each distinct
-// GameSceneObject and must not reorder separate GameSceneObject instances.
 std::vector<std::size_t> ordered_direct_sprite_indices(
         const game_scene_render_queue::Queue& queue);
 
-// The static type-0 renderer uses the same traversal order for both recovered
-// CCSprite::create(file) resources and spriteFrameByName resources. Atlas-backed
-// frames are reconstructed as standalone untrimmed textures before reaching
-// this geometry layer, so both resource kinds share the same quad contract.
 std::vector<std::size_t> ordered_texture_sprite_indices(
         const game_scene_render_queue::Queue& queue);
 
