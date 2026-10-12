@@ -6,12 +6,16 @@ import java.io.File;
 final class PlayerActionRuntimeLoader {
     private static int attemptedCareer;
     private static String loadedRelativePath;
+    private static int loadedActionState = -1;
+    private static int failedActionState = -1;
 
     private PlayerActionRuntimeLoader() {}
 
     private static native boolean nativeIsOfflineSceneRenderQueueReady();
     private static native int nativeCurrentOfflineCareer();
     private static native boolean nativeRefreshPlayerSpawnState();
+    private static native int nativeDesiredPlayerActionState();
+    private static native boolean nativeCommitLoadedPlayerActionState(int actionState);
     private static native boolean nativeLoadPlayerActionDocument(String relativePath);
     private static native boolean nativeLoadPlayerActionDocumentFromBundle(
             String bundleRelativePath,
@@ -22,12 +26,16 @@ final class PlayerActionRuntimeLoader {
     static void invalidate() {
         attemptedCareer = 0;
         loadedRelativePath = null;
+        loadedActionState = -1;
+        failedActionState = -1;
         nativeResetPlayerActionDocument();
     }
 
     static boolean stageIfNeeded(File assetRoot) {
         if (!nativeIsOfflineSceneRenderQueueReady()) {
-            if (attemptedCareer != 0 || loadedRelativePath != null) invalidate();
+            if (attemptedCareer != 0 || loadedRelativePath != null || loadedActionState >= 0) {
+                invalidate();
+            }
             return false;
         }
 
@@ -38,20 +46,39 @@ final class PlayerActionRuntimeLoader {
 
         int career = nativeCurrentOfflineCareer();
         if (career < 1 || career > 5) {
-            if (attemptedCareer != 0 || loadedRelativePath != null) invalidate();
+            if (attemptedCareer != 0 || loadedRelativePath != null || loadedActionState >= 0) {
+                invalidate();
+            }
             return false;
         }
-        if (career == attemptedCareer) return spawnReady && loadedRelativePath != null;
 
-        attemptedCareer = career;
-        loadedRelativePath = null;
-        nativeResetPlayerActionDocument();
-        // reset also clears spawn state, so restore it immediately for this
-        // same live scene before loading the action document.
-        spawnReady = nativeRefreshPlayerSpawnState();
+        if (career != attemptedCareer) {
+            attemptedCareer = career;
+            loadedRelativePath = null;
+            loadedActionState = -1;
+            failedActionState = -1;
+            nativeResetPlayerActionDocument();
+            // reset also clears spawn/action state, so restore the same live
+            // scene before asking which MEPLAYERSTATE document is desired.
+            spawnReady = nativeRefreshPlayerSpawnState();
+        }
+
+        int desiredActionState = nativeDesiredPlayerActionState();
+        if (desiredActionState < 0) return false;
+        if (desiredActionState == loadedActionState) {
+            return spawnReady && loadedRelativePath != null;
+        }
+        // A missing/corrupt imported action must not cause recursive plist and
+        // bundle scans every rendered frame. Explicit asset invalidation clears
+        // this sentinel and permits a retry after the user replaces files.
+        if (desiredActionState == failedActionState) return false;
+
         PlayerActionAssetResolver.Result resolved =
-                PlayerActionAssetResolver.resolveInitial(assetRoot, career);
-        if (resolved == null) return false;
+                PlayerActionAssetResolver.resolveState(assetRoot, career, desiredActionState);
+        if (resolved == null) {
+            failedActionState = desiredActionState;
+            return false;
+        }
 
         boolean loaded;
         String retainedPath;
@@ -63,13 +90,20 @@ final class PlayerActionRuntimeLoader {
         } else {
             if (resolved.actionDataRelativePath == null ||
                     resolved.actionDataRelativePath.isEmpty()) {
+                failedActionState = desiredActionState;
                 return false;
             }
             loaded = nativeLoadPlayerActionDocument(resolved.actionDataRelativePath);
             retainedPath = resolved.actionDataRelativePath;
         }
-        if (!loaded) return false;
+        if (!loaded || !nativeCommitLoadedPlayerActionState(desiredActionState)) {
+            failedActionState = desiredActionState;
+            return false;
+        }
+
         loadedRelativePath = retainedPath;
+        loadedActionState = desiredActionState;
+        failedActionState = -1;
         return spawnReady;
     }
 
@@ -78,6 +112,8 @@ final class PlayerActionRuntimeLoader {
         StringBuilder out = new StringBuilder();
         if (nativeReport != null && !nativeReport.isEmpty()) out.append(nativeReport);
         out.append("loader attempted career: ").append(attemptedCareer).append('\n');
+        out.append("loader action state: ").append(loadedActionState).append('\n');
+        out.append("loader failed action state: ").append(failedActionState).append('\n');
         out.append("loader document retained: ")
                 .append(loadedRelativePath != null ? "yes" : "no")
                 .append('\n');
@@ -90,6 +126,10 @@ final class PlayerActionRuntimeLoader {
 
     static String loadedRelativePathForTest() {
         return loadedRelativePath;
+    }
+
+    static int loadedActionStateForTest() {
+        return loadedActionState;
     }
 
     static int loadedCareer() {
