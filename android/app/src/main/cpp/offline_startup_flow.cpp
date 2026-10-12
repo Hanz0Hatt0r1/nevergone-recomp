@@ -52,10 +52,26 @@ void on_auto_login_compat_success(std::uint64_t scene_generation) {
 
 bool on_fresh_role_local_enter() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_state.route == Route::kGameLevels) return true;
+    if (g_state.route == Route::kTutorialLoading ||
+        g_state.route == Route::kGameLevels) {
+        return true;
+    }
     if (g_state.route != Route::kOpeningDialogue) return false;
-    g_state.route = Route::kGameLevels;
+
+    // Frozen original-game evidence places a dedicated LoadingLayer between
+    // role creation and cp_lesson/LessonLayer. Do not collapse that boundary
+    // merely because the preservation runtime has already prepared GameLevels.
+    g_state.route = Route::kTutorialLoading;
     ++g_state.fresh_role_local_enter_count;
+    return true;
+}
+
+bool on_tutorial_loading_complete() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_state.route == Route::kGameLevels) return true;
+    if (g_state.route != Route::kTutorialLoading) return false;
+    g_state.route = Route::kGameLevels;
+    ++g_state.tutorial_loading_complete_count;
     return true;
 }
 
@@ -74,6 +90,8 @@ const char* route_name(Route route) {
             return "opening-dialogue";
         case Route::kChooseRole:
             return "choose-role";
+        case Route::kTutorialLoading:
+            return "tutorial-loading";
         case Route::kGameLevels:
             return "game-levels";
     }
@@ -94,6 +112,8 @@ std::string status_report() {
     out << "offline auto-login successes: " << state.auto_login_success_count << "\n";
     out << "offline role routes resolved: " << state.route_resolution_count << "\n";
     out << "offline fresh-role local enters: " << state.fresh_role_local_enter_count << "\n";
+    out << "offline tutorial loading completions: "
+        << state.tutorial_loading_complete_count << "\n";
     return out.str();
 }
 
