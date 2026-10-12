@@ -5,7 +5,9 @@
 #include <optional>
 
 #include "scene_action_pair_document_store.h"
+#include "scene_actions_klhuo_system_inputs.h"
 #include "scene_actions_live_runtime.h"
+#include "scene_actions_render_runtime.h"
 
 namespace {
 
@@ -48,6 +50,21 @@ Java_org_nevergone_recomp_SceneActionLiveRuntime_nativeCurrentFrameIndex(
     const std::size_t frame = state->playback.frame_index_250;
     if (frame > static_cast<std::size_t>(std::numeric_limits<jint>::max())) return -1;
     return static_cast<jint>(frame);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_SceneActionLiveRuntime_nativeReadyToSubmit(
+        JNIEnv*, jclass, jint slot) {
+    const auto target = slot_from_jint(slot);
+    if (!target.has_value()) return JNI_FALSE;
+    const auto state = nevergone::scene_actions_live_runtime::snapshot(*target);
+    if (!state.has_value()) return JNI_FALSE;
+    const auto prepared = nevergone::scene_actions_render_runtime::prepare_from_store(
+            *state, nevergone::scene_actions_klhuo_system_inputs::initial());
+    return prepared.status == nevergone::scene_actions_render_runtime::PrepareStatus::kReady &&
+            prepared.frame.has_value()
+            ? JNI_TRUE
+            : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jint JNICALL
