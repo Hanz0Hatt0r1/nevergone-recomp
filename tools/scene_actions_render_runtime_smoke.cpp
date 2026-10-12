@@ -57,10 +57,14 @@ int main() {
     assert(result.status == runtime::PrepareStatus::kStalePixels);
     assert(!result.frame.has_value());
 
-    state.awaiting_terminal_resolution = true;
+    // Born terminal completion resets its cursor to zero without updateData.
+    // A new render submission must therefore be rejected so the compositor can
+    // keep the already-submitted final display frame.
+    state.playback.done_1a8 = true;
     result = runtime::prepare(state, &document, &asset, system);
-    assert(result.status == runtime::PrepareStatus::kAwaitingTerminalResolution);
-    state.awaiting_terminal_resolution = false;
+    assert(result.status == runtime::PrepareStatus::kCompleted);
+    assert(!result.frame.has_value());
+    state.playback.done_1a8 = false;
 
     state.active = false;
     result = runtime::prepare(state, &document, &asset, system);
