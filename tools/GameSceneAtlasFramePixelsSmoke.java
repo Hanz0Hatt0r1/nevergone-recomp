@@ -55,6 +55,17 @@ public final class GameSceneAtlasFramePixelsSmoke {
                 plainFrame(99, 77, 2, 2, 4, 4, 0, 0);
         assert GameSceneAtlasFramePixels.packedWidth(plain) == 2;
         assert GameSceneAtlasFramePixels.packedHeight(plain) == 2;
+        GameSceneAtlasFramePixels.Asset plainTrimmed =
+                GameSceneAtlasFramePixels.extractTrimmed(
+                        plain, 2, 2, new int[]{1, 2, 3, 4});
+        assert plainTrimmed != null;
+        assert plainTrimmed.width == 2 && plainTrimmed.height == 2;
+        assert plainTrimmed.pixels.length == 4;
+        assert plainTrimmed.pixels[0] == 1;
+        assert plainTrimmed.pixels[1] == 2;
+        assert plainTrimmed.pixels[2] == 3;
+        assert plainTrimmed.pixels[3] == 4;
+
         GameSceneAtlasFramePixels.Asset plainAsset =
                 GameSceneAtlasFramePixels.reconstruct(plain, 2, 2, new int[]{1, 2, 3, 4});
         assert plainAsset != null;
@@ -74,6 +85,18 @@ public final class GameSceneAtlasFramePixelsSmoke {
                 frame(123, 456, 3, 2, 5, 4, 0, 0, true);
         assert GameSceneAtlasFramePixels.packedWidth(rotated) == 2;
         assert GameSceneAtlasFramePixels.packedHeight(rotated) == 3;
+        GameSceneAtlasFramePixels.Asset rotatedTrimmed =
+                GameSceneAtlasFramePixels.extractTrimmed(
+                        rotated, 2, 3, new int[]{4, 1, 5, 2, 6, 3});
+        assert rotatedTrimmed != null;
+        assert rotatedTrimmed.width == 3 && rotatedTrimmed.height == 2;
+        assert rotatedTrimmed.pixels[0] == 1;
+        assert rotatedTrimmed.pixels[1] == 2;
+        assert rotatedTrimmed.pixels[2] == 3;
+        assert rotatedTrimmed.pixels[3] == 4;
+        assert rotatedTrimmed.pixels[4] == 5;
+        assert rotatedTrimmed.pixels[5] == 6;
+
         GameSceneAtlasFramePixels.Asset rotatedAsset =
                 GameSceneAtlasFramePixels.reconstruct(
                         rotated, 2, 3, new int[]{4, 1, 5, 2, 6, 3});
@@ -88,17 +111,27 @@ public final class GameSceneAtlasFramePixelsSmoke {
 
         GameSceneAtlasFrameResolver.Frame offset =
                 plainFrame(0, 0, 2, 1, 6, 5, 1, -1);
+        GameSceneAtlasFramePixels.Asset offsetTrimmed =
+                GameSceneAtlasFramePixels.extractTrimmed(offset, 2, 1, new int[]{7, 8});
+        assert offsetTrimmed != null;
+        assert offsetTrimmed.width == 2 && offsetTrimmed.height == 1;
+        assert offsetTrimmed.pixels[0] == 7 && offsetTrimmed.pixels[1] == 8;
         GameSceneAtlasFramePixels.Asset offsetAsset =
                 GameSceneAtlasFramePixels.reconstruct(offset, 2, 1, new int[]{7, 8});
         assert offsetAsset != null;
         assert offsetAsset.pixels[21] == 7;
         assert offsetAsset.pixels[22] == 8;
 
+        assert GameSceneAtlasFramePixels.extractTrimmed(rotated, 3, 2, new int[6]) == null;
         assert GameSceneAtlasFramePixels.reconstruct(rotated, 3, 2, new int[6]) == null;
         assert GameSceneAtlasFramePixels.reconstruct(plain, 2, 2, new int[3]) == null;
 
         GameSceneAtlasFrameResolver.Frame escaping =
                 plainFrame(4, 4, 4, 4, 4, 4, 1, 0);
         assert GameSceneAtlasFramePixels.reconstruct(escaping, 4, 4, new int[16]) == null;
+        // Trimmed extraction itself remains valid: frame-offset bounds belong to
+        // the untrimmed compatibility reconstruction / resolver geometry.
+        assert GameSceneAtlasFramePixels.extractTrimmed(
+                escaping, 4, 4, new int[16]) != null;
     }
 }
