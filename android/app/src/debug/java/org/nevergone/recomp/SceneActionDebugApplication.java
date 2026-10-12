@@ -25,14 +25,14 @@ public final class SceneActionDebugApplication extends Application
     private static final float MAX_DT_SECONDS = 0.25f;
 
     private Activity resumedActivity;
-    private GameSurfaceView surface;
+    private volatile GameSurfaceView surface;
     private File assetRoot;
-    private int requestedVariant;
+    private volatile int requestedVariant;
     private boolean callbackPosted;
-    private boolean started;
-    private boolean bornCompleted;
-    private long lastFrameNs;
-    private long lastStartAttemptNs;
+    private volatile boolean started;
+    private volatile boolean bornCompleted;
+    private volatile long lastFrameNs;
+    private volatile long lastStartAttemptNs;
 
     @Override
     public void onCreate() {
