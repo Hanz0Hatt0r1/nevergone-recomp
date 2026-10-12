@@ -1,8 +1,6 @@
 # Player control-state evidence
 
-This note narrows issue #148 to the first evidence-backed input boundary. The observations are derived from the user-owned Nevergone 1.0.9 ARMv7 `libcocos2dcpp.so` (SHA-256 `94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`). The original binary and assets remain outside Git.
-
-The purpose of this boundary is deliberately smaller than “implement movement”: recover how the shipped joystick updates the control state consumed by the primary `MEPlayer`, without inventing movement speed, acceleration, animation timing or combat transitions.
+This note records the evidence-backed input boundary for issue #148. The observations are derived from the user-owned Nevergone 1.0.9 ARMv7 `libcocos2dcpp.so` (SHA-256 `94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`) plus the later physical-device runtime trace documented in `evidence/original-runtime-player-motion-2026-10-12.md`. The original binary, runtime trace and assets remain outside Git.
 
 ## Joystick callback
 
@@ -24,9 +22,9 @@ starts at ELF `0x002973dc` (Thumb symbol value `0x002973dd`). The bounded disass
 - values below `-180` do not reach either recovered state assignment;
 - after the horizontal assignment path, the callback calls `Controls::getDirectionID(CCPoint, 0.5f, 0.01f)` and then `Controls::comboJoyStickUpdate(...)`.
 
-`player_control_contract::horizontal_primary_state()` models only the proven horizontal assignment. It retains the native values as `state-0x12` and `state-0x13`; later evidence below now proves their sprite-facing effect without assigning a world-space velocity to either state.
+The physical-device trace later confirms that `Controls +0x168/+0x16c` is the normalized joystick direction vector, while `+0x160` remains the separate activity/power-like value. Negative normalized X accompanies state `0x12` and positive normalized X accompanies state `0x13` in the accepted runtime samples.
 
-The model also rejects non-finite inputs. The original runtime normally receives finite joystick values; fail-closed behavior is preferable for reconstructed state supplied from project-owned code.
+`player_control_contract::horizontal_primary_state()` retains only the proven horizontal state assignment and rejects non-finite inputs.
 
 ## Per-frame delivery into MEPlayer
 
@@ -43,46 +41,51 @@ The same tick then calls `MEPlayerManager::tick(float)`.
 
 `GameScene::setControlsDirectionState(CONTROLSSTATE)` at ELF `0x0033ffae` likewise obtains the primary player and stores the state at `MEPlayer +0x1fc`.
 
-`player_control_contract::tick_dispatches()` retains the proven four-way order so later integration can be regression-tested without hard-coding it ad hoc in rendering/input glue.
+`player_control_contract::tick_dispatches()` retains the proven four-way order.
 
 ## What states 0x12 / 0x13 do in MEPlayer
 
-`MEPlayer::setControlsState()` stores the accepted primary Controls state at `MEPlayer +0x1f0`. A bounded disassembly of the exact imported ARMv7 library now establishes the facing branch precisely:
+`MEPlayer::setControlsState()` stores the accepted primary Controls state at `MEPlayer +0x1f0`. A bounded disassembly of the exact imported ARMv7 library establishes the facing branch precisely:
 
 - near ELF `0x0031de36`, primary state `0x12` checks the retained facing byte at `MEPlayer +0x12c` and, when a change is required, calls `MEPlayer::filpPlayer(true, ...)`;
 - near ELF `0x0031de50`, primary state `0x13` checks the same byte and calls `MEPlayer::filpPlayer(false, ...)` when a change is required;
 - the same `0x12 -> true` / `0x13 -> false` mapping repeats on the later state path near `0x0031df3e` / `0x0031df4c`.
 
-`MEPlayer::filpPlayer(bool, MEPLAYERSTATE)` starts at ELF `0x0031a4ec`. It retains the boolean at `MEPlayer +0x12c` and forwards it to `MeActionsSystem::filpAction(bool)` at ELF `0x00329108`. That action-system function stores the flag at `MeActionsSystem +0x1be` and calls `CCSprite::setFlipX(bool)` for the primary body sprite at `MeActionsSystem +0x118`.
+`MEPlayer::filpPlayer(bool, MEPLAYERSTATE)` at ELF `0x0031a4ec` retains the boolean at `MEPlayer +0x12c` and forwards it to `MeActionsSystem::filpAction(bool)` at ELF `0x00329108`. That function stores the flag at `MeActionsSystem +0x1be` and calls `CCSprite::setFlipX(bool)` for the primary body sprite at `MeActionsSystem +0x118`.
 
-The project-owned mapping is therefore evidence-backed and intentionally narrow:
+The project-owned mapping is therefore:
 
 ```text
 primary Controls state 0x12 -> body sprite flipX = true
 primary Controls state 0x13 -> body sprite flipX = false
 ```
 
-`player_control_contract::facing_flip_x()` models exactly this mapping and rejects any other enum value. `player_control_runtime_state` retains only the currently proven primary horizontal state and its resulting flip flag. `game_scene_player_render_queue` applies that flag to the live reconstructed player body transform, so a later real input transport can produce a visible state change without inventing position deltas.
+The same bounded `MEPlayer::setControlsState()` path establishes the minimum normal locomotion transition used by the reconstruction: from idle action state `0x1b`, horizontal state `0x12` or `0x13` can request action state `0`. Returning to neutral can return the normal path to `0x1b`, subject to the surrounding native state gates.
 
-The same bounded `MEPlayer::setControlsState()` path can also move the current action into recovered `MEPLAYERSTATE` values such as `0x10`, `0x11`, or `0x17` depending on surrounding state. Returning to primary Controls state `0` can transition to recovered action state `0x1b`. Those action-state numbers remain evidence only; animation names are not assigned until the corresponding EnemyActions action mapping is proven.
+## Normal position movement is now recovered
 
-## Position remains a separate boundary
+The earlier boundary deliberately stopped before world-space movement. The accepted original-device runtime trace and a bounded disassembly of `MEPlayer::playerMoveValue(CCPoint)` at ELF `0x0031d9c0` now identify the missing normal movement delta independently of joystick power.
 
-The input contract intentionally does not calculate a position delta.
-
-Existing evidence already proves separate position APIs:
+For action state `0` and player indices `1..3`:
 
 ```text
-MEPlayer::setPlayerPos(CCPoint)
-MEPlayer::getPlayerPos()
-MEPlayer::movePlayer(CCPoint)
-GameScene::setPlayerNewPos(CCPoint)
-GameScene::setPlayerPosAddOffset(CCPoint)
+movement.x = normalized_direction.x * 8.0
+movement.y = normalized_direction.y * 4.0
 ```
 
-and the first-scene type-6 entry marker path is modeled by `game_scene_player_entry_markers`.
+For action state `1`, which is retained as evidence but is not yet selected by the reconstructed normal locomotion path:
 
-There are multiple call sites to `MEPlayer::movePlayer(CCPoint)` in scene update/collision/camera logic, so treating joystick power as direct world-space velocity would collapse distinct shipped responsibilities. The reconstructed input layer therefore continues to stop at the proven `CONTROLSSTATE`/facing boundary until a movement delta is recovered independently.
+```text
+player index 1 -> x*20, y*10
+player index 2 -> x*16, y*8
+player index 3 -> x*16, y*8
+```
+
+The runtime trace independently validates both the `8/4` normal scale and the player-1 `20/10` action-state-1 scale against observed `MEPlayer::movePlayer()` position deltas.
+
+`MEPlayer::movePlayer(CCPoint)` copies its incoming point into `MEPlayer +0x248`, so this call consumes the resulting live/target position rather than a raw additive joystick delta. The recovered `GameScene` path gets the normalized Controls direction, calls `playerMoveValue()`, combines the result with the current player position, applies the surrounding scene/collision path, and finally calls `movePlayer()`.
+
+`player_motion_contract` models the exact proven per-tick values. `game_scene_player_motion_state` advances only the action-state-0 subset on the project's already retained fixed logical clock, consumes neutral ticks without movement, resets on a new spawn generation, and fails closed for player indices `4..5` until those native branches are separately recovered. `game_scene_player_render_queue` composes the resulting live offset with the recovered first-scene spawn position.
 
 ## Current #148 boundary
 
@@ -95,15 +98,16 @@ The project now has evidence-backed pieces for:
 - initial MeActions body transform -> project-owned player sprite geometry;
 - player-frame resolution restricted to the selected Career's shipped default plists;
 - player sprite insertion into the first live GameScene render queue at the recovered spawn point;
-- joystick horizontal classification -> primary Controls states `0x12` / `0x13`;
+- recovered fixed joystick geometry and Android touch transport;
+- joystick normalized direction and horizontal Controls states `0x12` / `0x13`;
 - exact `GameScene::tick()` delivery order into the primary `MEPlayer`;
 - exact primary-state -> `CCSprite::setFlipX` mapping;
-- a project-owned runtime state that applies the recovered facing flag to the live player render queue.
+- exact normal `playerMoveValue()` scale for proven player indices `1..3`;
+- fixed-tick live movement composition into the reconstructed player position.
 
 Still required before P8/P9 can be called complete:
 
-- recover or otherwise evidence the live first-scene joystick touch/input transport so Android events produce the same activity/angle sample boundary instead of using an invented screen-region mapping;
-- on-device evidence with user-owned imported data that changing joystick direction visibly flips the reconstructed player without crashing or bypassing the recovered scene constraints;
-- recover the separate position/movement boundary only if a positional change is required beyond the now-proven visible facing-state change.
-
-The next implementation step is the original joystick input surface/event route. Movement speed remains deliberately out of scope until native evidence identifies it.
+- real-device evidence that the reconstructed player is visible and that joystick direction changes both facing and position without crashing;
+- recover player-index `4..5` normal movement branches before enabling movement for those Careers;
+- recover scene-border/collision response and camera behavior before treating free movement as a complete GameScene locomotion implementation;
+- recover action/frame switching and combat transitions separately rather than assigning names from state numbers alone.
