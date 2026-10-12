@@ -5,7 +5,6 @@
 #include <sstream>
 
 #include "game_scene_player_motion_restore.h"
-#include "game_scene_player_motion_state.h"
 
 namespace nevergone::minimal_runtime_save_runtime {
 namespace {
@@ -32,9 +31,10 @@ void reset_session() {
     g_snapshot = {};
 }
 
-bool capture_current(const std::string& files_dir) {
-    const auto spawn = game_scene_player_spawn_state::snapshot();
-    const auto motion = game_scene_player_motion_state::snapshot();
+bool capture_current(
+        const std::string& files_dir,
+        const game_scene_player_spawn_state::Snapshot& spawn,
+        const game_scene_player_motion_state::Snapshot& motion) {
     if (files_dir.empty() ||
         spawn.status != game_scene_player_spawn_state::Status::kReady ||
         spawn.source_scene_index > std::numeric_limits<std::uint32_t>::max() ||
@@ -62,9 +62,15 @@ bool capture_current(const std::string& files_dir) {
     return true;
 }
 
-bool autosave_if_due(const std::string& files_dir, std::uint64_t game_tick) {
-    const auto motion = game_scene_player_motion_state::snapshot();
-    if (!motion.ready || motion.applied_steps == 0u) return false;
+bool autosave_if_due(
+        const std::string& files_dir,
+        const game_scene_player_spawn_state::Snapshot& spawn,
+        const game_scene_player_motion_state::Snapshot& motion,
+        std::uint64_t game_tick) {
+    if (!motion.ready || motion.applied_steps == 0u ||
+        motion.spawn_generation != spawn.generation) {
+        return false;
+    }
 
     {
         std::lock_guard<std::mutex> lock(g_mutex);
@@ -75,7 +81,7 @@ bool autosave_if_due(const std::string& files_dir, std::uint64_t game_tick) {
         }
     }
 
-    if (!capture_current(files_dir)) return false;
+    if (!capture_current(files_dir, spawn, motion)) return false;
 
     std::lock_guard<std::mutex> lock(g_mutex);
     g_snapshot.last_saved_motion_generation = motion.generation;
