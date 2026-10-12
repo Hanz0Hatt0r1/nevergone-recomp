@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 
+#include "game_clock.h"
 #include "game_levels_runtime_state.h"
 #include "game_scene_direct_renderer.h"
 #include "game_scene_player_joystick_input.h"
@@ -38,7 +39,8 @@ void sync_motion_to_spawn(const nevergone::game_scene_player_spawn_state::Snapsh
     }
     (void)nevergone::game_scene_player_motion_state::sync_spawn(
             spawn.generation,
-            static_cast<std::uint32_t>(career));
+            static_cast<std::uint32_t>(career),
+            nevergone::game_clock::tick_count());
 }
 
 }  // namespace
