@@ -6,6 +6,7 @@
 
 int main() {
     namespace store = nevergone::game_scene_direct_asset_store;
+    using nevergone::game_scene_texture_format::PixelFormat;
 
     const std::uint32_t pixels_a[] = {
         0xff000001u, 0xff000002u,
@@ -44,7 +45,16 @@ int main() {
     assert(state.pending_uploaded_count == 1u);
     assert(state.pending_pixel_count == 2u);
 
-    assert(store::upload(11u, 1u, 8u, 2, 1, pixels_b, 2u));
+    // Explicit player-format metadata survives the atomic staging boundary.
+    assert(store::upload(
+            11u,
+            1u,
+            8u,
+            PixelFormat::kRgba4444,
+            2,
+            1,
+            pixels_b,
+            2u));
     assert(store::finish(11u));
     state = store::snapshot();
     assert(state.active_revision == 11u);
@@ -55,12 +65,14 @@ int main() {
     assert(store::copy_active_asset(0u, &copied));
     assert(copied.request_index == 0u);
     assert(copied.sprite_command_index == 4u);
+    assert(copied.pixel_format == PixelFormat::kRgba8888);
     assert(copied.width == 2);
     assert(copied.height == 1);
     assert(copied.argb_pixels.size() == 2u);
     assert(copied.argb_pixels[0] == pixels_b[0]);
     assert(store::copy_active_asset(1u, &copied));
     assert(copied.sprite_command_index == 8u);
+    assert(copied.pixel_format == PixelFormat::kRgba4444);
     assert(!store::copy_active_asset(2u, &copied));
 
     // A failed/cancelled next revision leaves the completed active set untouched.
@@ -81,6 +93,7 @@ int main() {
     assert(state.active_asset_count == 1u);
     assert(store::copy_active_asset(0u, &copied));
     assert(copied.sprite_command_index == 15u);
+    assert(copied.pixel_format == PixelFormat::kRgba8888);
 
     // A live revision with no direct sprites is still a valid completed set.
     assert(store::begin(14u, 0u));
