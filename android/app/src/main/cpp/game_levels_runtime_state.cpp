@@ -239,9 +239,6 @@ const char* status_name(LoadStatus status) {
     switch (status) {
         case LoadStatus::kIdle: return "idle";
         case LoadStatus::kFilesDirUnconfigured: return "files-dir-unconfigured";
-        case LoadStatus::kInvalidRelativePath: break;
-        case LoadStatus::kAssetRootUnavailable: break;
-        case LoadStatus::kPathEscapesAssetRoot: break;
         case LoadStatus::kMissing: return "missing";
         case LoadStatus::kNotRegularFile: return "not-regular-file";
         case LoadStatus::kTooLarge: return "too-large";
