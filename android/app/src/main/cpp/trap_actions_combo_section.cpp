@@ -9,7 +9,7 @@ namespace {
 std::int32_t add_one_wrapping(std::int32_t value) {
     std::uint32_t bits = 0;
     static_assert(sizeof(bits) == sizeof(value));
-    std::memcpy(&bits, &value, sizeof(result));
+    std::memcpy(&bits, &value, sizeof(value));
     ++bits;
     std::int32_t result = 0;
     std::memcpy(&result, &bits, sizeof(result));
