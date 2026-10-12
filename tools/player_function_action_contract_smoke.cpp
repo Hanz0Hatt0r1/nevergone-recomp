@@ -12,10 +12,13 @@ int main() {
     assert(!a->force);
     assert(!a->has_additional_player_guard);
 
+    // Starting from the project's recovered initial MEPLAYERSTATE 0x1b, the
+    // native setFunctionState(8) baseline falls through to state 0x1d. The
+    // alternate 0x11/force=true guarded path remains state-dependent.
     const auto b = contract::base_action_request(8u);
     assert(b.has_value());
-    assert(b->meplayer_state == 0x11u);
-    assert(b->force);
+    assert(b->meplayer_state == 0x1du);
+    assert(!b->force);
     assert(b->has_additional_player_guard);
 
     const auto c = contract::base_action_request(9u);
