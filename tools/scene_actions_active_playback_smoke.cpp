@@ -34,23 +34,42 @@ int main() {
     assert(tick.frames_advanced == 2u);
     assert(tick.frame_request_valid && tick.frame_index == 2u);
 
-    // The next threshold reaches the explicitly unresolved one-past terminal edge.
+    // The existing project-owned vector edge now applies the separately
+    // recovered native terminal writes. Born remains done and does not request
+    // frame-zero updateData.
     tick = runtime.tick(docs::Slot::kBorn, document, 0.010f);
-    assert(tick.status == active::TickStatus::kAwaitingTerminalResolution);
+    assert(tick.status == active::TickStatus::kCompleted);
     assert(!tick.frame_request_valid);
     const auto terminal = runtime.snapshot(docs::Slot::kBorn);
-    assert(terminal.has_value() && terminal->awaiting_terminal_resolution);
+    assert(terminal.has_value());
+    assert(terminal->playback.done_1a8);
+    assert(terminal->playback.end_184);
+    assert(terminal->playback.frame_index_250 == 0u);
+    assert(terminal->playback.terminal_last_frame_180 == 2);
 
-    // No invented looping or completion behavior is allowed past that edge.
+    // Later ticks remain completed without replaying the born animation.
     tick = runtime.tick(docs::Slot::kBorn, document, 1.0f);
-    assert(tick.status == active::TickStatus::kAwaitingTerminalResolution);
+    assert(tick.status == active::TickStatus::kCompleted);
+    assert(!tick.frame_request_valid);
 
     runtime.stop(docs::Slot::kBorn);
     assert(!runtime.snapshot(docs::Slot::kBorn).has_value());
 
+    // Idle mode uses the same edge but clears done and requests updateData for
+    // frame zero immediately, closing the loop inside waUpdate semantics.
     assert(runtime.start(docs::Slot::kIdle, 2, document, 0.0f, -45.0f, 7));
+    tick = runtime.tick(docs::Slot::kIdle, document, 1.0f);
+    assert(tick.status == active::TickStatus::kNoAdvance);
+    tick = runtime.tick(docs::Slot::kIdle, document, 0.030f);
+    assert(tick.status == active::TickStatus::kLooped);
+    assert(tick.frame_request_valid && tick.frame_index == 0u);
     const auto idle = runtime.snapshot(docs::Slot::kIdle);
-    assert(idle.has_value() && idle->playback.mode_24e == 1u);
+    assert(idle.has_value());
+    assert(idle->playback.mode_24e == 1u);
+    assert(!idle->playback.done_1a8);
+    assert(idle->playback.end_184);
+    assert(idle->playback.frame_index_250 == 0u);
+    assert(idle->playback.terminal_last_frame_180 == 2);
 
     assert(!runtime.start(docs::Slot::kBorn, 0, document, 0.0f, 0.0f, 0));
     nevergone::trap_actions_document::Document invalid;
