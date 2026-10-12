@@ -1,14 +1,10 @@
 #include "controls_function_state_runtime.h"
 
-#include <algorithm>
 #include <mutex>
 #include <sstream>
 
 #include "controls_function_state_contract.h"
 #include "game_clock.h"
-#include "game_scene_action_surface_input.h"
-#include "game_scene_player_joystick_input.h"
-#include "game_scene_player_spawn_state.h"
 #include "player_function_action_contract.h"
 
 namespace nevergone::controls_function_state_runtime {
@@ -53,19 +49,13 @@ bool advance_sample(
         std::uint64_t game_tick) {
     std::lock_guard<std::mutex> lock(g_mutex);
 
-    if (source_direction_combo_state == 0u ||
-        source_direction_combo_state != g_consumed_combo_state ||
+    // A source state/start-tick pair identifies one retained Controls +0x110
+    // event. A changed pair is a fresh event; a previously consumed pair must
+    // stay neutral until the joystick publishes a new identity.
+    if (source_direction_combo_state != g_consumed_combo_state ||
         source_combo_started_tick != g_consumed_combo_started_tick) {
-        if (source_direction_combo_state == 0u ||
-            source_direction_combo_state != g_consumed_combo_state ||
-            source_combo_started_tick != g_consumed_combo_started_tick) {
-            // A changed source identity is a new Controls +0x110 event.
-            if (source_direction_combo_state != g_consumed_combo_state ||
-                source_combo_started_tick != g_consumed_combo_started_tick) {
-                g_consumed_combo_state = 0;
-                g_consumed_combo_started_tick = 0;
-            }
-        }
+        g_consumed_combo_state = 0u;
+        g_consumed_combo_started_tick = 0u;
     }
 
     const bool consumed =
@@ -87,8 +77,8 @@ bool advance_sample(
     input.direction_combo_state = effective_combo;
     input.primary_combo_timer_seconds = primary_timer;
     input.secondary_combo_timer_seconds = secondary_timer;
-    // Timers are reconstructed from the source event's logical start tick, so
-    // the pure step receives an absolute timer sample rather than incrementing it.
+    // The live wrapper reconstructs timer age from the fixed logical clock, so
+    // the pure transition receives the absolute timer sample for this frame.
     input.delta_seconds = 0.0f;
 
     const auto output = controls_function_state_contract::step(input);
@@ -127,20 +117,6 @@ bool advance_sample(
 
     g_snapshot = next;
     return true;
-}
-
-bool tick() {
-    const auto action = game_scene_action_surface_input::snapshot();
-    const auto joystick = game_scene_player_joystick_input::snapshot();
-    const auto spawn = game_scene_player_spawn_state::snapshot();
-    const bool player_available =
-        spawn.status == game_scene_player_spawn_state::Status::kReady;
-    return advance_sample(
-        player_available,
-        action.pressed,
-        joystick.direction_combo_state,
-        joystick.direction_combo_started_tick,
-        game_clock::tick_count());
 }
 
 Snapshot snapshot() {
