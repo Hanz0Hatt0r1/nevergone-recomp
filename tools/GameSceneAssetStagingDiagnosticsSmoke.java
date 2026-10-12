@@ -17,14 +17,14 @@ public final class GameSceneAssetStagingDiagnosticsSmoke {
         assert report.contains("staged: 2");
 
         GameSceneAssetStagingDiagnostics.failed(
-                "frame-resolution-failed",
+                "frame-lookup-or-metadata-failed",
                 77L,
                 3,
                 2,
                 GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME,
                 2);
         report = GameSceneAssetStagingDiagnostics.statusReport();
-        assert report.contains("state: frame-resolution-failed");
+        assert report.contains("state: frame-lookup-or-metadata-failed");
         assert report.contains("failed request index: 2");
         assert report.contains("failed request kind: sprite-frame-by-name");
         assert !report.contains("hero.png");

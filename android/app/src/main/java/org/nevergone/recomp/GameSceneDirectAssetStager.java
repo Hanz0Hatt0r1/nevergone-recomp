@@ -187,7 +187,7 @@ final class GameSceneDirectAssetStager {
                         GameSceneAtlasFrameResolver.prepare(canonicalRoot, sceneAtlases);
                 if (sceneFrameResolver == null) {
                     return reject(
-                            "frame-resolution-failed",
+                            "frame-cache-prepare-failed",
                             revision,
                             count,
                             -1,
@@ -309,7 +309,7 @@ final class GameSceneDirectAssetStager {
                                 GameSceneAtlasFrameResolver.prepare(canonicalRoot, playerAtlases);
                         if (frameResolver == null) {
                             return reject(
-                                    "frame-resolution-failed",
+                                    "frame-cache-prepare-failed",
                                     revision,
                                     count,
                                     requestIndex,
@@ -333,7 +333,7 @@ final class GameSceneDirectAssetStager {
                 GameSceneAtlasFrameResolver.Frame frame = frameResolver.resolve(value);
                 if (frame == null) {
                     return reject(
-                            "frame-resolution-failed",
+                            "frame-lookup-or-metadata-failed",
                             revision,
                             count,
                             requestIndex,
