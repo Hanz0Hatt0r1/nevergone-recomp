@@ -53,6 +53,8 @@ std::string runtime_status_report() {
     out << "career source: " << nevergone::player_offline_career::source_name(career.source) << "\n";
     out << "document state: "
         << nevergone::player_action_document_store::status_name(document.status) << "\n";
+    out << "document source: "
+        << (document.embedded_entry_name.empty() ? "standalone" : "actions-data-bundle") << "\n";
     out << "document load attempts: " << document.load_attempt_count << "\n";
     out << "document primary records: " << document.primary_record_count << "\n";
     return out.str();
@@ -121,6 +123,22 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeLoadPlayerActionDocume
     const bool loaded = nevergone::player_action_document_store::load_from_assets(
             nevergone::startup::config().files_dir,
             path);
+    return loaded ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeLoadPlayerActionDocumentFromBundle(
+        JNIEnv* env,
+        jclass,
+        jstring bundle_relative_path,
+        jstring entry_name) {
+    const std::string bundle = from_jstring(env, bundle_relative_path);
+    const std::string entry = from_jstring(env, entry_name);
+    if (bundle.empty() || entry.empty()) return JNI_FALSE;
+    const bool loaded = nevergone::player_action_document_store::load_embedded_from_assets(
+            nevergone::startup::config().files_dir,
+            bundle,
+            entry);
     return loaded ? JNI_TRUE : JNI_FALSE;
 }
 

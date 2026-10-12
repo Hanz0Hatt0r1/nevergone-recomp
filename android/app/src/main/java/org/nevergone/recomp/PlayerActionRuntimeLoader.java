@@ -13,6 +13,9 @@ final class PlayerActionRuntimeLoader {
     private static native int nativeCurrentOfflineCareer();
     private static native boolean nativeRefreshPlayerSpawnState();
     private static native boolean nativeLoadPlayerActionDocument(String relativePath);
+    private static native boolean nativeLoadPlayerActionDocumentFromBundle(
+            String bundleRelativePath,
+            String entryName);
     private static native void nativeResetPlayerActionDocument();
     private static native String nativeStatusReport();
 
@@ -48,12 +51,25 @@ final class PlayerActionRuntimeLoader {
         spawnReady = nativeRefreshPlayerSpawnState();
         PlayerActionAssetResolver.Result resolved =
                 PlayerActionAssetResolver.resolveInitial(assetRoot, career);
-        if (resolved == null || resolved.actionDataRelativePath == null ||
-                resolved.actionDataRelativePath.isEmpty()) {
-            return false;
+        if (resolved == null) return false;
+
+        boolean loaded;
+        String retainedPath;
+        if (resolved.isEmbedded()) {
+            loaded = nativeLoadPlayerActionDocumentFromBundle(
+                    resolved.actionBundleRelativePath,
+                    resolved.actionBundleEntryName);
+            retainedPath = resolved.actionBundleRelativePath;
+        } else {
+            if (resolved.actionDataRelativePath == null ||
+                    resolved.actionDataRelativePath.isEmpty()) {
+                return false;
+            }
+            loaded = nativeLoadPlayerActionDocument(resolved.actionDataRelativePath);
+            retainedPath = resolved.actionDataRelativePath;
         }
-        if (!nativeLoadPlayerActionDocument(resolved.actionDataRelativePath)) return false;
-        loadedRelativePath = resolved.actionDataRelativePath;
+        if (!loaded) return false;
+        loadedRelativePath = retainedPath;
         return spawnReady;
     }
 
