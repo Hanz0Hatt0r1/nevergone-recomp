@@ -14,6 +14,9 @@ struct Texture {
     std::size_t request_index = 0;
     std::size_t sprite_command_index = 0;
     PixelFormat pixel_format = PixelFormat::kRgba8888;
+    bool has_frame_offset = false;
+    int frame_offset_x = 0;
+    int frame_offset_y = 0;
     int width = 0;
     int height = 0;
     TextureHandle handle = 0;
