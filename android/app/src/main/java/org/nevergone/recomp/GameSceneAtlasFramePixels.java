@@ -20,12 +20,15 @@ final class GameSceneAtlasFramePixels {
 
     static int packedWidth(GameSceneAtlasFrameResolver.Frame frame) {
         if (frame == null) return 0;
-        return frame.rotated ? frame.textureHeight : frame.textureWidth;
+        // textureRect is the physical rectangle stored in the atlas. For a
+        // rotated TexturePacker frame its dimensions are already swapped with
+        // respect to spriteSize, so do not swap them a second time here.
+        return frame.textureWidth;
     }
 
     static int packedHeight(GameSceneAtlasFrameResolver.Frame frame) {
         if (frame == null) return 0;
-        return frame.rotated ? frame.textureWidth : frame.textureHeight;
+        return frame.textureHeight;
     }
 
     static Asset reconstruct(
@@ -35,14 +38,28 @@ final class GameSceneAtlasFramePixels {
             int[] packedPixels) {
         if (frame == null || packedPixels == null ||
                 frame.textureWidth <= 0 || frame.textureHeight <= 0 ||
-                frame.sourceWidth <= 0 || frame.sourceHeight <= 0 ||
-                frame.spriteWidth != frame.textureWidth ||
-                frame.spriteHeight != frame.textureHeight) {
+                frame.spriteWidth <= 0 || frame.spriteHeight <= 0 ||
+                frame.sourceWidth <= 0 || frame.sourceHeight <= 0) {
+            return null;
+        }
+
+        // TexturePacker format-3 writes textureRect in packed-atlas
+        // orientation while spriteSize remains in the logical, unrotated
+        // orientation. A rotated frame therefore has swapped dimensions.
+        if (frame.rotated) {
+            if (frame.textureWidth != frame.spriteHeight ||
+                    frame.textureHeight != frame.spriteWidth) {
+                return null;
+            }
+        } else if (frame.textureWidth != frame.spriteWidth ||
+                frame.textureHeight != frame.spriteHeight) {
             return null;
         }
 
         final int expectedPackedWidth = packedWidth(frame);
         final int expectedPackedHeight = packedHeight(frame);
+        final int logicalWidth = frame.spriteWidth;
+        final int logicalHeight = frame.spriteHeight;
         final long packedCount = (long) expectedPackedWidth * (long) expectedPackedHeight;
         final long sourceCount = (long) frame.sourceWidth * (long) frame.sourceHeight;
         if (expectedPackedWidth <= 0 || expectedPackedHeight <= 0 ||
@@ -58,27 +75,26 @@ final class GameSceneAtlasFramePixels {
         // the untrimmed sprite center to the trimmed sprite center. Android
         // bitmap rows grow downward, so positive Cocos Y moves the trim upward.
         final long leftLong =
-                ((long) frame.sourceWidth - (long) frame.textureWidth) / 2L + frame.offsetX;
+                ((long) frame.sourceWidth - (long) logicalWidth) / 2L + frame.offsetX;
         final long topLong =
-                ((long) frame.sourceHeight - (long) frame.textureHeight) / 2L - frame.offsetY;
+                ((long) frame.sourceHeight - (long) logicalHeight) / 2L - frame.offsetY;
         if (leftLong < 0L || topLong < 0L ||
-                leftLong + frame.textureWidth > frame.sourceWidth ||
-                topLong + frame.textureHeight > frame.sourceHeight) {
+                leftLong + logicalWidth > frame.sourceWidth ||
+                topLong + logicalHeight > frame.sourceHeight) {
             return null;
         }
         final int left = (int) leftLong;
         final int top = (int) topLong;
 
         int[] output = new int[(int) sourceCount];
-        for (int y = 0; y < frame.textureHeight; ++y) {
-            for (int x = 0; x < frame.textureWidth; ++x) {
+        for (int y = 0; y < logicalHeight; ++y) {
+            for (int x = 0; x < logicalWidth; ++x) {
                 final int packedIndex;
                 if (frame.rotated) {
-                    // TexturePacker's cocos2d exporter rotates packed frames 90
-                    // degrees clockwise. Cocos swaps rect width/height for UV
-                    // lookup when textureRotated is true; invert that rotation
-                    // here so native GLES receives an ordinary standalone sprite.
-                    final int packedX = frame.textureHeight - 1 - y;
+                    // TexturePacker's cocos2d exporter stores a clockwise-
+                    // rotated logical sprite. For logical (x,y), the packed
+                    // atlas coordinate is (logicalHeight - 1 - y, x).
+                    final int packedX = logicalHeight - 1 - y;
                     final int packedY = x;
                     packedIndex = packedY * expectedPackedWidth + packedX;
                 } else {
