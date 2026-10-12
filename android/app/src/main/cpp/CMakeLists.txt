@@ -136,6 +136,7 @@ add_library(nevergone_recomp SHARED
     string_validation.cpp
     string_validation_bindings.cpp
     tap_to_start_state.cpp
+    tutorial_gameplay_state.cpp
     tutorial_loading_assets_jni.cpp
     tutorial_loading_compositor.cpp
     xml_validation_binding.cpp
