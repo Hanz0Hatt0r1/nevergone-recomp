@@ -45,7 +45,6 @@ int main() {
     namespace queue_ns = nevergone::game_scene_render_queue;
     namespace resource_ns = nevergone::game_scene_type0_resource;
 
-    // lrand48 normalization and the two recovered initWithData() formula families.
     assert(near(post_ns::normalize_lrand48(0u), 0.0f));
     assert(near(post_ns::normalize_lrand48(0x40000000u), 0.5f));
     assert(post_ns::normalize_lrand48(0x7fffffffu) < 1.0f);
@@ -76,23 +75,18 @@ int main() {
     plan_ns::ScenePlan plan;
     plan.source_scene_index = 4u;
     plan.guid = "render-scene";
-    plan.object_count = 8u;
+    plan.object_count = 9u;
 
     plan_ns::LayerPlan first;
     first.z_index = 0u;
     first.source_layer_index = 10u;
+    first.first_float = 0.75f;
     first.objects.push_back(sprite_object(0u, resource_ns::Kind::kSpriteFrameByName, "atlas.png", 1.0f));
     first.objects.push_back(sprite_object(
-            1u,
-            resource_ns::Kind::kSpriteFrameByName,
-            "gkshu03.png",
-            2.0f,
+            1u, resource_ns::Kind::kSpriteFrameByName, "gkshu03.png", 2.0f,
             post_ns::Behavior::kRandomSkewLoop));
     first.objects.push_back(sprite_object(
-            2u,
-            resource_ns::Kind::kSpriteFrameByName,
-            "gkdeng05.png",
-            3.0f,
+            2u, resource_ns::Kind::kSpriteFrameByName, "gkdeng05.png", 3.0f,
             post_ns::Behavior::kRandomFadeLoop));
 
     plan_ns::ObjectPlan action;
@@ -100,7 +94,20 @@ int main() {
     action.type_code = 0;
     action.construction_kind = plan_ns::ObjectConstructionKind::kType0SceneActionPair;
     action.type0_resource = resource_ns::Selection{resource_ns::Kind::kSceneActionPair, "klhuo-1.png"};
+    action.record.string_value = "klhuo-1.png";
+    action.record.first_point_x = 321.0f;
+    action.record.first_point_y = 123.0f;
     first.objects.push_back(action);
+
+    // Invalid pair classifications must remain unresolved rather than becoming
+    // a runtime command with fabricated resource semantics.
+    plan_ns::ObjectPlan invalid_action;
+    invalid_action.source_object_index = 4u;
+    invalid_action.type_code = 0;
+    invalid_action.construction_kind = plan_ns::ObjectConstructionKind::kType0SceneActionPair;
+    invalid_action.type0_resource = resource_ns::Selection{
+        resource_ns::Kind::kSpriteFrameByName, "not-an-action-pair.png"};
+    first.objects.push_back(invalid_action);
 
     plan_ns::LayerPlan second;
     second.z_index = 1u;
@@ -131,7 +138,19 @@ int main() {
     assert(queue.sprite_frame_lookup_count == 3u);
     assert(queue.direct_file_count == 1u);
     assert(queue.scene_action_pair_count == 1u);
-    assert(queue.unresolved_object_count == 2u);
+    assert(queue.scene_action_pairs.size() == 1u);
+    assert(queue.unresolved_object_count == 3u);
+
+    const auto& pair = queue.scene_action_pairs[0];
+    assert(pair.layer_z_index == 0u);
+    assert(pair.source_layer_index == 10u);
+    assert(pair.source_object_index == 3u);
+    assert(pair.resource.kind == resource_ns::Kind::kSceneActionPair);
+    assert(pair.resource.resource_name == "klhuo-1.png");
+    assert(pair.layer_camera_factor == 0.75f);
+    assert(pair.record.string_value == "klhuo-1.png");
+    assert(pair.record.first_point_x == 321.0f);
+    assert(pair.record.first_point_y == 123.0f);
 
     assert(queue.sprites[0].layer_z_index == 0u);
     assert(queue.sprites[0].source_layer_index == 10u);
