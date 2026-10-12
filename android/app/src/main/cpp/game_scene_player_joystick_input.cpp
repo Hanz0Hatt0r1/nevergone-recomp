@@ -4,6 +4,7 @@
 #include <mutex>
 #include <sstream>
 
+#include "game_scene_player_motion_state.h"
 #include "player_control_runtime_state.h"
 
 namespace nevergone::game_scene_player_joystick_input {
@@ -128,13 +129,30 @@ bool on_touch(
 void tick() {
     float power = 0.0f;
     float angle = 0.0f;
+    float direction_x = 0.0f;
+    float direction_y = 0.0f;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         if (!g_snapshot.captured) return;
         power = g_snapshot.power;
         angle = g_snapshot.angle_degrees;
+        const float local_x = g_snapshot.design_x - kCenterX;
+        const float local_y = g_snapshot.design_y - kCenterY;
+        const float length = std::sqrt(local_x * local_x + local_y * local_y);
+        if (finite(length) && length > 0.0f) {
+            direction_x = local_x / length;
+            direction_y = local_y / length;
+        }
     }
-    (void)player_control_runtime_state::apply_horizontal_sample(power, angle);
+
+    // The runtime capture confirms that Controls +0x168 retains this normalized
+    // direction while +0x160 supplies the separate activity/power threshold.
+    // A valid horizontal sample therefore both updates facing and advances the
+    // evidence-backed normal locomotion cursor by one shipped movement tick.
+    if (player_control_runtime_state::apply_horizontal_sample(power, angle)) {
+        (void)game_scene_player_motion_state::apply_normal_direction(
+                direction_x, direction_y);
+    }
 }
 
 void cancel_capture() {
@@ -152,6 +170,7 @@ void reset() {
         g_snapshot.accepted_moves = accepted_moves;
     }
     player_control_runtime_state::reset();
+    game_scene_player_motion_state::reset();
 }
 
 Snapshot snapshot() {
