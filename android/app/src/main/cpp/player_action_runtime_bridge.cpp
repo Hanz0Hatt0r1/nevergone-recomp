@@ -10,7 +10,7 @@
 #include "game_scene_player_motion_state.h"
 #include "game_scene_player_spawn_state.h"
 #include "player_action_document_store.h"
-#include "role_selection_state.h"
+#include "player_offline_career.h"
 #include "startup_contract.h"
 
 namespace {
@@ -25,10 +25,8 @@ std::string from_jstring(JNIEnv* env, jstring value) {
 }
 
 jint current_offline_career() {
-    const auto role = nevergone::role_selection_state::snapshot();
-    const std::int64_t career = role.dispatched_career;
-    if (!role.enter_dispatch_committed || career < 1 || career > 5) return 0;
-    return static_cast<jint>(career);
+    const auto resolution = nevergone::player_offline_career::current();
+    return resolution.ready() ? static_cast<jint>(resolution.career) : 0;
 }
 
 void sync_motion_to_spawn(const nevergone::game_scene_player_spawn_state::Snapshot& spawn) {
