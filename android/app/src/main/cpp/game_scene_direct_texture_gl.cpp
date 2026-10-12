@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "game_scene_png_premultiply.h"
+
 namespace nevergone::game_scene_direct_texture_gl {
 namespace {
 
@@ -25,20 +27,19 @@ public:
         std::vector<std::uint8_t> rgba(pixel_count * 4u);
         for (std::size_t index = 0; index < pixel_count; ++index) {
             const std::uint32_t pixel = argb_pixels[index];
-            const std::uint32_t alpha = (pixel >> 24u) & 0xffu;
+            const std::uint8_t alpha =
+                    static_cast<std::uint8_t>((pixel >> 24u) & 0xffu);
 
-            // The shipped cocos2d-x PNG path premultiplies every RGBA channel
-            // with the integer transform channel * (alpha + 1) >> 8, then marks
-            // CCImage/CCTexture2D as premultiplied. Android Bitmap.getPixels()
-            // returns non-premultiplied ARGB values, so reproduce that native
-            // transform here immediately before the GLES upload.
-            const auto premultiply = [alpha](std::uint32_t channel) -> std::uint8_t {
-                return static_cast<std::uint8_t>((channel * (alpha + 1u)) >> 8u);
-            };
-            rgba[index * 4u + 0u] = premultiply((pixel >> 16u) & 0xffu);
-            rgba[index * 4u + 1u] = premultiply((pixel >> 8u) & 0xffu);
-            rgba[index * 4u + 2u] = premultiply(pixel & 0xffu);
-            rgba[index * 4u + 3u] = static_cast<std::uint8_t>(alpha);
+            // Android Bitmap.getPixels() returns non-premultiplied ARGB. The
+            // shipped cocos2d-x PNG path performs the project-owned transform
+            // below before marking its texture as premultiplied.
+            rgba[index * 4u + 0u] = game_scene_png_premultiply::channel(
+                    static_cast<std::uint8_t>((pixel >> 16u) & 0xffu), alpha);
+            rgba[index * 4u + 1u] = game_scene_png_premultiply::channel(
+                    static_cast<std::uint8_t>((pixel >> 8u) & 0xffu), alpha);
+            rgba[index * 4u + 2u] = game_scene_png_premultiply::channel(
+                    static_cast<std::uint8_t>(pixel & 0xffu), alpha);
+            rgba[index * 4u + 3u] = alpha;
         }
 
         while (glGetError() != GL_NO_ERROR) {
