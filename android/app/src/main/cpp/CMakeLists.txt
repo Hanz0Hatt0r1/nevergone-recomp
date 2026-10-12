@@ -121,6 +121,8 @@ add_library(nevergone_recomp SHARED
     render_bridge.cpp
     role_creation_validation.cpp
     role_selection_state.cpp
+    scene_action_initial_frame_pixel_store.cpp
+    scene_action_initial_frame_pixel_bridge.cpp
     scene_action_pair_document_store.cpp
     scene_action_pair_runtime_bridge.cpp
     server_selection_assets.cpp
