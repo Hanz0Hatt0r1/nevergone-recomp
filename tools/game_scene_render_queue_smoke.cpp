@@ -99,8 +99,7 @@ int main() {
     assert(queue.sprites[1].resource.resource_name == "gktianchong.png");
     assert(queue.sprites[1].resource.initially_visible);
     assert(queue.sprites[1].direct_asset_relative_path.has_value());
-    assert(*queue.sprites[1].direct_asset_relative_path ==
-           "gamescene/gs_res_image_file/gktianchong.png");
+    assert(*queue.sprites[1].direct_asset_relative_path == "gktianchong.png");
     assert(queue.sprites[1].transform.position_x == 10.0f);
 
     return 0;

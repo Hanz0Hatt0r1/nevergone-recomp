@@ -199,6 +199,33 @@ public final class GameSceneAtlasResolverSmoke {
         assert actionAtlas.get(0).textureRelativePath.equals(
                 "player/Player01_Res/p01_02_default.png");
 
+        // CCSprite::create(file) uses the same CCFileUtils search path ordering.
+        // A direct sprite basename that exists only under controls_ui must resolve
+        // even though the stager is rooted at the top-level imported asset tree.
+        File directSearchSprite = new File(assets, "controls_ui/direct-search.png");
+        write(directSearchSprite, "png");
+        File directSearchResolved =
+                GameSceneAtlasResolver.resolveResource(assets, "direct-search.png");
+        assert directSearchResolved != null;
+        assert directSearchResolved.getCanonicalPath().equals(
+                directSearchSprite.getCanonicalPath());
+
+        // Root-first precedence applies to direct sprites too.
+        File directRootSprite = new File(assets, "direct-duplicate.png");
+        File directOtherSprite = new File(assets, "other/direct-duplicate.png");
+        write(directRootSprite, "root");
+        write(directOtherSprite, "other");
+        File directDuplicateResolved =
+                GameSceneAtlasResolver.resolveResource(assets, "direct-duplicate.png");
+        assert directDuplicateResolved != null;
+        assert directDuplicateResolved.getCanonicalPath().equals(
+                directRootSprite.getCanonicalPath());
+
+        // Project-owned lookup stays fail-closed for missing or unsafe names.
+        assert GameSceneAtlasResolver.resolveResource(assets, "missing-direct.png") == null;
+        assert GameSceneAtlasResolver.resolveResource(assets, "../outside-root.png") == null;
+        assert GameSceneAtlasResolver.resolveResource(assets, "/tmp/outside-root.png") == null;
+
         deleteTree(root);
     }
 

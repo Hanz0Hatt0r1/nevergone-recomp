@@ -7,12 +7,6 @@
 
 namespace nevergone::game_scene_direct_asset {
 
-// The original application installs gamescene/gs_res_image_file as a Cocos
-// search path. Direct type-0 sprite names are passed to CCSprite::create() as
-// basenames, so the clean-room importer resolves them below filesDir/assets.
-constexpr const char* kImportedSearchPath = "gamescene/gs_res_image_file";
-constexpr const char* kRootEmptyAsset = "empty.png";
-
 inline bool is_safe_basename(const std::string& name) {
     if (name.empty() || name == "." || name == "..") return false;
     return name.find('/') == std::string::npos &&
@@ -27,14 +21,12 @@ inline std::optional<std::string> imported_relative_path(
         return std::nullopt;
     }
 
-    // The shipped APK stores the generic transparent fallback directly at
-    // assets/empty.png. AppDelegate installs the writable/imported asset root
-    // before its child search directories, so CCSprite::create("empty.png")
-    // resolves this root file rather than gamescene/gs_res_image_file/empty.png.
-    if (selection.resource_name == kRootEmptyAsset) {
-        return std::string(kRootEmptyAsset);
-    }
-    return std::string(kImportedSearchPath) + "/" + selection.resource_name;
+    // Type-0 direct resources are passed to CCSprite::create() as logical
+    // basenames. Do not pin them to gamescene/gs_res_image_file here: the
+    // original CCFileUtils lookup checks the writable root and every recovered
+    // AddAllSearchPath entry in order. Android staging reproduces that lookup
+    // against the user-owned imported asset tree.
+    return selection.resource_name;
 }
 
 }  // namespace nevergone::game_scene_direct_asset
