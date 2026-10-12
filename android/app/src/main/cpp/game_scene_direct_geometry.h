@@ -29,6 +29,19 @@ bool build_quad(
         int surface_height,
         Quad* out);
 
+// CCSpriteFrame retains its trim offset from the untrimmed content center. A
+// standalone trimmed texture must rotate/scale that local offset together with
+// the frame pixels instead of centering the trim on the node.
+bool build_frame_quad(
+        const game_scene_construction_plan::Type0SpriteTransform& transform,
+        int texture_width,
+        int texture_height,
+        int frame_offset_x,
+        int frame_offset_y,
+        int surface_width,
+        int surface_height,
+        Quad* out);
+
 bool build_player_quad(
         const game_scene_construction_plan::Type0SpriteTransform& player_node,
         const me_actions_initial_sprite_transform::Plan& body,
@@ -46,8 +59,7 @@ std::vector<std::size_t> ordered_direct_sprite_indices(
 
 // The static type-0 renderer uses the same traversal order for both recovered
 // CCSprite::create(file) resources and spriteFrameByName resources. Atlas-backed
-// frames are reconstructed as standalone untrimmed textures before reaching
-// this geometry layer, so both resource kinds share the same quad contract.
+// frames retain trimmed pixels plus their CCSpriteFrame center offset.
 std::vector<std::size_t> ordered_texture_sprite_indices(
         const game_scene_render_queue::Queue& queue);
 
