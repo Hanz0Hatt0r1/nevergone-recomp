@@ -13,6 +13,7 @@
 #include "game_scene_action_surface_input.h"
 #include "game_scene_direct_renderer.h"
 #include "offline_startup_flow.h"
+#include "scene_actions_gles_compositor.h"
 #include "server_selection_compositor.h"
 #include "single_select_hero_confirm_compositor.h"
 #include "startup_contract.h"
@@ -113,6 +114,7 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::server_selection_compositor::on_surface_created();
     nevergone::character_name_compositor::on_surface_created();
     nevergone::tutorial_loading_compositor::on_surface_created();
+    nevergone::scene_actions_gles_compositor::on_surface_created();
     nevergone::game_scene_action_compositor::on_surface_created();
     nevergone::game_scene_action_surface_input::cancel_all_captures();
     nevergone::controls_function_state_runtime::reset();
@@ -131,6 +133,7 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
         g_surface_height.store(viewport[3], std::memory_order_relaxed);
         nevergone::game_scene_direct_renderer::on_surface_changed(viewport[2], viewport[3]);
         nevergone::tutorial_loading_compositor::on_surface_changed(viewport[2], viewport[3]);
+        nevergone::scene_actions_gles_compositor::on_surface_changed(viewport[2], viewport[3]);
         nevergone::game_scene_action_compositor::on_surface_changed(viewport[2], viewport[3]);
         (void)nevergone::game_scene_direct_renderer::draw();
     }
@@ -149,6 +152,11 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     } else {
         nevergone::controls_function_state_runtime::reset();
     }
+
+    // SceneActions are scene children in the original. Draw them after the
+    // project-owned base scene but before Controls/UI. With no explicit runtime
+    // submission this compositor is a no-op.
+    (void)nevergone::scene_actions_gles_compositor::draw();
     (void)nevergone::game_scene_action_compositor::draw();
 
     // This is intentionally last: the original loading layer owns the whole
