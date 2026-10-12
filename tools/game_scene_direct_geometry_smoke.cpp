@@ -49,6 +49,32 @@ int main() {
     assert(quad.tex_coords[0] == 0.0f && quad.tex_coords[1] == 0.0f);
     assert(quad.tex_coords[4] == 1.0f && quad.tex_coords[5] == 0.0f);
 
+    // Zero runtime skew must preserve the established P7 first-frame geometry.
+    geometry::Quad zero_skew;
+    assert(geometry::build_quad_with_skew_x(
+            transform, 0.0f, 100, 50, 1136, 640, &zero_skew));
+    for (std::size_t i = 0; i < quad.positions.size(); ++i) {
+        assert(near(zero_skew.positions[i], quad.positions[i]));
+    }
+
+    // The recovered CCSkewTo calls pass the randomized value in r1 and zero in
+    // r2: skewX changes X by tan(skewX) * localY while preserving Y. At +45°
+    // the top edge moves +25 design units and the bottom edge -25.
+    geometry::Quad skewed;
+    assert(geometry::build_quad_with_skew_x(
+            transform, 45.0f, 100, 50, 1136, 640, &skewed));
+    assert(near(skewed.positions[0], -0.04401408f));
+    assert(near(skewed.positions[1], 0.078125f));
+    assert(near(skewed.positions[2], -0.13204225f));
+    assert(near(skewed.positions[3], -0.078125f));
+    assert(near(skewed.positions[4], 0.13204225f));
+    assert(near(skewed.positions[5], 0.078125f));
+    assert(near(skewed.positions[6], 0.04401408f));
+    assert(near(skewed.positions[7], -0.078125f));
+    assert(!geometry::build_quad_with_skew_x(
+            transform, std::numeric_limits<float>::quiet_NaN(),
+            100, 50, 1136, 640, &skewed));
+
     transform.flip_x = true;
     assert(geometry::build_quad(transform, 100, 50, 1136, 640, &quad));
     assert(quad.tex_coords[0] == 1.0f && quad.tex_coords[1] == 0.0f);
@@ -70,8 +96,6 @@ int main() {
     assert(near(quad.positions[1], 0.0390625f));
 
     // The original uses ResolutionPolicy 0 (ExactFit), not letterboxing.
-    // A square physical surface must preserve the same clip-space design
-    // fractions independently on X and Y.
     transform.scale_x = 1.0f;
     transform.scale_y = 1.0f;
     assert(geometry::build_quad(transform, 100, 50, 1000, 1000, &quad));
@@ -84,8 +108,6 @@ int main() {
     assert(!geometry::build_quad(transform, 100, 50, 0, 640, &quad));
     assert(!geometry::build_quad(transform, 100, 50, 1136, 640, nullptr));
 
-    // The player body has its own anchor and local transform under the
-    // MEPlayer world point. The flattened quad must preserve both levels.
     Transform player_node;
     player_node.position_x = 600.0f;
     player_node.position_y = 468.0f;
@@ -106,26 +128,21 @@ int main() {
     assert(!geometry::build_player_quad(player_node, body, 100, 50, 1136, 640, &quad));
 
     nevergone::game_scene_render_queue::Queue queue;
-    queue.sprites.push_back(direct_sprite(1u, 5));   // index 0
-    queue.sprites.push_back(direct_sprite(0u, 10));  // index 1
+    queue.sprites.push_back(direct_sprite(1u, 5));
+    queue.sprites.push_back(direct_sprite(0u, 10));
     auto frame = direct_sprite(0u, -5);
     frame.resource.kind = nevergone::game_scene_type0_resource::Kind::kSpriteFrameByName;
     frame.resource.resource_name = "atlas-frame.png";
     frame.direct_asset_relative_path.reset();
-    queue.sprites.push_back(frame);                   // index 2, atlas-backed
-    queue.sprites.push_back(direct_sprite(0u, -2));  // index 3
-    queue.sprites.push_back(direct_sprite(0u, -2));  // index 4
+    queue.sprites.push_back(frame);
+    queue.sprites.push_back(direct_sprite(0u, -2));
+    queue.sprites.push_back(direct_sprite(0u, -2));
     queue.direct_file_count = 4u;
     queue.sprite_frame_lookup_count = 1u;
 
-    // Queue order already reflects recovered layer/object traversal. The local
-    // child Z belongs to the sprite inside each separate GameSceneObject and
-    // must not reorder distinct objects globally.
     const std::vector<std::size_t> direct_order = geometry::ordered_direct_sprite_indices(queue);
     assert((direct_order == std::vector<std::size_t>{0u, 1u, 3u, 4u}));
 
-    // Atlas-backed spriteFrameByName resources join the same static traversal
-    // order after Java reconstructs them as standalone untrimmed textures.
     const std::vector<std::size_t> static_order = geometry::ordered_texture_sprite_indices(queue);
     assert((static_order == std::vector<std::size_t>{0u, 1u, 2u, 3u, 4u}));
 
