@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "game_scene_png_premultiply.h"
+#include "game_scene_rgba4444.h"
 
 namespace nevergone::game_scene_direct_texture_gl {
 namespace {
@@ -71,15 +72,7 @@ public:
                         static_cast<std::uint8_t>((pixel >> 8u) & 0xffu), alpha);
                 const std::uint8_t blue = game_scene_png_premultiply::channel(
                         static_cast<std::uint8_t>(pixel & 0xffu), alpha);
-
-                // CCTexture2D format 6 in the shipped ARMv7 binary truncates
-                // the already-premultiplied RGBA8888 bytes to their high
-                // nibbles and packs RRRR GGGG BBBB AAAA into one uint16_t.
-                rgba4444[index] = static_cast<std::uint16_t>(
-                        (static_cast<std::uint16_t>(red & 0xf0u) << 8u) |
-                        (static_cast<std::uint16_t>(green & 0xf0u) << 4u) |
-                        static_cast<std::uint16_t>(blue & 0xf0u) |
-                        static_cast<std::uint16_t>(alpha >> 4u));
+                rgba4444[index] = game_scene_rgba4444::pack(red, green, blue, alpha);
             }
             upload_data = rgba4444.data();
             upload_type = GL_UNSIGNED_SHORT_4_4_4_4;
@@ -139,7 +132,7 @@ bool sync() {
 }
 
 void clear() {
-    game_scene_direct_texture_cache::clear(g_backend);
+    game_scene_direct_texture_gl::clear();
 }
 
 game_scene_direct_texture_cache::Snapshot snapshot() {
