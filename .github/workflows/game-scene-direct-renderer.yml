@@ -8,10 +8,13 @@ on:
       - 'android/app/src/main/cpp/game_scene_direct_geometry.h'
       - 'android/app/src/main/cpp/game_scene_direct_renderer.cpp'
       - 'android/app/src/main/cpp/game_scene_direct_renderer.h'
+      - 'android/app/src/main/cpp/game_scene_type0_animation.h'
+      - 'android/app/src/main/cpp/game_scene_type0_post_init.h'
       - 'android/app/src/main/cpp/native_bootstrap.cpp'
       - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/game_scene_direct_geometry_smoke.cpp'
+      - 'tools/game_scene_type0_animation_smoke.cpp'
       - '.github/workflows/game-scene-direct-renderer.yml'
   pull_request:
     paths:
@@ -19,10 +22,13 @@ on:
       - 'android/app/src/main/cpp/game_scene_direct_geometry.h'
       - 'android/app/src/main/cpp/game_scene_direct_renderer.cpp'
       - 'android/app/src/main/cpp/game_scene_direct_renderer.h'
+      - 'android/app/src/main/cpp/game_scene_type0_animation.h'
+      - 'android/app/src/main/cpp/game_scene_type0_post_init.h'
       - 'android/app/src/main/cpp/native_bootstrap.cpp'
       - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/game_scene_direct_geometry_smoke.cpp'
+      - 'tools/game_scene_type0_animation_smoke.cpp'
       - '.github/workflows/game-scene-direct-renderer.yml'
 
 jobs:
@@ -38,6 +44,13 @@ jobs:
             android/app/src/main/cpp/game_scene_direct_geometry.cpp \
             -o /tmp/game_scene_direct_geometry_smoke
           /tmp/game_scene_direct_geometry_smoke
+      - name: Build and run type-0 animation smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_scene_type0_animation_smoke.cpp \
+            -o /tmp/game_scene_type0_animation_smoke
+          /tmp/game_scene_type0_animation_smoke
       - name: Install GLES2 headers
         run: |
           sudo apt-get update
