@@ -44,7 +44,22 @@ staged: 10
 """
 
 
-def diagnostics(*, begins: int, moves: int, generation: int, state: str, flip: bool) -> str:
+def diagnostics(
+    *,
+    begins: int,
+    moves: int,
+    generation: int,
+    state: str,
+    flip: bool,
+    motion_ready: bool = True,
+    motion_generation: int = 20,
+    spawn_generation: int = 3,
+    player_index: int = 1,
+    game_tick: int = 100,
+    steps: int = 10,
+    offset_x: float = 0.0,
+    offset_y: float = 0.0,
+) -> str:
     return SCENE + f"""GameScene player joystick
 captured: false
 pointer id: -1
@@ -53,6 +68,14 @@ accepted moves: {moves}
 design point: 204,173
 power: 0
 angle degrees: 0
+GameScene player motion
+ready: {'true' if motion_ready else 'false'}
+generation: {motion_generation}
+spawn generation: {spawn_generation}
+player index: {player_index}
+last game tick: {game_tick}
+applied steps: {steps}
+offset: {offset_x},{offset_y}
 Player control runtime
 generation: {generation}
 primary state: {state}
@@ -78,26 +101,88 @@ def expect_swipe_invalid(xml: Path) -> None:
 
 def main() -> int:
     before = diagnostics(begins=4, moves=9, generation=7, state="none", flip=False)
-    after = diagnostics(begins=5, moves=11, generation=8, state="0x13", flip=False)
+    after = diagnostics(
+        begins=5,
+        moves=11,
+        generation=8,
+        state="0x13",
+        flip=False,
+        motion_generation=21,
+        game_tick=105,
+        steps=15,
+        offset_x=40.0,
+    )
     parsed_before, parsed_after = module.validate_transition(before, after)
     assert parsed_before.joystick.accepted_begins == 4
     assert parsed_after.joystick.accepted_moves == 11
     assert parsed_after.control.primary_state == "0x13"
     assert not parsed_after.control.flip_x
+    assert parsed_after.motion.applied_steps == 15
+    assert parsed_after.motion.offset_x == 40.0
     assert module.choose_direction(before) == "right"
     assert module.choose_direction(after) == "left"
 
-    before_left = diagnostics(begins=5, moves=11, generation=8, state="0x13", flip=False)
-    after_left = diagnostics(begins=6, moves=14, generation=9, state="0x12", flip=True)
+    before_left = diagnostics(
+        begins=5,
+        moves=11,
+        generation=8,
+        state="0x13",
+        flip=False,
+        motion_generation=21,
+        game_tick=105,
+        steps=15,
+        offset_x=40.0,
+    )
+    after_left = diagnostics(
+        begins=6,
+        moves=14,
+        generation=9,
+        state="0x12",
+        flip=True,
+        motion_generation=22,
+        game_tick=110,
+        steps=20,
+        offset_x=0.0,
+    )
     module.validate_transition(before_left, after_left)
 
-    expect_invalid(before, diagnostics(begins=4, moves=11, generation=8, state="0x13", flip=False))
-    expect_invalid(before, diagnostics(begins=5, moves=9, generation=8, state="0x13", flip=False))
-    expect_invalid(before, diagnostics(begins=5, moves=11, generation=7, state="0x13", flip=False))
-    expect_invalid(before_left, diagnostics(begins=6, moves=14, generation=9, state="0x13", flip=False))
-    expect_invalid(before_left, diagnostics(begins=6, moves=14, generation=9, state="0x12", flip=False))
+    expect_invalid(before, diagnostics(
+        begins=4, moves=11, generation=8, state="0x13", flip=False,
+        motion_generation=21, game_tick=105, steps=15, offset_x=40.0))
+    expect_invalid(before, diagnostics(
+        begins=5, moves=9, generation=8, state="0x13", flip=False,
+        motion_generation=21, game_tick=105, steps=15, offset_x=40.0))
+    expect_invalid(before, diagnostics(
+        begins=5, moves=11, generation=7, state="0x13", flip=False,
+        motion_generation=21, game_tick=105, steps=15, offset_x=40.0))
+    expect_invalid(before_left, diagnostics(
+        begins=6, moves=14, generation=9, state="0x13", flip=False,
+        motion_generation=22, game_tick=110, steps=20, offset_x=80.0))
+    expect_invalid(before_left, diagnostics(
+        begins=6, moves=14, generation=9, state="0x12", flip=False,
+        motion_generation=22, game_tick=110, steps=20, offset_x=0.0))
     expect_invalid(before, after.replace("state: runtime-render-queue-ready", "state: runtime-model-ready"))
     expect_invalid(before, after.replace("captured: false", "captured: true", 1))
+
+    # Motion proof is part of the same transition contract now.
+    expect_invalid(before, diagnostics(
+        begins=5, moves=11, generation=8, state="0x13", flip=False,
+        motion_ready=False, motion_generation=21, game_tick=105, steps=15, offset_x=40.0))
+    expect_invalid(before, diagnostics(
+        begins=5, moves=11, generation=8, state="0x13", flip=False,
+        motion_generation=21, spawn_generation=4, game_tick=105, steps=15, offset_x=40.0))
+    expect_invalid(before, diagnostics(
+        begins=5, moves=11, generation=8, state="0x13", flip=False,
+        motion_generation=21, game_tick=105, steps=10, offset_x=40.0))
+    expect_invalid(before, diagnostics(
+        begins=5, moves=11, generation=8, state="0x13", flip=False,
+        motion_generation=21, game_tick=105, steps=15, offset_x=0.0))
+    expect_invalid(before, diagnostics(
+        begins=5, moves=11, generation=8, state="0x13", flip=False,
+        motion_generation=21, game_tick=105, steps=15, offset_x=-40.0))
+    expect_invalid(before_left, diagnostics(
+        begins=6, moves=14, generation=9, state="0x12", flip=True,
+        motion_generation=22, game_tick=110, steps=20, offset_x=80.0))
 
     with tempfile.TemporaryDirectory() as temp_dir:
         xml = Path(temp_dir) / "window.xml"

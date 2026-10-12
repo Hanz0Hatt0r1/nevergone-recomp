@@ -3,7 +3,7 @@ set -euo pipefail
 
 PACKAGE='org.nevergone.recomp'
 REMOTE_UI_XML='/sdcard/nevergone-player-input-evidence.xml'
-EVIDENCE_DIR="${NEVERGONE_EVIDENCE_DIR:-artifacts/android-player-input-runtime}"
+EVIDENCE_DIR="${NEVERGONE_EVIDENCE_DIR:-evidence/android-player-input-runtime}"
 LOCAL_UI_XML="$EVIDENCE_DIR/runtime-window.xml"
 BEFORE_DIAGNOSTICS="$EVIDENCE_DIR/before-diagnostics.txt"
 AFTER_DIAGNOSTICS="$EVIDENCE_DIR/after-diagnostics.txt"
@@ -148,12 +148,10 @@ fi
 
 if ! direction="$(python3 tools/android_player_input_runtime_evidence.py \
     choose-direction "$BEFORE_DIAGNOSTICS")"; then
-  echo 'Baseline diagnostics do not expose a usable player-control state.' >&2
+  echo 'Baseline diagnostics do not expose a usable player-control/motion state.' >&2
   exit 1
 fi
 
-# Refresh one UI dump immediately before computing coordinates. The helper
-# requires a concrete GameSurfaceView bounds node and fails closed otherwise.
 if ! dump_runtime_ui; then
   echo 'Could not capture GameSurfaceView bounds before the test gesture.' >&2
   exit 1
@@ -189,9 +187,9 @@ fi
 if ! python3 tools/android_player_input_runtime_evidence.py \
     validate "$BEFORE_DIAGNOSTICS" "$AFTER_DIAGNOSTICS"; then
   write_report fail "$direction" "$swipe"
-  echo "Player input proof is incomplete; evidence retained in $EVIDENCE_DIR" >&2
+  echo "Player input/motion proof is incomplete; evidence retained in $EVIDENCE_DIR" >&2
   exit 1
 fi
 
 write_report pass "$direction" "$swipe"
-echo "Player input runtime evidence captured: $EVIDENCE_DIR"
+echo "Player input/motion runtime evidence captured: $EVIDENCE_DIR"
