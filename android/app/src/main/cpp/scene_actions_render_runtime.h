@@ -15,7 +15,7 @@ namespace nevergone::scene_actions_render_runtime {
 enum class PrepareStatus {
     kReady = 0,
     kInactive,
-    kAwaitingTerminalResolution,
+    kCompleted,
     kDocumentUnavailable,
     kPixelsUnavailable,
     kStalePixels,
@@ -36,7 +36,7 @@ struct PrepareResult {
 };
 
 // Convert one active playback slot into an exact renderer submission. System
-// transform inputs remain explicit because native initialization/mutation of
+// transform inputs remain explicit because later native mutation of
 // SceneActionsSystem +0x240/+0x244/+0x248/+0x15e is a separate evidence boundary.
 inline PrepareResult prepare(
         const scene_actions_active_playback::SlotState& state,
@@ -44,9 +44,11 @@ inline PrepareResult prepare(
         const scene_action_initial_frame_pixel_store::Asset* asset,
         const scene_actions_base_sprite_update::SystemInputs& system) {
     if (!state.active) return {PrepareStatus::kInactive, std::nullopt};
-    if (state.awaiting_terminal_resolution) {
-        return {PrepareStatus::kAwaitingTerminalResolution, std::nullopt};
-    }
+    // Born terminal completion resets the native frame cursor to zero but does
+    // not call updateData(). Rejecting a fresh submission here preserves the
+    // compositor's already-submitted last display frame instead of drawing
+    // frame zero again.
+    if (state.playback.done_1a8) return {PrepareStatus::kCompleted, std::nullopt};
     if (document == nullptr) return {PrepareStatus::kDocumentUnavailable, std::nullopt};
     if (asset == nullptr) return {PrepareStatus::kPixelsUnavailable, std::nullopt};
 
