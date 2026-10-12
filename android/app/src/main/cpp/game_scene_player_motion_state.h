@@ -16,6 +16,9 @@ struct Snapshot {
     std::uint32_t player_index = 0;
     std::uint64_t last_game_tick = 0;
     std::uint64_t applied_steps = 0;
+    std::uint64_t normal_steps = 0;
+    std::uint64_t fast_steps = 0;
+    std::uint32_t last_action_state = player_motion_contract::kNormalMoveActionState;
     float offset_x = 0.0f;
     float offset_y = 0.0f;
 };
@@ -33,7 +36,7 @@ inline void reset() {
 
 // Binds the live movement cursor to one recovered player spawn. A new spawn
 // generation clears accumulated motion. Player indices outside the statically
-// proven playerMoveValue normal-movement domain (1..3) fail closed.
+// proven playerMoveValue movement domain (1..3) fail closed.
 inline bool sync_spawn(
         std::uint64_t spawn_generation,
         std::uint32_t player_index,
@@ -66,11 +69,12 @@ inline bool sync_spawn(
 
 // Advances the movement cursor to the supplied fixed game tick. Inactive input
 // consumes elapsed ticks without moving so a later joystick activation cannot
-// accumulate an artificial backlog. Active input applies the recovered normal
-// action-state movement vector once per elapsed logical tick.
-inline bool advance_normal_sample(
+// accumulate an artificial backlog. Active input applies the exact recovered
+// playerMoveValue() vector for action state 0 or 1 once per elapsed logical tick.
+inline bool advance_sample(
         std::uint64_t game_tick,
         bool active,
+        std::uint32_t action_state,
         float direction_x,
         float direction_y) {
     std::lock_guard<std::mutex> lock(g_mutex);
@@ -79,20 +83,41 @@ inline bool advance_normal_sample(
 
     const std::uint64_t elapsed = game_tick - g_snapshot.last_game_tick;
     g_snapshot.last_game_tick = game_tick;
+    g_snapshot.last_action_state = action_state;
     if (!active) return true;
 
     const auto movement = player_motion_contract::movement_value(
             g_snapshot.player_index,
-            player_motion_contract::kNormalMoveActionState,
+            action_state,
             {direction_x, direction_y});
     if (!movement.has_value()) return false;
 
     g_snapshot.offset_x += movement->x * static_cast<float>(elapsed);
     g_snapshot.offset_y += movement->y * static_cast<float>(elapsed);
     g_snapshot.applied_steps += elapsed;
+    if (action_state == player_motion_contract::kNormalMoveActionState) {
+        g_snapshot.normal_steps += elapsed;
+    } else if (action_state == player_motion_contract::kFastMoveActionState) {
+        g_snapshot.fast_steps += elapsed;
+    }
     ++g_generation;
     g_snapshot.generation = g_generation;
     return true;
+}
+
+// Compatibility wrapper for call sites/tests that deliberately exercise only
+// the previously recovered normal action-state-0 movement path.
+inline bool advance_normal_sample(
+        std::uint64_t game_tick,
+        bool active,
+        float direction_x,
+        float direction_y) {
+    return advance_sample(
+            game_tick,
+            active,
+            player_motion_contract::kNormalMoveActionState,
+            direction_x,
+            direction_y);
 }
 
 inline Snapshot snapshot() {
@@ -110,6 +135,9 @@ inline std::string status_report() {
     out << "player index: " << state.player_index << "\n";
     out << "last game tick: " << state.last_game_tick << "\n";
     out << "applied steps: " << state.applied_steps << "\n";
+    out << "normal steps: " << state.normal_steps << "\n";
+    out << "fast steps: " << state.fast_steps << "\n";
+    out << "last action state: 0x" << std::hex << state.last_action_state << std::dec << "\n";
     out << "offset: " << state.offset_x << "," << state.offset_y << "\n";
     return out.str();
 }

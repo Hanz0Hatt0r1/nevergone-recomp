@@ -62,9 +62,9 @@ primary Controls state 0x13 -> body sprite flipX = false
 
 The same bounded `MEPlayer::setControlsState()` path establishes the minimum normal locomotion transition used by the reconstruction: from idle action state `0x1b`, horizontal state `0x12` or `0x13` can request action state `0`. Returning to neutral can return the normal path to `0x1b`, subject to the surrounding native state gates.
 
-## Normal position movement is now recovered
+## Normal and fast position movement are now recovered
 
-The earlier boundary deliberately stopped before world-space movement. The accepted original-device runtime trace and a bounded disassembly of `MEPlayer::playerMoveValue(CCPoint)` at ELF `0x0031d9c0` now identify the missing normal movement delta independently of joystick power.
+The accepted original-device runtime trace and a bounded disassembly of `MEPlayer::playerMoveValue(CCPoint)` at ELF `0x0031d9c0` identify the movement delta independently of joystick power.
 
 For action state `0` and player indices `1..3`:
 
@@ -73,7 +73,7 @@ movement.x = normalized_direction.x * 8.0
 movement.y = normalized_direction.y * 4.0
 ```
 
-For action state `1`, which is retained as evidence but is not yet selected by the reconstructed normal locomotion path:
+For action state `1`:
 
 ```text
 player index 1 -> x*20, y*10
@@ -83,9 +83,11 @@ player index 3 -> x*16, y*8
 
 The runtime trace independently validates both the `8/4` normal scale and the player-1 `20/10` action-state-1 scale against observed `MEPlayer::movePlayer()` position deltas.
 
+The same trace and bounded disassembly now establish the action-state-1 selection path. `Controls::comboJoyStickUpdate()` retains a horizontal direction combo at `Controls +0x110`, while `Controls::tick()` advances the associated `+0x158` timer. A first horizontal activation produces `0x12` on the left or `0x13` on the right. Releasing and then activating the same horizontal sector while the retained timer is strictly greater than `0.03` and strictly less than `0.40` seconds produces fast states `0x0f` on the left or `0x11` on the right. `MEPlayer::setDirComboState()` maps either fast value to `MEPlayer::setActionState(1, false)`.
+
 `MEPlayer::movePlayer(CCPoint)` copies its incoming point into `MEPlayer +0x248`, so this call consumes the resulting live/target position rather than a raw additive joystick delta. The recovered `GameScene` path gets the normalized Controls direction, calls `playerMoveValue()`, combines the result with the current player position, applies the surrounding scene/collision path, and finally calls `movePlayer()`.
 
-`player_motion_contract` models the exact proven per-tick values. `game_scene_player_motion_state` advances only the action-state-0 subset on the project's already retained fixed logical clock, consumes neutral ticks without movement, resets on a new spawn generation, and fails closed for player indices `4..5` until those native branches are separately recovered. `game_scene_player_render_queue` composes the resulting live offset with the recovered first-scene spawn position.
+`player_motion_contract` models the exact proven per-tick values. `player_direction_combo_contract` retains only the proven horizontal normal/fast sectors and strict timing boundaries; it does not assign action semantics to native cross-direction combo states `0x0e`/`0x10`. `game_scene_player_motion_state` advances action-state `0` or `1` on the project's fixed logical clock, consumes neutral ticks without movement, resets on a new spawn generation, and fails closed for player indices `4..5` until those native branches are separately recovered. `game_scene_player_render_queue` composes the resulting live offset with the recovered first-scene spawn position.
 
 ## Current #148 boundary
 
@@ -102,12 +104,13 @@ The project now has evidence-backed pieces for:
 - joystick normalized direction and horizontal Controls states `0x12` / `0x13`;
 - exact `GameScene::tick()` delivery order into the primary `MEPlayer`;
 - exact primary-state -> `CCSprite::setFlipX` mapping;
-- exact normal `playerMoveValue()` scale for proven player indices `1..3`;
+- exact normal and fast `playerMoveValue()` scales for proven player indices `1..3`;
+- recovered same-direction double-tap timing that selects action state `1`;
 - fixed-tick live movement composition into the reconstructed player position.
 
 Still required before P8/P9 can be called complete:
 
 - real-device evidence that the reconstructed player is visible and that joystick direction changes both facing and position without crashing;
-- recover player-index `4..5` normal movement branches before enabling movement for those Careers;
+- recover player-index `4..5` movement branches before enabling movement for those Careers;
 - recover scene-border/collision response and camera behavior before treating free movement as a complete GameScene locomotion implementation;
-- recover action/frame switching and combat transitions separately rather than assigning names from state numbers alone.
+- recover cross-direction combo action semantics, action/frame switching and combat transitions separately rather than assigning names from state numbers alone.

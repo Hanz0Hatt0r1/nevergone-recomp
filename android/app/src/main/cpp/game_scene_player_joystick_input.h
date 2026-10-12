@@ -25,6 +25,15 @@ struct Snapshot {
     float design_y = kCenterY;
     float power = 0.0f;
     float angle_degrees = 0.0f;
+
+    // Bounded Controls::comboJoyStickUpdate() reconstruction. The retained
+    // state/timer intentionally covers only the horizontal normal/fast branch;
+    // vertical and cross-direction combo states remain unmodeled.
+    std::uint32_t direction_combo_state = 0u;
+    bool direction_combo_released = true;
+    std::uint64_t direction_combo_started_tick = 0u;
+    std::uint32_t movement_action_state = 0u;
+    std::uint64_t fast_reactivation_count = 0u;
 };
 
 // Android surface coordinates are top-left based. The shipped GameScene uses
@@ -50,15 +59,17 @@ bool on_touch(
     int surface_width,
     int surface_height);
 
-// Mirrors CCJoyStick::timerUpdate(): while captured, dispatch the latest
-// recovered power/angle sample into the project-owned player control runtime.
+// Mirrors the recovered fixed-joystick delivery on the project logical clock:
+// primary horizontal facing, the bounded same-direction double-tap fast combo,
+// and the corresponding playerMoveValue() movement state are advanced together.
 void tick();
 
 // Releases the live pointer and neutralizes the joystick sample while retaining
-// the player's already-applied facing, matching joystick deactivation semantics.
+// facing and the native short-lived direction-combo window needed for a second
+// same-direction tap.
 void cancel_capture();
 
-// Scene/player teardown additionally clears reconstructed primary-control state.
+// Scene/player teardown additionally clears reconstructed control/combo/motion state.
 void reset();
 
 Snapshot snapshot();
