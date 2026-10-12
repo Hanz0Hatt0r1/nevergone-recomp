@@ -31,6 +31,10 @@ class JoystickSnapshot:
     design_y: float
     power: float
     angle_degrees: float
+    direction_combo_state: int
+    direction_combo_released: bool
+    movement_action_state: int
+    fast_reactivations: int
 
 
 @dataclass(frozen=True)
@@ -41,6 +45,9 @@ class MotionSnapshot:
     player_index: int
     last_game_tick: int
     applied_steps: int
+    normal_steps: int
+    fast_steps: int
+    last_action_state: int
     offset_x: float
     offset_y: float
 
@@ -84,6 +91,13 @@ def _finite(value: str, label: str) -> float:
     return parsed
 
 
+def _hex(value: str, label: str) -> int:
+    try:
+        return int(value, 16)
+    except ValueError as error:
+        raise ValueError(f"invalid {label}: {value!r}") from error
+
+
 def parse_snapshot(text: str) -> PlayerInputSnapshot:
     joystick = _single_match(
         r"^GameScene player joystick\n"
@@ -93,7 +107,11 @@ def parse_snapshot(text: str) -> PlayerInputSnapshot:
         r"accepted moves: (\d+)\n"
         r"design point: ([^,\n]+),([^\n]+)\n"
         r"power: ([^\n]+)\n"
-        r"angle degrees: ([^\n]+)$",
+        r"angle degrees: ([^\n]+)\n"
+        r"direction combo state: 0x([0-9a-fA-F]+)\n"
+        r"direction combo released: (true|false)\n"
+        r"movement action state: 0x([0-9a-fA-F]+)\n"
+        r"fast reactivations: (\d+)$",
         text,
         "GameScene player joystick report",
     )
@@ -105,6 +123,9 @@ def parse_snapshot(text: str) -> PlayerInputSnapshot:
         r"player index: (\d+)\n"
         r"last game tick: (\d+)\n"
         r"applied steps: (\d+)\n"
+        r"normal steps: (\d+)\n"
+        r"fast steps: (\d+)\n"
+        r"last action state: 0x([0-9a-fA-F]+)\n"
         r"offset: ([^,\n]+),([^\n]+)$",
         text,
         "GameScene player motion report",
@@ -127,6 +148,10 @@ def parse_snapshot(text: str) -> PlayerInputSnapshot:
         design_y=_finite(joystick.group(6), "joystick design y"),
         power=_finite(joystick.group(7), "joystick power"),
         angle_degrees=_finite(joystick.group(8), "joystick angle"),
+        direction_combo_state=_hex(joystick.group(9), "direction combo state"),
+        direction_combo_released=joystick.group(10) == "true",
+        movement_action_state=_hex(joystick.group(11), "movement action state"),
+        fast_reactivations=int(joystick.group(12)),
     )
     motion_snapshot = MotionSnapshot(
         ready=motion.group(1) == "true",
@@ -135,8 +160,11 @@ def parse_snapshot(text: str) -> PlayerInputSnapshot:
         player_index=int(motion.group(4)),
         last_game_tick=int(motion.group(5)),
         applied_steps=int(motion.group(6)),
-        offset_x=_finite(motion.group(7), "player motion offset x"),
-        offset_y=_finite(motion.group(8), "player motion offset y"),
+        normal_steps=int(motion.group(7)),
+        fast_steps=int(motion.group(8)),
+        last_action_state=_hex(motion.group(9), "player motion action state"),
+        offset_x=_finite(motion.group(10), "player motion offset x"),
+        offset_y=_finite(motion.group(11), "player motion offset y"),
     )
     control_snapshot = ControlSnapshot(
         generation=int(control.group(1)),
