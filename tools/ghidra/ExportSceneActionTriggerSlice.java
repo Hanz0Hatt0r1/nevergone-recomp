@@ -1,4 +1,4 @@
-// Export only the narrow SceneActions spatial-trigger slice needed for clean-room recovery.
+// Export only the narrow SceneActions trigger/count slice needed for clean-room recovery.
 // @category Nevergone
 
 import ghidra.app.decompiler.DecompInterface;
@@ -6,6 +6,7 @@ import ghidra.app.decompiler.DecompileResults;
 import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.FunctionIterator;
 import ghidra.program.model.listing.Instruction;
 import ghidra.program.model.listing.InstructionIterator;
 import ghidra.program.model.symbol.Reference;
@@ -20,10 +21,16 @@ public class ExportSceneActionTriggerSlice extends GhidraScript {
     private static final class Target {
         final String label;
         final String address;
+        final String nameContains;
 
         Target(String label, String address) {
+            this(label, address, null);
+        }
+
+        Target(String label, String address, String nameContains) {
             this.label = label;
             this.address = address;
+            this.nameContains = nameContains;
         }
     }
 
@@ -34,6 +41,10 @@ public class ExportSceneActionTriggerSlice extends GhidraScript {
         new Target("GameSceneObject::isContainsRect(CCRect)", "0034e268"),
         new Target("GameSceneObject::isContainsRect(CCRect,const char*)", "0034e454"),
         new Target("GameSceneObject::getObjectRect()", "0034e4a6"),
+        new Target("SceneActionsSystem::waUpdate(float)", "003531f0"),
+        // The loader address is deliberately resolved by demangled/name substring.
+        // This avoids baking an unverified address into the clean-room exporter.
+        new Target("TrapActionsData::loadWBGFile(...) ", null, "TrapActionsData::loadWBGFile"),
     };
 
     @Override
@@ -58,7 +69,7 @@ public class ExportSceneActionTriggerSlice extends GhidraScript {
         }
 
         try (PrintWriter out = new PrintWriter(output, "UTF-8")) {
-            out.println("# Nevergone SceneActions spatial-trigger slice");
+            out.println("# Nevergone SceneActions spatial-trigger/count slice");
             out.println("program=" + currentProgram.getName());
             out.println("imageBase=" + currentProgram.getImageBase());
             out.println("language=" + currentProgram.getLanguageID());
@@ -72,22 +83,49 @@ public class ExportSceneActionTriggerSlice extends GhidraScript {
             decompiler.dispose();
         }
 
-        println("Wrote SceneActions trigger slice to: " + output.getAbsolutePath());
+        println("Wrote SceneActions trigger/count slice to: " + output.getAbsolutePath());
+    }
+
+    private Function resolveTarget(Target target) throws Exception {
+        if (target.address != null) {
+            Address address = currentProgram.getAddressFactory()
+                .getDefaultAddressSpace()
+                .getAddress(target.address);
+            Function function = getFunctionAt(address);
+            if (function == null) function = getFunctionContaining(address);
+            if (function != null) return function;
+        }
+
+        if (target.nameContains == null || target.nameContains.isEmpty()) return null;
+        FunctionIterator functions = currentProgram.getFunctionManager().getFunctions(true);
+        Function unique = null;
+        while (functions.hasNext()) {
+            monitor.checkCancelled();
+            Function function = functions.next();
+            String qualified = function.getName(true);
+            if (!qualified.contains(target.nameContains)) continue;
+            if (unique != null) {
+                println("Ambiguous target name substring: " + target.nameContains);
+                return null;
+            }
+            unique = function;
+        }
+        return unique;
     }
 
     private void exportTarget(PrintWriter out, DecompInterface decompiler, Target target)
             throws Exception {
-        Address address = currentProgram.getAddressFactory()
-            .getDefaultAddressSpace()
-            .getAddress(target.address);
-        Function function = getFunctionAt(address);
-        if (function == null) function = getFunctionContaining(address);
+        Function function = resolveTarget(target);
 
         out.println("============================================================");
         out.println("target=" + target.label);
-        out.println("requestedAddress=0x" + target.address);
+        out.println("requestedAddress=" +
+            (target.address == null ? "<name-resolved>" : "0x" + target.address));
+        if (target.nameContains != null) {
+            out.println("nameContains=" + target.nameContains);
+        }
         if (function == null) {
-            out.println("status=FUNCTION_NOT_FOUND");
+            out.println("status=FUNCTION_NOT_FOUND_OR_AMBIGUOUS");
             out.println();
             return;
         }
