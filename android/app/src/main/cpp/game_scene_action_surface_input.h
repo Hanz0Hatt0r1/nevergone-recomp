@@ -12,6 +12,7 @@ namespace nevergone::game_scene_action_surface_input {
 struct Snapshot {
     std::array<game_scene_action_layout::SpriteBounds, game_scene_action_layout::kButtonCount>
         sprite_bounds{};
+    std::array<bool, game_scene_action_layout::kButtonCount> pressed{};
     std::uint64_t bounds_revision = 0;
     std::uint64_t accepted_begins = 0;
     std::uint64_t accepted_ends = 0;
