@@ -1,0 +1,19 @@
+name: SceneActions trigger plan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run SceneActions trigger-plan smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/scene_action_trigger_plan_smoke.cpp \
+            -o /tmp/scene_action_trigger_plan_smoke
+          /tmp/scene_action_trigger_plan_smoke
