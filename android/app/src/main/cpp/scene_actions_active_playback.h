@@ -85,12 +85,10 @@ public:
         if (result.status == scene_actions_wa_update::Status::kRejected) return out;
 
         if (result.terminal_boundary_reached) {
-            // scene_actions_wa_update currently exposes a project-owned edge at
-            // the end of the parsed primary vector. Do not reinterpret that
-            // edge as native count semantics here; only apply the separately
-            // recovered state writes once the existing edge has fired.
+            // waUpdate now reports the exact exclusive limit selected by the
+            // current TrapActionsData+0x94 ActionComboValue boundary.
             const auto terminal = scene_actions_terminal_transition::apply(
-                    document.core.primary.records.size(), &state.playback);
+                    result.terminal_exclusive_frame_limit, &state.playback);
             if (!terminal.accepted) return out;
 
             if (terminal.completed) {
