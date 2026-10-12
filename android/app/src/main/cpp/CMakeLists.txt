@@ -37,6 +37,8 @@ add_library(nevergone_recomp SHARED
     choose_hero_thunder_state.cpp
     client_callback_bridge.cpp
     controls_function_state_contract.cpp
+    controls_function_state_runtime.cpp
+    controls_function_state_runtime_bridge.cpp
     created_role_transition.cpp
     created_role_transition_runtime.cpp
     enemy_actions_combo_consumer.cpp

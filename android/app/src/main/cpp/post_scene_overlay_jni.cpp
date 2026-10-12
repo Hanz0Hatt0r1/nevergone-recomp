@@ -8,6 +8,7 @@
 
 #include "character_name_compositor.h"
 #include "character_name_state.h"
+#include "controls_function_state_runtime.h"
 #include "game_scene_action_compositor.h"
 #include "game_scene_action_surface_input.h"
 #include "game_scene_direct_renderer.h"
@@ -114,6 +115,7 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::tutorial_loading_compositor::on_surface_created();
     nevergone::game_scene_action_compositor::on_surface_created();
     nevergone::game_scene_action_surface_input::cancel_all_captures();
+    nevergone::controls_function_state_runtime::reset();
     // A GLES context recreation invalidates action textures even when the
     // fresh-role generation is unchanged. Force one imported-asset restage.
     g_last_action_asset_attempt = std::numeric_limits<std::uint64_t>::max();
@@ -141,6 +143,12 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     }
 
     maybe_stage_action_assets(env);
+    const auto startup = nevergone::offline_startup_flow::snapshot();
+    if (startup.route == nevergone::offline_startup_flow::Route::kGameLevels) {
+        (void)nevergone::controls_function_state_runtime::tick();
+    } else {
+        nevergone::controls_function_state_runtime::reset();
+    }
     (void)nevergone::game_scene_action_compositor::draw();
 
     // This is intentionally last: the original loading layer owns the whole
