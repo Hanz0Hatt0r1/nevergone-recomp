@@ -92,19 +92,62 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert oneShot != null;
             assert oneShot.canonicalName.equals("hero_idle.png");
 
-            // Duplicate membership across preloaded atlases is ambiguous at the
-            // clean-room boundary and must fail closed instead of inventing an
-            // overwrite/priority rule. Prepared lookup preserves that contract.
+            // cocos2d-x 2.1.2 keeps the first canonical frame loaded under a
+            // duplicate key and skips the later frame before processing its
+            // aliases. Match that cache precedence exactly.
             GameSceneAtlasResolver.Atlas duplicate = writeAtlas(
                     root,
                     "gamescene/gs_actions/res/b",
                     plist(
-                            "hero_idle.png", "", "{{0,0},{1,1}}", "{{0,0},{1,1}}",
+                            "hero_idle.png", "<string>duplicate_alias.png</string>",
+                            "{{0,0},{1,1}}", "{{0,0},{1,1}}",
                             "{0,0}", "{1,1}", "{1,1}", false));
             GameSceneAtlasFrameResolver.Prepared duplicatePrepared =
                     GameSceneAtlasFrameResolver.prepare(root, Arrays.asList(atlas, duplicate));
             assert duplicatePrepared != null;
-            assert duplicatePrepared.resolve("hero_idle.png") == null;
+            GameSceneAtlasFrameResolver.Frame duplicateWinner =
+                    duplicatePrepared.resolve("hero_idle.png");
+            assert duplicateWinner != null;
+            assert duplicateWinner.atlasIndex == 0;
+            assert duplicateWinner.textureX == 10;
+            assert duplicatePrepared.resolve("duplicate_alias.png") == null;
+
+            // Aliases are different in the shipped cache: accepted later frames
+            // overwrite an earlier alias mapping even though canonical frame
+            // duplicates themselves never overwrite.
+            GameSceneAtlasResolver.Atlas aliasOverride = writeAtlas(
+                    root,
+                    "gamescene/gs_actions/res/d",
+                    plist(
+                            "hero_second.png", "<string>hero_alias.png</string>",
+                            "{{1,2},{3,4}}", "{{0,0},{3,4}}",
+                            "{0,0}", "{3,4}", "{3,4}", false));
+            GameSceneAtlasFrameResolver.Prepared aliasPrepared =
+                    GameSceneAtlasFrameResolver.prepare(root, Arrays.asList(atlas, aliasOverride));
+            assert aliasPrepared != null;
+            GameSceneAtlasFrameResolver.Frame aliasWinner =
+                    aliasPrepared.resolve("hero_alias.png");
+            assert aliasWinner != null;
+            assert aliasWinner.atlasIndex == 1;
+            assert aliasWinner.canonicalName.equals("hero_second.png");
+
+            // A real canonical name always wins lookup before the alias map.
+            GameSceneAtlasResolver.Atlas canonicalOverride = writeAtlas(
+                    root,
+                    "gamescene/gs_actions/res/e",
+                    plist(
+                            "hero_alias.png", "",
+                            "{{5,6},{7,8}}", "{{0,0},{7,8}}",
+                            "{0,0}", "{7,8}", "{7,8}", false));
+            GameSceneAtlasFrameResolver.Prepared canonicalPrepared =
+                    GameSceneAtlasFrameResolver.prepare(
+                            root, Arrays.asList(atlas, aliasOverride, canonicalOverride));
+            assert canonicalPrepared != null;
+            GameSceneAtlasFrameResolver.Frame canonicalWinner =
+                    canonicalPrepared.resolve("hero_alias.png");
+            assert canonicalWinner != null;
+            assert canonicalWinner.atlasIndex == 2;
+            assert canonicalWinner.canonicalName.equals("hero_alias.png");
 
             // Reject malformed trim geometry that escapes the declared source.
             GameSceneAtlasResolver.Atlas malformed = writeAtlas(
