@@ -28,6 +28,11 @@ struct SpriteCommand {
     // Present only for the first MeActionsSystem body sprite. Its geometry is
     // local to the MEPlayer node and includes a non-central anchor.
     std::optional<me_actions_initial_sprite_transform::Plan> player_body_transform;
+    // ActionFrameData +0x60 is the plist-like resource loaded by
+    // MeActionsSystem::initWithFile() before the +0x68 spriteFrameByName lookup.
+    // Keep it attached to the player body command so Android staging can
+    // resolve the exact atlas instead of scanning unrelated player defaults.
+    std::optional<std::string> player_body_atlas_plist;
 };
 
 struct Queue {

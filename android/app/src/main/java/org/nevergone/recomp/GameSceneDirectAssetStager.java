@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,8 +102,8 @@ final class GameSceneDirectAssetStager {
             int[] spriteCommandIndices = new int[count];
             String[] requestValues = new String[count];
             boolean[] playerRequests = new boolean[count];
+            String[] playerAtlasPlists = new String[count];
             boolean needsSceneAtlases = false;
-            boolean needsPlayerAtlases = false;
             for (int requestIndex = 0; requestIndex < count; ++requestIndex) {
                 int kind = GameSceneDirectAssetRequests.kindAt(requestIndex);
                 String value = GameSceneDirectAssetRequests.valueAt(requestIndex);
@@ -130,8 +131,17 @@ final class GameSceneDirectAssetStager {
                             requestIndex, kind, stagedCount);
                 }
                 if (kind == GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME) {
-                    if (playerRequests[requestIndex]) needsPlayerAtlases = true;
-                    else needsSceneAtlases = true;
+                    if (playerRequests[requestIndex]) {
+                        String playerAtlasPlist =
+                                GameSceneDirectAssetRequests.playerAtlasPlistAt(requestIndex);
+                        if (playerAtlasPlist == null || playerAtlasPlist.isEmpty()) {
+                            return reject("player-atlas-name-unavailable", revision, count,
+                                    requestIndex, kind, stagedCount);
+                        }
+                        playerAtlasPlists[requestIndex] = playerAtlasPlist;
+                    } else {
+                        needsSceneAtlases = true;
+                    }
                 }
             }
 
@@ -169,16 +179,6 @@ final class GameSceneDirectAssetStager {
                             count,
                             -1,
                             GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME,
-                            stagedCount);
-                }
-            }
-            List<GameSceneAtlasResolver.Atlas> playerAtlases = null;
-            if (needsPlayerAtlases) {
-                playerAtlases = GameSceneAtlasResolver.resolvePlayerDefaults(
-                        canonicalRoot, PlayerActionRuntimeLoader.loadedCareer());
-                if (playerAtlases == null) {
-                    return reject("player-atlas-resolution-failed", revision, count,
-                            -1, GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME,
                             stagedCount);
                 }
             }
@@ -274,8 +274,23 @@ final class GameSceneDirectAssetStager {
                     continue;
                 }
 
-                List<GameSceneAtlasResolver.Atlas> atlases =
-                        playerRequests[requestIndex] ? playerAtlases : sceneAtlases;
+                List<GameSceneAtlasResolver.Atlas> atlases;
+                if (playerRequests[requestIndex]) {
+                    atlases = GameSceneAtlasResolver.resolve(
+                            canonicalRoot,
+                            Collections.singletonList(playerAtlasPlists[requestIndex]));
+                    if (atlases == null || atlases.isEmpty()) {
+                        return reject(
+                                "player-atlas-resolution-failed",
+                                revision,
+                                count,
+                                requestIndex,
+                                kind,
+                                stagedCount);
+                    }
+                } else {
+                    atlases = sceneAtlases;
+                }
                 if (atlases == null) {
                     return reject(
                             "atlas-resolution-failed",
