@@ -57,6 +57,13 @@ inline game_scene_render_queue::Queue with_initial_player(
         body_transform.flip_x = control.flip_x;
     }
     player.player_body_transform = body_transform;
+    // MeActionsSystem::initWithFile() reads the selected ActionFrameData +0x60
+    // string and passes it to CCSpriteFrameCache::addSpriteFramesWithFile()
+    // before updateData() resolves +0x68 through spriteFrameByName(). Preserve
+    // that exact plist-like string for the Android atlas staging bridge.
+    if (!initial_frame->first_string.empty()) {
+        player.player_body_atlas_plist = initial_frame->first_string;
+    }
     // BattleManager is a GameScene child at z=7. Same-z scene children were
     // added earlier, so place this branch after layer 7 and before layer 8.
     player.layer_z_index = 7u;
