@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import math
 import re
 import struct
 import xml.etree.ElementTree as ET
@@ -43,6 +44,7 @@ class SceneProof:
     deferred_pairs: int
     unresolved_render_objects: int
     staging_requests: int
+    camera_eye_x: float
     drawn_frames: int
     drawn_sprites: int
 
@@ -198,6 +200,7 @@ def validate_diagnostics(text: str) -> SceneProof:
         r"^GameScene static renderer\n"
         r"shader:\s*([^\n]+)\n"
         r"surface:\s*(\d+)x(\d+)\n"
+        r"camera eye x:\s*([^\n]+)\n"
         r"draw attempts:\s*(\d+)\n"
         r"drawn frames:\s*(\d+)\n"
         r"last static sprites:\s*(\d+)\s*$",
@@ -208,13 +211,19 @@ def validate_diagnostics(text: str) -> SceneProof:
     shader = renderer.group(1)
     surface_width = int(renderer.group(2))
     surface_height = int(renderer.group(3))
-    draw_attempts = int(renderer.group(4))
-    drawn_frames = int(renderer.group(5))
-    drawn_sprites = int(renderer.group(6))
+    try:
+        camera_eye_x = float(renderer.group(4).strip())
+    except ValueError as error:
+        raise ValueError(f"invalid GameScene camera eye x: {renderer.group(4)!r}") from error
+    draw_attempts = int(renderer.group(5))
+    drawn_frames = int(renderer.group(6))
+    drawn_sprites = int(renderer.group(7))
     if shader != "ready":
         raise ValueError(f"GameScene shader is not ready: {shader!r}")
     if surface_width <= 0 or surface_height <= 0:
         raise ValueError("GameScene renderer has no live surface")
+    if not math.isfinite(camera_eye_x):
+        raise ValueError("GameScene camera eye x is not finite")
     if draw_attempts < 1 or drawn_frames < 1 or drawn_frames > draw_attempts:
         raise ValueError("GameScene renderer counters do not prove a successful draw")
     if drawn_sprites <= 0:
@@ -234,6 +243,7 @@ def validate_diagnostics(text: str) -> SceneProof:
         deferred_pairs=deferred_pairs,
         unresolved_render_objects=unresolved_render_objects,
         staging_requests=requests,
+        camera_eye_x=camera_eye_x,
         drawn_frames=drawn_frames,
         drawn_sprites=drawn_sprites,
     )
@@ -315,6 +325,7 @@ def main() -> int:
             "GameScene runtime evidence valid: "
             f"drawn_frames={proof.drawn_frames} "
             f"drawn_sprites={proof.drawn_sprites} "
+            f"camera_eye_x={proof.camera_eye_x:g} "
             f"unresolved_render_objects={proof.unresolved_render_objects} "
             f"deferred_pairs={proof.deferred_pairs}"
         )
