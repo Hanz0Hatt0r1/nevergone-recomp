@@ -2,15 +2,12 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 
 #include "enemy_actions_wbg_document.h"
+#include "me_actions_combo_boundaries.h"
 
 namespace nevergone::me_actions_playback_timing {
 
-// Player-specific offset state recovered from MeActionsSystem. Do not reuse the
-// EnemyActionsSystem timing/runtime offsets: both consume compatible
-// ActionFrameData records but their playback objects have different layouts.
 struct State {
     float attach_duration_1b0 = 0.0f;
     float accumulator_1b4 = 0.0f;
@@ -27,27 +24,49 @@ struct TimingResult {
     bool frame_processing_ready = false;
 };
 
-State initial_play_state();
+// Exact player-frame/boundary fields used by MeActionsSystem::play()/waUpdate().
+struct Cursor {
+    State timing;
+    std::int32_t current_frame_1a4 = 0;
+    std::int32_t previous_frame_1a8 = -1;
+    std::uint32_t primary_boundary_index_1f8 = 0;
+    std::uint32_t secondary_boundary_index_1fc = 0;
+    std::int32_t last_frame_1f4 = 1;
+    bool finished_cycle_200 = false;
+    bool primary_boundary_gate_201 = true;
+    bool update_marker_218 = false;
+    bool update_marker_219 = false;
+    bool update_data_gate_1bf = true;
+};
 
-// Exact pre-frame-advance prefix of MeActionsSystem::waUpdate(float):
-// - +0x220 done exits immediately;
-// - first update after play clears +0x1bc and +0x1b4 without accumulating dt;
-// - otherwise +0x1b4 += dt * 1000.0f;
-// - threshold +0x1ac = ActionFrameData+0x5c + +0x1b0;
-// - when accumulator >= threshold, threshold is subtracted and native proceeds
-//   into the player-specific frame/boundary branch.
-//
-// Section G of the parsed action document is the already-proven source of
-// ActionFrameData+0x5c. This function intentionally stops before frame advance;
-// action-data +0xb0/+0xb4 boundary semantics are a separate contract.
+struct PlaybackResult {
+    Cursor cursor;
+    bool valid_projection = false;
+    bool valid_frame = false;
+    std::size_t frames_advanced = 0;
+    std::size_t update_data_count = 0;
+    bool became_done = false;
+};
+
+State initial_play_state();
+Cursor initial_cursor();
+
 TimingResult apply_wa_update_timing(
     const enemy_actions_wbg_document::Document& document,
     std::int32_t current_frame_1a4,
     float delta_seconds,
     State state);
 
+// Full recovered waUpdate frame cursor/boundary loop. The first timing pass uses
+// delta_seconds; subsequent same-call iterations consume only the retained
+// accumulator, exactly as native control flow loops back after updateData().
+PlaybackResult apply_wa_update_playback(
+    const enemy_actions_wbg_document::Document& document,
+    const me_actions_combo_boundaries::Projection& boundaries,
+    float delta_seconds,
+    Cursor cursor);
+
 inline bool is_done(const State& state) {
-    // MeActionsSystem::isDone() is exactly LDRB [this,#0x220].
     return state.done_220;
 }
 
