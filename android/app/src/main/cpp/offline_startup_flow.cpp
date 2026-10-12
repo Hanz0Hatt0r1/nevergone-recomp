@@ -3,8 +3,6 @@
 #include <mutex>
 #include <sstream>
 
-#include "tutorial_session_state.h"
-
 namespace nevergone::offline_startup_flow {
 namespace {
 
@@ -28,7 +26,6 @@ void resolve_route_if_possible_locked() {
 void reset() {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_state = Snapshot{};
-    tutorial_session_state::reset();
 }
 
 void set_standalone_hero_presence(bool has_standalone_heroes) {
@@ -61,7 +58,9 @@ bool on_fresh_role_local_enter() {
     }
     if (g_state.route != Route::kOpeningDialogue) return false;
 
-    tutorial_session_state::begin_loading();
+    // Frozen original-game evidence places a dedicated LoadingLayer between
+    // role creation and cp_lesson/LessonLayer. Do not collapse that boundary
+    // merely because the preservation runtime has already prepared GameLevels.
     g_state.route = Route::kTutorialLoading;
     ++g_state.fresh_role_local_enter_count;
     return true;
@@ -71,7 +70,6 @@ bool on_tutorial_loading_complete() {
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_state.route == Route::kGameLevels) return true;
     if (g_state.route != Route::kTutorialLoading) return false;
-    if (!tutorial_session_state::on_loading_complete()) return false;
     g_state.route = Route::kGameLevels;
     ++g_state.tutorial_loading_complete_count;
     return true;
@@ -116,7 +114,6 @@ std::string status_report() {
     out << "offline fresh-role local enters: " << state.fresh_role_local_enter_count << "\n";
     out << "offline tutorial loading completions: "
         << state.tutorial_loading_complete_count << "\n";
-    out << tutorial_session_state::status_report();
     return out.str();
 }
 
