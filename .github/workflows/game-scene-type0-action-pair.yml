@@ -1,0 +1,19 @@
+name: GameScene type0 action pair
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run klhuo action-pair smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/game_scene_type0_action_pair_smoke.cpp \
+            -o /tmp/game_scene_type0_action_pair_smoke
+          /tmp/game_scene_type0_action_pair_smoke
