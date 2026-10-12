@@ -1,12 +1,12 @@
 #include <GLES2/gl2.h>
-#include <jni.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
-#include "game_clock.h"
 #include "offline_startup_flow.h"
+#include "tutorial_loading_compositor.h"
 
 namespace nevergone::tutorial_loading_compositor {
 namespace {
@@ -14,7 +14,6 @@ namespace {
 constexpr int kFrameCount = 3;
 constexpr float kDesignWidth = 1136.0f;
 constexpr float kDesignHeight = 640.0f;
-constexpr std::uint64_t kTicksPerFrame = 6;
 
 struct Frame {
     GLuint texture = 0;
@@ -67,6 +66,7 @@ void main() {
         if (fragment != 0) glDeleteShader(fragment);
         return 0;
     }
+
     const GLuint program = glCreateProgram();
     if (program == 0) {
         glDeleteShader(vertex);
@@ -80,6 +80,7 @@ void main() {
     glLinkProgram(program);
     glDeleteShader(vertex);
     glDeleteShader(fragment);
+
     GLint linked = GL_FALSE;
     glGetProgramiv(program, GL_LINK_STATUS, &linked);
     if (linked != GL_TRUE) {
@@ -98,13 +99,13 @@ void delete_texture(Frame* frame) {
 
 GLuint create_texture(const Frame& frame) {
     if (frame.width <= 0 || frame.height <= 0 ||
-        frame.pixels.size() != static_cast<size_t>(frame.width) *
-                               static_cast<size_t>(frame.height)) {
+            frame.pixels.size() != static_cast<std::size_t>(frame.width) *
+                                       static_cast<std::size_t>(frame.height)) {
         return 0;
     }
 
     std::vector<std::uint8_t> rgba(frame.pixels.size() * 4u);
-    for (size_t index = 0; index < frame.pixels.size(); ++index) {
+    for (std::size_t index = 0; index < frame.pixels.size(); ++index) {
         const std::uint32_t pixel = frame.pixels[index];
         rgba[index * 4u] = static_cast<std::uint8_t>((pixel >> 16u) & 0xffu);
         rgba[index * 4u + 1u] = static_cast<std::uint8_t>((pixel >> 8u) & 0xffu);
@@ -122,8 +123,15 @@ GLuint create_texture(const Frame& frame) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA, frame.width, frame.height, 0,
-        GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        frame.width,
+        frame.height,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        rgba.data());
     const GLenum error = glGetError();
     glBindTexture(GL_TEXTURE_2D, 0);
     if (error != GL_NO_ERROR) {
@@ -147,27 +155,12 @@ int first_available_frame() {
     return -1;
 }
 
-int animated_frame() {
-    int available[kFrameCount] = {};
-    int count = 0;
-    for (int index = 0; index < kFrameCount; ++index) {
-        if (!g_frames[index].pixels.empty()) available[count++] = index;
-    }
-    if (count == 0) return -1;
-    const std::uint64_t phase = game_clock::tick_count() / kTicksPerFrame;
-    return available[phase % static_cast<std::uint64_t>(count)];
-}
-
 void draw_frame(Frame* frame) {
     if (frame == nullptr || !ensure_texture(frame) ||
-        g_surface_width <= 0 || g_surface_height <= 0) {
+            g_surface_width <= 0 || g_surface_height <= 0) {
         return;
     }
 
-    // LoadingLayer resources are resolved through the original
-    // gamescene_ui/loading_UI search path. Draw at their design-space native
-    // size so both a full-screen 1136x640 frame and a trimmed centered logo
-    // preserve the original Cocos content size semantics.
     const float scale = std::min(
         static_cast<float>(g_surface_width) / kDesignWidth,
         static_cast<float>(g_surface_height) / kDesignHeight);
@@ -179,14 +172,14 @@ void draw_frame(Frame* frame) {
     const float bottom = top + draw_height;
 
     const GLfloat vertices[] = {
-        left * 2.0f / g_surface_width - 1.0f,
-        1.0f - top * 2.0f / g_surface_height,
-        left * 2.0f / g_surface_width - 1.0f,
-        1.0f - bottom * 2.0f / g_surface_height,
-        right * 2.0f / g_surface_width - 1.0f,
-        1.0f - top * 2.0f / g_surface_height,
-        right * 2.0f / g_surface_width - 1.0f,
-        1.0f - bottom * 2.0f / g_surface_height,
+        left * 2.0f / static_cast<float>(g_surface_width) - 1.0f,
+        1.0f - top * 2.0f / static_cast<float>(g_surface_height),
+        left * 2.0f / static_cast<float>(g_surface_width) - 1.0f,
+        1.0f - bottom * 2.0f / static_cast<float>(g_surface_height),
+        right * 2.0f / static_cast<float>(g_surface_width) - 1.0f,
+        1.0f - top * 2.0f / static_cast<float>(g_surface_height),
+        right * 2.0f / static_cast<float>(g_surface_width) - 1.0f,
+        1.0f - bottom * 2.0f / static_cast<float>(g_surface_height),
     };
     static constexpr GLfloat kTexCoords[] = {
         0.0f, 0.0f,
@@ -238,13 +231,14 @@ bool upload_frame(
         int width,
         int height,
         const std::uint32_t* argb,
-        size_t count) {
+        std::size_t count) {
     if (frame_index < 0 || frame_index >= kFrameCount ||
-        width <= 0 || height <= 0 || argb == nullptr ||
-        count != static_cast<size_t>(width) * static_cast<size_t>(height) ||
-        count > 16777216u) {
+            width <= 0 || height <= 0 || argb == nullptr ||
+            count != static_cast<std::size_t>(width) * static_cast<std::size_t>(height) ||
+            count > 16777216u) {
         return false;
     }
+
     Frame& frame = g_frames[frame_index];
     delete_texture(&frame);
     frame.width = width;
@@ -255,68 +249,20 @@ bool upload_frame(
 
 void draw() {
     if (offline_startup_flow::snapshot().route !=
-        offline_startup_flow::Route::kTutorialLoading) {
+            offline_startup_flow::Route::kTutorialLoading) {
         return;
     }
 
-    // The frozen original loading capture has a black background. Clearing
-    // here also guarantees that already-prepared GameScene geometry cannot
-    // leak through while the tutorial loading boundary owns the surface.
+    // The frozen original loading capture proves a black full-surface layer.
+    // It does not prove the cadence for logo_01..03, so do not fabricate an
+    // animation speed. Until that timing is recovered, render the first
+    // available imported frame deterministically.
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     if (g_program == 0 || g_sampler < 0) return;
 
-    int index = animated_frame();
-    if (index < 0) index = first_available_frame();
+    const int index = first_available_frame();
     if (index >= 0) draw_frame(&g_frames[index]);
 }
 
 }  // namespace nevergone::tutorial_loading_compositor
-
-extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeOnTutorialLoadingSurfaceCreated(
-        JNIEnv*, jclass) {
-    nevergone::tutorial_loading_compositor::on_surface_created();
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeOnTutorialLoadingSurfaceChanged(
-        JNIEnv*, jclass, jint width, jint height) {
-    nevergone::tutorial_loading_compositor::on_surface_changed(
-        static_cast<int>(width), static_cast<int>(height));
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeClearTutorialLoadingFrames(
-        JNIEnv*, jclass) {
-    nevergone::tutorial_loading_compositor::clear_frames();
-}
-
-extern "C" JNIEXPORT jboolean JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeUploadTutorialLoadingFrame(
-        JNIEnv* env,
-        jclass,
-        jint frame_index,
-        jint width,
-        jint height,
-        jintArray argb_pixels) {
-    if (argb_pixels == nullptr) return JNI_FALSE;
-    const jsize count = env->GetArrayLength(argb_pixels);
-    if (count <= 0) return JNI_FALSE;
-    jint* pixels = env->GetIntArrayElements(argb_pixels, nullptr);
-    if (pixels == nullptr) return JNI_FALSE;
-    const bool ok = nevergone::tutorial_loading_compositor::upload_frame(
-        static_cast<int>(frame_index),
-        static_cast<int>(width),
-        static_cast<int>(height),
-        reinterpret_cast<const std::uint32_t*>(pixels),
-        static_cast<size_t>(count));
-    env->ReleaseIntArrayElements(argb_pixels, pixels, JNI_ABORT);
-    return ok ? JNI_TRUE : JNI_FALSE;
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_org_nevergone_recomp_GameSurfaceView_nativeDrawTutorialLoadingLayer(
-        JNIEnv*, jclass) {
-    nevergone::tutorial_loading_compositor::draw();
-}
