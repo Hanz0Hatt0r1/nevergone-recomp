@@ -122,6 +122,7 @@ add_library(nevergone_recomp SHARED
     role_creation_validation.cpp
     role_selection_state.cpp
     scene_action_pair_document_store.cpp
+    scene_action_pair_runtime_bridge.cpp
     server_selection_assets.cpp
     server_selection_compositor.cpp
     server_selection_jni.cpp
