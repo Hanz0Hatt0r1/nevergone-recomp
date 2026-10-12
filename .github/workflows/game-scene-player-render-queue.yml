@@ -3,6 +3,8 @@ name: GameScene player render queue
 on:
   pull_request:
     paths:
+      - 'android/app/src/main/cpp/game_scene_camera_contract.h'
+      - 'android/app/src/main/cpp/game_scene_camera_render_queue.h'
       - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
       - 'android/app/src/main/cpp/game_scene_player_joystick_render_queue.h'
       - 'android/app/src/main/cpp/game_scene_player_motion_state.h'
@@ -10,13 +12,18 @@ on:
       - 'android/app/src/main/cpp/game_scene_player_frame_request.*'
       - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.*'
       - 'android/app/src/main/cpp/game_scene_direct_geometry.*'
+      - 'android/app/src/main/cpp/game_scene_render_queue.h'
+      - 'android/app/src/main/cpp/game_levels_runtime_state.*'
       - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
+      - 'tools/game_scene_camera_contract_smoke.cpp'
       - 'tools/game_scene_player_render_queue_smoke.cpp'
       - '.github/workflows/game-scene-player-render-queue.yml'
   push:
     branches: [main]
     paths:
+      - 'android/app/src/main/cpp/game_scene_camera_contract.h'
+      - 'android/app/src/main/cpp/game_scene_camera_render_queue.h'
       - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
       - 'android/app/src/main/cpp/game_scene_player_joystick_render_queue.h'
       - 'android/app/src/main/cpp/game_scene_player_motion_state.h'
@@ -24,8 +31,11 @@ on:
       - 'android/app/src/main/cpp/game_scene_player_frame_request.*'
       - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.*'
       - 'android/app/src/main/cpp/game_scene_direct_geometry.*'
+      - 'android/app/src/main/cpp/game_scene_render_queue.h'
+      - 'android/app/src/main/cpp/game_levels_runtime_state.*'
       - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
+      - 'tools/game_scene_camera_contract_smoke.cpp'
       - 'tools/game_scene_player_render_queue_smoke.cpp'
       - '.github/workflows/game-scene-player-render-queue.yml'
 
@@ -37,6 +47,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Build and run camera/parallax contract smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/game_scene_camera_contract_smoke.cpp \
+            -o /tmp/game_scene_camera_contract_smoke
+          /tmp/game_scene_camera_contract_smoke
       - name: Build and run player render queue smoke
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
