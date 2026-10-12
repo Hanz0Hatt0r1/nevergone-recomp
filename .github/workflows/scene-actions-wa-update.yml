@@ -1,0 +1,33 @@
+name: SceneActions waUpdate cursor
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_play_state.h'
+      - 'android/app/src/main/cpp/scene_actions_wa_update.h'
+      - 'android/app/src/main/cpp/trap_actions_combo_section.h'
+      - 'android/app/src/main/cpp/trap_actions_document.h'
+      - 'tools/scene_actions_wa_update_smoke.cpp'
+      - '.github/workflows/scene-actions-wa-update.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_play_state.h'
+      - 'android/app/src/main/cpp/scene_actions_wa_update.h'
+      - 'android/app/src/main/cpp/trap_actions_combo_section.h'
+      - 'android/app/src/main/cpp/trap_actions_document.h'
+      - 'tools/scene_actions_wa_update_smoke.cpp'
+      - '.github/workflows/scene-actions-wa-update.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run SceneActions waUpdate smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/scene_actions_wa_update_smoke.cpp \
+            -o /tmp/scene_actions_wa_update_smoke
+          /tmp/scene_actions_wa_update_smoke
