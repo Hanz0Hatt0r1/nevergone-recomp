@@ -10,6 +10,9 @@ final class GameSceneDirectAssetStore {
             int requestIndex,
             int spriteCommandIndex,
             boolean rgba4444,
+            boolean hasFrameOffset,
+            int frameOffsetX,
+            int frameOffsetY,
             int width,
             int height,
             int[] pixels);
@@ -33,6 +36,49 @@ final class GameSceneDirectAssetStore {
             int width,
             int height,
             int[] pixels) {
+        return uploadInternal(
+                revision,
+                requestIndex,
+                spriteCommandIndex,
+                false,
+                0,
+                0,
+                width,
+                height,
+                pixels);
+    }
+
+    static boolean uploadFrame(
+            long revision,
+            int requestIndex,
+            int spriteCommandIndex,
+            int frameOffsetX,
+            int frameOffsetY,
+            int width,
+            int height,
+            int[] pixels) {
+        return uploadInternal(
+                revision,
+                requestIndex,
+                spriteCommandIndex,
+                true,
+                frameOffsetX,
+                frameOffsetY,
+                width,
+                height,
+                pixels);
+    }
+
+    private static boolean uploadInternal(
+            long revision,
+            int requestIndex,
+            int spriteCommandIndex,
+            boolean hasFrameOffset,
+            int frameOffsetX,
+            int frameOffsetY,
+            int width,
+            int height,
+            int[] pixels) {
         // MeActionsSystem::initWithFile sets CCTexture2D's default alpha pixel
         // format to recovered value 6 before loading the player action atlas.
         // The original format-6 conversion is RGBA4444. Keep this decision at
@@ -43,6 +89,9 @@ final class GameSceneDirectAssetStore {
                 requestIndex,
                 spriteCommandIndex,
                 rgba4444,
+                hasFrameOffset,
+                frameOffsetX,
+                frameOffsetY,
                 width,
                 height,
                 pixels);
