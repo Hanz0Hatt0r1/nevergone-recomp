@@ -9,11 +9,14 @@ on:
       - 'android/app/src/main/cpp/game_scene_direct_texture_gl.cpp'
       - 'android/app/src/main/cpp/game_scene_direct_texture_gl.h'
       - 'android/app/src/main/cpp/game_scene_png_premultiply.h'
+      - 'android/app/src/main/cpp/game_scene_rgba4444.h'
+      - 'android/app/src/main/cpp/game_scene_texture_format.h'
       - 'android/app/src/main/cpp/game_scene_direct_texture_bridge.cpp'
       - 'android/app/src/main/cpp/game_scene_direct_asset_store.cpp'
       - 'android/app/src/main/cpp/game_scene_direct_asset_store.h'
       - 'tools/game_scene_direct_texture_cache_smoke.cpp'
       - 'tools/game_scene_png_premultiply_smoke.cpp'
+      - 'tools/game_scene_rgba4444_smoke.cpp'
       - '.github/workflows/game-scene-direct-texture-cache.yml'
   pull_request:
     paths:
@@ -22,11 +25,14 @@ on:
       - 'android/app/src/main/cpp/game_scene_direct_texture_gl.cpp'
       - 'android/app/src/main/cpp/game_scene_direct_texture_gl.h'
       - 'android/app/src/main/cpp/game_scene_png_premultiply.h'
+      - 'android/app/src/main/cpp/game_scene_rgba4444.h'
+      - 'android/app/src/main/cpp/game_scene_texture_format.h'
       - 'android/app/src/main/cpp/game_scene_direct_texture_bridge.cpp'
       - 'android/app/src/main/cpp/game_scene_direct_asset_store.cpp'
       - 'android/app/src/main/cpp/game_scene_direct_asset_store.h'
       - 'tools/game_scene_direct_texture_cache_smoke.cpp'
       - 'tools/game_scene_png_premultiply_smoke.cpp'
+      - 'tools/game_scene_rgba4444_smoke.cpp'
       - '.github/workflows/game-scene-direct-texture-cache.yml'
 
 jobs:
@@ -50,6 +56,13 @@ jobs:
             tools/game_scene_png_premultiply_smoke.cpp \
             -o /tmp/game_scene_png_premultiply_smoke
           /tmp/game_scene_png_premultiply_smoke
+      - name: Build and run RGBA4444 smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/game_scene_rgba4444_smoke.cpp \
+            -o /tmp/game_scene_rgba4444_smoke
+          /tmp/game_scene_rgba4444_smoke
       - name: Syntax-check JNI bridge
         run: |
           JAVA_HOME_PATH="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
