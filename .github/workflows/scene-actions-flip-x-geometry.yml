@@ -1,0 +1,29 @@
+name: SceneActions flip-X geometry
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_base_sprite_update.h'
+      - 'android/app/src/main/cpp/scene_actions_flip_x_geometry.h'
+      - 'tools/scene_actions_flip_x_geometry_smoke.cpp'
+      - '.github/workflows/scene-actions-flip-x-geometry.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_base_sprite_update.h'
+      - 'android/app/src/main/cpp/scene_actions_flip_x_geometry.h'
+      - 'tools/scene_actions_flip_x_geometry_smoke.cpp'
+      - '.github/workflows/scene-actions-flip-x-geometry.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run SceneActions flip-X geometry smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            tools/scene_actions_flip_x_geometry_smoke.cpp \
+            -o /tmp/scene_actions_flip_x_geometry_smoke
+          /tmp/scene_actions_flip_x_geometry_smoke
