@@ -89,12 +89,24 @@ bool observe_base_function_state(
     // state edges correspond to a fresh setFunctionState request for this live
     // reconstruction; holding a button must not continuously reload its action.
     if (function_state == g_snapshot.observed_function_state) return false;
-    g_snapshot.observed_function_state = function_state;
 
-    // Release/neutral is an observed edge, but the original setFunctionState(0)
-    // does not unconditionally return to state 0x1b. That depends on action
-    // completion/isActionDone(), which is not reconstructed yet.
-    if (function_state == 0u) return false;
+    // Release/neutral is always safe to observe, but the original
+    // setFunctionState(0) does not unconditionally return to state 0x1b. That
+    // depends on action completion/isActionDone(), which is not reconstructed.
+    if (function_state == 0u) {
+        g_snapshot.observed_function_state = 0u;
+        return false;
+    }
+
+    // Do not allow a later function edge to replace an action document that has
+    // not yet been resolved and committed. Keep the previous observed function
+    // state so a held button is reconsidered on the next frame after commit.
+    if (g_snapshot.current_action_state != g_snapshot.desired_action_state ||
+        g_snapshot.loaded_revision != g_snapshot.desired_revision) {
+        return false;
+    }
+
+    g_snapshot.observed_function_state = function_state;
 
     if (!has_pending_base_action) {
         ++g_snapshot.rejected_function_action_count;
