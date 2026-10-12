@@ -7,6 +7,8 @@
 #include "game_clock.h"
 #include "game_scene_player_motion_state.h"
 #include "player_control_runtime_state.h"
+#include "player_direction_combo_contract.h"
+#include "player_motion_contract.h"
 
 namespace nevergone::game_scene_player_joystick_input {
 namespace {
@@ -26,7 +28,34 @@ bool finite(float value) {
     return std::isfinite(value);
 }
 
-void release_capture_locked() {
+float combo_elapsed_seconds_locked(std::uint64_t game_tick) {
+    if (g_snapshot.direction_combo_state == 0u ||
+        game_tick < g_snapshot.direction_combo_started_tick) {
+        return 0.0f;
+    }
+    return static_cast<float>(
+            static_cast<double>(game_tick - g_snapshot.direction_combo_started_tick) *
+            game_clock::kFixedStepSeconds);
+}
+
+void deactivate_direction_combo_locked(std::uint64_t game_tick) {
+    const float elapsed = combo_elapsed_seconds_locked(game_tick);
+    g_snapshot.direction_combo_released = true;
+    g_snapshot.movement_action_state = player_motion_contract::kNormalMoveActionState;
+
+    // Controls::onCCJoyStickDeactivated() preserves the short combo timer/state
+    // so a second same-direction tap can be recognized, but clears both once
+    // the retained +0x158 timer is strictly greater than 0.5 seconds.
+    if (player_direction_combo_contract::expires_on_deactivate(elapsed)) {
+        g_snapshot.direction_combo_state = 0u;
+        g_snapshot.direction_combo_started_tick = game_tick;
+    }
+}
+
+void release_capture_locked(std::uint64_t game_tick) {
+    if (g_snapshot.captured) {
+        deactivate_direction_combo_locked(game_tick);
+    }
     g_snapshot.captured = false;
     g_snapshot.pointer_id = -1;
     g_snapshot.design_x = kCenterX;
@@ -49,6 +78,67 @@ bool update_sample_locked(float design_x, float design_y, bool count_move) {
         : 0.0f;
     if (count_move) ++g_snapshot.accepted_moves;
     return true;
+}
+
+void update_horizontal_combo_locked(float angle_degrees, std::uint64_t game_tick) {
+    namespace combo = player_direction_combo_contract;
+    const auto side = combo::horizontal_side(angle_degrees);
+    const auto normal = combo::normal_state(side);
+    if (!normal.has_value()) return;
+
+    float elapsed = combo_elapsed_seconds_locked(game_tick);
+
+    // A recovered fast direction-combo state remains visible at Controls +0x110
+    // until its +0x158 timer reaches 0.4 seconds. MEPlayer action state 1 stays
+    // latched while the current touch remains active even after +0x110 clears.
+    if (combo::is_fast_state(g_snapshot.direction_combo_state)) {
+        if (elapsed >= combo::kFastWindowMaxSeconds) {
+            g_snapshot.direction_combo_state = 0u;
+            g_snapshot.direction_combo_started_tick = game_tick;
+            g_snapshot.direction_combo_released = false;
+        } else {
+            return;
+        }
+    }
+
+    if (g_snapshot.direction_combo_state == 0u) {
+        g_snapshot.direction_combo_state = *normal;
+        g_snapshot.direction_combo_started_tick = game_tick;
+        g_snapshot.direction_combo_released = false;
+        // Do not downgrade an already-latched action-state-1 run while the same
+        // touch is still held after the native combo-state timer expires.
+        return;
+    }
+
+    elapsed = combo_elapsed_seconds_locked(game_tick);
+    if (g_snapshot.direction_combo_released) {
+        const auto fast = combo::fast_reactivation_state(
+                g_snapshot.direction_combo_state, side, elapsed);
+        if (fast.has_value()) {
+            g_snapshot.direction_combo_state = *fast;
+            g_snapshot.direction_combo_started_tick = game_tick;
+            g_snapshot.movement_action_state = player_motion_contract::kFastMoveActionState;
+            ++g_snapshot.fast_reactivation_count;
+            return;
+        }
+
+        // Opposite-direction transitions (native states 0x0e/0x10) are a
+        // separate combo boundary. Fail closed to ordinary movement instead of
+        // inventing their action semantics.
+        g_snapshot.direction_combo_state = *normal;
+        g_snapshot.direction_combo_started_tick = game_tick;
+        g_snapshot.direction_combo_released = false;
+        g_snapshot.movement_action_state = player_motion_contract::kNormalMoveActionState;
+        return;
+    }
+
+    if (!combo::same_normal_side(g_snapshot.direction_combo_state, side)) {
+        // Direction changed while still captured. Preserve the already-proven
+        // fast action latch if one exists; otherwise restart the normal timer for
+        // the new horizontal sector without assigning cross-direction actions.
+        g_snapshot.direction_combo_state = *normal;
+        g_snapshot.direction_combo_started_tick = game_tick;
+    }
 }
 
 }  // namespace
@@ -90,9 +180,10 @@ bool on_touch(
         surface_width, surface_height, surface_x, surface_y, &design_x, &design_y);
 
     std::lock_guard<std::mutex> lock(g_mutex);
+    const std::uint64_t game_tick = game_clock::tick_count();
     if (action == kActionCancel) {
         if (!g_snapshot.captured) return false;
-        release_capture_locked();
+        release_capture_locked(game_tick);
         return true;
     }
 
@@ -104,6 +195,7 @@ bool on_touch(
         if (!finite(distance) || distance >= kHitRadius) return false;
         g_snapshot.captured = true;
         g_snapshot.pointer_id = pointer_id;
+        g_snapshot.movement_action_state = player_motion_contract::kNormalMoveActionState;
         ++g_snapshot.accepted_begins;
         (void)update_sample_locked(design_x, design_y, false);
         return true;
@@ -117,7 +209,7 @@ bool on_touch(
     }
 
     if (action == kActionUp || action == kActionPointerUp) {
-        release_capture_locked();
+        release_capture_locked(game_tick);
         return true;
     }
 
@@ -131,6 +223,7 @@ void tick() {
     float direction_x = 0.0f;
     float direction_y = 0.0f;
     bool captured = false;
+    std::uint32_t movement_action_state = player_motion_contract::kNormalMoveActionState;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         captured = g_snapshot.captured;
@@ -144,6 +237,10 @@ void tick() {
                 direction_x = local_x / length;
                 direction_y = local_y / length;
             }
+            if (power > 0.05f) {
+                update_horizontal_combo_locked(angle, game_tick);
+            }
+            movement_action_state = g_snapshot.movement_action_state;
         }
     }
 
@@ -155,13 +252,17 @@ void tick() {
         // +0x160 is the separate activity sample used by the 0.05 threshold.
         active = player_control_runtime_state::apply_horizontal_sample(power, angle);
     }
-    (void)game_scene_player_motion_state::advance_normal_sample(
-            game_tick, active, direction_x, direction_y);
+    (void)game_scene_player_motion_state::advance_sample(
+            game_tick,
+            active,
+            movement_action_state,
+            direction_x,
+            direction_y);
 }
 
 void cancel_capture() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    release_capture_locked();
+    release_capture_locked(game_clock::tick_count());
 }
 
 void reset() {
@@ -193,6 +294,10 @@ std::string status_report() {
     out << "design point: " << state.design_x << "," << state.design_y << "\n";
     out << "power: " << state.power << "\n";
     out << "angle degrees: " << state.angle_degrees << "\n";
+    out << "direction combo state: 0x" << std::hex << state.direction_combo_state << std::dec << "\n";
+    out << "direction combo released: " << (state.direction_combo_released ? "true" : "false") << "\n";
+    out << "movement action state: 0x" << std::hex << state.movement_action_state << std::dec << "\n";
+    out << "fast reactivations: " << state.fast_reactivation_count << "\n";
     out << game_scene_player_motion_state::status_report();
     return out.str();
 }
