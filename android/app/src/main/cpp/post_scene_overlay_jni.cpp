@@ -1,12 +1,14 @@
 #include <GLES2/gl2.h>
 #include <jni.h>
 
+#include <atomic>
 #include <cstdint>
 #include <limits>
 #include <string>
 
 #include "character_name_compositor.h"
 #include "character_name_state.h"
+#include "game_scene_action_surface_input.h"
 #include "game_scene_direct_renderer.h"
 #include "offline_startup_flow.h"
 #include "server_selection_compositor.h"
@@ -16,6 +18,9 @@
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeDrawSplashLayers(JNIEnv*, jclass);
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeOnTouch(
+    JNIEnv*, jclass, jint, jint, jfloat, jfloat);
 
 namespace {
 
@@ -25,6 +30,8 @@ std::uint64_t g_last_tutorial_loading_asset_attempt =
     std::numeric_limits<std::uint64_t>::max();
 std::uint64_t g_last_action_asset_attempt =
     std::numeric_limits<std::uint64_t>::max();
+std::atomic<int> g_surface_width{0};
+std::atomic<int> g_surface_height{0};
 
 bool invoke_files_dir_loader(JNIEnv* env, const char* class_name) {
     if (env == nullptr || class_name == nullptr) return false;
@@ -109,6 +116,7 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::server_selection_compositor::on_surface_created();
     nevergone::character_name_compositor::on_surface_created();
     nevergone::tutorial_loading_compositor::on_surface_created();
+    nevergone::game_scene_action_surface_input::cancel_all_captures();
     while (glGetError() != GL_NO_ERROR) {
     }
 }
@@ -117,6 +125,8 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     GLint viewport[4] = {0, 0, 0, 0};
     glGetIntegerv(GL_VIEWPORT, viewport);
     if (viewport[2] > 0 && viewport[3] > 0) {
+        g_surface_width.store(viewport[2], std::memory_order_relaxed);
+        g_surface_height.store(viewport[3], std::memory_order_relaxed);
         nevergone::game_scene_direct_renderer::on_surface_changed(viewport[2], viewport[3]);
         nevergone::tutorial_loading_compositor::on_surface_changed(
             viewport[2], viewport[3]);
@@ -137,6 +147,32 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     // or CharacterName geometry may leak through behind it.
     maybe_stage_tutorial_loading_assets(env);
     nevergone::tutorial_loading_compositor::draw();
+}
+
+void wrapped_native_touch(
+        JNIEnv* env,
+        jclass clazz,
+        jint action,
+        jint pointer_id,
+        jfloat x,
+        jfloat y) {
+    const auto startup = nevergone::offline_startup_flow::snapshot();
+    if (startup.route == nevergone::offline_startup_flow::Route::kGameLevels) {
+        const int width = g_surface_width.load(std::memory_order_relaxed);
+        const int height = g_surface_height.load(std::memory_order_relaxed);
+        if (nevergone::game_scene_action_surface_input::on_touch(
+                static_cast<int>(action),
+                static_cast<int>(pointer_id),
+                static_cast<float>(x),
+                static_cast<float>(y),
+                width,
+                height)) {
+            return;
+        }
+    }
+
+    Java_org_nevergone_recomp_GameSurfaceView_nativeOnTouch(
+        env, clazz, action, pointer_id, x, y);
 }
 
 void draw_post_scene_layers(JNIEnv* env, jclass clazz) {
@@ -167,6 +203,11 @@ bool register_frame_layers(JNIEnv* env) {
             const_cast<char*>("nativeDrawSplashLayers"),
             const_cast<char*>("()V"),
             reinterpret_cast<void*>(&draw_post_scene_layers),
+        },
+        {
+            const_cast<char*>("nativeOnTouch"),
+            const_cast<char*>("(IIFF)V"),
+            reinterpret_cast<void*>(&wrapped_native_touch),
         },
     };
 
