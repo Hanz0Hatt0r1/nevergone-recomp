@@ -59,9 +59,32 @@ bool refresh(
         return false;
     }
     g_state.matching_marker_count = markers->size();
-    if (markers->empty()) {
-        g_state.status = Status::kNoMatchingMarker;
+
+    const auto bootstrap = game_scene_player_bootstrap::initial_manager_point(
+            game_scene_direct_geometry::kDesignWidth,
+            game_scene_direct_geometry::kDesignHeight);
+    if (!bootstrap.has_value()) {
+        g_state.status = Status::kTransformFailed;
         return false;
+    }
+    g_state.bootstrap_x = bootstrap->x;
+    g_state.bootstrap_y = bootstrap->y;
+
+    if (markers->empty()) {
+        // The original MEPlayer already exists at the manager construction
+        // point before GameScene::loadingTex() walks type-6 objects. The
+        // setPlayerPos() override is conditional on a type-6 tail matching
+        // GameLevels +0x40; with no match, loadingTex() simply keeps the
+        // bootstrap position and continues scene construction.
+        g_state.used_entry_marker = false;
+        g_state.applied_marker_count = 0u;
+        g_state.scene_offset_x = 0.0f;
+        g_state.scene_offset_y = 0.0f;
+        g_state.player_x = bootstrap->x;
+        g_state.player_y = bootstrap->y;
+        g_position = *bootstrap;
+        g_state.status = Status::kReady;
+        return true;
     }
 
     const auto resolved = game_scene_player_entry_markers::resolve_offline_player_position(
@@ -77,6 +100,7 @@ bool refresh(
     // loadingTex() executes setPlayerPos() for every matching marker. The
     // resolved helper models the resulting final state (the last match) and the
     // two-part MEPlayer position: bootstrap + scene offset.
+    g_state.used_entry_marker = true;
     g_state.applied_marker_count = markers->size();
     g_state.source_layer_index = resolved->marker.source_layer_index;
     g_state.source_object_index = resolved->marker.source_object_index;
@@ -130,9 +154,12 @@ std::string status_report() {
     out << "matching markers: " << state.matching_marker_count << "\n";
     out << "applied markers: " << state.applied_marker_count << "\n";
     if (state.status == Status::kReady) {
-        out << "source marker: layer " << state.source_layer_index
-            << ", object " << state.source_object_index << "\n";
-        out << "source point: " << state.source_x << ", " << state.source_y << "\n";
+        out << "entry marker applied: " << (state.used_entry_marker ? "yes" : "no") << "\n";
+        if (state.used_entry_marker) {
+            out << "source marker: layer " << state.source_layer_index
+                << ", object " << state.source_object_index << "\n";
+            out << "source point: " << state.source_x << ", " << state.source_y << "\n";
+        }
         out << "bootstrap point: " << state.bootstrap_x << ", " << state.bootstrap_y << "\n";
         out << "scene offset: " << state.scene_offset_x << ", " << state.scene_offset_y << "\n";
         out << "player point: " << state.player_x << ", " << state.player_y << "\n";

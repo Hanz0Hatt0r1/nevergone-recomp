@@ -45,6 +45,7 @@ unresolved render objects: 1
 GameScene static renderer
 shader: ready
 surface: 1080x1920
+camera eye x: 64.5
 draw attempts: 18
 drawn frames: 16
 last static sprites: 10
@@ -118,6 +119,7 @@ def main() -> int:
         assert proof is not None
         assert proof.render_sprites == 12
         assert proof.staging_requests == 10
+        assert proof.camera_eye_x == 64.5
         assert proof.drawn_frames == 16
         assert proof.drawn_sprites == 10
         assert proof.unresolved_render_objects == 1
@@ -148,6 +150,8 @@ def main() -> int:
         expect_invalid(replace(root, "scene render queue: ready", "scene render queue: missing"))
         expect_invalid(replace(root, "state: ready\nattempts: 1", "state: staging\nattempts: 1"))
         expect_invalid(replace(root, "staged: 10", "staged: 9"))
+        expect_invalid(replace(root, "camera eye x: 64.5", "camera eye x: nan"))
+        expect_invalid(replace(root, "camera eye x: 64.5\n", ""))
         expect_invalid(replace(root, "drawn frames: 16", "drawn frames: 0"))
         expect_invalid(replace(root, "last static sprites: 10", "last static sprites: 9"))
         expect_invalid(replace(root, "render sprites: 12", "render sprites: 0"))

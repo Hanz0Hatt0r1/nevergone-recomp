@@ -15,6 +15,9 @@ enum class Status {
     kIdle = 0,
     kInvalidSurface,
     kMarkerCollectionFailed,
+    // Retained for source compatibility with older diagnostics. A valid scene
+    // with zero matching type-6 markers now keeps the already-created MEPlayer
+    // at its manager bootstrap point and reports kReady.
     kNoMatchingMarker,
     kTransformFailed,
     kReady,
@@ -30,6 +33,10 @@ struct Snapshot {
     int surface_height = 0;
     std::size_t matching_marker_count = 0;
     std::size_t applied_marker_count = 0;
+    // True only when loadingTex() would have executed the type-6
+    // MEPlayer::setPlayerPos() override. False means the original keeps the
+    // MEPlayerManager construction/bootstrap point unchanged.
+    bool used_entry_marker = false;
     std::size_t source_layer_index = 0;
     std::size_t source_object_index = 0;
     float source_x = 0.0f;

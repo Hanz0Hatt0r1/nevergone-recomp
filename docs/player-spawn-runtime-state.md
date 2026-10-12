@@ -1,6 +1,6 @@
 # Player spawn runtime state
 
-Issue #148 materializes the recovered type-6 player-entry contract as live project-owned runtime state. The retained point now follows the complete `MEPlayer` position model rather than treating the type-6 transform as a final coordinate.
+Issue #148 materializes the recovered type-6 player-entry contract as live project-owned runtime state. The retained point follows the complete `MEPlayer` position model and also preserves the original no-match behavior: the primary player already exists at its manager bootstrap point before `GameScene::loadingTex()` evaluates type-6 entry markers.
 
 ## Source state
 
@@ -44,13 +44,28 @@ player_y = source_y + 168
 
 The original `GameScene::loadingTex()` calls `MEPlayer::setPlayerPos()` for every matching type-6 marker rather than enforcing uniqueness. The project preserves that ordered overwrite behavior: all matches are counted and the final live position comes from the last matching marker.
 
-Missing markers, malformed matching records, non-finite coordinates and invalid live surface dimensions fail closed and clear the retained position.
+## No matching marker is a valid placement path
+
+The type-6 branch in `GameScene::loadingTex()` is conditional. It compares the object's type tail against `GameLevels +0x40`; only a match executes the position transform and `MEPlayer::setPlayerPos()`. A non-match simply continues the object loop. There is no fatal branch that destroys the player or aborts GameScene construction.
+
+The primary `MEPlayer` has already been created by `MEPlayerManager::initMEPlayerManager()` before this loop. Therefore a valid scene with zero matching type-6 markers retains the construction point unchanged:
+
+```text
+scene_offset = (0, 0)
+player = bootstrap = (568, 448)
+```
+
+The runtime now reports this as `state: ready` with `matching markers: 0`, `applied markers: 0`, and `entry marker applied: no`. Malformed type-6 records, non-finite matching coordinates and invalid live surface dimensions still fail closed. When a valid matching marker exists, diagnostics report `entry marker applied: yes` and retain the recovered last-match overwrite semantics.
+
+This distinction was required by the physical-device `run-335` evidence: static GameScene rendering and asset staging were already complete while the player motion state repeatedly reset because the reconstruction treated zero matching entry markers as a fatal spawn condition. The original does not.
 
 ## Android lifecycle
 
 `PlayerActionRuntimeLoader.stageIfNeeded()` runs from the GL-thread GameScene asset staging path and refreshes player spawn state while the live scene queue is active. Physical surface dimensions remain part of the state identity so context/viewport changes trigger a refresh, but they no longer distort Cocos design-space coordinates.
 
 Explicit imported-asset invalidation also resets this spawn state along with the parsed player action document.
+
+The native runtime diagnostics now include the full `GameScene player spawn state` report so device captures distinguish bootstrap retention, a type-6 override, and malformed-marker failure without exposing proprietary resource names.
 
 ## Current #148 boundary
 
@@ -59,7 +74,8 @@ The project now owns both inputs required before constructing the first visible 
 ```text
 live GameLevels scene + event-port type
     -> ordered matching type-6 markers
-    -> design-space scene offset
+    -> if matched: design-space scene offset
+    -> if unmatched: zero offset / retained bootstrap
     -> MEPlayer bootstrap + scene offset
     -> final visible player point
 
@@ -72,4 +88,4 @@ committed role Career
 
 The earlier `EnemyActionsSystem +0x26c/+0x294` assumption does not apply to the player `MeActionsSystem`. Player playback uses `MeActionsSystem +0x1a4` for the current frame and `+0x1a8` for the previous frame; `initWithFile()`/`play()` prove the initial values `0/-1`.
 
-The MeActions body-local transform is now recovered in `docs/evidence/me-actions-initial-sprite-transform.md` and composed with the final player point in the project-owned render queue. The sprite appears when the selected imported action data and matching player atlas are available.
+The MeActions body-local transform is recovered in `docs/evidence/me-actions-initial-sprite-transform.md` and composed with the final player point in the project-owned render queue. The sprite appears when the selected imported action data and matching player atlas are available.
