@@ -101,6 +101,8 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert alias != null;
             assert alias.canonicalName.equals("hero_idle.png");
             assert alias.requestedName.equals("hero_alias.png");
+            // True cache misses remain null so ordinary GameScene staging can
+            // reproduce the original empty.png + setVisible(false) fallback.
             assert prepared.resolve("missing.png") == null;
 
             GameSceneAtlasFrameResolver.Frame oneShot = GameSceneAtlasFrameResolver.resolve(
@@ -266,7 +268,10 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert legacy2.rotated;
             assert legacy2.spriteWidth == 30 && legacy2.spriteHeight == 40;
 
-            // Do not silently round genuinely fractional texel geometry.
+            // Do not silently round genuinely fractional texel geometry. The
+            // name is present, so the result must be non-null and invalid for
+            // rendering; this prevents the scene hidden-fallback path from
+            // confusing malformed metadata with a cache miss.
             GameSceneAtlasResolver.Atlas fractional = writeAtlas(
                     root,
                     "player/Player01_Res/fractional",
@@ -281,7 +286,13 @@ public final class GameSceneAtlasFrameResolverSmoke {
                     GameSceneAtlasFrameResolver.prepare(
                             root, Collections.singletonList(fractional));
             assert fractionalPrepared != null;
-            assert fractionalPrepared.resolve("fractional.png") == null;
+            GameSceneAtlasFrameResolver.Frame fractionalInvalid =
+                    fractionalPrepared.resolve("fractional.png");
+            assert fractionalInvalid != null;
+            assert fractionalInvalid.spriteWidth == 0;
+            assert fractionalInvalid.spriteHeight == 0;
+            assert fractionalInvalid.sourceWidth == 0;
+            assert fractionalInvalid.sourceHeight == 0;
 
             GameSceneAtlasResolver.Atlas malformed = writeAtlas(
                     root,
@@ -293,7 +304,13 @@ public final class GameSceneAtlasFrameResolverSmoke {
                     GameSceneAtlasFrameResolver.prepare(
                             root, Collections.singletonList(malformed));
             assert malformedPrepared != null;
-            assert malformedPrepared.resolve("bad.png") == null;
+            GameSceneAtlasFrameResolver.Frame malformedInvalid =
+                    malformedPrepared.resolve("bad.png");
+            assert malformedInvalid != null;
+            assert malformedInvalid.canonicalName.equals("bad.png");
+            assert malformedInvalid.spriteWidth == 0;
+            assert malformedInvalid.sourceWidth == 0;
+            assert malformedPrepared.resolve("actually_missing.png") == null;
 
             GameSceneAtlasResolver.Atlas unsupported = writeAtlas(
                     root,
