@@ -1,0 +1,30 @@
+name: MeActions playback timing
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/me_actions_playback_timing.*'
+      - 'android/app/src/main/cpp/enemy_actions_wbg_*.h'
+      - 'tools/me_actions_playback_timing_smoke.cpp'
+      - '.github/workflows/me-actions-playback-timing.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/me_actions_playback_timing.*'
+      - 'android/app/src/main/cpp/enemy_actions_wbg_*.h'
+      - 'tools/me_actions_playback_timing_smoke.cpp'
+      - '.github/workflows/me-actions-playback-timing.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run MeActions playback timing smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/me_actions_playback_timing_smoke.cpp \
+            android/app/src/main/cpp/me_actions_playback_timing.cpp \
+            -o /tmp/me_actions_playback_timing_smoke
+          /tmp/me_actions_playback_timing_smoke
