@@ -4,7 +4,7 @@ import java.io.File;
 import java.util.Collections;
 import java.util.List;
 
-/** Resolves one retained SceneActions initial-frame request through the recovered Cocos atlas path. */
+/** Resolves one retained SceneActions frame request through the recovered Cocos atlas path. */
 final class SceneActionInitialFrameResolver {
     static final class Result {
         final int mode;
@@ -21,24 +21,39 @@ final class SceneActionInitialFrameResolver {
     static Result resolve(
             File assetRoot,
             SceneActionPairRuntimeLoader.InitialFrame request) {
-        if (assetRoot == null || request == null ||
-                (request.mode != 0 && request.mode != 1) ||
-                request.atlasPlist == null || request.atlasPlist.isEmpty() ||
-                request.frameName == null || request.frameName.isEmpty()) {
+        if (request == null) return null;
+        return resolve(assetRoot, request.atlasPlist, request.frameName, request.mode);
+    }
+
+    static Result resolve(
+            File assetRoot,
+            SceneActionPairRuntimeLoader.CurrentFrame request) {
+        if (request == null) return null;
+        return resolve(assetRoot, request.atlasPlist, request.frameName, request.mode);
+    }
+
+    private static Result resolve(
+            File assetRoot,
+            String atlasPlist,
+            String frameName,
+            int mode) {
+        if (assetRoot == null || (mode != 0 && mode != 1) ||
+                atlasPlist == null || atlasPlist.isEmpty() ||
+                frameName == null || frameName.isEmpty()) {
             return null;
         }
 
         List<GameSceneAtlasResolver.Atlas> atlases = GameSceneAtlasResolver.resolve(
                 assetRoot,
-                Collections.singletonList(request.atlasPlist));
+                Collections.singletonList(atlasPlist));
         if (atlases == null || atlases.size() != 1) return null;
 
         GameSceneAtlasFrameResolver.Prepared prepared =
                 GameSceneAtlasFrameResolver.prepare(assetRoot, atlases);
         if (prepared == null) return null;
-        GameSceneAtlasFrameResolver.Frame frame = prepared.resolve(request.frameName);
+        GameSceneAtlasFrameResolver.Frame frame = prepared.resolve(frameName);
         if (!validFrame(frame)) return null;
-        return new Result(request.mode, frame);
+        return new Result(mode, frame);
     }
 
     private static boolean validFrame(GameSceneAtlasFrameResolver.Frame frame) {
