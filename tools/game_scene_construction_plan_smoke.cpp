@@ -26,6 +26,7 @@ nevergone::game_levels_scene_prefix::ObjectRecord make_object(
 
 int main() {
     namespace plan_ns = nevergone::game_scene_construction_plan;
+    namespace post_ns = nevergone::game_scene_type0_post_init;
     namespace resource_ns = nevergone::game_scene_type0_resource;
     using nevergone::game_levels_scene_instance::LayerInstance;
     using nevergone::game_levels_scene_instance::SceneInstance;
@@ -66,6 +67,26 @@ int main() {
     }
     assert(!resource_ns::is_hidden_after_init("background.png"));
 
+    const char* skew_loop[] = {
+        "gkshu01.png", "gkshu02.png", "gkshu03.png", "gkshu04.png",
+        "gkshu05.png", "gkshu06.png", "gkshu07.png", "gkshu08.png",
+    };
+    for (const char* name : skew_loop) {
+        assert(post_ns::classify(name) == post_ns::Behavior::kRandomSkewLoop);
+    }
+    const char* fade_loop[] = {
+        "gkdeng01.png", "gkdeng02.png", "gkdeng03.png", "gkdeng04.png",
+        "gkdeng05.png", "gkdeng06.png", "gkdeng07.png",
+    };
+    for (const char* name : fade_loop) {
+        assert(post_ns::classify(name) == post_ns::Behavior::kRandomFadeLoop);
+    }
+    assert(post_ns::classify("background.png") == post_ns::Behavior::kNone);
+    assert(std::string(post_ns::behavior_name(post_ns::Behavior::kRandomSkewLoop)) ==
+           "random-skew-loop");
+    assert(std::string(post_ns::behavior_name(post_ns::Behavior::kRandomFadeLoop)) ==
+           "random-fade-loop");
+
     SceneInstance scene;
     scene.source_scene_index = 7u;
     scene.guid = "scene-guid";
@@ -83,19 +104,21 @@ int main() {
     scene.layers[0].objects.push_back(make_object(0, "gktianchong.png"));
     scene.layers[0].objects.push_back(make_object(0, "gkanniu2.png"));
     scene.layers[0].objects.push_back(make_object(0, "klhuoguang-6.png"));
+    scene.layers[0].objects.push_back(make_object(0, "gkshu01.png"));
+    scene.layers[0].objects.push_back(make_object(0, "gkdeng01.png"));
     scene.layers[0].objects.push_back(make_object(0, "klhuo-1.png"));
     scene.layers[0].objects.push_back(make_object(4, "type-four"));
     scene.layers[3].objects.push_back(make_object(6, "type-six"));
     scene.layers[10].objects.push_back(make_object(1, "type-one"));
     scene.layers[11].objects.push_back(make_object(0, "ignored.png"));
-    scene.object_count = 9u;
+    scene.object_count = 11u;
 
     const auto plan = plan_ns::build(scene);
     assert(plan.source_scene_index == 7u);
     assert(plan.guid == "scene-guid");
     assert(plan.layers.size() == plan_ns::kLoadingTexLayerSlotCount);
     assert(plan.ignored_source_layer_count == 1u);
-    assert(plan.object_count == 8u);
+    assert(plan.object_count == 10u);
 
     for (std::size_t z = 0; z < plan.layers.size(); ++z) {
         assert(plan.layers[z].z_index == z);
@@ -103,7 +126,7 @@ int main() {
         assert(plan.layers[z].first_float == static_cast<float>(z) + 0.25f);
     }
 
-    assert(plan.layers[0].objects.size() == 6u);
+    assert(plan.layers[0].objects.size() == 8u);
     const auto& cached = plan.layers[0].objects[0];
     assert(cached.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
     assert(cached.type0_resource.has_value());
@@ -118,6 +141,7 @@ int main() {
     assert(cached.type0_sprite_transform->scale_y == 50.0f);
     assert(cached.type0_sprite_transform->flip_x);
     assert(cached.type0_sprite_transform->child_z_order == 60);
+    assert(cached.type0_post_init == post_ns::Behavior::kNone);
 
     const auto& direct = plan.layers[0].objects[1];
     assert(direct.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
@@ -140,15 +164,27 @@ int main() {
     assert(!hidden_cached.type0_resource->initially_visible);
     assert(hidden_cached.type0_sprite_transform.has_value());
 
-    const auto& action_pair = plan.layers[0].objects[4];
+    const auto& skew = plan.layers[0].objects[4];
+    assert(skew.type0_resource->kind == resource_ns::Kind::kSpriteFrameByName);
+    assert(skew.type0_resource->initially_visible);
+    assert(skew.type0_post_init == post_ns::Behavior::kRandomSkewLoop);
+
+    const auto& fade = plan.layers[0].objects[5];
+    assert(fade.type0_resource->kind == resource_ns::Kind::kSpriteFrameByName);
+    assert(fade.type0_resource->initially_visible);
+    assert(fade.type0_post_init == post_ns::Behavior::kRandomFadeLoop);
+
+    const auto& action_pair = plan.layers[0].objects[6];
     assert(action_pair.construction_kind == plan_ns::ObjectConstructionKind::kType0SceneActionPair);
     assert(action_pair.type0_resource->kind == resource_ns::Kind::kSceneActionPair);
     assert(!action_pair.type0_sprite_transform.has_value());
+    assert(action_pair.type0_post_init == post_ns::Behavior::kNone);
 
-    const auto& type4 = plan.layers[0].objects[5];
+    const auto& type4 = plan.layers[0].objects[7];
     assert(type4.construction_kind == plan_ns::ObjectConstructionKind::kUnresolved);
     assert(!type4.type0_resource.has_value());
     assert(!type4.type0_sprite_transform.has_value());
+    assert(type4.type0_post_init == post_ns::Behavior::kNone);
 
     for (const auto& layer : plan.layers) {
         for (const auto& object : layer.objects) {
