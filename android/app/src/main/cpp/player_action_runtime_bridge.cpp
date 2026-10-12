@@ -6,10 +6,12 @@
 
 #include "game_clock.h"
 #include "game_levels_runtime_state.h"
+#include "game_scene_action_input.h"
 #include "game_scene_direct_renderer.h"
 #include "game_scene_player_joystick_input.h"
 #include "game_scene_player_motion_state.h"
 #include "game_scene_player_spawn_state.h"
+#include "meplayer_live_action_state.h"
 #include "player_action_document_store.h"
 #include "player_offline_career.h"
 #include "startup_contract.h"
@@ -30,16 +32,21 @@ jint current_offline_career() {
     return resolution.ready() ? static_cast<jint>(resolution.career) : 0;
 }
 
-void sync_motion_to_spawn(const nevergone::game_scene_player_spawn_state::Snapshot& spawn) {
+void sync_runtime_to_spawn(const nevergone::game_scene_player_spawn_state::Snapshot& spawn) {
     const jint career = current_offline_career();
     if (spawn.status != nevergone::game_scene_player_spawn_state::Status::kReady || career <= 0) {
         nevergone::game_scene_player_motion_state::reset();
+        nevergone::meplayer_live_action_state::reset();
         return;
     }
     (void)nevergone::game_scene_player_motion_state::sync_spawn(
             spawn.generation,
             static_cast<std::uint32_t>(career),
             nevergone::game_clock::tick_count());
+    const auto action_input = nevergone::game_scene_action_input::snapshot();
+    (void)nevergone::meplayer_live_action_state::sync_spawn(
+            spawn.generation,
+            action_input.tutorial_event_count);
 }
 
 std::string runtime_status_report() {
@@ -57,6 +64,7 @@ std::string runtime_status_report() {
         << (document.embedded_entry_name.empty() ? "standalone" : "actions-data-bundle") << "\n";
     out << "document load attempts: " << document.load_attempt_count << "\n";
     out << "document primary records: " << document.primary_record_count << "\n";
+    out << nevergone::meplayer_live_action_state::status_report();
     return out.str();
 }
 
@@ -90,7 +98,7 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeRefreshPlayerSpawnStat
         existing.event_port_type == levels.stored_event_port_type &&
         existing.surface_width == renderer.surface_width &&
         existing.surface_height == renderer.surface_height) {
-        sync_motion_to_spawn(existing);
+        sync_runtime_to_spawn(existing);
         return JNI_TRUE;
     }
 
@@ -98,6 +106,7 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeRefreshPlayerSpawnStat
     if (!scene.has_value()) {
         nevergone::game_scene_player_spawn_state::reset();
         nevergone::game_scene_player_motion_state::reset();
+        nevergone::meplayer_live_action_state::reset();
         return JNI_FALSE;
     }
     const bool ready = nevergone::game_scene_player_spawn_state::refresh(
@@ -106,11 +115,35 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeRefreshPlayerSpawnStat
             renderer.surface_width,
             renderer.surface_height);
     if (ready) {
-        sync_motion_to_spawn(nevergone::game_scene_player_spawn_state::snapshot());
+        sync_runtime_to_spawn(nevergone::game_scene_player_spawn_state::snapshot());
     } else {
         nevergone::game_scene_player_motion_state::reset();
+        nevergone::meplayer_live_action_state::reset();
     }
     return ready ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeDesiredPlayerActionState(
+        JNIEnv*, jclass) {
+    const auto spawn = nevergone::game_scene_player_spawn_state::snapshot();
+    if (spawn.status != nevergone::game_scene_player_spawn_state::Status::kReady) return -1;
+
+    const auto input = nevergone::game_scene_action_input::snapshot();
+    (void)nevergone::meplayer_live_action_state::sync_spawn(
+            spawn.generation, input.tutorial_event_count);
+    (void)nevergone::meplayer_live_action_state::observe_tutorial_event_count(
+            input.tutorial_event_count);
+    const auto live = nevergone::meplayer_live_action_state::snapshot();
+    return live.ready ? static_cast<jint>(live.desired_action_state) : -1;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeCommitLoadedPlayerActionState(
+        JNIEnv*, jclass, jint action_state) {
+    if (action_state < 0) return JNI_FALSE;
+    return nevergone::meplayer_live_action_state::commit_loaded_action(
+            static_cast<std::uint32_t>(action_state)) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -148,6 +181,7 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeResetPlayerActionDocum
     nevergone::player_action_document_store::reset();
     nevergone::game_scene_player_spawn_state::reset();
     nevergone::game_scene_player_joystick_input::reset();
+    nevergone::meplayer_live_action_state::reset();
 }
 
 extern "C" JNIEXPORT jstring JNICALL
