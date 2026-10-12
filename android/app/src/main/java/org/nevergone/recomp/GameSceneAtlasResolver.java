@@ -117,11 +117,12 @@ final class GameSceneAtlasResolver {
                         !name.endsWith("_default.plist")) continue;
                 if (plist.length() <= 0L || plist.length() > MAX_PLIST_BYTES ||
                         result.size() >= 128) return null;
-                File texture = resolveTextureForPlist(root, prefix, plist);
-                if (texture == null || !texture.isFile()) return null;
                 String plistRelative = relativePath(root, plist);
+                if (plistRelative == null) return null;
+                File texture = resolveTextureForPlist(root, prefix, plist, plistRelative);
+                if (texture == null || !texture.isFile()) return null;
                 String textureRelative = relativePath(root, texture);
-                if (plistRelative == null || textureRelative == null) return null;
+                if (textureRelative == null) return null;
                 result.add(new Atlas(plistRelative, textureRelative));
             }
             return result.isEmpty() ? null : Collections.unmodifiableList(result);
@@ -149,7 +150,8 @@ final class GameSceneAtlasResolver {
             for (String atlasName : atlasNames) {
                 File plist = resolveFirstPlist(canonicalRoot, rootPrefix, atlasName);
                 if (plist == null || plist.length() <= 0L || plist.length() > MAX_PLIST_BYTES) return null;
-                File texture = resolveTextureForPlist(canonicalRoot, rootPrefix, plist);
+                File texture = resolveTextureForPlist(
+                        canonicalRoot, rootPrefix, plist, atlasName);
                 if (texture == null || !texture.isFile()) return null;
                 String plistRelative = relativePath(canonicalRoot, plist);
                 String textureRelative = relativePath(canonicalRoot, texture);
@@ -167,7 +169,13 @@ final class GameSceneAtlasResolver {
             String rootPrefix,
             String resourceName) throws Exception {
         if (!isSafeResource(resourceName)) return null;
+        return resolveFirstResource(root, rootPrefix, resourceName);
+    }
 
+    private static File resolveFirstResource(
+            File root,
+            String rootPrefix,
+            String resourceName) throws Exception {
         File direct = candidate(root, rootPrefix, resourceName);
         if (direct != null && direct.isFile()) return direct;
 
@@ -186,24 +194,27 @@ final class GameSceneAtlasResolver {
     private static File resolveTextureForPlist(
             File root,
             String rootPrefix,
-            File plist) throws Exception {
+            File plist,
+            String logicalPlistName) throws Exception {
+        if (!isSafeResource(logicalPlistName)) return null;
         String textureName = readDirectMetadataTextureFileName(plist);
-        File candidate;
+        final String logicalTextureName;
         if (textureName != null && !textureName.isEmpty()) {
-            // cocos2d-x 2.1.2 uses fullPathFromRelativeFile(textureName,
-            // plistPath): it joins the metadata value to the plist directory
-            // without lexically rejecting ".." components. Preserve that
-            // relative-path behavior, but canonicalize before accepting it so
-            // imported metadata can never escape the project-owned asset root.
+            // cocos2d-x 2.1.2 first calls fullPathFromRelativeFile(textureName,
+            // pszPlist). That function joins against the *logical requested plist
+            // name*, not the already-resolved physical plist path. CCTextureCache
+            // then calls fullPathForFilename() again, so the resulting texture
+            // name walks the complete Cocos search-path list independently.
             if (!isSafeRelativeTextureName(textureName)) return null;
-            candidate = new File(plist.getParentFile(), textureName).getCanonicalFile();
+            int slash = logicalPlistName.lastIndexOf('/');
+            logicalTextureName =
+                    (slash >= 0 ? logicalPlistName.substring(0, slash + 1) : "") + textureName;
         } else {
-            String name = plist.getName();
-            int dot = name.lastIndexOf('.');
-            String pngName = (dot > 0 ? name.substring(0, dot) : name) + ".png";
-            candidate = new File(plist.getParentFile(), pngName).getCanonicalFile();
+            int dot = logicalPlistName.lastIndexOf('.');
+            if (dot <= logicalPlistName.lastIndexOf('/')) return null;
+            logicalTextureName = logicalPlistName.substring(0, dot) + ".png";
         }
-        return candidate.getPath().startsWith(rootPrefix) ? candidate : null;
+        return resolveFirstResource(root, rootPrefix, logicalTextureName);
     }
 
     private static String readDirectMetadataTextureFileName(File plist) throws Exception {
