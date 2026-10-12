@@ -10,7 +10,8 @@ enum class Route : int {
     kRoleProbePending = 1,
     kOpeningDialogue = 2,
     kChooseRole = 3,
-    kGameLevels = 4,
+    kTutorialLoading = 4,
+    kGameLevels = 5,
 };
 
 struct Snapshot {
@@ -21,6 +22,7 @@ struct Snapshot {
     std::uint64_t auto_login_success_count = 0;
     std::uint64_t route_resolution_count = 0;
     std::uint64_t fresh_role_local_enter_count = 0;
+    std::uint64_t tutorial_loading_complete_count = 0;
 };
 
 void reset();
@@ -37,9 +39,17 @@ void on_auto_login_compat_success(std::uint64_t scene_generation);
 
 // Project-owned preservation handoff for the serverless fresh-role route.
 // Call only after the recovered CreateCharacter Lua dispatch has succeeded
-// and the imported GameLevels data has produced a live render queue. This does
-// not claim that an original cpp_OnCreateTheRole callback was observed.
+// and the imported GameLevels data has produced a live render queue. Frozen
+// original-game captures show a distinct loading screen before cp_lesson /
+// LessonLayer, so this enters kTutorialLoading instead of skipping directly
+// to kGameLevels. This does not claim that an original cpp_OnCreateTheRole
+// callback was observed.
 bool on_fresh_role_local_enter();
+
+// Advance only when the reconstructed loading/Lesson bootstrap has concrete
+// completion evidence. Keeping this explicit prevents an invented fixed delay
+// from replacing the original loading boundary.
+bool on_tutorial_loading_complete();
 
 Snapshot snapshot();
 const char* route_name(Route route);

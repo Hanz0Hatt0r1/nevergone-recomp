@@ -52,6 +52,7 @@ int main() {
     on_auto_login_compat_success(0);
     assert(snapshot().route == Route::kInactive);
     assert(!on_fresh_role_local_enter());
+    assert(!on_tutorial_loading_complete());
 
     set_standalone_hero_presence(false);
     on_auto_login_compat_success(1);
@@ -63,13 +64,27 @@ int main() {
     assert(state.auto_login_success_count == 1);
     assert(state.route_resolution_count == 1);
     assert(state.fresh_role_local_enter_count == 0);
+    assert(state.tutorial_loading_complete_count == 0);
 
-    // The project-owned serverless continuation is legal only from the fresh
-    // role route. It is idempotent once GameLevels owns the surface.
+    // Frozen original-game captures prove a dedicated loading boundary after
+    // fresh-role creation. The preservation handoff must stop there even when
+    // GameLevels has already prepared a render queue.
     assert(on_fresh_role_local_enter());
     state = snapshot();
-    assert(state.route == Route::kGameLevels);
+    assert(state.route == Route::kTutorialLoading);
     assert(state.fresh_role_local_enter_count == 1);
+    assert(state.tutorial_loading_complete_count == 0);
+    assert(on_fresh_role_local_enter());
+    assert(snapshot().fresh_role_local_enter_count == 1);
+
+    // Do not invent a timer: a separate concrete loading-complete event owns
+    // the transition into the prepared GameLevels / LessonLayer path.
+    assert(on_tutorial_loading_complete());
+    state = snapshot();
+    assert(state.route == Route::kGameLevels);
+    assert(state.tutorial_loading_complete_count == 1);
+    assert(on_tutorial_loading_complete());
+    assert(snapshot().tutorial_loading_complete_count == 1);
     assert(on_fresh_role_local_enter());
     assert(snapshot().fresh_role_local_enter_count == 1);
 
@@ -90,6 +105,7 @@ int main() {
     assert(state.auto_login_success_count == 1);
     assert(state.route_resolution_count == 1);
     assert(!on_fresh_role_local_enter());
+    assert(!on_tutorial_loading_complete());
     assert(snapshot().fresh_role_local_enter_count == 0);
 
     write_file(directory + "/DMG_01.sData");
@@ -103,6 +119,7 @@ int main() {
     assert(state.route == Route::kRoleProbePending);
     assert(!state.standalone_hero_presence_known);
     assert(!on_fresh_role_local_enter());
+    assert(!on_tutorial_loading_complete());
     set_standalone_hero_presence(false);
     assert(snapshot().route == Route::kOpeningDialogue);
 
