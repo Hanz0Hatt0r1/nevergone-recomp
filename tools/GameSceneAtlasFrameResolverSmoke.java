@@ -61,8 +61,12 @@ public final class GameSceneAtlasFrameResolverSmoke {
                             "{64,80}",
                             true));
 
-            GameSceneAtlasFrameResolver.Frame exact = GameSceneAtlasFrameResolver.resolve(
-                    root, Collections.singletonList(atlas), "hero_idle.png");
+            GameSceneAtlasFrameResolver.Prepared prepared =
+                    GameSceneAtlasFrameResolver.prepare(
+                            root, Collections.singletonList(atlas));
+            assert prepared != null;
+
+            GameSceneAtlasFrameResolver.Frame exact = prepared.resolve("hero_idle.png");
             assert exact != null;
             assert exact.atlasIndex == 0;
             assert exact.requestedName.equals("hero_idle.png");
@@ -76,26 +80,31 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert exact.sourceWidth == 64 && exact.sourceHeight == 80;
             assert exact.rotated;
 
-            GameSceneAtlasFrameResolver.Frame alias = GameSceneAtlasFrameResolver.resolve(
-                    root, Collections.singletonList(atlas), "hero_alias.png");
+            GameSceneAtlasFrameResolver.Frame alias = prepared.resolve("hero_alias.png");
             assert alias != null;
             assert alias.canonicalName.equals("hero_idle.png");
             assert alias.requestedName.equals("hero_alias.png");
+            assert prepared.resolve("missing.png") == null;
 
-            assert GameSceneAtlasFrameResolver.resolve(
-                    root, Collections.singletonList(atlas), "missing.png") == null;
+            // The compatibility one-shot API uses the same prepared path.
+            GameSceneAtlasFrameResolver.Frame oneShot = GameSceneAtlasFrameResolver.resolve(
+                    root, Collections.singletonList(atlas), "hero_idle.png");
+            assert oneShot != null;
+            assert oneShot.canonicalName.equals("hero_idle.png");
 
             // Duplicate membership across preloaded atlases is ambiguous at the
             // clean-room boundary and must fail closed instead of inventing an
-            // overwrite/priority rule.
+            // overwrite/priority rule. Prepared lookup preserves that contract.
             GameSceneAtlasResolver.Atlas duplicate = writeAtlas(
                     root,
                     "gamescene/gs_actions/res/b",
                     plist(
                             "hero_idle.png", "", "{{0,0},{1,1}}", "{{0,0},{1,1}}",
                             "{0,0}", "{1,1}", "{1,1}", false));
-            assert GameSceneAtlasFrameResolver.resolve(
-                    root, Arrays.asList(atlas, duplicate), "hero_idle.png") == null;
+            GameSceneAtlasFrameResolver.Prepared duplicatePrepared =
+                    GameSceneAtlasFrameResolver.prepare(root, Arrays.asList(atlas, duplicate));
+            assert duplicatePrepared != null;
+            assert duplicatePrepared.resolve("hero_idle.png") == null;
 
             // Reject malformed trim geometry that escapes the declared source.
             GameSceneAtlasResolver.Atlas malformed = writeAtlas(
@@ -104,14 +113,17 @@ public final class GameSceneAtlasFrameResolverSmoke {
                     plist(
                             "bad.png", "", "{{0,0},{8,8}}", "{{7,7},{8,8}}",
                             "{0,0}", "{8,8}", "{10,10}", false));
-            assert GameSceneAtlasFrameResolver.resolve(
-                    root, Collections.singletonList(malformed), "bad.png") == null;
+            GameSceneAtlasFrameResolver.Prepared malformedPrepared =
+                    GameSceneAtlasFrameResolver.prepare(
+                            root, Collections.singletonList(malformed));
+            assert malformedPrepared != null;
+            assert malformedPrepared.resolve("bad.png") == null;
 
             // Resolved atlas paths remain confined to the imported asset root.
             GameSceneAtlasResolver.Atlas traversal =
                     new GameSceneAtlasResolver.Atlas("../outside.plist", "../outside.png");
-            assert GameSceneAtlasFrameResolver.resolve(
-                    root, Collections.singletonList(traversal), "hero_idle.png") == null;
+            assert GameSceneAtlasFrameResolver.prepare(
+                    root, Collections.singletonList(traversal)) == null;
         } finally {
             deleteTree(root);
         }
