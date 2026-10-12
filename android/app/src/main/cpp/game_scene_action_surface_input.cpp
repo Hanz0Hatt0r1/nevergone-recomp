@@ -22,6 +22,24 @@ std::mutex g_mutex;
 Snapshot g_snapshot;
 std::unordered_map<int, game_scene_action_input::Control> g_captures;
 
+int slot_for(game_scene_action_input::Control control) {
+    switch (control) {
+        case game_scene_action_input::Control::kButtonA: return 0;
+        case game_scene_action_input::Control::kButtonB: return 1;
+        case game_scene_action_input::Control::kButtonC: return 2;
+        case game_scene_action_input::Control::kNone: return -1;
+    }
+    return -1;
+}
+
+void refresh_pressed_locked() {
+    g_snapshot.pressed = {};
+    for (const auto& entry : g_captures) {
+        const int slot = slot_for(entry.second);
+        if (slot >= 0) g_snapshot.pressed[static_cast<std::size_t>(slot)] = true;
+    }
+}
+
 bool map_surface(
         int surface_width,
         int surface_height,
@@ -41,7 +59,6 @@ bool map_surface(
         return false;
     }
 
-    // Same Cocos design-space mapping used by the recovered joystick route.
     *design_x = surface_x * kDesignWidth / width;
     *design_y = kDesignHeight - surface_y * kDesignHeight / height;
     return std::isfinite(*design_x) && std::isfinite(*design_y);
@@ -126,6 +143,7 @@ bool on_touch(
             g_snapshot.cancelled_captures += g_captures.size();
             g_captures.clear();
             g_snapshot.captured_pointer_count = 0;
+            refresh_pressed_locked();
         }
         for (const auto control : captured) publish_release(control, false);
         return true;
@@ -142,6 +160,7 @@ bool on_touch(
             g_captures.emplace(pointer_id, control);
             ++g_snapshot.accepted_begins;
             g_snapshot.captured_pointer_count = static_cast<int>(g_captures.size());
+            refresh_pressed_locked();
         }
         (void)game_scene_action_input::observe(
             control,
@@ -157,9 +176,7 @@ bool on_touch(
         captured_control = found->second;
     }
 
-    if (action == kActionMove) {
-        return true;
-    }
+    if (action == kActionMove) return true;
 
     if (action == kActionUp || action == kActionPointerUp) {
         bool tapped = false;
@@ -170,6 +187,7 @@ bool on_touch(
             ++g_snapshot.accepted_ends;
             if (tapped) ++g_snapshot.taps;
             g_snapshot.captured_pointer_count = static_cast<int>(g_captures.size());
+            refresh_pressed_locked();
         }
         publish_release(captured_control, tapped);
         return true;
@@ -195,7 +213,8 @@ std::string status_report() {
     for (std::size_t index = 0; index < state.sprite_bounds.size(); ++index) {
         out << "action sprite " << index << ": "
             << state.sprite_bounds[index].width << "x"
-            << state.sprite_bounds[index].height << "\n";
+            << state.sprite_bounds[index].height
+            << " pressed=" << (state.pressed[index] ? "yes" : "no") << "\n";
     }
     out << "action captures: " << state.captured_pointer_count << "\n";
     out << "action begins: " << state.accepted_begins << "\n";
