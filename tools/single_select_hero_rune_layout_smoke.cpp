@@ -26,23 +26,34 @@ int main() {
     assert(layout::frame_index(0, false) == -1);
     assert(layout::frame_index(6, false) == -1);
 
-    // The touch router publishes a presentation-only pressed tag. Existing
-    // compositor calls that request the normal frame then transparently select
-    // the staged glow frame only for that rune.
+    // Shipped runtime objects retain tags 1..5, but the captured stable
+    // SingleSelectHero state exposes only tags 1 and 2 for rendering/input.
+    assert(layout::runtime_visible_tag(1));
+    assert(layout::runtime_visible_tag(2));
+    assert(!layout::runtime_visible_tag(3));
+    assert(!layout::runtime_visible_tag(4));
+    assert(!layout::runtime_visible_tag(5));
+    assert(layout::enabled_tag(1));
+    assert(layout::enabled_tag(2));
+    assert(!layout::enabled_tag(3));
+    assert(!layout::enabled_tag(4));
+    assert(!layout::enabled_tag(5));
+    assert(close_enough(layout::opacity(1), 1.0f));
+    assert(close_enough(layout::opacity(2), 1.0f));
+    assert(close_enough(layout::opacity(3), 0.0f));
+    assert(close_enough(layout::opacity(4), 0.0f));
+    assert(close_enough(layout::opacity(5), 0.0f));
+
+    // Hidden tags must never publish a pressed presentation state even though
+    // their atlas frames remain addressable for fidelity/debug inspection.
+    layout::set_pressed_render_tag(2);
+    assert(layout::pressed_render_tag() == 2);
+    assert(layout::frame_index(2, false) == 3);
     layout::set_pressed_render_tag(3);
-    assert(layout::pressed_render_tag() == 3);
-    assert(layout::frame_index(1, false) == 0);
-    assert(layout::frame_index(3, false) == 5);
-    assert(layout::frame_index(3, true) == 5);
-    assert(layout::frame_index(4, false) == 6);
-    layout::set_pressed_render_tag(99);
     assert(layout::pressed_render_tag() == 0);
     assert(layout::frame_index(3, false) == 4);
-
-    for (int tag = 1; tag <= 5; ++tag) {
-        assert(layout::enabled_tag(tag));
-        assert(close_enough(layout::opacity(tag), 1.0f));
-    }
+    layout::set_pressed_render_tag(99);
+    assert(layout::pressed_render_tag() == 0);
 
     assert(close_enough(layout::center_y(1), 495.0f));
     assert(close_enough(layout::center_y(2), 405.0f));
@@ -50,23 +61,20 @@ int main() {
     assert(close_enough(layout::center_y(4), 225.0f));
     assert(close_enough(layout::center_y(5), 135.0f));
 
-    // Recovered untrimmed source sizes from the shipped atlas. These are the
-    // CCMenuItemSprite content sizes used for touch, not the trimmed visible quads.
+    // Recovered untrimmed source sizes from the shipped atlas. Only the two
+    // runtime-visible tags produce active touch rectangles in this scene state.
     assert_rect(layout::hit_rect_for_surface(79, 99, 1, 1136, 640),
                 528.5f, 95.5f, 607.5f, 194.5f);
     assert_rect(layout::hit_rect_for_surface(87, 89, 2, 1136, 640),
                 524.5f, 190.5f, 611.5f, 279.5f);
-    assert_rect(layout::hit_rect_for_surface(75, 95, 3, 1136, 640),
-                530.5f, 277.5f, 605.5f, 372.5f);
-    assert_rect(layout::hit_rect_for_surface(111, 110, 4, 1136, 640),
-                512.5f, 360.0f, 623.5f, 470.0f);
-    assert_rect(layout::hit_rect_for_surface(137, 131, 5, 1136, 640),
-                499.5f, 439.5f, 636.5f, 570.5f);
+    assert(!layout::hit_rect_for_surface(75, 95, 3, 1136, 640).valid);
+    assert(!layout::hit_rect_for_surface(111, 110, 4, 1136, 640).valid);
+    assert(!layout::hit_rect_for_surface(137, 131, 5, 1136, 640).valid);
 
     assert(layout::hit_test(79, 99, 1, 1136, 640, 568.0f, 145.0f));
     assert(layout::hit_test(87, 89, 2, 1136, 640, 524.5f, 190.5f));
     assert(!layout::hit_test(87, 89, 2, 1136, 640, 524.4f, 190.5f));
-    assert(!layout::hit_test(137, 131, 5, 1136, 640, 568.0f, 571.0f));
+    assert(!layout::hit_test(75, 95, 3, 1136, 640, 568.0f, 315.0f));
     assert(!layout::hit_rect_for_surface(0, 99, 1, 1136, 640).valid);
     assert(!layout::hit_rect_for_surface(79, 99, 0, 1136, 640).valid);
 
@@ -94,6 +102,17 @@ int main() {
     assert(quad.valid);
     // Trimmed visible top is 193.5, while the touch rect begins at 190.5.
     assert(close_enough(quad.y0, 1.0f - 193.5f * 2.0f / 640.0f));
+
+    // Geometry for hidden atlas frames remains representable; presentation and
+    // input visibility are controlled independently by runtime_visible_tag().
+    layout::FrameGeometry career_three;
+    career_three.width = 75;
+    career_three.height = 95;
+    career_three.source_width = 75;
+    career_three.source_height = 95;
+    quad = layout::quad_for_surface(career_three, 3, 1136, 640);
+    assert(quad.valid);
+    assert(close_enough(layout::opacity(3), 0.0f));
 
     layout::FrameGeometry invalid = career_one;
     invalid.width = 100;
