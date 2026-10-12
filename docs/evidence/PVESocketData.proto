@@ -1,0 +1,183 @@
+syntax = "proto2";
+
+package PVEDATA;
+
+message actorDataMsg {
+  required double dPlayerUID = 1;
+  optional uint32 nActorID = 2;
+  optional uint32 nActorLevel = 3;
+  optional uint32 nMaxHealth = 4;
+  optional float fActorPosX = 5;
+  optional float fActorPosY = 6;
+  optional bytes strName = 7;
+  optional uint32 nColorId = 8;
+  optional uint32 nClothesId = 9;
+  optional uint32 nHeadIconId = 10;
+  optional uint32 nPowerValue = 11;
+  optional uint32 nPhysicalPower = 12;
+  optional uint32 nHealthRestore = 13;
+  optional float fMaxEnergyPower = 14;
+  optional float fEnergyRestore = 15;
+  optional uint32 nAttackLevel = 16;
+  optional uint32 nDefendLevel = 17;
+}
+
+message equipWeaponDataMsg {
+  required uint32 nWeaponID = 1;
+  required uint32 nWeaponLevel = 2;
+  required uint32 nWeaponWetType = 3;
+  required uint32 nWeaponWptType = 4;
+  required uint32 nWeaponResId = 5;
+  required uint32 nWeaponIconId = 6;
+  required uint32 nWeaponAttackAdd = 7;
+  required uint32 nWeaponBaseAttack = 8;
+  required uint32 nWeaponMeat = 9;
+  required uint32 nWeaponSpurting = 10;
+  required uint32 nWeaponCut = 11;
+  required uint32 nWeaponSupe = 12;
+  required uint32 nWeaponAbilityValue = 13;
+  required uint32 nWeaponAttributeType = 14;
+  required uint32 nWeaponWTLevel = 15;
+  required bool bIsMeatAdd = 16;
+  required bool bIsBaseAdd = 17;
+  required bool bIsSpurtingAdd = 18;
+  required bool bIsCutAdd = 19;
+  required bool bIsSupeAdd = 20;
+  required bool bIsKaAdd = 21;
+  required bool bIsOmissionSpur = 22;
+  required bool bIsOmissionCut = 23;
+  required bool bIsOmisssionKa = 24;
+}
+
+message equipToolsDataMsg {
+  required uint32 nToolsId = 1;
+  required uint32 nToolsCount = 2;
+  required uint32 nEquipPosId = 3;
+  required uint32 nCostTimes = 4;
+  required uint32 nWptType = 5;
+}
+
+message equipToolsListMsg {
+  optional equipToolsDataMsg tItem1 = 1;
+  optional equipToolsDataMsg tItem2 = 2;
+  optional equipToolsDataMsg tItem3 = 3;
+  optional equipToolsDataMsg tItem4 = 4;
+}
+
+message heroTalentItemData {
+  required int32 nTalentId_ = 1;
+  required int32 nSkillId_ = 2;
+  required int32 nCurCount_ = 3;
+  required int32 nInlayPoint_ = 4;
+}
+
+message heroTalentPageData {
+  repeated heroTalentItemData vHeroDataItemList = 1;
+}
+
+message heroTalentDataMsg {
+  required int32 nAllTalentPoint = 1;
+  required int32 nActiveTalentID = 2;
+  repeated heroTalentPageData vHeroDataPageList = 3;
+}
+
+message actionDataMsg {
+  required uint32 ot = 1;
+  required int32 sid = 2;
+  required uint32 oid = 3;
+  required uint32 oOnline = 4;
+  required float oHealth = 5;
+  required uint32 enemyClass = 6;
+  required uint32 enemyId = 7;
+  required uint32 os = 8;
+  required uint32 fd = 9;
+  required float x = 10;
+  required float y = 11;
+  required float tx = 12;
+  required float ty = 13;
+  required float fbfh = 14;
+  required int32 sGotoFrame = 15;
+  required int32 sGotoFrameIdx = 16;
+  required uint32 isLoading = 17;
+}
+
+message enemyActionDataMsg {
+  required uint32 os = 1;
+  required uint32 fd = 2;
+  required float x = 3;
+  required float y = 4;
+  required int32 sid = 5;
+  required uint32 oid = 6;
+  required float tx = 7;
+  required float ty = 8;
+  required uint32 enemyId = 9;
+  required float oHealth = 10;
+}
+
+message playerActionDataMsg {
+  required uint32 os = 1;
+  required uint32 fd = 2;
+  required float x = 3;
+  required float y = 4;
+  required float fbfh = 5;
+  required int32 sGotoFrame = 6;
+  required int32 sGotoFrameIdx = 7;
+  required int32 sid = 8;
+}
+
+message enemyHealthDataMsg {
+  required float oHealth = 1;
+  required int32 sid = 2;
+  required uint32 oid = 3;
+}
+
+message playerHealthDataMsg {
+  required float oHealth = 1;
+}
+
+message loadingStateDataMsg {
+  required uint32 state = 1;
+}
+
+message enterEventMsg {
+  required uint32 nEventID = 1;
+}
+
+message gateInfoMsg {
+  required uint32 nGateId = 1;
+  required uint32 nDifficulty = 2;
+}
+
+message selectTeamLeaderMsg {
+  required int32 nDiceNum = 1;
+}
+
+message battleResultMsg {
+  required uint32 nBattleResult = 1;
+}
+
+message matchSuccessMsg {
+  required actorDataMsg ActorInfo = 1;
+  required equipWeaponDataMsg WeaponInfo = 2;
+  required heroTalentDataMsg Talent = 3;
+  optional equipToolsListMsg ToolsList = 4;
+}
+
+message BaseData {
+  required int32 nMsgId = 1;
+  optional actorDataMsg tActorInfo = 2;
+  optional equipWeaponDataMsg tEquipWeaponData = 3;
+  optional heroTalentDataMsg tHeroTalentData = 4;
+  optional enterEventMsg tEnterEventMsg = 5;
+  optional gateInfoMsg tGateInfo = 6;
+  optional selectTeamLeaderMsg tTeamLeaderMsg = 7;
+  optional battleResultMsg tBattleResultMsg = 8;
+  optional matchSuccessMsg tMatchSuccessMsg = 9;
+  optional equipToolsListMsg tToolsListMsg = 10;
+  optional enemyActionDataMsg tEnemyActionMsg = 11;
+  optional playerActionDataMsg tPlayerActionMsg = 12;
+  optional enemyHealthDataMsg tEnemyHealthMsg = 13;
+  optional playerHealthDataMsg tPlayerHealthMsg = 14;
+  optional loadingStateDataMsg tLoadingStateMsg = 15;
+  optional actionDataMsg tActionData = 16;
+}
