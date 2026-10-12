@@ -51,6 +51,13 @@ int main() {
     assert(requests.requests[0].frame_name == "player_001.png");
     assert(requests.requests[0].player_body);
 
+    // BattleManager/player is a GameScene child, not a class-layer object. The
+    // original camera therefore contributes the full -eyeX world translation.
+    const auto camera_shifted =
+            game_scene_player_render_queue::with_initial_player(scene, spawn, &frame, 100.0f);
+    assert(camera_shifted.sprites[1].transform.position_x == 500.0f);
+    assert(camera_shifted.sprites[1].transform.position_y == 468.0f);
+
     assert(game_scene_player_motion_state::sync_spawn(spawn.generation, 1u, 100u));
     assert(game_scene_player_motion_state::advance_normal_sample(101u, true, 1.0f, 0.0f));
     const auto moved = game_scene_player_render_queue::with_initial_player(scene, spawn, &frame);

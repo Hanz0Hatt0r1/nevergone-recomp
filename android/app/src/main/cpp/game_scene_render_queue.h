@@ -21,6 +21,10 @@ struct SpriteCommand {
     // The path is relative to filesDir/assets, matching OriginalObbImporter.
     std::optional<std::string> direct_asset_relative_path;
     game_scene_construction_plan::Type0SpriteTransform transform;
+    // GameScene::loadingTex() copies the serialized layer first_float into
+    // GameSceneClassLayer +0x140. updateCameraTrack()/move() consumes it as the
+    // horizontal object-parent camera/parallax factor.
+    float layer_camera_factor = 0.0f;
     // Present only for the first MeActionsSystem body sprite. Its geometry is
     // local to the MEPlayer node and includes a non-central anchor.
     std::optional<me_actions_initial_sprite_transform::Plan> player_body_transform;
@@ -63,6 +67,7 @@ inline Queue build(const game_scene_construction_plan::ScenePlan& plan) {
             command.source_object_index = object.source_object_index;
             command.resource = *object.type0_resource;
             command.transform = *object.type0_sprite_transform;
+            command.layer_camera_factor = layer.first_float;
 
             if (command.resource.kind == game_scene_type0_resource::Kind::kDirectFile) {
                 command.direct_asset_relative_path =

@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "game_levels_port_node_section.h"
 #include "game_levels_scene_instance.h"
 #include "game_levels_scene_navigation.h"
 #include "game_scene_construction_plan.h"
@@ -61,6 +62,10 @@ Snapshot snapshot();
 std::optional<game_levels_scene_instance::SceneInstance> current_scene_instance();
 std::optional<game_scene_construction_plan::ScenePlan> current_scene_construction_plan();
 std::optional<game_scene_render_queue::Queue> current_scene_render_queue();
+// Exact parsed record selected by the current GameLevels navigation state.
+// Camera reconstruction uses its retained fifth_u32 because loadingTex() copies
+// GameScenePortNodeData +0x4b4 into GameScene +0x4b0 as the horizontal extent.
+std::optional<game_levels_port_node_section::PortNodeRecord> current_port_node_record();
 // Ordered strings retained from the leading LoadGL_Global resource array. The
 // original first-playable loader iterates GameLevels + 0x24 and passes these
 // names to CCSpriteFrameCache::addSpriteFramesWithFile().

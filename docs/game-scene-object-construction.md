@@ -18,7 +18,7 @@ The exported symbol values are odd because these functions are Thumb code; the a
 
 `GameScene::loadingTex()` initializes a layer selector to zero, calls `GameSceneData::GetSceneLayerDataWithZ(selector)`, increments it after each layer pass, and continues while the selector is less than 11. The original therefore attempts exactly the slots `0..10`.
 
-`GameSceneData::GetSceneLayerDataWithZ(int)` does not search for a serialized Z field. It obtains the scene layer `CCArray`, checks `count() > index`, and returns `objectAtIndex(index)`. Consequently the Z selector used by this runtime path is the **ordered layer-array index**. The serialized layer `first_float` remains semantically unresolved and must not be relabeled as Z.
+`GameSceneData::GetSceneLayerDataWithZ(int)` does not search for a serialized Z field. It obtains the scene layer `CCArray`, checks `count() > index`, and returns `objectAtIndex(index)`. Consequently the Z selector used by this runtime path is the **ordered layer-array index**. The serialized layer `first_float` is not Z: `loadingTex()` copies it from `GameSceneLayerData +0x14` into `GameSceneClassLayer +0x140`, and `GameSceneClassLayer::move()` consumes it as the layer camera/parallax movement factor. The exact camera composition is documented in `docs/evidence/game-scene-camera-parallax-2026-10-12.md`.
 
 When a layer exists, `loadingTex()` iterates its object array by index via `GameSceneLayerData::GetLayerObjectWithIdx(unsigned int)`. Project-owned construction can therefore preserve the parsed layer/object vector order directly.
 
@@ -84,6 +84,7 @@ The Java stager and native texture cache already publish direct-file pixels tran
 - require the GL texture cache `source_revision` to equal that request revision;
 - require every direct request to resolve to a valid texture before changing the framebuffer;
 - preserve filtered queue order rather than sorting different objects by their local child Z;
+- apply the recovered class-layer/camera transform to world-space coordinates while keeping Controls UI screen-space;
 - only after complete validation replace the generic entered-game fallback and submit the direct sprite quads.
 
 This prevents a scene transition from mixing a new GameScene queue with stale texture handles from the previous scene.
@@ -97,7 +98,7 @@ Despite its name, `GameScene::createGSObject()` is not the layer-object renderer
 `game_scene_construction_plan` now captures the proven traversal and type-0 construction contract:
 
 - at most the first 11 ordered scene layers are visited, with `z_index` equal to their array index;
-- each visited layer keeps its original object order;
+- each visited layer keeps its original object order and retained camera/parallax factor;
 - every object exposes the proven `type_code` derived from the parsed leading int32;
 - ordinary type-0 visual objects are classified as `type0-sprite-backed` and carry both a resource-selection contract and the proven sprite transform;
 - `klhuo-1.png` is classified separately as `type0-scene-action-pair` and does not receive a static sprite transform;
@@ -105,4 +106,4 @@ Despite its name, `GameScene::createGSObject()` is not the layer-object renderer
 - the complete evidence-backed `ObjectRecord` remains available without renaming unresolved parser fields;
 - source layers beyond index 10 are counted as ignored because the original `loadingTex()` loop never requests them.
 
-The direct-file branch can now be staged and rendered with recovered transform/design semantics. The next visual renderer milestone is resolving the sprite-frame-cache atlas/plist path so default type-0 objects can join those direct sprites without inventing resource layout. Action-pair playback and nonzero object-type construction remain separate milestones.
+The direct renderer now has evidence-backed resource, local sprite-transform, design-resolution, initial camera and horizontal class-layer parallax semantics for the supported static type-0 objects. Live camera following, action-pair playback and nonzero object-type construction remain separate milestones.

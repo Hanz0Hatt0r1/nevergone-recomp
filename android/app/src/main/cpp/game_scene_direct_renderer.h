@@ -13,6 +13,7 @@ struct Snapshot {
     std::uint64_t draw_attempt_count = 0;
     std::uint64_t drawn_frame_count = 0;
     std::size_t last_drawn_sprite_count = 0;
+    float last_camera_eye_x = 0.0f;
 };
 
 void on_surface_created();

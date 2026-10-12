@@ -200,6 +200,16 @@ std::optional<game_scene_render_queue::Queue> current_scene_render_queue() {
     return g_scene_render_queue;
 }
 
+std::optional<game_levels_port_node_section::PortNodeRecord> current_port_node_record() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_model.has_value() || !g_state.current_port_node_index.has_value()) {
+        return std::nullopt;
+    }
+    const std::size_t index = *g_state.current_port_node_index;
+    if (index >= g_model->port_nodes.port_nodes.size()) return std::nullopt;
+    return g_model->port_nodes.port_nodes[index];
+}
+
 std::vector<std::string> current_atlas_preload_names() {
     std::lock_guard<std::mutex> lock(g_mutex);
     std::vector<std::string> result;
