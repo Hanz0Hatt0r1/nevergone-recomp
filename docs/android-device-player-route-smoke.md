@@ -49,6 +49,18 @@ state: runtime-render-queue-ready
 
 At that point the same run can proceed directly into the retained P7 scene/render evidence harness.
 
-## Remaining player-resource boundary
+## Player-resource boundary update (2026-10-12)
 
-The imported APK/OBB also do not contain the `p01_i01.actData` referenced by the imported `p01_actions.plist` action28 entry. A first visible player sprite cannot be verified from these particular resources. Keep the existing fail-closed player-frame behavior until a matching user-provided action resource is available or another evidence-backed valid player action in the supplied data is connected.
+The earlier device run correctly observed that no standalone `p01_i01.actData` exists in the tested imported tree. A subsequent user-supplied writable-data capture resolved that apparent gap.
+
+The original app stores:
+
+```text
+player/actions_data/adata/p01/normal/player_01.actionsData
+```
+
+and the original runtime was already observed passing `player_01.actionsData` to `ActionDataManager::LoadPlayerActionDataWithFile()` after hero selection.
+
+A bounded scan of that file proves it is an aggregate container of 125 named action-data payloads. The `p01_actions.plist` `action28` value `p01_i01.actData` is present exactly once inside that container with an 11,682-byte payload. All 53 action names referenced by the supplied `p01_actions.plist` have matching container entries.
+
+The preservation runtime therefore no longer treats the missing standalone file as a resource blocker. It resolves the requested plist action to the exact embedded `actionsData` entry and passes only that bounded payload into the existing action-data parser. See `docs/evidence/player-actionsdata-container-2026-10-12.md`.
