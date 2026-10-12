@@ -23,6 +23,42 @@ std::uint64_t g_last_character_name_asset_attempt_generation =
     std::numeric_limits<std::uint64_t>::max();
 std::uint64_t g_last_tutorial_loading_asset_attempt =
     std::numeric_limits<std::uint64_t>::max();
+std::uint64_t g_last_action_asset_attempt =
+    std::numeric_limits<std::uint64_t>::max();
+
+bool invoke_files_dir_loader(JNIEnv* env, const char* class_name) {
+    if (env == nullptr || class_name == nullptr) return false;
+    const std::string& files_dir = nevergone::startup::config().files_dir;
+    if (files_dir.empty()) return false;
+
+    jclass loader = env->FindClass(class_name);
+    if (loader == nullptr) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        return false;
+    }
+    jmethodID reload = env->GetStaticMethodID(
+        loader,
+        "reloadFromFilesDir",
+        "(Ljava/lang/String;)Z");
+    if (reload == nullptr) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        env->DeleteLocalRef(loader);
+        return false;
+    }
+
+    bool loaded = false;
+    jstring path = env->NewStringUTF(files_dir.c_str());
+    if (path != nullptr) {
+        loaded = env->CallStaticBooleanMethod(loader, reload, path) == JNI_TRUE;
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            loaded = false;
+        }
+        env->DeleteLocalRef(path);
+    }
+    env->DeleteLocalRef(loader);
+    return loaded;
+}
 
 void maybe_stage_character_name_assets(JNIEnv* env) {
     if (env == nullptr) return;
@@ -32,32 +68,7 @@ void maybe_stage_character_name_assets(JNIEnv* env) {
         return;
     }
     g_last_character_name_asset_attempt_generation = state.generation;
-
-    const std::string& files_dir = nevergone::startup::config().files_dir;
-    if (files_dir.empty()) return;
-
-    jclass loader = env->FindClass("org/nevergone/recomp/CharacterNameAssetLoader");
-    if (loader == nullptr) {
-        if (env->ExceptionCheck()) env->ExceptionClear();
-        return;
-    }
-    jmethodID reload = env->GetStaticMethodID(
-        loader,
-        "reloadFromFilesDir",
-        "(Ljava/lang/String;)Z");
-    if (reload == nullptr) {
-        if (env->ExceptionCheck()) env->ExceptionClear();
-        env->DeleteLocalRef(loader);
-        return;
-    }
-
-    jstring path = env->NewStringUTF(files_dir.c_str());
-    if (path != nullptr) {
-        (void)env->CallStaticBooleanMethod(loader, reload, path);
-        if (env->ExceptionCheck()) env->ExceptionClear();
-        env->DeleteLocalRef(path);
-    }
-    env->DeleteLocalRef(loader);
+    (void)invoke_files_dir_loader(env, "org/nevergone/recomp/CharacterNameAssetLoader");
 }
 
 void maybe_stage_tutorial_loading_assets(JNIEnv* env) {
@@ -72,32 +83,25 @@ void maybe_stage_tutorial_loading_assets(JNIEnv* env) {
         return;
     }
     g_last_tutorial_loading_asset_attempt = state.fresh_role_local_enter_count;
+    (void)invoke_files_dir_loader(env, "org/nevergone/recomp/TutorialLoadingAssetLoader");
+}
 
-    const std::string& files_dir = nevergone::startup::config().files_dir;
-    if (files_dir.empty()) return;
-
-    jclass loader = env->FindClass("org/nevergone/recomp/TutorialLoadingAssetLoader");
-    if (loader == nullptr) {
-        if (env->ExceptionCheck()) env->ExceptionClear();
-        return;
-    }
-    jmethodID reload = env->GetStaticMethodID(
-        loader,
-        "reloadFromFilesDir",
-        "(Ljava/lang/String;)Z");
-    if (reload == nullptr) {
-        if (env->ExceptionCheck()) env->ExceptionClear();
-        env->DeleteLocalRef(loader);
+void maybe_stage_action_assets(JNIEnv* env) {
+    if (env == nullptr) return;
+    const auto state = nevergone::offline_startup_flow::snapshot();
+    if (state.route != nevergone::offline_startup_flow::Route::kTutorialLoading &&
+            state.route != nevergone::offline_startup_flow::Route::kGameLevels) {
+        g_last_action_asset_attempt = std::numeric_limits<std::uint64_t>::max();
         return;
     }
 
-    jstring path = env->NewStringUTF(files_dir.c_str());
-    if (path != nullptr) {
-        (void)env->CallStaticBooleanMethod(loader, reload, path);
-        if (env->ExceptionCheck()) env->ExceptionClear();
-        env->DeleteLocalRef(path);
-    }
-    env->DeleteLocalRef(loader);
+    // Fresh-role captures prove the action controls belong to cp_lesson and are
+    // already available by the loading/tutorial boundary. Use the fresh-role
+    // handoff count as the one-shot staging generation so a render loop cannot
+    // repeatedly BitmapFactory-probe missing resources.
+    if (state.fresh_role_local_enter_count == g_last_action_asset_attempt) return;
+    g_last_action_asset_attempt = state.fresh_role_local_enter_count;
+    (void)invoke_files_dir_loader(env, "org/nevergone/recomp/GameSceneActionAssetLoader");
 }
 
 void wrapped_server_surface_created(JNIEnv*, jclass) {
@@ -125,6 +129,8 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     if (viewport[2] > 0 && viewport[3] > 0) {
         nevergone::character_name_compositor::draw(viewport[2], viewport[3]);
     }
+
+    maybe_stage_action_assets(env);
 
     // This is intentionally last: the original loading layer owns the whole
     // surface while cp_lesson is being prepared, so no already-built gameplay
