@@ -48,6 +48,12 @@ The reconstruction intentionally advances on gameplay outcomes, not a fixed dela
 
 A raw button press is therefore insufficient for several steps. In particular, Attack waits for the enemy objective, Block waits for a successful blocked attack, Counter-attack waits for the actual counter result, and Execution waits for the gameplay action rather than only the A-to-C gesture beginning.
 
+## Live integration
+
+The **Run** step is now connected to the reconstructed native joystick combo path. `game_scene_player_joystick_input` already recognizes the shipped same-direction double-tap window and increments `fast_reactivation_count` only when the recovered fast movement state is entered. A new fast reactivation publishes `kRunPerformed` when, and only when, the tutorial currently owns `Step::kRun`; the tutorial then advances to **Jump**.
+
+This keeps the tutorial dependent on the same movement state that drives player motion rather than a separate UI-only double-tap detector. Publication occurs outside the joystick mutex so tutorial state cannot participate in the input lock order. Fast reactivations outside the Run step are ignored by the tutorial contract.
+
 ## Runtime contract
 
 `tutorial_gameplay_state` exposes:
@@ -58,4 +64,4 @@ A raw button press is therefore insufficient for several steps. In particular, A
 - transition/rejected-event counters for diagnostics;
 - a generation counter so scene restarts cannot reuse stale tutorial events.
 
-The module deliberately does **not** yet decide rendering geometry or wire itself directly into every control/combat callback. Those connections should feed the semantic events above when the corresponding reconstructed gameplay systems can prove the event occurred.
+The module deliberately does **not** yet decide rendering geometry or wire itself directly into every control/combat callback. Remaining Jump/combat/item/Execution connections should feed the semantic events above when the corresponding reconstructed gameplay systems can prove the event occurred.

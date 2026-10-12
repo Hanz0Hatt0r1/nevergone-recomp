@@ -1,13 +1,18 @@
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <string>
+#include <thread>
 
+#include "game_clock.h"
 #include "game_scene_player_joystick_input.h"
 #include "player_control_runtime_state.h"
+#include "tutorial_gameplay_state.h"
 
 namespace joystick = nevergone::game_scene_player_joystick_input;
 namespace runtime = nevergone::player_control_runtime_state;
 namespace contract = nevergone::player_control_contract;
+namespace tutorial = nevergone::tutorial_gameplay_state;
 
 namespace {
 
@@ -107,5 +112,32 @@ int main() {
     // Invalid/out-of-surface coordinates fail closed.
     assert(!joystick::surface_to_design(0, 640, 1.0f, 1.0f, &design_x, &design_y));
     assert(!joystick::surface_to_design(1136, 640, -1.0f, 1.0f, &design_x, &design_y));
+
+    // Integration: the same recovered fast-reactivation event that switches
+    // movement into action state 1 also completes the original Run lesson.
+    // The game clock clamps catch-up to <=5 ticks, so an 80 ms host sleep lands
+    // deterministically inside the recovered 0.03..0.40 second reactivation
+    // window even on a delayed CI runner.
+    joystick::reset();
+    nevergone::game_clock::reset();
+    nevergone::game_clock::resume();
+    tutorial::reset();
+    tutorial::begin_dialogue_sequence();
+    assert(tutorial::observe(tutorial::Event::kDialogueSequenceComplete));
+    assert(tutorial::snapshot().step == tutorial::Step::kRun);
+
+    assert(joystick::on_touch(0, 20, 304.0f, 467.0f, 1136, 640));
+    joystick::tick();
+    assert(joystick::on_touch(1, 20, 304.0f, 467.0f, 1136, 640));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(80));
+    (void)nevergone::game_clock::advance();
+
+    assert(joystick::on_touch(0, 21, 304.0f, 467.0f, 1136, 640));
+    joystick::tick();
+    assert(joystick::snapshot().fast_reactivation_count >= 1);
+    assert(tutorial::snapshot().step == tutorial::Step::kJump);
+    assert(tutorial::snapshot().last_event == tutorial::Event::kRunPerformed);
+
     return 0;
 }
