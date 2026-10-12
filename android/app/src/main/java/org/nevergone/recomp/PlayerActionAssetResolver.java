@@ -20,6 +20,13 @@ final class PlayerActionAssetResolver {
     private static final int MAX_BUNDLE_ENTRIES = 4096;
     private static final int MAX_BUNDLE_LINE_BYTES = 512;
 
+    // MEPLAYERSTATE is used directly as the zero-based CCArray index in
+    // MEPlayer::setPlayerStateWithIdx(). MEPlayer::createActions() fills that
+    // array in action01, action02, ... order, so state N resolves action(N+1).
+    // The shipped enum currently reaches 0x43; keep resolution bounded to that
+    // proven range rather than accepting arbitrary plist indices.
+    private static final int MAX_RECOVERED_MEPLAYER_STATE = 0x43;
+
     static final class Result {
         final int career;
         final String actionKey;
@@ -54,8 +61,20 @@ final class PlayerActionAssetResolver {
 
     private PlayerActionAssetResolver() {}
 
+    static String actionKeyForState(int mePlayerState) {
+        if (mePlayerState < 0 || mePlayerState > MAX_RECOVERED_MEPLAYER_STATE) return null;
+        return String.format(Locale.ROOT, "action%02d", mePlayerState + 1);
+    }
+
+    static Result resolveState(File assetRoot, int career, int mePlayerState) {
+        String actionKey = actionKeyForState(mePlayerState);
+        return actionKey != null ? resolve(assetRoot, career, actionKey) : null;
+    }
+
     static Result resolveInitial(File assetRoot, int career) {
-        return resolve(assetRoot, career, "action28");
+        // The recovered initial pNN_i01 action is array index 27 / state 0x1b,
+        // which is action28 in pNN_actions.plist.
+        return resolveState(assetRoot, career, 0x1b);
     }
 
     static Result resolve(File assetRoot, int career, String actionKey) {
