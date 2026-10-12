@@ -11,13 +11,13 @@ SCRIPT = ROOT / "tools" / "scene_actions_slice_report.py"
 
 TARGETS = (
     "GameScene::TriggerSceneAction(float)",
-    "GameSceneClassLayer::showEventObjTip(...) ",
+    "GameSceneClassLayer::showEventObjTip(...)",
     "GameSceneObject::triggerSceneAction()",
     "GameSceneObject::isContainsRect(CCRect)",
     "GameSceneObject::isContainsRect(CCRect,const char*)",
     "GameSceneObject::getObjectRect()",
     "SceneActionsSystem::waUpdate(float)",
-    "TrapActionsData::loadWBGFile(...) ",
+    "TrapActionsData::loadWBGFile(...)",
 )
 
 
@@ -30,7 +30,14 @@ def make_slice(unresolved: str | None = None) -> str:
         "",
     ]
     for index, target in enumerate(TARGETS):
-        parts.extend(["=" * 60, f"target={target}", f"requestedAddress=0x{index + 1:08x}"])
+        # The real exporter currently has incidental trailing whitespace on two
+        # labels. Exercise normalization explicitly instead of baking that into
+        # the report schema.
+        exported_target = target + (" " if target in {
+            "GameSceneClassLayer::showEventObjTip(...)",
+            "TrapActionsData::loadWBGFile(...)",
+        } else "")
+        parts.extend(["=" * 60, f"target={exported_target}", f"requestedAddress=0x{index + 1:08x}"])
         if target == unresolved:
             parts.extend(["status=FUNCTION_NOT_FOUND_OR_AMBIGUOUS", ""])
             continue
@@ -54,7 +61,7 @@ def make_slice(unresolved: str | None = None) -> str:
         else:
             parts.append("0034b100\tbl GameSceneObject::isContainsRect")
         parts.extend(["", "-- DECOMPILE --"])
-        if target == "GameSceneClassLayer::showEventObjTip(...) ":
+        if target == "GameSceneClassLayer::showEventObjTip(...)":
             parts.append("if (obj->isContainsRect(rect)) obj->triggerSceneAction();")
         elif "loadWBGFile" in target:
             parts.append("*(uint *)(this + 0xbc) = count;")
@@ -85,13 +92,13 @@ class SceneActionsSliceReportTest(unittest.TestCase):
         wa_update = report["frame_count_candidates"]["SceneActionsSystem::waUpdate(float)"]
         self.assertTrue(any("0xbc" in line for line in wa_update["offset_bc"]))
         self.assertTrue(any("bgt" in line.lower() for line in wa_update["branches"]))
-        loader = report["frame_count_candidates"]["TrapActionsData::loadWBGFile(...) "]
+        loader = report["frame_count_candidates"]["TrapActionsData::loadWBGFile(...)"]
         self.assertTrue(any("0xbc" in line or "188" in line for line in loader["offset_bc"]))
-        spatial = report["spatial_trigger_candidates"]["GameSceneClassLayer::showEventObjTip(...) "]
+        spatial = report["spatial_trigger_candidates"]["GameSceneClassLayer::showEventObjTip(...)"]
         self.assertTrue(any("isContainsRect" in line for line in spatial))
 
     def test_unresolved_target_fails_closed(self) -> None:
-        unresolved = "TrapActionsData::loadWBGFile(...) "
+        unresolved = "TrapActionsData::loadWBGFile(...)"
         result = self.run_report(make_slice(unresolved))
         self.assertEqual(result.returncode, 3)
         report = json.loads(result.stdout)
