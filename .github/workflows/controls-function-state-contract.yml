@@ -1,0 +1,27 @@
+name: Controls function state contract
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/controls_function_state_contract.*'
+      - 'tools/controls_function_state_contract_smoke.cpp'
+      - '.github/workflows/controls-function-state-contract.yml'
+  push:
+    paths:
+      - 'android/app/src/main/cpp/controls_function_state_contract.*'
+      - 'tools/controls_function_state_contract_smoke.cpp'
+      - '.github/workflows/controls-function-state-contract.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run Controls function-state smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/controls_function_state_contract_smoke.cpp \
+            android/app/src/main/cpp/controls_function_state_contract.cpp \
+            -o /tmp/controls_function_state_contract_smoke
+          /tmp/controls_function_state_contract_smoke
