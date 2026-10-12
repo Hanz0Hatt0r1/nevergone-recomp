@@ -18,28 +18,73 @@ public:
             int height,
             const std::uint32_t* argb_pixels,
             std::size_t pixel_count) override {
+        return create_texture(
+                game_scene_direct_texture_cache::PixelFormat::kRgba8888,
+                width,
+                height,
+                argb_pixels,
+                pixel_count);
+    }
+
+    game_scene_direct_texture_cache::TextureHandle create_texture(
+            game_scene_direct_texture_cache::PixelFormat pixel_format,
+            int width,
+            int height,
+            const std::uint32_t* argb_pixels,
+            std::size_t pixel_count) override {
         if (width <= 0 || height <= 0 || argb_pixels == nullptr) return 0;
         const std::size_t w = static_cast<std::size_t>(width);
         const std::size_t h = static_cast<std::size_t>(height);
         if (h != 0 && w > static_cast<std::size_t>(-1) / h) return 0;
         if (w * h != pixel_count) return 0;
 
-        std::vector<std::uint8_t> rgba(pixel_count * 4u);
-        for (std::size_t index = 0; index < pixel_count; ++index) {
-            const std::uint32_t pixel = argb_pixels[index];
-            const std::uint8_t alpha =
-                    static_cast<std::uint8_t>((pixel >> 24u) & 0xffu);
+        std::vector<std::uint8_t> rgba8888;
+        std::vector<std::uint16_t> rgba4444;
+        const void* upload_data = nullptr;
+        GLenum upload_type = 0;
 
-            // Android Bitmap.getPixels() returns non-premultiplied ARGB. The
-            // shipped cocos2d-x PNG path performs the project-owned transform
-            // below before marking its texture as premultiplied.
-            rgba[index * 4u + 0u] = game_scene_png_premultiply::channel(
-                    static_cast<std::uint8_t>((pixel >> 16u) & 0xffu), alpha);
-            rgba[index * 4u + 1u] = game_scene_png_premultiply::channel(
-                    static_cast<std::uint8_t>((pixel >> 8u) & 0xffu), alpha);
-            rgba[index * 4u + 2u] = game_scene_png_premultiply::channel(
-                    static_cast<std::uint8_t>(pixel & 0xffu), alpha);
-            rgba[index * 4u + 3u] = alpha;
+        if (pixel_format == game_scene_direct_texture_cache::PixelFormat::kRgba8888) {
+            rgba8888.resize(pixel_count * 4u);
+            for (std::size_t index = 0; index < pixel_count; ++index) {
+                const std::uint32_t pixel = argb_pixels[index];
+                const std::uint8_t alpha =
+                        static_cast<std::uint8_t>((pixel >> 24u) & 0xffu);
+                rgba8888[index * 4u + 0u] = game_scene_png_premultiply::channel(
+                        static_cast<std::uint8_t>((pixel >> 16u) & 0xffu), alpha);
+                rgba8888[index * 4u + 1u] = game_scene_png_premultiply::channel(
+                        static_cast<std::uint8_t>((pixel >> 8u) & 0xffu), alpha);
+                rgba8888[index * 4u + 2u] = game_scene_png_premultiply::channel(
+                        static_cast<std::uint8_t>(pixel & 0xffu), alpha);
+                rgba8888[index * 4u + 3u] = alpha;
+            }
+            upload_data = rgba8888.data();
+            upload_type = GL_UNSIGNED_BYTE;
+        } else if (pixel_format == game_scene_direct_texture_cache::PixelFormat::kRgba4444) {
+            rgba4444.resize(pixel_count);
+            for (std::size_t index = 0; index < pixel_count; ++index) {
+                const std::uint32_t pixel = argb_pixels[index];
+                const std::uint8_t alpha =
+                        static_cast<std::uint8_t>((pixel >> 24u) & 0xffu);
+                const std::uint8_t red = game_scene_png_premultiply::channel(
+                        static_cast<std::uint8_t>((pixel >> 16u) & 0xffu), alpha);
+                const std::uint8_t green = game_scene_png_premultiply::channel(
+                        static_cast<std::uint8_t>((pixel >> 8u) & 0xffu), alpha);
+                const std::uint8_t blue = game_scene_png_premultiply::channel(
+                        static_cast<std::uint8_t>(pixel & 0xffu), alpha);
+
+                // CCTexture2D format 6 in the shipped ARMv7 binary truncates
+                // the already-premultiplied RGBA8888 bytes to their high
+                // nibbles and packs RRRR GGGG BBBB AAAA into one uint16_t.
+                rgba4444[index] = static_cast<std::uint16_t>(
+                        (static_cast<std::uint16_t>(red & 0xf0u) << 8u) |
+                        (static_cast<std::uint16_t>(green & 0xf0u) << 4u) |
+                        static_cast<std::uint16_t>(blue & 0xf0u) |
+                        static_cast<std::uint16_t>(alpha >> 4u));
+            }
+            upload_data = rgba4444.data();
+            upload_type = GL_UNSIGNED_SHORT_4_4_4_4;
+        } else {
+            return 0;
         }
 
         while (glGetError() != GL_NO_ERROR) {
@@ -63,8 +108,8 @@ public:
                 height,
                 0,
                 GL_RGBA,
-                GL_UNSIGNED_BYTE,
-                rgba.data());
+                upload_type,
+                upload_data);
         const GLenum error = glGetError();
         glBindTexture(GL_TEXTURE_2D, 0);
         if (error != GL_NO_ERROR) {
