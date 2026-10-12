@@ -1,0 +1,26 @@
+name: SceneActions klhuo system inputs
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_klhuo_system_inputs.h'
+      - 'tools/scene_actions_klhuo_system_inputs_smoke.cpp'
+      - '.github/workflows/scene-actions-klhuo-system-inputs.yml'
+  push:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_klhuo_system_inputs.h'
+      - 'tools/scene_actions_klhuo_system_inputs_smoke.cpp'
+      - '.github/workflows/scene-actions-klhuo-system-inputs.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run klhuo SceneActions system-input smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/scene_actions_klhuo_system_inputs_smoke.cpp \
+            -o /tmp/scene_actions_klhuo_system_inputs_smoke
+          /tmp/scene_actions_klhuo_system_inputs_smoke
