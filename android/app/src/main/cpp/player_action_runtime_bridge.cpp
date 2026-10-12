@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 
+#include "controls_function_state_runtime.h"
 #include "game_clock.h"
 #include "game_levels_runtime_state.h"
 #include "game_scene_action_input.h"
@@ -49,6 +50,20 @@ void sync_runtime_to_spawn(const nevergone::game_scene_player_spawn_state::Snaps
             action_input.tutorial_event_count);
 }
 
+void observe_live_action_sources() {
+    const auto input = nevergone::game_scene_action_input::snapshot();
+    (void)nevergone::meplayer_live_action_state::observe_tutorial_event_count(
+            input.tutorial_event_count);
+
+    const auto function = nevergone::controls_function_state_runtime::snapshot();
+    (void)nevergone::meplayer_live_action_state::observe_base_function_state(
+            function.generation,
+            function.function_state,
+            function.has_pending_base_action,
+            function.pending_meplayer_state,
+            function.pending_has_additional_guard);
+}
+
 std::string runtime_status_report() {
     const auto career = nevergone::player_offline_career::current();
     const auto document = nevergone::player_action_document_store::snapshot();
@@ -64,6 +79,7 @@ std::string runtime_status_report() {
         << (document.embedded_entry_name.empty() ? "standalone" : "actions-data-bundle") << "\n";
     out << "document load attempts: " << document.load_attempt_count << "\n";
     out << "document primary records: " << document.primary_record_count << "\n";
+    out << nevergone::controls_function_state_runtime::status_report();
     out << nevergone::meplayer_live_action_state::status_report();
     return out.str();
 }
@@ -132,8 +148,7 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeDesiredPlayerActionSta
     const auto input = nevergone::game_scene_action_input::snapshot();
     (void)nevergone::meplayer_live_action_state::sync_spawn(
             spawn.generation, input.tutorial_event_count);
-    (void)nevergone::meplayer_live_action_state::observe_tutorial_event_count(
-            input.tutorial_event_count);
+    observe_live_action_sources();
     const auto live = nevergone::meplayer_live_action_state::snapshot();
     return live.ready ? static_cast<jint>(live.desired_action_state) : -1;
 }
