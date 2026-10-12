@@ -8,6 +8,7 @@
 
 #include "character_name_compositor.h"
 #include "character_name_state.h"
+#include "game_scene_action_compositor.h"
 #include "game_scene_action_surface_input.h"
 #include "game_scene_direct_renderer.h"
 #include "offline_startup_flow.h"
@@ -101,11 +102,6 @@ void maybe_stage_action_assets(JNIEnv* env) {
         g_last_action_asset_attempt = std::numeric_limits<std::uint64_t>::max();
         return;
     }
-
-    // Fresh-role captures prove the action controls belong to cp_lesson and are
-    // already available by the loading/tutorial boundary. Use the fresh-role
-    // handoff count as the one-shot staging generation so a render loop cannot
-    // repeatedly BitmapFactory-probe missing resources.
     if (state.fresh_role_local_enter_count == g_last_action_asset_attempt) return;
     g_last_action_asset_attempt = state.fresh_role_local_enter_count;
     (void)invoke_files_dir_loader(env, "org/nevergone/recomp/GameSceneActionAssetLoader");
@@ -116,7 +112,11 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::server_selection_compositor::on_surface_created();
     nevergone::character_name_compositor::on_surface_created();
     nevergone::tutorial_loading_compositor::on_surface_created();
+    nevergone::game_scene_action_compositor::on_surface_created();
     nevergone::game_scene_action_surface_input::cancel_all_captures();
+    // A GLES context recreation invalidates action textures even when the
+    // fresh-role generation is unchanged. Force one imported-asset restage.
+    g_last_action_asset_attempt = std::numeric_limits<std::uint64_t>::max();
     while (glGetError() != GL_NO_ERROR) {
     }
 }
@@ -128,8 +128,8 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
         g_surface_width.store(viewport[2], std::memory_order_relaxed);
         g_surface_height.store(viewport[3], std::memory_order_relaxed);
         nevergone::game_scene_direct_renderer::on_surface_changed(viewport[2], viewport[3]);
-        nevergone::tutorial_loading_compositor::on_surface_changed(
-            viewport[2], viewport[3]);
+        nevergone::tutorial_loading_compositor::on_surface_changed(viewport[2], viewport[3]);
+        nevergone::game_scene_action_compositor::on_surface_changed(viewport[2], viewport[3]);
         (void)nevergone::game_scene_direct_renderer::draw();
     }
 
@@ -141,10 +141,11 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     }
 
     maybe_stage_action_assets(env);
+    (void)nevergone::game_scene_action_compositor::draw();
 
     // This is intentionally last: the original loading layer owns the whole
     // surface while cp_lesson is being prepared, so no already-built gameplay
-    // or CharacterName geometry may leak through behind it.
+    // or Controls geometry may leak through behind it.
     maybe_stage_tutorial_loading_assets(env);
     nevergone::tutorial_loading_compositor::draw();
 }
@@ -189,32 +190,14 @@ bool register_frame_layers(JNIEnv* env) {
     }
 
     JNINativeMethod methods[] = {
-        {
-            const_cast<char*>("nativeOnServerSelectionSurfaceCreated"),
-            const_cast<char*>("()V"),
-            reinterpret_cast<void*>(&wrapped_server_surface_created),
-        },
-        {
-            const_cast<char*>("nativeDrawServerSelectionLayer"),
-            const_cast<char*>("()V"),
-            reinterpret_cast<void*>(&wrapped_server_draw),
-        },
-        {
-            const_cast<char*>("nativeDrawSplashLayers"),
-            const_cast<char*>("()V"),
-            reinterpret_cast<void*>(&draw_post_scene_layers),
-        },
-        {
-            const_cast<char*>("nativeOnTouch"),
-            const_cast<char*>("(IIFF)V"),
-            reinterpret_cast<void*>(&wrapped_native_touch),
-        },
+        {const_cast<char*>("nativeOnServerSelectionSurfaceCreated"), const_cast<char*>("()V"), reinterpret_cast<void*>(&wrapped_server_surface_created)},
+        {const_cast<char*>("nativeDrawServerSelectionLayer"), const_cast<char*>("()V"), reinterpret_cast<void*>(&wrapped_server_draw)},
+        {const_cast<char*>("nativeDrawSplashLayers"), const_cast<char*>("()V"), reinterpret_cast<void*>(&draw_post_scene_layers)},
+        {const_cast<char*>("nativeOnTouch"), const_cast<char*>("(IIFF)V"), reinterpret_cast<void*>(&wrapped_native_touch)},
     };
 
     const jint result = env->RegisterNatives(
-        clazz,
-        methods,
-        static_cast<jint>(sizeof(methods) / sizeof(methods[0])));
+        clazz, methods, static_cast<jint>(sizeof(methods) / sizeof(methods[0])));
     if (result != JNI_OK && env->ExceptionCheck()) env->ExceptionClear();
     env->DeleteLocalRef(clazz);
     return result == JNI_OK;
