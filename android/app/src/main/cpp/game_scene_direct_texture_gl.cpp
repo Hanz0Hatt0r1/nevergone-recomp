@@ -132,7 +132,7 @@ bool sync() {
 }
 
 void clear() {
-    game_scene_direct_texture_gl::clear();
+    game_scene_direct_texture_cache::clear(g_backend);
 }
 
 game_scene_direct_texture_cache::Snapshot snapshot() {
