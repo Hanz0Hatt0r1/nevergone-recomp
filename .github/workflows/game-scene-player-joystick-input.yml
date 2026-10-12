@@ -6,6 +6,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_player_joystick_input.*'
       - 'android/app/src/main/cpp/game_scene_player_motion_state.h'
       - 'android/app/src/main/cpp/player_motion_contract.h'
+      - 'android/app/src/main/cpp/player_direction_combo_contract.h'
       - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
@@ -14,6 +15,7 @@ on:
       - 'tools/game_scene_player_joystick_input_smoke.cpp'
       - 'tools/game_scene_player_motion_state_smoke.cpp'
       - 'tools/player_motion_contract_smoke.cpp'
+      - 'tools/player_direction_combo_contract_smoke.cpp'
       - '.github/workflows/game-scene-player-joystick-input.yml'
   push:
     branches: [main]
@@ -21,6 +23,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_player_joystick_input.*'
       - 'android/app/src/main/cpp/game_scene_player_motion_state.h'
       - 'android/app/src/main/cpp/player_motion_contract.h'
+      - 'android/app/src/main/cpp/player_direction_combo_contract.h'
       - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
@@ -29,6 +32,7 @@ on:
       - 'tools/game_scene_player_joystick_input_smoke.cpp'
       - 'tools/game_scene_player_motion_state_smoke.cpp'
       - 'tools/player_motion_contract_smoke.cpp'
+      - 'tools/player_direction_combo_contract_smoke.cpp'
       - '.github/workflows/game-scene-player-joystick-input.yml'
 
 permissions:
@@ -57,6 +61,13 @@ jobs:
             tools/player_motion_contract_smoke.cpp \
             -o /tmp/player_motion_contract_smoke
           /tmp/player_motion_contract_smoke
+      - name: Build and run horizontal direction-combo contract smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/player_direction_combo_contract_smoke.cpp \
+            -o /tmp/player_direction_combo_contract_smoke
+          /tmp/player_direction_combo_contract_smoke
       - name: Build and run fixed-tick motion-state smoke
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
