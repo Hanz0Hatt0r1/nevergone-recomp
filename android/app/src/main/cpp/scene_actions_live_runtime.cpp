@@ -10,6 +10,20 @@ namespace {
 std::mutex g_mutex;
 scene_actions_runtime_controller::Controller g_controller;
 
+CurrentSceneStatus map_current_binding(scene_actions_current_scene_binding::Status status) {
+    switch (status) {
+        case scene_actions_current_scene_binding::Status::kReady:
+            return CurrentSceneStatus::kReady;
+        case scene_actions_current_scene_binding::Status::kNoPair:
+            return CurrentSceneStatus::kNoPair;
+        case scene_actions_current_scene_binding::Status::kAmbiguousPairs:
+            return CurrentSceneStatus::kAmbiguousPairs;
+        case scene_actions_current_scene_binding::Status::kInvalidPair:
+            return CurrentSceneStatus::kInvalidPair;
+    }
+    return CurrentSceneStatus::kInvalidPair;
+}
+
 StartStatus map_binding(scene_actions_current_scene_binding::Status status) {
     switch (status) {
         case scene_actions_current_scene_binding::Status::kNoPair:
@@ -39,6 +53,12 @@ StartStatus map_controller(scene_actions_runtime_controller::StartStatus status)
 }
 
 }  // namespace
+
+CurrentSceneStatus current_scene_status() {
+    const auto queue = game_levels_runtime_state::current_scene_render_queue();
+    if (!queue.has_value()) return CurrentSceneStatus::kSceneUnavailable;
+    return map_current_binding(scene_actions_current_scene_binding::resolve(*queue).status);
+}
 
 StartResult start_current_scene(int requested_variant) {
     const auto queue = game_levels_runtime_state::current_scene_render_queue();
