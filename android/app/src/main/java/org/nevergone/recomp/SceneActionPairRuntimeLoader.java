@@ -9,8 +9,8 @@ import java.util.Locale;
 final class SceneActionPairRuntimeLoader {
     private static final int MAX_FILES = 30_000;
     private static final int MAX_DEPTH = 16;
-    private static final int SLOT_BORN = 0;
-    private static final int SLOT_IDLE = 1;
+    static final int SLOT_BORN = 0;
+    static final int SLOT_IDLE = 1;
 
     private static int loadedVariant;
     private static String bornRelativePath;
@@ -20,6 +20,9 @@ final class SceneActionPairRuntimeLoader {
 
     private static native boolean nativeLoadSlot(int variant, int slot, String relativePath);
     private static native boolean nativePairReady(int variant);
+    private static native String nativeInitialAtlasPlist(int slot);
+    private static native String nativeInitialFrameName(int slot);
+    private static native int nativeInitialMode(int slot);
     private static native void nativeReset();
     private static native String nativeStatusReport();
 
@@ -54,6 +57,17 @@ final class SceneActionPairRuntimeLoader {
         return true;
     }
 
+    static InitialFrame initialFrame(int slot) {
+        if (slot != SLOT_BORN && slot != SLOT_IDLE) return null;
+        String atlas = nativeInitialAtlasPlist(slot);
+        String frame = nativeInitialFrameName(slot);
+        int mode = nativeInitialMode(slot);
+        if (atlas == null || atlas.isEmpty() || frame == null || frame.isEmpty() || mode < 0) {
+            return null;
+        }
+        return new InitialFrame(atlas, frame, mode);
+    }
+
     static String statusReport() {
         StringBuilder out = new StringBuilder();
         String nativeReport = nativeStatusReport();
@@ -66,6 +80,18 @@ final class SceneActionPairRuntimeLoader {
 
     static int loadedVariantForTest() {
         return loadedVariant;
+    }
+
+    static final class InitialFrame {
+        final String atlasPlist;
+        final String frameName;
+        final int mode;
+
+        InitialFrame(String atlasPlist, String frameName, int mode) {
+            this.atlasPlist = atlasPlist;
+            this.frameName = frameName;
+            this.mode = mode;
+        }
     }
 
     private static Pair resolve(File assetRoot, int variant) {
