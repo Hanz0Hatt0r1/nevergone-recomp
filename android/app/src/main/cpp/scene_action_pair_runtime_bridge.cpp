@@ -3,6 +3,7 @@
 #include <string>
 
 #include "scene_action_pair_document_store.h"
+#include "scene_action_pair_initial_frame_runtime.h"
 #include "startup_contract.h"
 
 namespace {
@@ -14,6 +15,14 @@ std::string from_jstring(JNIEnv* env, jstring value) {
     std::string result(chars);
     env->ReleaseStringUTFChars(value, chars);
     return result;
+}
+
+std::optional<nevergone::scene_actions_initial_frame::Plan> initial_frame_for_slot(jint slot) {
+    if (slot != 0 && slot != 1) return std::nullopt;
+    const auto target = slot == 0
+            ? nevergone::scene_action_pair_document_store::Slot::kBorn
+            : nevergone::scene_action_pair_document_store::Slot::kIdle;
+    return nevergone::scene_action_pair_initial_frame_runtime::current(target);
 }
 
 }  // namespace
@@ -44,6 +53,29 @@ Java_org_nevergone_recomp_SceneActionPairRuntimeLoader_nativePairReady(
         JNIEnv*, jclass, jint variant) {
     const auto state = nevergone::scene_action_pair_document_store::snapshot();
     return state.pair_ready && state.variant == variant ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_SceneActionPairRuntimeLoader_nativeInitialAtlasPlist(
+        JNIEnv* env, jclass, jint slot) {
+    const auto plan = initial_frame_for_slot(slot);
+    if (!plan.has_value()) return nullptr;
+    return env->NewStringUTF(plan->atlas_plist.c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_SceneActionPairRuntimeLoader_nativeInitialFrameName(
+        JNIEnv* env, jclass, jint slot) {
+    const auto plan = initial_frame_for_slot(slot);
+    if (!plan.has_value()) return nullptr;
+    return env->NewStringUTF(plan->frame_name.c_str());
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_nevergone_recomp_SceneActionPairRuntimeLoader_nativeInitialMode(
+        JNIEnv*, jclass, jint slot) {
+    const auto plan = initial_frame_for_slot(slot);
+    return plan.has_value() ? static_cast<jint>(plan->mode_24e) : -1;
 }
 
 extern "C" JNIEXPORT void JNICALL
