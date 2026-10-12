@@ -7,6 +7,13 @@ final class SceneActionLiveRuntime {
     static final int SLOT_BORN = SceneActionPairRuntimeLoader.SLOT_BORN;
     static final int SLOT_IDLE = SceneActionPairRuntimeLoader.SLOT_IDLE;
 
+    // Native scene_actions_live_runtime::CurrentSceneStatus ordinals.
+    static final int CURRENT_SCENE_READY = 0;
+    static final int CURRENT_SCENE_UNAVAILABLE = 1;
+    static final int CURRENT_SCENE_NO_PAIR = 2;
+    static final int CURRENT_SCENE_AMBIGUOUS_PAIRS = 3;
+    static final int CURRENT_SCENE_INVALID_PAIR = 4;
+
     // Native scene_actions_active_playback::TickStatus ordinals.
     static final int TICK_REJECTED = 0;
     static final int TICK_NO_ADVANCE = 1;
@@ -26,6 +33,7 @@ final class SceneActionLiveRuntime {
 
     private SceneActionLiveRuntime() {}
 
+    private static native int nativeCurrentSceneStatus();
     private static native int nativeStartCurrentScene(int variant);
     private static native int nativeTick(int slot, float dtSeconds);
     private static native int nativeCurrentFrameIndex(int slot);
@@ -46,6 +54,11 @@ final class SceneActionLiveRuntime {
         // controller. Repeating the same explicit trigger is idempotent; asking
         // for another variant requires reset/recreated scene lifetime first.
         if (nativeStarted()) return nativeCurrentVariant() == variant;
+
+        // Resolve only the current project scene before touching variant assets.
+        // The final start repeats the same binding validation after staging, so
+        // a scene change between preflight and commit remains fail closed.
+        if (nativeCurrentSceneStatus() != CURRENT_SCENE_READY) return false;
 
         if (!SceneActionVisualRuntime.stageVariant(assetRoot, variant)) return false;
 
@@ -101,6 +114,10 @@ final class SceneActionLiveRuntime {
         if (!nativeReadyToSubmit(slot)) return STEP_SUBMIT_FAILED;
         if (nativeSubmit(slot) != SUBMIT_SUBMITTED) return STEP_SUBMIT_FAILED;
         return tick;
+    }
+
+    static int currentSceneStatus() {
+        return nativeCurrentSceneStatus();
     }
 
     static boolean started() {

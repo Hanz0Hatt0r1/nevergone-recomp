@@ -33,6 +33,7 @@ public final class SceneActionDebugApplication extends Application
     private volatile boolean bornCompleted;
     private volatile long lastFrameNs;
     private volatile long lastStartAttemptNs;
+    private volatile int lastSceneStatus = -1;
 
     @Override
     public void onCreate() {
@@ -57,6 +58,7 @@ public final class SceneActionDebugApplication extends Application
         bornCompleted = false;
         lastFrameNs = 0L;
         lastStartAttemptNs = 0L;
+        lastSceneStatus = -1;
         if (surface == null) {
             Log.e(TAG, "probe requested but GameSurfaceView was not found");
             return;
@@ -92,6 +94,12 @@ public final class SceneActionDebugApplication extends Application
                 lastStartAttemptNs = frameTimeNanos;
                 target.queueEvent(() -> {
                     if (surface != target || requestedVariant != variant) return;
+                    int sceneStatus = SceneActionLiveRuntime.currentSceneStatus();
+                    if (sceneStatus != lastSceneStatus) {
+                        lastSceneStatus = sceneStatus;
+                        Log.i(TAG, "current-scene binding: " + sceneStatusName(sceneStatus));
+                    }
+                    if (sceneStatus != SceneActionLiveRuntime.CURRENT_SCENE_READY) return;
                     if (SceneActionLiveRuntime.start(root, variant)) {
                         started = true;
                         bornCompleted = false;
@@ -151,6 +159,7 @@ public final class SceneActionDebugApplication extends Application
         started = false;
         bornCompleted = false;
         lastFrameNs = 0L;
+        lastSceneStatus = -1;
         // Keep the explicit request armed. A retry is useful after imported assets
         // or current-scene binding change while the debug activity remains resumed.
         lastStartAttemptNs = 0L;
@@ -176,12 +185,30 @@ public final class SceneActionDebugApplication extends Application
         bornCompleted = false;
         lastFrameNs = 0L;
         lastStartAttemptNs = 0L;
+        lastSceneStatus = -1;
     }
 
     private void postFrameCallback() {
         if (callbackPosted || surface == null || resumedActivity == null) return;
         callbackPosted = true;
         Choreographer.getInstance().postFrameCallback(this);
+    }
+
+    private static String sceneStatusName(int status) {
+        switch (status) {
+            case SceneActionLiveRuntime.CURRENT_SCENE_READY:
+                return "ready";
+            case SceneActionLiveRuntime.CURRENT_SCENE_UNAVAILABLE:
+                return "scene-unavailable";
+            case SceneActionLiveRuntime.CURRENT_SCENE_NO_PAIR:
+                return "no-pair";
+            case SceneActionLiveRuntime.CURRENT_SCENE_AMBIGUOUS_PAIRS:
+                return "ambiguous-pairs";
+            case SceneActionLiveRuntime.CURRENT_SCENE_INVALID_PAIR:
+                return "invalid-pair";
+            default:
+                return "unknown(" + status + ")";
+        }
     }
 
     private static GameSurfaceView findSurface(View view) {

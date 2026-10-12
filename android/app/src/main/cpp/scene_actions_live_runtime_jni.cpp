@@ -20,6 +20,12 @@ std::optional<nevergone::scene_action_pair_document_store::Slot> slot_from_jint(
 }  // namespace
 
 extern "C" JNIEXPORT jint JNICALL
+Java_org_nevergone_recomp_SceneActionLiveRuntime_nativeCurrentSceneStatus(
+        JNIEnv*, jclass) {
+    return static_cast<jint>(nevergone::scene_actions_live_runtime::current_scene_status());
+}
+
+extern "C" JNIEXPORT jint JNICALL
 Java_org_nevergone_recomp_SceneActionLiveRuntime_nativeStartCurrentScene(
         JNIEnv*, jclass, jint variant) {
     const auto result = nevergone::scene_actions_live_runtime::start_current_scene(

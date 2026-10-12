@@ -11,6 +11,14 @@
 
 namespace nevergone::scene_actions_live_runtime {
 
+enum class CurrentSceneStatus {
+    kReady = 0,
+    kSceneUnavailable,
+    kNoPair,
+    kAmbiguousPairs,
+    kInvalidPair,
+};
+
 enum class StartStatus {
     kStarted = 0,
     kAlreadyStarted,
@@ -31,6 +39,11 @@ struct StartResult {
     scene_actions_runtime_controller::StartStatus controller_status =
             scene_actions_runtime_controller::StartStatus::kInvalidPlan;
 };
+
+// Read-only current-scene preflight. This resolves only the retained project
+// render queue and klhuo pair cardinality/shape; it does not inspect/stage a
+// variant, consume the trigger gate, mutate playback, or submit GLES state.
+CurrentSceneStatus current_scene_status();
 
 // Explicit trigger boundary for the currently retained GameLevels scene. The
 // caller supplies the already recovered/staged variant; this API does not draw
