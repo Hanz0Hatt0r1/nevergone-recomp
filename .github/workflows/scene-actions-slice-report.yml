@@ -1,0 +1,14 @@
+name: SceneActions slice report
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run SceneActions slice report tests
+        run: python3 tools/test_scene_actions_slice_report.py
