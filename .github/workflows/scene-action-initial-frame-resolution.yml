@@ -1,0 +1,31 @@
+name: SceneActions initial frame resolution
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/java/org/nevergone/recomp/SceneActionPairRuntimeLoader.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/SceneActionInitialFrameResolver.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasResolver.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasFrameResolver.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/ImportedPlistXml.java'
+      - 'tools/SceneActionInitialFrameResolverSmoke.java'
+      - '.github/workflows/scene-action-initial-frame-resolution.yml'
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run SceneActions initial-frame resolver smoke
+        run: |
+          mkdir -p /tmp/scene-action-frame-classes
+          javac -d /tmp/scene-action-frame-classes \
+            android/app/src/main/java/org/nevergone/recomp/ImportedPlistXml.java \
+            android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasResolver.java \
+            android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasFrameResolver.java \
+            android/app/src/main/java/org/nevergone/recomp/SceneActionPairRuntimeLoader.java \
+            android/app/src/main/java/org/nevergone/recomp/SceneActionInitialFrameResolver.java \
+            tools/SceneActionInitialFrameResolverSmoke.java
+          java -ea -cp /tmp/scene-action-frame-classes org.nevergone.recomp.SceneActionInitialFrameResolverSmoke
