@@ -45,10 +45,7 @@ final class SceneActionVisualRuntime {
     }
 
     static boolean ready(int variant) {
-        if (variant < 1 || variant > 4 || readyVariant != variant ||
-                SceneActionPairRuntimeLoader.loadedVariantForTest() != variant) {
-            return false;
-        }
+        if (variant < 1 || variant > 4 || readyVariant != variant) return false;
         return SceneActionInitialFramePixelStager.ready(
                         SceneActionPairRuntimeLoader.SLOT_BORN, variant) &&
                 SceneActionInitialFramePixelStager.ready(
