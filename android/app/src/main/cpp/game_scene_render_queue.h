@@ -74,6 +74,13 @@ inline Queue build(const game_scene_construction_plan::ScenePlan& plan) {
             command.transform = *object.type0_sprite_transform;
             command.layer_camera_factor = layer.first_float;
 
+            // Some recovered branches create a placeholder sprite and then call
+            // setVisible(false). Preserve the object state in the construction
+            // plan, but do not request or draw a texture that has no submission.
+            if (!command.resource.initially_visible) {
+                continue;
+            }
+
             if (command.resource.kind == game_scene_type0_resource::Kind::kDirectFile) {
                 command.direct_asset_relative_path =
                         game_scene_direct_asset::imported_relative_path(command.resource);

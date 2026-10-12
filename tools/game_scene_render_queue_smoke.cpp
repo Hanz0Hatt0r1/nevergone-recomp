@@ -38,7 +38,7 @@ int main() {
     plan_ns::ScenePlan plan;
     plan.source_scene_index = 4u;
     plan.guid = "render-scene";
-    plan.object_count = 5u;
+    plan.object_count = 6u;
 
     plan_ns::LayerPlan first;
     first.z_index = 0u;
@@ -57,13 +57,17 @@ int main() {
     second.source_layer_index = 20u;
     second.objects.push_back(sprite_object(0u, resource_ns::Kind::kDirectFile, "gktianchong.png", 10.0f));
 
+    auto hidden = sprite_object(1u, resource_ns::Kind::kDirectFile, "empty.png", 15.0f);
+    hidden.type0_resource->initially_visible = false;
+    second.objects.push_back(hidden);
+
     plan_ns::ObjectPlan unresolved;
-    unresolved.source_object_index = 1u;
+    unresolved.source_object_index = 2u;
     unresolved.type_code = 6;
     unresolved.construction_kind = plan_ns::ObjectConstructionKind::kUnresolved;
     second.objects.push_back(unresolved);
 
-    auto incomplete = sprite_object(2u, resource_ns::Kind::kSpriteFrameByName, "missing-transform.png", 20.0f);
+    auto incomplete = sprite_object(3u, resource_ns::Kind::kSpriteFrameByName, "missing-transform.png", 20.0f);
     incomplete.type0_sprite_transform.reset();
     second.objects.push_back(incomplete);
 
@@ -84,6 +88,7 @@ int main() {
     assert(queue.sprites[0].source_object_index == 0u);
     assert(queue.sprites[0].resource.kind == resource_ns::Kind::kSpriteFrameByName);
     assert(queue.sprites[0].resource.resource_name == "atlas.png");
+    assert(queue.sprites[0].resource.initially_visible);
     assert(!queue.sprites[0].direct_asset_relative_path.has_value());
     assert(queue.sprites[0].transform.position_x == 1.0f);
 
@@ -92,6 +97,7 @@ int main() {
     assert(queue.sprites[1].source_object_index == 0u);
     assert(queue.sprites[1].resource.kind == resource_ns::Kind::kDirectFile);
     assert(queue.sprites[1].resource.resource_name == "gktianchong.png");
+    assert(queue.sprites[1].resource.initially_visible);
     assert(queue.sprites[1].direct_asset_relative_path.has_value());
     assert(*queue.sprites[1].direct_asset_relative_path ==
            "gamescene/gs_res_image_file/gktianchong.png");

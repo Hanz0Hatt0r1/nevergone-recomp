@@ -18,6 +18,9 @@ enum class Kind {
 struct Selection {
     Kind kind = Kind::kSpriteFrameByName;
     std::string resource_name;
+    // True for ordinary resources. The exact gkanniu2 branch replaces the
+    // cached sprite with empty.png and immediately calls setVisible(false).
+    bool initially_visible = true;
 };
 
 inline Selection select(const std::string& serialized_name) {
@@ -26,10 +29,9 @@ inline Selection select(const std::string& serialized_name) {
     }
     if (serialized_name == "gkanniu2.png") {
         // GameSceneObject::initWithData() first creates the ordinary cached
-        // sprite, but the exact gkanniu2 branch immediately replaces the live
-        // sprite pointer with CCSprite::create("empty.png"). Resource staging
-        // therefore needs the replacement texture, not the serialized frame.
-        return {Kind::kDirectFile, "empty.png"};
+        // sprite, then replaces the live pointer with CCSprite::create(
+        // "empty.png") and dispatches CCSprite::setVisible(false).
+        return {Kind::kDirectFile, "empty.png", false};
     }
     if (serialized_name == "czyanwu1.png" ||
         serialized_name == "czyanwu3.png" ||
