@@ -125,6 +125,7 @@ add_library(nevergone_recomp SHARED
     scene_action_initial_frame_pixel_bridge.cpp
     scene_action_pair_document_store.cpp
     scene_action_pair_runtime_bridge.cpp
+    scene_actions_gles_compositor.cpp
     server_selection_assets.cpp
     server_selection_compositor.cpp
     server_selection_jni.cpp
