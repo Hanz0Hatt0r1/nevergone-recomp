@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "scene_action_initial_frame_pixel_store.h"
 #include "scene_action_pair_document_store.h"
 #include "scene_action_pair_initial_frame_runtime.h"
 #include "startup_contract.h"
@@ -81,6 +82,7 @@ Java_org_nevergone_recomp_SceneActionPairRuntimeLoader_nativeInitialMode(
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_SceneActionPairRuntimeLoader_nativeReset(
         JNIEnv*, jclass) {
+    nevergone::scene_action_initial_frame_pixel_store::reset();
     nevergone::scene_action_pair_document_store::reset();
 }
 
