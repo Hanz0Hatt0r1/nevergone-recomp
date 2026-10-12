@@ -41,6 +41,9 @@ int main() {
     assert(resource_ns::select("czyanwu3.png").kind == resource_ns::Kind::kDirectFile);
     assert(resource_ns::select("gktianchong.png").kind == resource_ns::Kind::kDirectFile);
     assert(resource_ns::select("gkyuanjing.png").kind == resource_ns::Kind::kDirectFile);
+    const auto gkanniu = resource_ns::select("gkanniu2.png");
+    assert(gkanniu.kind == resource_ns::Kind::kDirectFile);
+    assert(gkanniu.resource_name == "empty.png");
     assert(resource_ns::select("klhuo-1.png").kind == resource_ns::Kind::kSceneActionPair);
 
     SceneInstance scene;
@@ -58,19 +61,20 @@ int main() {
 
     scene.layers[0].objects.push_back(make_object(0, "background.png"));
     scene.layers[0].objects.push_back(make_object(0, "gktianchong.png"));
+    scene.layers[0].objects.push_back(make_object(0, "gkanniu2.png"));
     scene.layers[0].objects.push_back(make_object(0, "klhuo-1.png"));
     scene.layers[0].objects.push_back(make_object(4, "type-four"));
     scene.layers[3].objects.push_back(make_object(6, "type-six"));
     scene.layers[10].objects.push_back(make_object(1, "type-one"));
     scene.layers[11].objects.push_back(make_object(0, "ignored.png"));
-    scene.object_count = 7u;
+    scene.object_count = 8u;
 
     const auto plan = plan_ns::build(scene);
     assert(plan.source_scene_index == 7u);
     assert(plan.guid == "scene-guid");
     assert(plan.layers.size() == plan_ns::kLoadingTexLayerSlotCount);
     assert(plan.ignored_source_layer_count == 1u);
-    assert(plan.object_count == 6u);
+    assert(plan.object_count == 7u);
 
     for (std::size_t z = 0; z < plan.layers.size(); ++z) {
         assert(plan.layers[z].z_index == z);
@@ -78,7 +82,7 @@ int main() {
         assert(plan.layers[z].first_float == static_cast<float>(z) + 0.25f);
     }
 
-    assert(plan.layers[0].objects.size() == 4u);
+    assert(plan.layers[0].objects.size() == 5u);
     const auto& cached = plan.layers[0].objects[0];
     assert(cached.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
     assert(cached.type0_resource.has_value());
@@ -99,12 +103,18 @@ int main() {
     assert(direct.type0_resource->resource_name == "gktianchong.png");
     assert(direct.type0_sprite_transform.has_value());
 
-    const auto& action_pair = plan.layers[0].objects[2];
+    const auto& hidden = plan.layers[0].objects[2];
+    assert(hidden.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
+    assert(hidden.type0_resource->kind == resource_ns::Kind::kDirectFile);
+    assert(hidden.type0_resource->resource_name == "empty.png");
+    assert(hidden.type0_sprite_transform.has_value());
+
+    const auto& action_pair = plan.layers[0].objects[3];
     assert(action_pair.construction_kind == plan_ns::ObjectConstructionKind::kType0SceneActionPair);
     assert(action_pair.type0_resource->kind == resource_ns::Kind::kSceneActionPair);
     assert(!action_pair.type0_sprite_transform.has_value());
 
-    const auto& type4 = plan.layers[0].objects[3];
+    const auto& type4 = plan.layers[0].objects[4];
     assert(type4.construction_kind == plan_ns::ObjectConstructionKind::kUnresolved);
     assert(!type4.type0_resource.has_value());
     assert(!type4.type0_sprite_transform.has_value());
