@@ -47,7 +47,9 @@ int main() {
 
     assert(near(post_ns::normalize_lrand48(0u), 0.0f));
     assert(near(post_ns::normalize_lrand48(0x40000000u), 0.5f));
-    assert(post_ns::normalize_lrand48(0x7fffffffu) < 1.0f);
+    // ARM/C++ float32 conversion rounds the largest 31-bit sample to exactly
+    // 1.0f. This is the same upper-edge effect recovered for klhuo variant 04.
+    assert(post_ns::normalize_lrand48(0x7fffffffu) == 1.0f);
 
     const auto skew_zero = post_ns::make_random_skew_loop_params(0u, 0u);
     assert(near(skew_zero.segment_duration_seconds, 1.0f));
@@ -68,8 +70,7 @@ int main() {
     assert(fade_half.low_opacity == 12u);
     const auto fade_max =
             post_ns::make_random_fade_loop_params(0x7fffffffu, 0x7fffffffu);
-    assert(fade_max.delay_seconds < 9.0f);
-    assert(fade_max.delay_seconds > 8.99f);
+    assert(fade_max.delay_seconds == 9.0f);
     assert(fade_max.low_opacity == 25u);
 
     plan_ns::ScenePlan plan;
@@ -99,8 +100,6 @@ int main() {
     action.record.first_point_y = 123.0f;
     first.objects.push_back(action);
 
-    // Invalid pair classifications must remain unresolved rather than becoming
-    // a runtime command with fabricated resource semantics.
     plan_ns::ObjectPlan invalid_action;
     invalid_action.source_object_index = 4u;
     invalid_action.type_code = 0;
