@@ -15,6 +15,10 @@ struct State {
     bool first_update_15c = false;
     bool done_1a8 = true;
     bool end_184 = false;
+    // comboHit()/waUpdate() control bytes recovered at the native offsets.
+    bool combo_hit_active_185 = false;
+    bool combo_type_24c = false;
+    bool combo_latched_24d = false;
     std::int32_t last_frame_14c = -1;
     std::int32_t secondary_last_170 = -1;
     std::size_t frame_index_250 = 0;
@@ -27,8 +31,6 @@ struct State {
 // Reconstruct the fields established by SceneActionsSystem::play() before its
 // updateData() call. The selected ActionFrameData is index 0 and +0x5c has
 // already been materialized by the recovered TrapActions final reciprocal table.
-// Keep the +0x5c value structurally named here: waUpdate timing semantics are
-// reconstructed separately.
 inline std::optional<State> build(
         const trap_actions_document::Document& document,
         std::uint8_t mode_24e) {
@@ -48,6 +50,11 @@ inline std::optional<State> build(
     state.first_update_15c = true;
     state.done_1a8 = false;
     state.end_184 = false;
+    // initWithFile() initializes +0x185/+0x24c/+0x24d to zero and play()
+    // does not overwrite them before the first waUpdate().
+    state.combo_hit_active_185 = false;
+    state.combo_type_24c = false;
+    state.combo_latched_24d = false;
     state.last_frame_14c = -1;
     state.secondary_last_170 = -1;
     state.frame_index_250 = 0u;
