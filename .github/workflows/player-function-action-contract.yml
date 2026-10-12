@@ -1,0 +1,27 @@
+name: Player function action contract
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/player_function_action_contract.*'
+      - 'tools/player_function_action_contract_smoke.cpp'
+      - '.github/workflows/player-function-action-contract.yml'
+  push:
+    paths:
+      - 'android/app/src/main/cpp/player_function_action_contract.*'
+      - 'tools/player_function_action_contract_smoke.cpp'
+      - '.github/workflows/player-function-action-contract.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run recovered function-action smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/player_function_action_contract_smoke.cpp \
+            android/app/src/main/cpp/player_function_action_contract.cpp \
+            -o /tmp/player_function_action_contract_smoke
+          /tmp/player_function_action_contract_smoke

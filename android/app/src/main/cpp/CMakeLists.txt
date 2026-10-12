@@ -105,6 +105,7 @@ add_library(nevergone_recomp SHARED
     player_action_runtime_bridge.cpp
     player_control_contract.cpp
     player_control_runtime_state.cpp
+    player_function_action_contract.cpp
     post_scene_overlay_jni.cpp
     protorpc_bindings.cpp
     render_bridge.cpp
