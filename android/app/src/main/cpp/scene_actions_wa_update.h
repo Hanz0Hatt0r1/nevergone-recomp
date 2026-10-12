@@ -23,7 +23,8 @@ struct Result {
     std::size_t frames_advanced = 0;
     bool update_data_requested = false;
     bool terminal_boundary_reached = false;
-    std::size_t terminal_exclusive_frame_limit = 0;
+    // Exact ActionComboValue+0x18 selected by the native +0x94 terminal path.
+    std::size_t terminal_combo_boundary_frame = 0;
 };
 
 inline bool valid_boundary_array(
@@ -97,8 +98,8 @@ inline Result advance(
 
         // For every valid parsed TrapActions document +0x94 is non-empty and
         // its final field_18 is the final primary tuple index. Native waUpdate
-        // therefore uses this current run boundary as its terminal limit; its
-        // CCArray::count() fallback is not reached for normal non-empty data.
+        // therefore uses this current run boundary for the normal terminal path;
+        // its CCArray::count() fallback is unreachable for non-empty parsed data.
         const auto& boundary_94 = document.combo.array_94_values[state->boundary_cursor_94_25c];
         const std::size_t boundary_94_frame = static_cast<std::size_t>(boundary_94.field_18);
         if (state->combo_type_24c) state->combo_latched_24d = true;
@@ -129,7 +130,7 @@ inline Result advance(
         if (!advanced_to_next_94_boundary && next_frame > boundary_94_frame) {
             result.status = Status::kTerminalBoundary;
             result.terminal_boundary_reached = true;
-            result.terminal_exclusive_frame_limit = boundary_94_frame + 1u;
+            result.terminal_combo_boundary_frame = boundary_94_frame;
             result.update_data_requested = false;
             return result;
         }
