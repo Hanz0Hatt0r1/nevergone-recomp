@@ -12,6 +12,7 @@
 #include "game_scene_direct_geometry.h"
 #include "game_scene_direct_texture_gl.h"
 #include "game_scene_player_render_queue.h"
+#include "game_scene_player_spawn_state.h"
 
 namespace nevergone::game_scene_direct_renderer {
 namespace {
@@ -27,6 +28,7 @@ std::atomic<bool> g_shader_ready{false};
 std::atomic<std::uint64_t> g_draw_attempt_count{0};
 std::atomic<std::uint64_t> g_drawn_frame_count{0};
 std::atomic<std::size_t> g_last_drawn_sprite_count{0};
+std::atomic<float> g_last_camera_eye_x{0.0f};
 GLuint g_program = 0;
 GLint g_sampler_uniform = -1;
 
@@ -106,6 +108,7 @@ void on_surface_created() {
     g_sampler_uniform = -1;
     g_shader_ready.store(false, std::memory_order_relaxed);
     g_last_drawn_sprite_count.store(0u, std::memory_order_relaxed);
+    g_last_camera_eye_x.store(0.0f, std::memory_order_relaxed);
 
     g_program = build_program();
     if (g_program == 0) return;
@@ -137,6 +140,10 @@ bool draw() {
 
     auto queue = game_levels_runtime_state::current_scene_render_queue();
     if (!queue.has_value()) return false;
+    const auto spawn = game_scene_player_spawn_state::snapshot();
+    const float camera_eye_x =
+            game_scene_player_render_queue::current_initial_camera_eye_x(spawn);
+    g_last_camera_eye_x.store(camera_eye_x, std::memory_order_relaxed);
     *queue = game_scene_player_render_queue::current(std::move(*queue));
 
     const auto requests = game_scene_direct_asset_requests::build(*queue);
@@ -231,6 +238,7 @@ Snapshot snapshot() {
     state.draw_attempt_count = g_draw_attempt_count.load(std::memory_order_relaxed);
     state.drawn_frame_count = g_drawn_frame_count.load(std::memory_order_relaxed);
     state.last_drawn_sprite_count = g_last_drawn_sprite_count.load(std::memory_order_relaxed);
+    state.last_camera_eye_x = g_last_camera_eye_x.load(std::memory_order_relaxed);
     return state;
 }
 
@@ -240,6 +248,7 @@ std::string status_report() {
     out << "GameScene static renderer\n";
     out << "shader: " << (state.shader_ready ? "ready" : "unavailable") << "\n";
     out << "surface: " << state.surface_width << "x" << state.surface_height << "\n";
+    out << "camera eye x: " << state.last_camera_eye_x << "\n";
     out << "draw attempts: " << state.draw_attempt_count << "\n";
     out << "drawn frames: " << state.drawn_frame_count << "\n";
     out << "last static sprites: " << state.last_drawn_sprite_count << "\n";
