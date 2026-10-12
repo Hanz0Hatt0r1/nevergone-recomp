@@ -2,6 +2,7 @@
 
 #include <GLES2/gl2.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdlib>
 #include <sstream>
@@ -200,8 +201,6 @@ game_scene_type0_animation::Sample animation_sample(
 }  // namespace
 
 void on_surface_created() {
-    // The previous program belonged to the old EGL context. Drop the opaque
-    // handle without deleting it through the new context and rebuild locally.
     g_program = 0;
     g_sampler_uniform = -1;
     g_opacity_uniform = -1;
