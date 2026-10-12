@@ -52,4 +52,4 @@ adb shell am force-stop org.nevergone.recomp
 adb shell am start -n org.nevergone.recomp/.MainActivity
 ```
 
-Pausing or destroying `MainActivity` also queues `SceneActionLiveRuntime.reset()` on the GL thread.
+Pausing or destroying `MainActivity` also resets the probe runtime. `MainActivity.onPause()` has already stopped the GLSurfaceView before the debug lifecycle callback runs, so the reset is synchronous and cannot be deferred into a later resumed GL frame.
