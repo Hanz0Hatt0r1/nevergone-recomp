@@ -16,7 +16,7 @@ Therefore visual readiness or scene construction alone is not evidence for start
 
 ## Project runtime
 
-`scene_action_trigger_runtime::Runtime` models only the proven one-shot trigger gate and command emission:
+`scene_action_trigger_runtime::Runtime` models the proven one-shot trigger gate and born/idle command emission:
 
 - a valid two-slot `scene_action_trigger_plan::Plan` emits born then idle;
 - both emitted commands request `play` and child attachment;
@@ -25,4 +25,18 @@ Therefore visual readiness or scene construction alone is not evidence for start
 - invalid slot/mode structure fails without consuming the trigger;
 - `reset()` is reserved for a recreated/reloaded GameSceneObject lifetime.
 
-The runtime does not yet model the `showEventObjTip` rectangle condition itself, `SceneActionsSystem::step(dt)`, frame advancement, completion, stop/detach, or the special non-klhuo branch in `GameSceneObject::tick()`.
+The higher-level SceneActions runtime now composes that gate with additional recovered boundaries:
+
+- `scene_actions_active_playback` reconstructs `play()` state and `waUpdate(dt)` frame advancement;
+- the terminal transition completes born mode and loops idle mode to frame zero;
+- frame-indexed imported pixels are staged against the retained TrapActions document;
+- renderer-ready frames preserve recovered parent placement and child Z;
+- the GLES compositor renders submitted born/idle frames;
+- `scene_actions_current_scene_binding` accepts exactly one retained `klhuo-1.png` pair from the current GameLevels render queue and rejects ambiguous multiple-pair scenes;
+- `scene_actions_live_runtime` exposes an explicit current-scene start/tick/submit boundary for an already staged variant.
+
+## Remaining trigger boundary
+
+The project still does **not** automatically fire the trigger. The exact `showEventObjTip` / `GameSceneObject::isContainsRect(...)` rectangle computation has not yet been reconstructed into clean-room runtime code, so invoking SceneActions merely because the scene or assets are ready would be unsupported.
+
+Until that spatial/event condition is recovered, callers must treat live SceneActions start as the explicit equivalent of an already-confirmed native trigger event. Global `lrand48()` ordering for selecting the klhuo variant also remains a separate unresolved boundary.
