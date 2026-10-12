@@ -3,17 +3,12 @@ package org.nevergone.recomp;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.xml.sax.InputSource;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.List;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
-/** Resolves one spriteFrameByName request against the recovered ordered atlas list. */
+/** Resolves spriteFrameByName requests against the recovered ordered atlas list. */
 final class GameSceneAtlasFrameResolver {
     private static final long MAX_PLIST_BYTES = 4L * 1024L * 1024L;
     private static final int MAX_FRAME_NAME_LENGTH = 512;
@@ -75,6 +70,55 @@ final class GameSceneAtlasFrameResolver {
         }
     }
 
+    /**
+     * One immutable plist snapshot for a staging pass.
+     *
+     * The shipped runtime preloads sprite sheets into CCSpriteFrameCache before
+     * spriteFrameByName lookups. Keeping the parsed DOMs here reproduces that
+     * important loading shape without retaining them beyond the caller-owned
+     * staging pass.
+     */
+    static final class Prepared {
+        private final List<PreparedAtlas> atlases;
+
+        Prepared(List<PreparedAtlas> atlases) {
+            this.atlases = atlases;
+        }
+
+        Frame resolve(String requestedName) {
+            if (!isSafeFrameName(requestedName)) return null;
+            Frame resolved = null;
+            for (PreparedAtlas prepared : atlases) {
+                Match match = findFrame(prepared.frames, requestedName);
+                if (match == null) continue;
+                Frame candidate = parseFrame(
+                        prepared.atlasIndex,
+                        requestedName,
+                        match,
+                        prepared.atlas);
+                if (candidate == null || resolved != null) {
+                    // Fail closed on malformed matching metadata or duplicate
+                    // membership, exactly as the one-shot resolver does.
+                    return null;
+                }
+                resolved = candidate;
+            }
+            return resolved;
+        }
+    }
+
+    private static final class PreparedAtlas {
+        final int atlasIndex;
+        final GameSceneAtlasResolver.Atlas atlas;
+        final Element frames;
+
+        PreparedAtlas(int atlasIndex, GameSceneAtlasResolver.Atlas atlas, Element frames) {
+            this.atlasIndex = atlasIndex;
+            this.atlas = atlas;
+            this.frames = frames;
+        }
+    }
+
     private static final class Match {
         final String canonicalName;
         final Element frame;
@@ -91,12 +135,19 @@ final class GameSceneAtlasFrameResolver {
             File assetRoot,
             List<GameSceneAtlasResolver.Atlas> atlases,
             String requestedName) {
-        if (assetRoot == null || atlases == null || !isSafeFrameName(requestedName)) return null;
+        Prepared prepared = prepare(assetRoot, atlases);
+        return prepared != null ? prepared.resolve(requestedName) : null;
+    }
+
+    static Prepared prepare(
+            File assetRoot,
+            List<GameSceneAtlasResolver.Atlas> atlases) {
+        if (assetRoot == null || atlases == null) return null;
         try {
             File canonicalRoot = assetRoot.getCanonicalFile();
             if (!canonicalRoot.isDirectory()) return null;
             String rootPrefix = canonicalRoot.getPath() + File.separator;
-            Frame resolved = null;
+            ArrayList<PreparedAtlas> preparedAtlases = new ArrayList<>(atlases.size());
 
             for (int atlasIndex = 0; atlasIndex < atlases.size(); ++atlasIndex) {
                 GameSceneAtlasResolver.Atlas atlas = atlases.get(atlasIndex);
@@ -111,26 +162,24 @@ final class GameSceneAtlasFrameResolver {
                     return null;
                 }
 
-                Match match = findFrame(plist, requestedName);
-                if (match == null) continue;
-                Frame candidate = parseFrame(atlasIndex, requestedName, match, atlas);
-                if (candidate == null || resolved != null) {
-                    // Fail closed on malformed metadata or duplicate membership.
-                    return null;
+                Document document = parseDocument(plist);
+                Element plistRoot = document.getDocumentElement();
+                Element rootDict = plistRoot != null ? firstChildElement(plistRoot, "dict") : null;
+                Element frames = rootDict != null ? valueForKey(rootDict, "frames") : null;
+                if (frames != null && !"dict".equals(frames.getTagName())) {
+                    // The old one-shot lookup treated a non-dict frames value as
+                    // no membership in this atlas rather than inventing a parse.
+                    frames = null;
                 }
-                resolved = candidate;
+                preparedAtlases.add(new PreparedAtlas(atlasIndex, atlas, frames));
             }
-            return resolved;
+            return new Prepared(preparedAtlases);
         } catch (Exception error) {
             return null;
         }
     }
 
-    private static Match findFrame(File plist, String requestedName) throws Exception {
-        Document document = parseDocument(plist);
-        Element plistRoot = document.getDocumentElement();
-        Element rootDict = plistRoot != null ? firstChildElement(plistRoot, "dict") : null;
-        Element frames = rootDict != null ? valueForKey(rootDict, "frames") : null;
+    private static Match findFrame(Element frames, String requestedName) {
         if (frames == null || !"dict".equals(frames.getTagName())) return null;
 
         Match found = null;
@@ -194,13 +243,6 @@ final class GameSceneAtlasFrameResolver {
 
     private static Document parseDocument(File plist) throws Exception {
         return ImportedPlistXml.parse(plist, MAX_PLIST_BYTES);
-    }
-
-    private static void trySetFeature(DocumentBuilderFactory factory, String name, boolean value) {
-        try {
-            factory.setFeature(name, value);
-        } catch (Exception ignored) {
-        }
     }
 
     private static Element valueForKey(Element dict, String wantedKey) {
