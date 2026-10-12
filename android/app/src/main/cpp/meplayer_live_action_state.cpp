@@ -40,8 +40,6 @@ bool sync_spawn(std::uint64_t spawn_generation, std::uint64_t tutorial_event_cou
     g_snapshot.desired_action_state = kInitialActionState;
     g_snapshot.desired_revision = 1u;
     g_snapshot.loaded_revision = 0u;
-    // Establish a baseline so an event from an older route/spawn cannot trigger
-    // a fresh player immediately after spawn synchronization.
     g_snapshot.observed_tutorial_event_count = tutorial_event_count;
     return true;
 }
@@ -54,10 +52,6 @@ bool observe_tutorial_event_count(std::uint64_t tutorial_event_count) {
     const std::uint64_t delta = tutorial_event_count - g_snapshot.observed_tutorial_event_count;
     g_snapshot.observed_tutorial_event_count = tutorial_event_count;
 
-    // The semantic layer currently publishes one tutorial event only for the
-    // evidence-backed C tap that completes Jump. Do not generalize later lesson
-    // events here: once current/desired leave initial state, extra events are
-    // recorded as rejected rather than inventing additional action transitions.
     if (g_snapshot.current_action_state != kInitialActionState ||
         g_snapshot.desired_action_state != kInitialActionState) {
         g_snapshot.rejected_tutorial_jump_count += delta;
@@ -84,23 +78,13 @@ bool observe_base_function_state(
     }
 
     g_snapshot.observed_function_generation = function_generation;
-
-    // Controls publishes a new runtime generation every frame. Only function
-    // state edges correspond to a fresh setFunctionState request for this live
-    // reconstruction; holding a button must not continuously reload its action.
     if (function_state == g_snapshot.observed_function_state) return false;
 
-    // Release/neutral is always safe to observe, but the original
-    // setFunctionState(0) does not unconditionally return to state 0x1b. That
-    // depends on action completion/isActionDone(), which is not reconstructed.
     if (function_state == 0u) {
         g_snapshot.observed_function_state = 0u;
         return false;
     }
 
-    // Do not allow a later function edge to replace an action document that has
-    // not yet been resolved and committed. Keep the previous observed function
-    // state so a held button is reconsidered on the next frame after commit.
     if (g_snapshot.current_action_state != g_snapshot.desired_action_state ||
         g_snapshot.loaded_revision != g_snapshot.desired_revision) {
         return false;
@@ -122,18 +106,55 @@ bool observe_base_function_state(
                pending_has_additional_guard &&
                g_snapshot.current_action_state == kInitialActionState &&
                g_snapshot.desired_action_state == kInitialActionState) {
-        // B is accepted only for the exact currently reconstructed baseline.
-        // Other B branches need the live +0x1f0/+0x1f8 guard fields.
         accepted_action = kBaselineBActionState;
     } else {
-        // C remains driven by the existing tutorial-event boundary for now, and
-        // guarded/unsupported function branches fail closed here.
         ++g_snapshot.rejected_function_action_count;
         return false;
     }
 
     if (!queue_desired_action_locked(accepted_action)) return false;
     ++g_snapshot.accepted_function_action_count;
+    return true;
+}
+
+bool observe_action_completion(
+        std::uint64_t action_generation,
+        std::uint64_t loaded_revision,
+        std::uint32_t completed_action_state,
+        bool action_done,
+        std::uint32_t current_function_state) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+
+    if (!g_snapshot.ready || !action_done || action_generation == 0u ||
+        action_generation != g_snapshot.generation ||
+        loaded_revision == 0u || loaded_revision != g_snapshot.loaded_revision ||
+        completed_action_state != g_snapshot.current_action_state ||
+        g_snapshot.current_action_state != g_snapshot.desired_action_state ||
+        g_snapshot.loaded_revision != g_snapshot.desired_revision) {
+        ++g_snapshot.rejected_completion_transition_count;
+        return false;
+    }
+
+    std::uint32_t target_state = 0u;
+    if (completed_action_state == kBaseAActionState ||
+        completed_action_state == kTutorialJumpActionState) {
+        target_state = kInitialActionState;
+    } else if (completed_action_state == kBaselineBActionState) {
+        target_state = current_function_state == 8u
+            ? kHeldBFollowupActionState
+            : kInitialActionState;
+    } else {
+        ++g_snapshot.rejected_completion_transition_count;
+        return false;
+    }
+
+    g_snapshot.last_completed_action_state = completed_action_state;
+    g_snapshot.last_completion_target_state = target_state;
+    if (!queue_desired_action_locked(target_state)) {
+        ++g_snapshot.rejected_completion_transition_count;
+        return false;
+    }
+    ++g_snapshot.accepted_completion_transition_count;
     return true;
 }
 
@@ -169,6 +190,14 @@ std::string status_report() {
         << std::dec << "\n";
     out << "accepted function actions: " << state.accepted_function_action_count << "\n";
     out << "rejected function actions: " << state.rejected_function_action_count << "\n";
+    out << "accepted completion transitions: "
+        << state.accepted_completion_transition_count << "\n";
+    out << "rejected completion transitions: "
+        << state.rejected_completion_transition_count << "\n";
+    out << "last completed action: 0x" << std::hex
+        << state.last_completed_action_state << std::dec << "\n";
+    out << "last completion target: 0x" << std::hex
+        << state.last_completion_target_state << std::dec << "\n";
     return out.str();
 }
 
