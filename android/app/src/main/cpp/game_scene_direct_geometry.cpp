@@ -17,10 +17,9 @@ bool finite_transform(const game_scene_construction_plan::Type0SpriteTransform& 
         std::isfinite(transform.scale_y);
 }
 
-}  // namespace
-
-bool build_quad(
+bool build_quad_internal(
         const game_scene_construction_plan::Type0SpriteTransform& transform,
+        float skew_x_degrees,
         int texture_width,
         int texture_height,
         int surface_width,
@@ -30,7 +29,7 @@ bool build_quad(
     *out = {};
     if (texture_width <= 0 || texture_height <= 0 ||
         surface_width <= 0 || surface_height <= 0 ||
-        !finite_transform(transform)) {
+        !finite_transform(transform) || !std::isfinite(skew_x_degrees)) {
         return false;
     }
 
@@ -39,32 +38,36 @@ bool build_quad(
     const float local_x[4] = {-half_w, -half_w, half_w, half_w};
     const float local_y[4] = {half_h, -half_h, half_h, -half_h};
 
-    // Cocos CCNode::nodeToParentTransform() multiplies positive rotation by
-    // -pi/180. Reproduce that clockwise convention here.
+    // Cocos2d-x CCNode composes its affine transform as translation * rotation
+    // * scale * skew. For column vectors the skew therefore acts first. With
+    // skewY=0, the original matrix is [1 tan(skewX); 0 1], so X changes by
+    // tan(skewX) * localY while Y is unchanged.
+    const float skew_x_radians = skew_x_degrees * kPi / 180.0f;
+    const float skew_x_tangent = std::tan(skew_x_radians);
+    if (!std::isfinite(skew_x_tangent)) return false;
+
+    // CCNode::nodeToParentTransform() multiplies positive rotation by -pi/180.
     const float radians = -transform.rotation * kPi / 180.0f;
     const float cosine = std::cos(radians);
     const float sine = std::sin(radians);
 
     for (std::size_t index = 0; index < 4u; ++index) {
-        const float scaled_x = local_x[index] * transform.scale_x;
-        const float scaled_y = local_y[index] * transform.scale_y;
+        const float skewed_x = local_x[index] + skew_x_tangent * local_y[index];
+        const float skewed_y = local_y[index];
+        const float scaled_x = skewed_x * transform.scale_x;
+        const float scaled_y = skewed_y * transform.scale_y;
         const float rotated_x = scaled_x * cosine - scaled_y * sine;
         const float rotated_y = scaled_x * sine + scaled_y * cosine;
         const float design_x = transform.position_x + rotated_x;
         const float design_y = transform.position_y + rotated_y;
+        if (!std::isfinite(design_x) || !std::isfinite(design_y)) return false;
 
-        // ResolutionPolicy 0 in the shipped CCEGLViewProtocol path is
-        // ExactFit: X and Y are scaled independently to the physical viewport.
-        // Expressing the design point directly in clip space is therefore
-        // independent of the surface aspect ratio.
         out->positions[index * 2u] = 2.0f * design_x / kDesignWidth - 1.0f;
         out->positions[index * 2u + 1u] = 2.0f * design_y / kDesignHeight - 1.0f;
     }
 
     const float left_u = transform.flip_x ? 1.0f : 0.0f;
     const float right_u = transform.flip_x ? 0.0f : 1.0f;
-    // Android Bitmap rows are uploaded top-to-bottom. Match the existing
-    // imported-texture convention by mapping v=0 to the visual top edge.
     out->tex_coords = {
         left_u, 0.0f,
         left_u, 1.0f,
@@ -72,6 +75,33 @@ bool build_quad(
         right_u, 1.0f,
     };
     return true;
+}
+
+}  // namespace
+
+bool build_quad(
+        const game_scene_construction_plan::Type0SpriteTransform& transform,
+        int texture_width,
+        int texture_height,
+        int surface_width,
+        int surface_height,
+        Quad* out) {
+    return build_quad_internal(
+            transform, 0.0f, texture_width, texture_height,
+            surface_width, surface_height, out);
+}
+
+bool build_quad_with_skew_x(
+        const game_scene_construction_plan::Type0SpriteTransform& transform,
+        float skew_x_degrees,
+        int texture_width,
+        int texture_height,
+        int surface_width,
+        int surface_height,
+        Quad* out) {
+    return build_quad_internal(
+            transform, skew_x_degrees, texture_width, texture_height,
+            surface_width, surface_height, out);
 }
 
 bool build_player_quad(
