@@ -13,11 +13,11 @@ constexpr float kFirstCenterY = 495.0f;
 constexpr float kStepY = 90.0f;
 constexpr int kRuneCount = 5;
 constexpr int kFrameCount = kRuneCount * 2;
+constexpr int kRuntimeVisibleRuneCount = 2;
 
 // Presentation-only bridge between the GLES-independent touch router and the
-// existing compositor. The original CCMenuItemSprite swaps to the staged
-// xrfuwenfaguangNN.png frame only while the item is pressed. Keeping this
-// state here avoids duplicating input semantics in the renderer.
+// existing compositor. Runtime heap evidence from the shipped character-select
+// scene retains five tagged menu items, while only tags 1 and 2 are visible / active.
 inline std::atomic<int> g_pressed_render_tag{0};
 
 struct FrameGeometry {
@@ -49,17 +49,21 @@ inline bool valid_tag(int tag) {
     return tag >= 1 && tag <= kRuneCount;
 }
 
+inline bool runtime_visible_tag(int tag) {
+    return tag >= 1 && tag <= kRuntimeVisibleRuneCount;
+}
+
 inline bool enabled_tag(int tag) {
-    return valid_tag(tag);
+    return runtime_visible_tag(tag);
 }
 
 inline void set_pressed_render_tag(int tag) {
-    g_pressed_render_tag.store(valid_tag(tag) ? tag : 0, std::memory_order_relaxed);
+    g_pressed_render_tag.store(enabled_tag(tag) ? tag : 0, std::memory_order_relaxed);
 }
 
 inline int pressed_render_tag() {
     const int tag = g_pressed_render_tag.load(std::memory_order_relaxed);
-    return valid_tag(tag) ? tag : 0;
+    return enabled_tag(tag) ? tag : 0;
 }
 
 inline int frame_index(int tag, bool pressed) {
@@ -73,7 +77,7 @@ inline float center_y(int tag) {
 }
 
 inline float opacity(int tag) {
-    return valid_tag(tag) ? 1.0f : 0.0f;
+    return runtime_visible_tag(tag) ? 1.0f : 0.0f;
 }
 
 inline bool surface_transform(
@@ -106,7 +110,7 @@ inline SurfaceRect hit_rect_for_surface(
         int surface_width,
         int surface_height) {
     SurfaceRect result;
-    if (!valid_tag(tag) || source_width <= 0 || source_height <= 0) return result;
+    if (!enabled_tag(tag) || source_width <= 0 || source_height <= 0) return result;
 
     float scale = 0.0f;
     float offset_x = 0.0f;
