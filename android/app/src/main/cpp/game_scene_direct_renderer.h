@@ -13,16 +13,18 @@ struct Snapshot {
     std::uint64_t draw_attempt_count = 0;
     std::uint64_t drawn_frame_count = 0;
     std::size_t last_drawn_sprite_count = 0;
+    std::size_t last_animated_sprite_count = 0;
+    std::uint8_t last_min_opacity = 255u;
     float last_camera_eye_x = 0.0f;
 };
 
 void on_surface_created();
 void on_surface_changed(int width, int height);
 
-// Draw the complete currently supported static type-0 GameScene sprite set:
-// direct-file resources plus spriteFrameByName resources reconstructed from the
-// imported atlas metadata/pixels. Returns true only when at least one textured
-// quad was submitted for the live scene revision.
+// Draw the complete currently supported type-0 GameScene sprite set. Recovered
+// post-init fade loops are evaluated from the fixed-step game clock; skew-loop
+// timing is tracked but visual skew stays disabled until its CCSkewTo axis is
+// recovered from raw call-site evidence.
 bool draw();
 
 Snapshot snapshot();
