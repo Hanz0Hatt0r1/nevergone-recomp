@@ -1,0 +1,29 @@
+name: MeActions frame advancement
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/me_actions_playback_timing.*'
+      - 'tools/me_actions_frame_advance_smoke.cpp'
+      - '.github/workflows/me-actions-frame-advance.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/app/src/main/cpp/me_actions_playback_timing.*'
+      - 'tools/me_actions_frame_advance_smoke.cpp'
+      - '.github/workflows/me-actions-frame-advance.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run MeActions frame advancement smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/me_actions_frame_advance_smoke.cpp \
+            android/app/src/main/cpp/me_actions_combo_boundaries.cpp \
+            android/app/src/main/cpp/me_actions_playback_timing.cpp \
+            -o /tmp/me_actions_frame_advance_smoke
+          /tmp/me_actions_frame_advance_smoke
