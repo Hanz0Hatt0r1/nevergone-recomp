@@ -85,6 +85,24 @@ inline game_scene_render_queue::Queue with_live_player(
     return queue;
 }
 
+// Retain the previous focused helper for existing unit contracts. The live route
+// below no longer truncates the loaded document to one frame.
+inline game_scene_render_queue::Queue with_initial_player(
+        game_scene_render_queue::Queue queue,
+        const game_scene_player_spawn_state::Snapshot& spawn,
+        const enemy_actions_wbg_prefix::ActionFrameRecord* initial_frame,
+        float camera_eye_x = 0.0f) {
+    if (initial_frame == nullptr) return queue;
+    enemy_actions_wbg_document::Document document;
+    document.primary_records.push_back(*initial_frame);
+    return with_live_player(
+        std::move(queue),
+        spawn,
+        &document,
+        me_actions_runtime_state::initial_play_state(),
+        camera_eye_x);
+}
+
 inline float current_initial_camera_eye_x(
         const game_scene_player_spawn_state::Snapshot& spawn) {
     if (spawn.status != game_scene_player_spawn_state::Status::kReady) return 0.0f;
