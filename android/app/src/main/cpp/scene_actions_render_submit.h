@@ -22,4 +22,8 @@ Result submit(
         const scene_actions_active_playback::SlotState& state,
         const scene_actions_base_sprite_update::SystemInputs& system);
 
+// Submit one klhuo frame using the recovered initial SceneActionsSystem values
+// established by initWithFile/createWithFile. Later mutations remain explicit.
+Result submit_initial_klhuo(const scene_actions_active_playback::SlotState& state);
+
 }  // namespace nevergone::scene_actions_render_submit
