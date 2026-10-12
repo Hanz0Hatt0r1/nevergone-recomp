@@ -9,6 +9,7 @@ constexpr std::uint32_t kInitialActionState = 0x1bu;
 constexpr std::uint32_t kTutorialJumpActionState = 0x20u;
 constexpr std::uint32_t kBaseAActionState = 0x02u;
 constexpr std::uint32_t kBaselineBActionState = 0x1du;
+constexpr std::uint32_t kHeldBFollowupActionState = 0x1eu;
 
 struct Snapshot {
     bool ready = false;
@@ -25,6 +26,10 @@ struct Snapshot {
     std::uint32_t observed_function_state = 0;
     std::uint64_t accepted_function_action_count = 0;
     std::uint64_t rejected_function_action_count = 0;
+    std::uint64_t accepted_completion_transition_count = 0;
+    std::uint64_t rejected_completion_transition_count = 0;
+    std::uint32_t last_completed_action_state = 0;
+    std::uint32_t last_completion_target_state = 0;
 };
 
 void reset();
@@ -41,17 +46,24 @@ bool sync_spawn(std::uint64_t spawn_generation, std::uint64_t tutorial_event_cou
 bool observe_tutorial_event_count(std::uint64_t tutorial_event_count);
 
 // Consumes the edge of the reconstructed Controls +0x118 function-state stream.
-// Base A is accepted using its proven direct 0x02 action. Base B is accepted only
-// while current/desired are the recovered initial 0x1b baseline; richer B guard
-// state (+0x1f0/+0x1f8) remains outside this live boundary. State 0 records the
-// release edge but deliberately does not synthesize return-to-idle: the original
-// depends on MEPlayer action completion/isActionDone() for that transition.
 bool observe_base_function_state(
     std::uint64_t function_generation,
     std::uint32_t function_state,
     bool has_pending_base_action,
     std::uint32_t pending_meplayer_state,
     bool pending_has_additional_guard);
+
+// Mirrors the recovered MEPlayer::actionState() completion transitions for the
+// currently supported live actions. The generation/revision/state tuple binds a
+// completion to the exact loaded MeActionsSystem instance that became done.
+// A(0x02) and tutorial jump(0x20) queue 0x1b. B(0x1d) queues 0x1e while
+// function state 8 remains held, otherwise 0x1b. Unsupported states fail closed.
+bool observe_action_completion(
+    std::uint64_t action_generation,
+    std::uint64_t loaded_revision,
+    std::uint32_t completed_action_state,
+    bool action_done,
+    std::uint32_t current_function_state);
 
 // Called only after PlayerActionRuntimeLoader has successfully resolved and
 // parsed the action document corresponding to desired_action_state.
