@@ -178,25 +178,41 @@ bool draw() {
 
         game_scene_direct_geometry::Quad quad;
         const auto& command = queue->sprites[sprite_command_index];
-        const bool geometry_ready = command.player_body_transform.has_value()
-            ? game_scene_direct_geometry::build_player_quad(
+        bool geometry_ready = false;
+        if (command.player_body_transform.has_value()) {
+            // Player-body staging intentionally keeps the compatibility
+            // untrimmed source-size texture because its recovered body transform
+            // has an arbitrary anchor. A frame-offset marker here would mean the
+            // Java/native staging contracts have crossed.
+            if (texture.has_frame_offset) return false;
+            geometry_ready = game_scene_direct_geometry::build_player_quad(
                     command.transform,
                     *command.player_body_transform,
                     texture.width,
                     texture.height,
                     surface_width,
                     surface_height,
-                    &quad)
-            : game_scene_direct_geometry::build_quad(
+                    &quad);
+        } else if (texture.has_frame_offset) {
+            geometry_ready = game_scene_direct_geometry::build_frame_quad(
+                    command.transform,
+                    texture.width,
+                    texture.height,
+                    texture.frame_offset_x,
+                    texture.frame_offset_y,
+                    surface_width,
+                    surface_height,
+                    &quad);
+        } else {
+            geometry_ready = game_scene_direct_geometry::build_quad(
                     command.transform,
                     texture.width,
                     texture.height,
                     surface_width,
                     surface_height,
                     &quad);
-        if (!geometry_ready) {
-            return false;
         }
+        if (!geometry_ready) return false;
         prepared.push_back({texture, quad});
     }
     if (prepared.empty()) return false;
