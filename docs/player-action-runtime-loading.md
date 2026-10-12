@@ -8,16 +8,14 @@ Issue #148 carries the evidence-backed initial player action lookup into the And
 
 The loader does nothing until the current GameLevels render queue is ready and an evidence-backed offline Career `1..5` is available.
 
-There are now two proven Career sources:
+There are two proven Career sources:
 
 - existing-role entry: the Career attached to the committed `EnterGameWithCid` dispatch;
 - fresh-role preservation: the Career retained by `CharacterNameLayer::CretaUI(career)` after `character_name_state::complete_creation()` records the successful CreateCharacter/local-GameLevels handoff.
 
 The existing-role dispatch wins if both retained states happen to be present. Merely selecting a career or opening/submitting CharacterName is not enough for the fresh-role path; the completion boundary must have been reached.
 
-This distinction is required because the preservation route deliberately does not invent a CharacterID or a synthetic EnterGame dispatch. The original still constructs the primary `MEPlayer` with the selected Career, and the reconstructed CharacterName state already retains that exact integer across the successful local handoff.
-
-## Imported asset resolution
+## Imported action resolution
 
 For the resolved Career `N`, `PlayerActionAssetResolver` searches only the app-private imported `filesDir/assets` tree and requires a unique case-insensitive basename match for:
 
@@ -31,54 +29,75 @@ The plist is parsed with external entities and DTD loading disabled. The first b
 action28
 ```
 
-Its dictionary `name` value is reduced to a basename only for matching. The resolver then requires exactly one imported file with that basename and returns its path relative to `filesDir/assets`.
+The action dictionary's `name` is reduced to a safe basename. Device evidence now proves that the original writable data does not require that basename as a standalone file. `ActionDataManager::LoadPlayerActionDataWithFile()` loads `player_NN.actionsData`, and the requested `.actData` payload is an embedded member of that aggregate container.
 
-Resolution fails closed on an invalid Career/action key, missing or duplicate action plist, malformed/oversized plist, missing action name, ambiguous action-data basename, filesystem escape, excessive traversal depth or excessive imported file count.
+When a unique `player_NN.actionsData` is present, the resolver validates its bounded record framing and requires exactly one embedded entry with the requested basename. If no player container is present, a unique standalone `.actData` remains supported for extracted/test data.
+
+Resolution fails closed on invalid Career/action keys, duplicate or malformed inputs, missing container entries, duplicate embedded entries, filesystem escape, excessive traversal depth/file count, oversized plist/container data, or invalid entry names.
 
 ## Native document store
 
-`player_action_document_store::load_from_assets()` accepts only a relative path beneath `filesDir/assets`, canonicalizes the target, rejects root escape, requires a regular file, applies a 64 MiB default bound and reads the payload into `hp_data::Reader`.
+`player_action_document_store::load_from_assets()` retains the standalone path. `load_embedded_from_assets()` handles the recovered aggregate format:
 
-The payload is parsed by the existing `enemy_actions_wbg_document::parse()` implementation. On success the project retains only the project-owned parsed document plus bounded diagnostic metadata. A failed replacement clears the previous document so stale player action state cannot survive a bad load.
+```text
+<ASCII entry name> "\n"
+<ASCII decimal payload size> "\n"
+<payload bytes>
+"\n"
+```
 
-`PlayerActionRuntimeLoader` attempts a Career once per active scene/resource generation. `GameSceneDirectAssetStager.invalidate()` also invalidates this loader so replacing imported APK/OBB data forces a fresh resolution and parse.
+The container is bounded to 64 MiB by default, entry names to 512 bytes and entry count to 4096. The parser scans the container without materializing unrelated payloads, requires an exact unique target entry, and copies only that selected payload into the existing `hp_data::Reader` / `enemy_actions_wbg_document::parse()` pipeline.
 
-## run-336 regression and fix
+A failed replacement clears the previous document so stale player action state cannot survive a bad load.
 
-Physical-device `run-336` proved the first-scene spawn itself was already correct after #336:
+Detailed physical-data observations are recorded in `docs/evidence/player-actionsdata-container-2026-10-12.md`.
+
+## run-336 Career regression
+
+Physical-device `run-336` proved the first-scene spawn itself was ready, but player motion remained at index 0 because the fresh-role preservation route deliberately has no synthetic `EnterGameWithCid` dispatch. #337 resolved Career from the completed CharacterName handoff without inventing a CharacterID.
+
+## run-337 boundary
+
+The next device capture proves that #337 fixed that layer:
 
 ```text
 GameScene player spawn state
 state: ready
-matching markers: 1
-entry marker applied: yes
 player point: 374, 278
+
+GameScene player motion
+ready: true
+player index: 1
 ```
 
-But the composed renderer still had only 132 requests, not the expected 133, and motion repeatedly reported:
+Live joystick input also advanced the reconstructed position cursor:
 
 ```text
-ready: false
-spawn generation: 0
-player index: 0
+primary state: 0x13
+applied steps: 5
+normal steps: 5
+offset: 39.8605,1.66883
 ```
 
-The same capture showed the fresh-role completion data was live (`selected-career=1`, CharacterName `career=1`, `completion=1`) while `role_selection_state` had no committed EnterGame dispatch. `player_action_runtime_bridge.cpp` was reading only that existing-role dispatch state, so `nativeCurrentOfflineCareer()` returned `0`, `PlayerActionRuntimeLoader` never resolved the player action document, and the player render command was never composed.
+The composed renderer nevertheless remained at 132 requests. The accompanying original writable-data capture explains why: `p01_actions.plist/action28` names `p01_i01.actData`, but that resource is embedded inside the 2.9 MiB `player_01.actionsData` aggregate rather than present as a standalone file. All 53 named actions in the supplied `p01_actions.plist` have matching entries in that container.
 
-The runtime now resolves Career from the completed fresh-role CharacterName state when no valid committed existing-role dispatch exists. A dedicated smoke test locks the priority and fail-closed rules.
+The runtime now follows that recovered container boundary before asking the existing frame-request/player-atlas pipeline to create the 133rd sprite request.
 
-## Current device proof
+## Next device proof
 
-A corrected fresh-role run should now show all of the following together:
+A corrected fresh-role run should now advance through:
 
 ```text
-Offline/fresh Career = 1
-GameScene player spawn state: ready
-GameScene player motion: ready, player index 1
-GameScene asset staging requests: 133
-last static sprites: 133
+Career 1 ready
+  -> player_01.actionsData
+  -> embedded p01_i01.actData
+  -> parsed action document
+  -> player sprite-frame request
+  -> GameScene asset staging requests: 133
+  -> player atlas/frame resolution
+  -> visible player body
 ```
 
-If the action document or player atlas fails after Career resolution, the staging failure advances to that exact boundary rather than being hidden behind player index `0`.
+If atlas/frame staging fails, diagnostics should now expose that downstream boundary rather than stopping at the missing standalone action resource.
 
-No original plist, `.actData`, texture or other proprietary payload is committed to the repository.
+No original plist, `.actData`, `.actionsData`, texture or other proprietary payload is committed to the repository.
