@@ -16,20 +16,22 @@ For `gkanniu2.png`:
 - an equal comparison falls through to `0x00350590`;
 - the literal loaded there resolves to `empty.png`;
 - `0x00350596` calls `cocos2d::CCSprite::create(char const*)` with that literal;
-- the returned sprite replaces the previously stored sprite pointer at `GameSceneObject + 0x10c`.
+- the returned sprite replaces the previously stored sprite pointer at `GameSceneObject + 0x10c`;
+- the next virtual dispatch uses object-vtable slot `+0x80` with boolean argument `false`;
+- that slot resolves through the shipped `cocos2d::CCSprite` vtable to `cocos2d::CCSprite::setVisible(bool)`.
 
-Therefore the live visual resource for this exact serialized object name is `empty.png`, not the `gkanniu2.png` atlas frame.
+Therefore the live object for this exact serialized name is an `empty.png` sprite that is immediately hidden. It is neither the serialized `gkanniu2.png` atlas frame nor a visible fallback quad.
 
-The same block also shows a generic null-sprite fallback to `CCSprite::create("empty.png")` after the special-name chain. That broader failure fallback is recorded here but is not yet used to weaken the clean-room atlas-staging acceptance boundary; only the exact `gkanniu2.png` substitution is implemented by this change.
+The same block also shows a generic null-sprite fallback to `CCSprite::create("empty.png")` followed by `setVisible(false)` after the special-name chain. That broader failure fallback is recorded here but is not yet used to weaken the clean-room atlas-staging acceptance boundary.
 
 ## Imported location
 
 The user-owned original APK contains the fallback as `assets/empty.png`. `OriginalApkImporter` strips the APK `assets/` prefix, so the decoded project-owned import appears as `filesDir/assets/empty.png`.
 
-This differs from the other currently recovered direct type-0 files (`czyanwu1.png`, `czyanwu3.png`, `gktianchong.png`, `gkyuanjing.png`), which resolve through the recovered `gamescene/gs_res_image_file` search directory. The direct-resource adapter must therefore retain a root-path exception for `empty.png`.
+This differs from the other recovered direct type-0 files (`czyanwu1.png`, `czyanwu3.png`, `gktianchong.png`, `gkyuanjing.png`), which resolve through the recovered `gamescene/gs_res_image_file` search directory.
 
 ## Clean-room consequence
 
-`game_scene_type0_resource::select("gkanniu2.png")` now yields a direct-file request for `empty.png`, and `game_scene_direct_asset::imported_relative_path()` resolves that specific fallback to root-relative `empty.png`.
+`game_scene_type0_resource::select("gkanniu2.png")` records `empty.png` together with `initially_visible=false`. The construction plan retains that state, while the direct render queue omits initially hidden sprites before texture-request accounting.
 
-This prevents the GameScene stager from incorrectly requiring a `gkanniu2.png` atlas frame when the original runtime replaces it with the root fallback sprite before common type-0 finalization.
+This reproduces the observable original consequence: no visible quad is submitted and no `gkanniu2.png` atlas-frame dependency remains. The generic original null-frame fallback remains a separate reconstruction step.
