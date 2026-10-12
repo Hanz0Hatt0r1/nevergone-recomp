@@ -62,6 +62,9 @@ bool upload(
         std::size_t request_index,
         std::size_t sprite_command_index,
         game_scene_texture_format::PixelFormat pixel_format,
+        bool has_frame_offset,
+        int frame_offset_x,
+        int frame_offset_y,
         int width,
         int height,
         const std::uint32_t* argb_pixels,
@@ -89,6 +92,9 @@ bool upload(
     asset.request_index = request_index;
     asset.sprite_command_index = sprite_command_index;
     asset.pixel_format = pixel_format;
+    asset.has_frame_offset = has_frame_offset;
+    asset.frame_offset_x = has_frame_offset ? frame_offset_x : 0;
+    asset.frame_offset_y = has_frame_offset ? frame_offset_y : 0;
     asset.width = width;
     asset.height = height;
     asset.argb_pixels.assign(argb_pixels, argb_pixels + pixel_count);
