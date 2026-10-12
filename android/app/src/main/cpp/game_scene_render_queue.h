@@ -17,6 +17,8 @@ struct SpriteCommand {
     std::size_t source_layer_index = 0;
     std::size_t source_object_index = 0;
     game_scene_type0_resource::Selection resource;
+    game_scene_type0_post_init::Behavior post_init =
+            game_scene_type0_post_init::Behavior::kNone;
     // Present only for evidence-backed CCSprite::create(basename) resources.
     // The path is relative to filesDir/assets, matching OriginalObbImporter.
     std::optional<std::string> direct_asset_relative_path;
@@ -71,6 +73,7 @@ inline Queue build(const game_scene_construction_plan::ScenePlan& plan) {
             command.source_layer_index = layer.source_layer_index;
             command.source_object_index = object.source_object_index;
             command.resource = *object.type0_resource;
+            command.post_init = object.type0_post_init;
             command.transform = *object.type0_sprite_transform;
             command.layer_camera_factor = layer.first_float;
 
