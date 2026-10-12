@@ -71,7 +71,6 @@ int main() {
     const std::array<std::uint32_t, 4> argb = {
             0xff010203u, 0xff040506u, 0xff070809u, 0xff0a0b0cu};
 
-    // Pixel upload cannot precede the selected TrapActions pair.
     assert(!pixels::upload(docs::Slot::kBorn, 1, 0u, 2, 2, argb.data(), argb.size()));
 
     assert(docs::load_from_assets(
@@ -84,13 +83,21 @@ int main() {
     assert(pixels::upload(docs::Slot::kIdle, 1, 1u, 2, 2, argb.data(), argb.size()));
     assert(pixels::ready(docs::Slot::kBorn, 1));
     assert(pixels::ready(docs::Slot::kIdle, 1));
+    assert(pixels::ready_frame(docs::Slot::kBorn, 1, 0u));
+    assert(!pixels::ready_frame(docs::Slot::kBorn, 1, 1u));
 
     const auto born = pixels::current(docs::Slot::kBorn);
     assert(born.has_value());
     assert(born->variant == 1);
     assert(born->mode_24e == 0u);
+    assert(born->frame_index == 0u);
     assert(born->width == 2 && born->height == 2);
     assert(born->argb_pixels == std::vector<std::uint32_t>(argb.begin(), argb.end()));
+
+    // Explicit later-frame upload is document-bounded; these synthetic smoke
+    // documents intentionally contain no primary ActionFrameData records.
+    assert(!pixels::upload_frame(
+            docs::Slot::kBorn, 1, 0u, 0u, 2, 2, argb.data(), argb.size()));
 
     assert(!pixels::upload(docs::Slot::kBorn, 1, 1u, 2, 2, argb.data(), argb.size()));
     assert(!pixels::upload(docs::Slot::kBorn, 2, 0u, 2, 2, argb.data(), argb.size()));
