@@ -16,6 +16,7 @@ struct Asset {
     scene_action_pair_document_store::Slot slot =
             scene_action_pair_document_store::Slot::kBorn;
     std::uint8_t mode_24e = 0;
+    std::size_t frame_index = 0;
     int width = 0;
     int height = 0;
     std::vector<std::uint32_t> argb_pixels;
@@ -24,9 +25,8 @@ struct Asset {
 
 void reset();
 
-// Retains one reconstructed, untrimmed ARGB frame only after the corresponding
-// TrapActions born/idle pair is ready for the same variant. This store does not
-// assign a SceneActions transform or start playback.
+// Compatibility boundary for the already-merged initial-frame pipeline.
+// Equivalent to upload_frame(..., frame_index=0, ...).
 bool upload(
         scene_action_pair_document_store::Slot slot,
         int variant,
@@ -36,7 +36,23 @@ bool upload(
         const std::uint32_t* pixels,
         std::size_t pixel_count);
 
+// Atomically replace one slot's retained pixels with an explicit current primary
+// frame after verifying the selected TrapActions pair, slot mode and frame bound.
+bool upload_frame(
+        scene_action_pair_document_store::Slot slot,
+        int variant,
+        std::uint8_t mode_24e,
+        std::size_t frame_index,
+        int width,
+        int height,
+        const std::uint32_t* pixels,
+        std::size_t pixel_count);
+
 std::optional<Asset> current(scene_action_pair_document_store::Slot slot);
 bool ready(scene_action_pair_document_store::Slot slot, int variant);
+bool ready_frame(
+        scene_action_pair_document_store::Slot slot,
+        int variant,
+        std::size_t frame_index);
 
 }  // namespace nevergone::scene_action_initial_frame_pixel_store
