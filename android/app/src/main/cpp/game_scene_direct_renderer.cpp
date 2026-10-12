@@ -205,7 +205,10 @@ bool draw() {
     // A complete live GameScene revision replaces that fallback atomically.
     glClear(GL_COLOR_BUFFER_BIT);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // The shipped CCSprite::updateBlendFunc() uses GL_ONE for premultiplied
+    // textures. game_scene_direct_texture_gl reproduces the original PNG
+    // channel * (alpha + 1) >> 8 transform before every project-owned upload.
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(g_program);
     glActiveTexture(GL_TEXTURE0);
     glUniform1i(g_sampler_uniform, 0);

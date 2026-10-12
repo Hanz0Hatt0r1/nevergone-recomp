@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "game_scene_png_premultiply.h"
+
 namespace nevergone::game_scene_direct_texture_gl {
 namespace {
 
@@ -25,10 +27,19 @@ public:
         std::vector<std::uint8_t> rgba(pixel_count * 4u);
         for (std::size_t index = 0; index < pixel_count; ++index) {
             const std::uint32_t pixel = argb_pixels[index];
-            rgba[index * 4u + 0u] = static_cast<std::uint8_t>((pixel >> 16u) & 0xffu);
-            rgba[index * 4u + 1u] = static_cast<std::uint8_t>((pixel >> 8u) & 0xffu);
-            rgba[index * 4u + 2u] = static_cast<std::uint8_t>(pixel & 0xffu);
-            rgba[index * 4u + 3u] = static_cast<std::uint8_t>((pixel >> 24u) & 0xffu);
+            const std::uint8_t alpha =
+                    static_cast<std::uint8_t>((pixel >> 24u) & 0xffu);
+
+            // Android Bitmap.getPixels() returns non-premultiplied ARGB. The
+            // shipped cocos2d-x PNG path performs the project-owned transform
+            // below before marking its texture as premultiplied.
+            rgba[index * 4u + 0u] = game_scene_png_premultiply::channel(
+                    static_cast<std::uint8_t>((pixel >> 16u) & 0xffu), alpha);
+            rgba[index * 4u + 1u] = game_scene_png_premultiply::channel(
+                    static_cast<std::uint8_t>((pixel >> 8u) & 0xffu), alpha);
+            rgba[index * 4u + 2u] = game_scene_png_premultiply::channel(
+                    static_cast<std::uint8_t>(pixel & 0xffu), alpha);
+            rgba[index * 4u + 3u] = alpha;
         }
 
         while (glGetError() != GL_NO_ERROR) {
