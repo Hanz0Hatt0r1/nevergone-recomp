@@ -18,10 +18,25 @@ enum class Kind {
 struct Selection {
     Kind kind = Kind::kSpriteFrameByName;
     std::string resource_name;
-    // True for ordinary resources. The exact gkanniu2 branch replaces the
-    // cached sprite with empty.png and immediately calls setVisible(false).
+    // Visibility immediately after the recovered GameSceneObject::initWithData()
+    // resource-construction path completes. Some ordinary sprite-frame-backed
+    // resources are explicitly hidden by the original after construction.
     bool initially_visible = true;
 };
+
+inline bool is_hidden_after_init(const std::string& serialized_name) {
+    // Recovered 1.0.9 ARMv7 initWithData() branch: these resources are created
+    // through spriteFrameByName()/createWithSpriteFrame(), then immediately
+    // receive setVisible(false).
+    return serialized_name == "klhuoguang-6.png" ||
+           serialized_name == "klhuoguang-8.png" ||
+           serialized_name == "kldimianhuoguang-1.png" ||
+           serialized_name == "kldimianhuoguang-2.png" ||
+           serialized_name == "klqianjingkanshouguang.png" ||
+           serialized_name == "klhuoguang-1.png" ||
+           serialized_name == "gjbeijing02.png" ||
+           serialized_name == "gjzhongjing04.png";
+}
 
 inline Selection select(const std::string& serialized_name) {
     if (serialized_name == "klhuo-1.png") {
@@ -39,7 +54,11 @@ inline Selection select(const std::string& serialized_name) {
         serialized_name == "gkyuanjing.png") {
         return {Kind::kDirectFile, serialized_name};
     }
-    return {Kind::kSpriteFrameByName, serialized_name};
+    return {
+        Kind::kSpriteFrameByName,
+        serialized_name,
+        !is_hidden_after_init(serialized_name),
+    };
 }
 
 inline const char* kind_name(Kind kind) {
