@@ -15,7 +15,9 @@ adb shell am start \
   --ei nevergone_scene_actions_variant 1
 ```
 
-Continue through the normal game flow. The probe retries once per second until a unique current-scene `klhuo-1.png` pair is bound and its selected variant can be staged. It then:
+Continue through the normal game flow. The probe retries once per second. Each retry first performs a read-only current-scene binding preflight. Variant `.actData`/pixel staging does not begin until that preflight reports one valid `klhuo-1.png` pair. The final start repeats binding validation after staging, so a scene change during asset work still fails closed.
+
+Once ready, the probe:
 
 1. calls the existing explicit `SceneActionLiveRuntime.start()` on the GLSurfaceView thread;
 2. submits the born and idle frame-zero visuals;
@@ -32,10 +34,12 @@ The per-frame delta is capped at 250 ms in this debug driver to prevent a debugg
 adb logcat -s NeverGoneSceneActionProbe
 ```
 
-Expected milestones include:
+Binding transitions are logged as one of `scene-unavailable`, `no-pair`, `ambiguous-pairs`, `invalid-pair`, or `ready`. A typical path is:
 
 ```text
 explicit SceneActions probe enabled for variant 1
+current-scene binding: scene-unavailable
+current-scene binding: ready
 SceneActions probe started for current-scene variant 1
 born SceneActions slot completed
 idle SceneActions slot looped to frame zero
