@@ -27,8 +27,12 @@ int main() {
     assert(born->first_update_15c);
     assert(!born->done_1a8);
     assert(!born->end_184);
-    assert(born->last_frame_14c == -1);
-    assert(born->secondary_last_170 == -1);
+    assert(born->combo_hit_active_185);
+    assert(!born->combo_type_24c);
+    assert(!born->combo_latched_24d);
+    assert(born->previous_frame_14c == -1);
+    assert(born->secondary_previous_170 == -1);
+    assert(born->terminal_last_frame_180 == 1);
     assert(born->frame_index_250 == 0u);
     assert(born->boundary_cursor_94_25c == 0u);
     assert(born->boundary_cursor_98_260 == 0u);
@@ -39,6 +43,8 @@ int main() {
     assert(idle.has_value());
     assert(idle->mode_24e == 1u);
     assert(idle->active_15d);
+    assert(idle->combo_hit_active_185);
+    assert(idle->terminal_last_frame_180 == 1);
     assert(!idle->done_1a8);
     assert(idle->frame_index_250 == 0u);
 
