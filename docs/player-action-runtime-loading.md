@@ -1,21 +1,25 @@
 # Player action runtime loading
 
-Issue #148 now carries the evidence-backed initial player action lookup into the Android offline-scene lifecycle without committing original game resources.
+Issue #148 carries the evidence-backed initial player action lookup into the Android offline-scene lifecycle without committing original game resources.
 
 ## Runtime trigger
 
-`GameSceneDirectAssetStager.stageIfNeeded()` already runs on the `GLSurfaceView` render thread while the project-owned GameLevels render queue is active. It now also calls `PlayerActionRuntimeLoader.stageIfNeeded(assetRoot)`.
+`GameSceneDirectAssetStager.stageIfNeeded()` runs on the `GLSurfaceView` render thread while the project-owned GameLevels render queue is active. It also calls `PlayerActionRuntimeLoader.stageIfNeeded(assetRoot)` before snapshotting the composed render requests.
 
-The loader does nothing until both conditions are true:
+The loader does nothing until the current GameLevels render queue is ready and an evidence-backed offline Career `1..5` is available.
 
-- `game_levels_runtime_state` reports a ready current scene render queue;
-- `role_selection_state` contains a committed enter dispatch with Career `1..5`.
+There are now two proven Career sources:
 
-The Career source is deliberately the committed `EnterGameWithCid` dispatch rather than the current UI selection. This keeps the player resource selector tied to the role that actually crossed the enter-game boundary.
+- existing-role entry: the Career attached to the committed `EnterGameWithCid` dispatch;
+- fresh-role preservation: the Career retained by `CharacterNameLayer::CretaUI(career)` after `character_name_state::complete_creation()` records the successful CreateCharacter/local-GameLevels handoff.
+
+The existing-role dispatch wins if both retained states happen to be present. Merely selecting a career or opening/submitting CharacterName is not enough for the fresh-role path; the completion boundary must have been reached.
+
+This distinction is required because the preservation route deliberately does not invent a CharacterID or a synthetic EnterGame dispatch. The original still constructs the primary `MEPlayer` with the selected Career, and the reconstructed CharacterName state already retains that exact integer across the successful local handoff.
 
 ## Imported asset resolution
 
-For the committed Career `N`, `PlayerActionAssetResolver` searches only the app-private imported `filesDir/assets` tree and requires a unique case-insensitive basename match for:
+For the resolved Career `N`, `PlayerActionAssetResolver` searches only the app-private imported `filesDir/assets` tree and requires a unique case-insensitive basename match for:
 
 ```text
 pNN_actions.plist
@@ -39,19 +43,42 @@ The payload is parsed by the existing `enemy_actions_wbg_document::parse()` impl
 
 `PlayerActionRuntimeLoader` attempts a Career once per active scene/resource generation. `GameSceneDirectAssetStager.invalidate()` also invalidates this loader so replacing imported APK/OBB data forces a fresh resolution and parse.
 
-## Current boundary
+## run-336 regression and fix
 
-The Android path now reaches:
+Physical-device `run-336` proved the first-scene spawn itself was already correct after #336:
 
 ```text
-committed role Career
-  -> filesDir/assets/**/pNN_actions.plist
-  -> action28/name
-  -> unique imported .actData
-  -> bounded native file load
-  -> enemy_actions_wbg_document::Document
+GameScene player spawn state
+state: ready
+matching markers: 1
+entry marker applied: yes
+player point: 374, 278
 ```
 
-This intentionally stops before choosing a visible frame. The next #148 step is to initialize the evidence-backed player action runtime state (including the proven readiness/current-frame transition), pass the loaded document through `game_scene_player_frame_request`, and attach the resulting frame to a project-owned player render node at the recovered first-scene entry position.
+But the composed renderer still had only 132 requests, not the expected 133, and motion repeatedly reported:
+
+```text
+ready: false
+spawn generation: 0
+player index: 0
+```
+
+The same capture showed the fresh-role completion data was live (`selected-career=1`, CharacterName `career=1`, `completion=1`) while `role_selection_state` had no committed EnterGame dispatch. `player_action_runtime_bridge.cpp` was reading only that existing-role dispatch state, so `nativeCurrentOfflineCareer()` returned `0`, `PlayerActionRuntimeLoader` never resolved the player action document, and the player render command was never composed.
+
+The runtime now resolves Career from the completed fresh-role CharacterName state when no valid committed existing-role dispatch exists. A dedicated smoke test locks the priority and fail-closed rules.
+
+## Current device proof
+
+A corrected fresh-role run should now show all of the following together:
+
+```text
+Offline/fresh Career = 1
+GameScene player spawn state: ready
+GameScene player motion: ready, player index 1
+GameScene asset staging requests: 133
+last static sprites: 133
+```
+
+If the action document or player atlas fails after Career resolution, the staging failure advances to that exact boundary rather than being hidden behind player index `0`.
 
 No original plist, `.actData`, texture or other proprietary payload is committed to the repository.
