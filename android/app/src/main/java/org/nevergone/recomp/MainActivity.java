@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -30,9 +31,12 @@ public final class MainActivity extends Activity {
     private TextView status;
     private Button importButton;
     private Button importObbButton;
+    private Button developerToolsButton;
+    private ScrollView technicalPanel;
     private GameSurfaceView gameSurface;
     private ChooseHeroThunderAudio chooseHeroThunderAudio;
     private boolean chooseHeroThunderPolling;
+    private boolean technicalPanelManuallyExpanded;
 
     private final Runnable chooseHeroThunderPoll = new Runnable() {
         @Override
@@ -84,18 +88,29 @@ public final class MainActivity extends Activity {
                 0,
                 3.0f));
 
+        // Compatibility-only controls for the fresh-account career/name path.
+        // Keep them outside the technical panel: imported assets may be ready
+        // while this temporary gameplay fallback is still required.
+        FreshRoleCompatOverlay freshRoleInput = new FreshRoleCompatOverlay(this);
+        root.addView(freshRoleInput, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        developerToolsButton = new Button(this);
+        developerToolsButton.setText("Developer tools");
+        developerToolsButton.setOnClickListener(view -> {
+            technicalPanelManuallyExpanded = !technicalPanelManuallyExpanded;
+            updateTechnicalPanelVisibility();
+        });
+        LinearLayout.LayoutParams developerToolsParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        developerToolsParams.gravity = Gravity.END;
+        root.addView(developerToolsButton, developerToolsParams);
+
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(32, 16, 32, 32);
-
-        // Compatibility-only controls for the fresh-account career/name path.
-        // They are GONE outside the recovered semantic states and can be
-        // removed once original SingleSelectHero/CharacterName hit geometry is
-        // reconstructed without changing the native state machines.
-        FreshRoleCompatOverlay freshRoleInput = new FreshRoleCompatOverlay(this);
-        content.addView(freshRoleInput, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
 
         importButton = new Button(this);
         importButton.setText("Import original Never Gone APK");
@@ -127,14 +142,15 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(content);
-        root.addView(scroll, new LinearLayout.LayoutParams(
+        technicalPanel = new ScrollView(this);
+        technicalPanel.addView(content);
+        root.addView(technicalPanel, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 0,
                 2.0f));
 
         setContentView(root);
+        updateTechnicalPanelVisibility();
     }
 
     @Override
@@ -168,6 +184,7 @@ public final class MainActivity extends Activity {
         if (chooseHeroThunderAudio != null) {
             chooseHeroThunderAudio.onResume();
         }
+        updateTechnicalPanelVisibility();
         startChooseHeroThunderPolling();
     }
 
@@ -190,6 +207,8 @@ public final class MainActivity extends Activity {
 
         Uri uri = data.getData();
         if (uri == null) {
+            technicalPanelManuallyExpanded = true;
+            updateTechnicalPanelVisibility();
             status.setText(buildStatusText("Import failed: no file selected."));
             return;
         }
@@ -219,6 +238,32 @@ public final class MainActivity extends Activity {
         importObbButton.setEnabled(enabled);
     }
 
+    private boolean originalApkAssetsReady() {
+        return new File(getFilesDir(), "assets/Script/Game/StartLua.lua").isFile();
+    }
+
+    private boolean originalObbAssetsReady() {
+        File pvpScene = new File(getFilesDir(), "assets/gamescene/gs_list/pvp_scene.glData");
+        File chooseHeroAtlas = new File(
+                getFilesDir(),
+                "assets/gamescene_ui/LevelUI/Gate_Background_UI/Gate_BackgroundPNG_01.plist");
+        return pvpScene.isFile() && chooseHeroAtlas.isFile();
+    }
+
+    private boolean originalGameFilesReady() {
+        return originalApkAssetsReady() && originalObbAssetsReady();
+    }
+
+    private void updateTechnicalPanelVisibility() {
+        if (technicalPanel == null || developerToolsButton == null) return;
+
+        final boolean gameFilesReady = originalGameFilesReady();
+        final boolean showPanel = !gameFilesReady || technicalPanelManuallyExpanded;
+        technicalPanel.setVisibility(showPanel ? View.VISIBLE : View.GONE);
+        developerToolsButton.setVisibility(gameFilesReady ? View.VISIBLE : View.GONE);
+        developerToolsButton.setText(showPanel ? "Hide developer tools" : "Developer tools");
+    }
+
     private void importOriginalApk(Uri apkUri) {
         setImportButtonsEnabled(false);
         status.setText(buildStatusText("Importing and decoding original APK assets..."));
@@ -239,6 +284,8 @@ public final class MainActivity extends Activity {
                     if (gameSurface != null) gameSurface.reloadImportedSplash();
                     if (chooseHeroThunderAudio != null) chooseHeroThunderAudio.onAssetsReloaded();
                     status.setText(buildStatusText(summary));
+                    technicalPanelManuallyExpanded = false;
+                    updateTechnicalPanelVisibility();
                 });
             } catch (Exception error) {
                 showImportError(error);
@@ -266,6 +313,8 @@ public final class MainActivity extends Activity {
                     if (gameSurface != null) gameSurface.reloadImportedSplash();
                     if (chooseHeroThunderAudio != null) chooseHeroThunderAudio.onAssetsReloaded();
                     status.setText(buildStatusText(summary));
+                    technicalPanelManuallyExpanded = false;
+                    updateTechnicalPanelVisibility();
                 });
             } catch (Exception error) {
                 showImportError(error);
@@ -281,6 +330,8 @@ public final class MainActivity extends Activity {
         final String summary = "Import failed: " + message;
         runOnUiThread(() -> {
             setImportButtonsEnabled(true);
+            technicalPanelManuallyExpanded = true;
+            updateTechnicalPanelVisibility();
             status.setText(buildStatusText(summary));
         });
     }
@@ -303,16 +354,11 @@ public final class MainActivity extends Activity {
             text.append(notice).append("\n\n");
         }
 
-        File startLua = new File(getFilesDir(), "assets/Script/Game/StartLua.lua");
-        File pvpScene = new File(getFilesDir(), "assets/gamescene/gs_list/pvp_scene.glData");
-        File chooseHeroAtlas = new File(
-                getFilesDir(),
-                "assets/gamescene_ui/LevelUI/Gate_Background_UI/Gate_BackgroundPNG_01.plist");
         text.append("Original APK assets: ")
-                .append(startLua.isFile() ? "present" : "not imported")
+                .append(originalApkAssetsReady() ? "present" : "not imported")
                 .append("\n")
                 .append("Original OBB assets: ")
-                .append(pvpScene.isFile() && chooseHeroAtlas.isFile() ? "present" : "not imported")
+                .append(originalObbAssetsReady() ? "present" : "not imported")
                 .append("\n");
         if (gameSurface != null) {
             text.append("SingleLogin BGM: ")
