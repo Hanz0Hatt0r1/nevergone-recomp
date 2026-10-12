@@ -27,17 +27,32 @@ public final class GameSceneAtlasFramePixelsSmoke {
     }
 
     private static GameSceneAtlasFrameResolver.Frame plainFrame(
-            int width,
-            int height,
+            int textureWidth,
+            int textureHeight,
+            int spriteWidth,
+            int spriteHeight,
             int sourceWidth,
             int sourceHeight,
             int offsetX,
             int offsetY) {
-        return frame(width, height, width, height, sourceWidth, sourceHeight, offsetX, offsetY, false);
+        return frame(
+                textureWidth,
+                textureHeight,
+                spriteWidth,
+                spriteHeight,
+                sourceWidth,
+                sourceHeight,
+                offsetX,
+                offsetY,
+                false);
     }
 
     public static void main(String[] args) {
-        GameSceneAtlasFrameResolver.Frame plain = plainFrame(2, 2, 4, 4, 0, 0);
+        // The format-3 loader uses spriteSize, not textureRect.size, for the
+        // CCSpriteFrame rectangle. Prove that even deliberately inconsistent
+        // exporter size metadata does not change the physical crop extent.
+        GameSceneAtlasFrameResolver.Frame plain =
+                plainFrame(99, 77, 2, 2, 4, 4, 0, 0);
         assert GameSceneAtlasFramePixels.packedWidth(plain) == 2;
         assert GameSceneAtlasFramePixels.packedHeight(plain) == 2;
         GameSceneAtlasFramePixels.Asset plainAsset =
@@ -51,13 +66,12 @@ public final class GameSceneAtlasFramePixelsSmoke {
         assert plainAsset.pixels[10] == 4;
         assert plainAsset.pixels[0] == 0;
 
-        // TexturePacker format-3 stores textureRect in the physical atlas
-        // orientation. A logical 3x2 sprite rotated clockwise occupies a 2x3
-        // textureRect: [4 1] [5 2] [6 3]. This mirrors the shipped Never Gone
-        // plist shape where rotated frames have spriteSize W/H and textureRect
-        // H/W, rather than the synthetic same-dimension shape used previously.
+        // A logical 3x2 rotated sprite is sampled from a physical 2x3 atlas
+        // area because CCSprite::setTextureCoords swaps rect width/height for
+        // rotated frames. The raw textureRect.size is not authoritative and is
+        // intentionally inconsistent here.
         GameSceneAtlasFrameResolver.Frame rotated =
-                frame(2, 3, 3, 2, 5, 4, 0, 0, true);
+                frame(123, 456, 3, 2, 5, 4, 0, 0, true);
         assert GameSceneAtlasFramePixels.packedWidth(rotated) == 2;
         assert GameSceneAtlasFramePixels.packedHeight(rotated) == 3;
         GameSceneAtlasFramePixels.Asset rotatedAsset =
@@ -72,7 +86,8 @@ public final class GameSceneAtlasFramePixelsSmoke {
         assert rotatedAsset.pixels[12] == 5;
         assert rotatedAsset.pixels[13] == 6;
 
-        GameSceneAtlasFrameResolver.Frame offset = plainFrame(2, 1, 6, 5, 1, -1);
+        GameSceneAtlasFrameResolver.Frame offset =
+                plainFrame(0, 0, 2, 1, 6, 5, 1, -1);
         GameSceneAtlasFramePixels.Asset offsetAsset =
                 GameSceneAtlasFramePixels.reconstruct(offset, 2, 1, new int[]{7, 8});
         assert offsetAsset != null;
@@ -82,14 +97,8 @@ public final class GameSceneAtlasFramePixelsSmoke {
         assert GameSceneAtlasFramePixels.reconstruct(rotated, 3, 2, new int[6]) == null;
         assert GameSceneAtlasFramePixels.reconstruct(plain, 2, 2, new int[3]) == null;
 
-        // A rotated frame with unswapped textureRect/spriteSize dimensions is
-        // inconsistent with the recovered format-3 plist representation.
-        GameSceneAtlasFrameResolver.Frame malformedRotated =
-                frame(3, 2, 3, 2, 5, 4, 0, 0, true);
-        assert GameSceneAtlasFramePixels.reconstruct(
-                malformedRotated, 3, 2, new int[6]) == null;
-
-        GameSceneAtlasFrameResolver.Frame escaping = plainFrame(4, 4, 4, 4, 1, 0);
+        GameSceneAtlasFrameResolver.Frame escaping =
+                plainFrame(4, 4, 4, 4, 4, 4, 1, 0);
         assert GameSceneAtlasFramePixels.reconstruct(escaping, 4, 4, new int[16]) == null;
     }
 }

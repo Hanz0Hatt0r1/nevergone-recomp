@@ -19,16 +19,17 @@ final class GameSceneAtlasFramePixels {
     private GameSceneAtlasFramePixels() {}
 
     static int packedWidth(GameSceneAtlasFrameResolver.Frame frame) {
-        if (frame == null) return 0;
-        // textureRect is the physical rectangle stored in the atlas. For a
-        // rotated TexturePacker frame its dimensions are already swapped with
-        // respect to spriteSize, so do not swap them a second time here.
-        return frame.textureWidth;
+        if (frame == null || frame.spriteWidth <= 0 || frame.spriteHeight <= 0) return 0;
+        // cocos2d-x 2.1.2 format-3 ignores textureRect.size entirely. It
+        // constructs the CCSpriteFrame rect from textureRect.origin plus
+        // spriteSize, and CCSprite::setTextureCoords swaps the sampled width/
+        // height for a rotated frame. Mirror that final physical atlas extent.
+        return frame.rotated ? frame.spriteHeight : frame.spriteWidth;
     }
 
     static int packedHeight(GameSceneAtlasFrameResolver.Frame frame) {
-        if (frame == null) return 0;
-        return frame.textureHeight;
+        if (frame == null || frame.spriteWidth <= 0 || frame.spriteHeight <= 0) return 0;
+        return frame.rotated ? frame.spriteWidth : frame.spriteHeight;
     }
 
     static Asset reconstruct(
@@ -37,22 +38,8 @@ final class GameSceneAtlasFramePixels {
             int packedHeight,
             int[] packedPixels) {
         if (frame == null || packedPixels == null ||
-                frame.textureWidth <= 0 || frame.textureHeight <= 0 ||
                 frame.spriteWidth <= 0 || frame.spriteHeight <= 0 ||
                 frame.sourceWidth <= 0 || frame.sourceHeight <= 0) {
-            return null;
-        }
-
-        // TexturePacker format-3 writes textureRect in packed-atlas
-        // orientation while spriteSize remains in the logical, unrotated
-        // orientation. A rotated frame therefore has swapped dimensions.
-        if (frame.rotated) {
-            if (frame.textureWidth != frame.spriteHeight ||
-                    frame.textureHeight != frame.spriteWidth) {
-                return null;
-            }
-        } else if (frame.textureWidth != frame.spriteWidth ||
-                frame.textureHeight != frame.spriteHeight) {
             return null;
         }
 
@@ -91,9 +78,9 @@ final class GameSceneAtlasFramePixels {
             for (int x = 0; x < logicalWidth; ++x) {
                 final int packedIndex;
                 if (frame.rotated) {
-                    // TexturePacker's cocos2d exporter stores a clockwise-
-                    // rotated logical sprite. For logical (x,y), the packed
-                    // atlas coordinate is (logicalHeight - 1 - y, x).
+                    // This is the pixel equivalent of the original rotated UV
+                    // mapping: physical atlas extent HxW, restored clockwise-
+                    // packed data into a logical WxH sprite.
                     final int packedX = logicalHeight - 1 - y;
                     final int packedY = x;
                     packedIndex = packedY * expectedPackedWidth + packedX;

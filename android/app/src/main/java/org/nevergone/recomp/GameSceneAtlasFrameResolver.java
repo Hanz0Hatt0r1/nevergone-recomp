@@ -56,6 +56,9 @@ final class GameSceneAtlasFrameResolver {
             this.textureRelativePath = atlas.textureRelativePath;
             this.textureX = textureRect[0];
             this.textureY = textureRect[1];
+            // Retain the raw exporter values for diagnostics only. The original
+            // cocos2d-x 2.1.2 format-3 loader ignores textureRect.size and uses
+            // spriteSize to construct the frame rectangle.
             this.textureWidth = textureRect[2];
             this.textureHeight = textureRect[3];
             this.colorX = colorRect[0];
@@ -248,16 +251,16 @@ final class GameSceneAtlasFrameResolver {
         Boolean rotated = booleanValue(valueForKey(match.frame, "textureRotated"));
         if (textureRect == null || offset == null || spriteSize == null ||
                 sourceSize == null || rotated == null || textureRect[0] < 0 || textureRect[1] < 0 ||
-                textureRect[2] <= 0 || textureRect[3] <= 0 || spriteSize[0] <= 0 || spriteSize[1] <= 0 ||
+                spriteSize[0] <= 0 || spriteSize[1] <= 0 ||
                 sourceSize[0] <= 0 || sourceSize[1] <= 0) {
             return null;
         }
 
-        // cocos2d-x 2.1.2 format-3 loading does not consume spriteColorRect.
-        // CCSpriteFrame receives only textureRect, spriteSize, spriteOffset,
-        // spriteSourceSize and textureRotated. Derive the trim rectangle from
-        // those authoritative fields instead of requiring a redundant exporter
-        // key that valid original-compatible plists may omit.
+        // cocos2d-x 2.1.2 format-3 loading does not consume spriteColorRect or
+        // textureRect.size. CCSpriteFrame receives textureRect.origin combined
+        // with spriteSize, plus spriteOffset/sourceSize/rotation. Derive the trim
+        // rectangle from those authoritative fields and retain the parsed
+        // textureRect size only as non-authoritative diagnostics.
         long colorX = ((long) sourceSize[0] - (long) spriteSize[0]) / 2L + offset[0];
         long colorY = ((long) sourceSize[1] - (long) spriteSize[1]) / 2L - offset[1];
         if (colorX < 0L || colorY < 0L ||
