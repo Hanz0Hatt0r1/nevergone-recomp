@@ -1,6 +1,7 @@
 #include <cassert>
 
 #include "game_scene_direct_asset_requests.h"
+#include "game_scene_player_motion_state.h"
 #include "game_scene_player_render_queue.h"
 
 int main() {
@@ -17,6 +18,7 @@ int main() {
 
     game_scene_player_spawn_state::Snapshot spawn;
     spawn.status = game_scene_player_spawn_state::Status::kReady;
+    spawn.generation = 42;
     spawn.source_scene_index = 2;
     spawn.scene_guid = scene.guid;
     spawn.player_x = 600.0f;
@@ -33,6 +35,7 @@ int main() {
     frame.float_values[11] = 1.0f;
 
     player_control_runtime_state::reset();
+    game_scene_player_motion_state::reset();
     const auto ready = game_scene_player_render_queue::with_initial_player(scene, spawn, &frame);
     assert(ready.sprites.size() == 3u);
     assert(ready.sprite_frame_lookup_count == 1u);
@@ -47,6 +50,19 @@ int main() {
     assert(requests.requests[0].sprite_command_index == 1u);
     assert(requests.requests[0].frame_name == "player_001.png");
     assert(requests.requests[0].player_body);
+
+    assert(game_scene_player_motion_state::sync_spawn(spawn.generation, 1u, 100u));
+    assert(game_scene_player_motion_state::advance_normal_sample(101u, true, 1.0f, 0.0f));
+    const auto moved = game_scene_player_render_queue::with_initial_player(scene, spawn, &frame);
+    assert(moved.sprites[1].transform.position_x == 608.0f);
+    assert(moved.sprites[1].transform.position_y == 468.0f);
+    assert(game_scene_player_motion_state::snapshot().applied_steps == 1u);
+
+    // A second logical tick uses the exact recovered Y scale of 4 units.
+    assert(game_scene_player_motion_state::advance_normal_sample(102u, true, 0.0f, 1.0f));
+    const auto moved_y = game_scene_player_render_queue::with_initial_player(scene, spawn, &frame);
+    assert(moved_y.sprites[1].transform.position_x == 608.0f);
+    assert(moved_y.sprites[1].transform.position_y == 472.0f);
 
     assert(player_control_runtime_state::apply_primary_state(
             player_control_contract::PrimaryControlState::kState12));
