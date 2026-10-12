@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "game_levels_scene_instance.h"
+#include "game_scene_type0_post_init.h"
 #include "game_scene_type0_resource.h"
 
 namespace nevergone::game_scene_construction_plan {
@@ -47,6 +48,11 @@ struct ObjectPlan {
     ObjectConstructionKind construction_kind = ObjectConstructionKind::kUnresolved;
     std::optional<game_scene_type0_resource::Selection> type0_resource;
     std::optional<Type0SpriteTransform> type0_sprite_transform;
+    // Post-init animation family recovered from GameSceneObject::initWithData().
+    // Runtime execution is intentionally separate from scene construction so
+    // deterministic first-frame rendering does not invent random parameters.
+    game_scene_type0_post_init::Behavior type0_post_init =
+            game_scene_type0_post_init::Behavior::kNone;
     // Keep the complete evidence-backed serialized record available to later
     // project-owned adapters without renaming still-unresolved fields in the
     // binary parser itself.
@@ -127,6 +133,8 @@ inline ScenePlan build(const game_levels_scene_instance::SceneInstance& scene) {
             object.construction_kind = classify_object(object.type_code);
             if (object.type_code == 0) {
                 object.type0_resource = game_scene_type0_resource::select(source_object.string_value);
+                object.type0_post_init =
+                        game_scene_type0_post_init::classify(source_object.string_value);
                 if (object.type0_resource->kind == game_scene_type0_resource::Kind::kSceneActionPair) {
                     object.construction_kind = ObjectConstructionKind::kType0SceneActionPair;
                 } else {
