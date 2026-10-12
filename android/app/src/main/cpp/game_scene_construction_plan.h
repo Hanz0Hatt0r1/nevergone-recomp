@@ -58,6 +58,8 @@ struct LayerPlan {
     // derived from LayerInstance::first_float.
     std::size_t z_index = 0;
     std::size_t source_layer_index = 0;
+    // loadingTex copies GameSceneLayerData +0x14 into GameSceneClassLayer
+    // +0x140. GameSceneClassLayer::move() uses it as the camera/parallax factor.
     float first_float = 0.0f;
     std::vector<ObjectPlan> objects;
     std::vector<game_levels_layer_tail::BorderPoint> top_border_points;
