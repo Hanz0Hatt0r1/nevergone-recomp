@@ -116,10 +116,37 @@ public final class GameSceneAtlasResolverSmoke {
         assert ordered != null && ordered.size() == 1;
         assert ordered.get(0).plistRelativePath.equals("other/ordered.plist");
 
-        File traversalPlist = new File(assets, "gamescene/traversal.plist");
-        write(traversalPlist, plist("../outside.png", false));
-        write(new File(assets, "outside.png"), "png");
-        assert GameSceneAtlasResolver.resolve(assets, Arrays.asList("traversal.plist")) == null;
+        // CCFileUtils::fullPathFromRelativeFile joins textureFileName to the
+        // plist directory and permits parent-relative components. Preserve that
+        // behavior when canonicalization still keeps the texture inside assets.
+        File parentRelativePlist = new File(assets, "gamescene/l02/res/relative.plist");
+        File parentRelativePng = new File(assets, "gamescene/l02/shared.png");
+        write(parentRelativePlist, plist("../shared.png", false));
+        write(parentRelativePng, "png");
+        List<GameSceneAtlasResolver.Atlas> parentRelative =
+                GameSceneAtlasResolver.resolve(assets, Arrays.asList("l02/res/relative.plist"));
+        assert parentRelative != null && parentRelative.size() == 1;
+        assert parentRelative.get(0).textureRelativePath.equals("gamescene/l02/shared.png");
+
+        // Relative metadata may not escape the imported asset root even though
+        // the original path join itself accepts `..` components.
+        File escapingPlist = new File(assets, "gamescene/escape/escaping.plist");
+        write(escapingPlist, plist("../../../outside-root.png", false));
+        write(new File(root, "outside-root.png"), "png");
+        assert GameSceneAtlasResolver.resolve(
+                assets, Arrays.asList("escape/escaping.plist")) == null;
+
+        // Absolute and Windows-style metadata paths remain rejected: the
+        // project-owned importer is Android/Linux-rooted and never needs to
+        // reinterpret those strings as a different platform's path syntax.
+        File absolutePlist = new File(assets, "gamescene/absolute.plist");
+        write(absolutePlist, plist("/tmp/outside.png", false));
+        assert GameSceneAtlasResolver.resolve(
+                assets, Arrays.asList("absolute.plist")) == null;
+        File backslashPlist = new File(assets, "gamescene/backslash.plist");
+        write(backslashPlist, plist("..\\shared.png", false));
+        assert GameSceneAtlasResolver.resolve(
+                assets, Arrays.asList("backslash.plist")) == null;
 
         File playerPlist = new File(assets,
                 "player/Player01_Res/p01_01_01_default.plist");
