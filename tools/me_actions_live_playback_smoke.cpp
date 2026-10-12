@@ -66,7 +66,7 @@ int main() {
     assert(state.loaded_revision == 2);
     assert(state.action_state == 0x02u);
     assert(state.cursor.current_frame_1a4 == 0);
-    assert(state.cursor.reset_accumulator_1bc);
+    assert(state.cursor.timing.reset_accumulator_1bc);
 
     // A GL/game-clock reset cannot underflow elapsed ticks or jump animation.
     assert(live::sync_and_tick(1, 2, 0x02, document, 1));
