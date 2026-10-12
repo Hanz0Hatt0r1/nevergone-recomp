@@ -17,7 +17,7 @@ int main() {
     const resource::Selection direct{resource::Kind::kDirectFile, "gktianchong.png"};
     const auto path = asset::imported_relative_path(direct);
     assert(path.has_value());
-    assert(*path == "gamescene/gs_res_image_file/gktianchong.png");
+    assert(*path == "gktianchong.png");
 
     const resource::Selection empty{resource::Kind::kDirectFile, "empty.png"};
     const auto empty_path = asset::imported_relative_path(empty);
