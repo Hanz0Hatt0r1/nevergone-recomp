@@ -25,6 +25,15 @@ final class SceneActionInitialFramePixelStager {
         nativeReset();
     }
 
+    static boolean ready(int slot, int variant) {
+        if ((slot != SceneActionPairRuntimeLoader.SLOT_BORN &&
+                slot != SceneActionPairRuntimeLoader.SLOT_IDLE) ||
+                variant < 1 || variant > 4) {
+            return false;
+        }
+        return nativeReady(slot, variant);
+    }
+
     static boolean stage(File assetRoot, int slot, int variant) {
         if (assetRoot == null ||
                 (slot != SceneActionPairRuntimeLoader.SLOT_BORN &&
