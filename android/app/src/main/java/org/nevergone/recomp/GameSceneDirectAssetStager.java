@@ -17,6 +17,8 @@ final class GameSceneDirectAssetStager {
     private static final long MAX_PIXELS_PER_ASSET = 16L * 1024L * 1024L;
     private static final long MAX_CACHED_ATLAS_PIXELS = 32L * 1024L * 1024L;
     private static final int MAX_ATLAS_PRELOAD_NAMES = 256;
+    private static final int MAX_FRAME_NAME_LENGTH = 512;
+    private static final String HIDDEN_FALLBACK_ASSET = "empty.png";
 
     // All calls are made on the GLSurfaceView render thread. Remember one failed
     // queue revision so a missing/corrupt imported file cannot trigger a full
@@ -60,6 +62,12 @@ final class GameSceneDirectAssetStager {
                 requestKind,
                 stagedCount);
         return false;
+    }
+
+    private static boolean safeFrameName(String value) {
+        return value != null && !value.isEmpty() && value.length() <= MAX_FRAME_NAME_LENGTH &&
+                value.indexOf('\0') < 0 && value.indexOf('/') < 0 && value.indexOf('\\') < 0 &&
+                !".".equals(value) && !"..".equals(value);
     }
 
     static boolean stageIfNeeded(File assetRoot) {
@@ -334,6 +342,34 @@ final class GameSceneDirectAssetStager {
                 }
                 GameSceneAtlasFrameResolver.Frame frame = frameResolver.resolve(value);
                 if (frame == null) {
+                    if (!playerRequests[requestIndex] && safeFrameName(value)) {
+                        File fallback = new File(canonicalRoot, HIDDEN_FALLBACK_ASSET)
+                                .getCanonicalFile();
+                        if (!fallback.getPath().startsWith(rootPrefix) || !fallback.isFile()) {
+                            return reject(
+                                    "hidden-fallback-file-unavailable",
+                                    revision,
+                                    count,
+                                    requestIndex,
+                                    kind,
+                                    stagedCount);
+                        }
+                        if (!GameSceneDirectAssetStore.uploadHidden(
+                                revision,
+                                requestIndex,
+                                spriteCommandIndex)) {
+                            return reject(
+                                    "store-hidden-upload-failed",
+                                    revision,
+                                    count,
+                                    requestIndex,
+                                    kind,
+                                    stagedCount);
+                        }
+                        ++stagedCount;
+                        GameSceneAssetStagingDiagnostics.progress(stagedCount);
+                        continue;
+                    }
                     return reject(
                             "frame-lookup-or-metadata-failed",
                             revision,
