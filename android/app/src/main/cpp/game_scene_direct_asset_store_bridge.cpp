@@ -26,6 +26,24 @@ Java_org_nevergone_recomp_GameSceneDirectAssetStore_nativeBegin(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_GameSceneDirectAssetStore_nativeUploadHidden(
+        JNIEnv*,
+        jclass,
+        jlong revision,
+        jint request_index,
+        jint sprite_command_index) {
+    if (revision <= 0 || request_index < 0 || sprite_command_index < 0) {
+        return JNI_FALSE;
+    }
+    return nevergone::game_scene_direct_asset_store::upload_hidden(
+            static_cast<std::uint64_t>(revision),
+            static_cast<std::size_t>(request_index),
+            static_cast<std::size_t>(sprite_command_index))
+        ? JNI_TRUE
+        : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSceneDirectAssetStore_nativeUpload(
         JNIEnv* env,
         jclass,
