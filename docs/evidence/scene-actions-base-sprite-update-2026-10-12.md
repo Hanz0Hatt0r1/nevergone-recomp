@@ -9,14 +9,19 @@ The primary non-flipped sprite path performs the following operations for the cu
 1. load the sprite-frame plist from ActionFrameData `+0x60` into `CCSpriteFrameCache`;
 2. resolve the sprite frame named by ActionFrameData `+0x68`;
 3. call the primary sprite's display-frame setter;
-4. call `setPosition()` using ActionFrameData `+0x24/+0x28`;
-5. call `setScaleX()` with `ActionFrameData +0x44 * SceneActionsSystem +0x240`;
-6. call `setScaleY()` with `ActionFrameData +0x48 * SceneActionsSystem +0x240`;
-7. call `setRotation()` using ActionFrameData `+0x34`;
-8. call `setFlipX()` from `SceneActionsSystem +0x15e`.
+4. compute position X as `(AFD+0x14 + SceneActionsSystem+0x244) / SceneActionsSystem+0x240`;
+5. compute position Y as `(AFD+0x18 + SceneActionsSystem+0x248) / SceneActionsSystem+0x240`;
+6. pass that point through the CCNode virtual at `+0x54`, matching the recovered `setPosition` slot;
+7. build `(AFD+0x24, AFD+0x28)` and pass it through the CCNode virtual at `+0x6c`, matching `setAnchorPoint`;
+8. call `setScaleX()` with `ActionFrameData +0x44 * SceneActionsSystem +0x240`;
+9. call `setScaleY()` with `ActionFrameData +0x48 * SceneActionsSystem +0x240`;
+10. call `setRotation()` using ActionFrameData `+0x34`;
+11. call `setFlipX()` from `SceneActionsSystem +0x15e`.
 
 The shared ActionFrameData parser already establishes the serialized mapping used by this plan:
 
+- `+0x14 -> float_values[0]`;
+- `+0x18 -> float_values[1]`;
 - `+0x24 -> float_values[2]`;
 - `+0x28 -> float_values[3]`;
 - `+0x34 -> float_values[9]`;
@@ -24,6 +29,10 @@ The shared ActionFrameData parser already establishes the serialized mapping use
 - `+0x48 -> float_values[11]`;
 - `+0x60 -> first_string`;
 - `+0x68 -> third_string`.
+
+## Correction note
+
+The first project-owned draft mislabeled the `+0x6c` virtual call as position and therefore treated AFD `+0x24/+0x28` as position. Cross-checking the adjacent recovered EnemyActions CCNode virtual layout and the complete SceneActions control flow proves that call is the anchor-point setter. The project helper and regression now preserve the actual position/anchor split above.
 
 ## Reflected branch
 
@@ -33,6 +42,6 @@ When `SceneActionsSystem +0x15e` is non-zero, `updateData()` enters a distinct g
 
 ## Project boundary
 
-The project-owned plan records only deterministic renderer-facing values for the non-flipped branch: atlas plist, frame name, position, rotation and final X/Y scale. It rejects empty resource names and non-finite inputs.
+The project-owned plan records only deterministic renderer-facing values for the non-flipped branch: atlas plist, frame name, position, anchor, rotation and final X/Y scale. It rejects empty resource names, zero system scale and non-finite inputs.
 
 This increment does not resolve pixels, perform GL calls, advance `waUpdate`, or implement the reflected-position branch. Existing SceneActions asset staging remains responsible for turning the requested atlas/frame into user-imported pixels.
