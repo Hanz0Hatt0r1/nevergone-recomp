@@ -1,0 +1,37 @@
+name: SceneActions initial frame pixels
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/scene_action_initial_frame_pixel_store.*'
+      - 'android/app/src/main/cpp/scene_action_initial_frame_pixel_bridge.cpp'
+      - 'android/app/src/main/java/org/nevergone/recomp/SceneActionInitialFramePixelStager.java'
+      - 'android/app/src/main/cpp/scene_action_pair_runtime_bridge.cpp'
+      - 'tools/scene_action_initial_frame_pixel_store_smoke.cpp'
+      - '.github/workflows/scene-action-initial-frame-pixels.yml'
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run SceneActions initial-frame pixel-store smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_prefix.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_final_table.cpp \
+            android/app/src/main/cpp/trap_actions_prefix.cpp \
+            android/app/src/main/cpp/trap_actions_primary.cpp \
+            android/app/src/main/cpp/trap_actions_compact.cpp \
+            android/app/src/main/cpp/trap_actions_core_document.cpp \
+            android/app/src/main/cpp/trap_actions_combo_section.cpp \
+            android/app/src/main/cpp/trap_actions_document.cpp \
+            android/app/src/main/cpp/scene_action_pair_document_store.cpp \
+            android/app/src/main/cpp/scene_action_initial_frame_pixel_store.cpp \
+            tools/scene_action_initial_frame_pixel_store_smoke.cpp \
+            -o /tmp/scene_action_initial_frame_pixel_store_smoke
+          /tmp/scene_action_initial_frame_pixel_store_smoke
