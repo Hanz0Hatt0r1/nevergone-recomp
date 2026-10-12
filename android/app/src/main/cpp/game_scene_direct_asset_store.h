@@ -15,6 +15,7 @@ constexpr std::size_t kMaxPendingPixelCount = 32u * 1024u * 1024u;
 struct Asset {
     std::size_t request_index = 0;
     std::size_t sprite_command_index = 0;
+    bool hidden = false;
     game_scene_texture_format::PixelFormat pixel_format =
             game_scene_texture_format::PixelFormat::kRgba8888;
     int width = 0;
@@ -33,6 +34,10 @@ struct Snapshot {
 
 void clear();
 bool begin(std::uint64_t revision, std::size_t expected_count);
+bool upload_hidden(
+        std::uint64_t revision,
+        std::size_t request_index,
+        std::size_t sprite_command_index);
 bool upload(
         std::uint64_t revision,
         std::size_t request_index,
