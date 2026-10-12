@@ -3,6 +3,8 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "player_action_document_store.h"
@@ -68,6 +70,21 @@ void write_bytes(const std::filesystem::path& path, const std::vector<std::uint8
     assert(output.good());
 }
 
+void write_bundle(
+        const std::filesystem::path& path,
+        const std::vector<std::pair<std::string, std::vector<std::uint8_t>>>& entries) {
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream output(path, std::ios::binary);
+    for (const auto& entry : entries) {
+        output << entry.first << '\n' << entry.second.size() << '\n';
+        output.write(
+                reinterpret_cast<const char*>(entry.second.data()),
+                static_cast<std::streamsize>(entry.second.size()));
+        output.put('\n');
+    }
+    assert(output.good());
+}
+
 }  // namespace
 
 int main() {
@@ -86,9 +103,50 @@ int main() {
     assert(state.primary_record_count == 1u);
     assert(state.bytes_consumed == 156u);
     assert(state.trailing_bytes == 0u);
+    assert(state.embedded_entry_name.empty());
     const auto document = store::current_document();
     assert(document.has_value());
     assert(document->primary_records.size() == 1u);
+
+    const auto bundle = root / "assets" / "player" / "actions_data" / "adata" /
+            "p01" / "normal" / "player_01.actionsData";
+    write_bundle(bundle, {
+        {"p01_decoy.actData", {1u, 2u, 3u, 4u}},
+        {"p01_i01.actData", valid_document()},
+    });
+    assert(store::load_embedded_from_assets(
+            root.string(),
+            "player/actions_data/adata/p01/normal/player_01.actionsData",
+            "p01_i01.actData"));
+    state = store::snapshot();
+    assert(state.status == store::LoadStatus::kReady);
+    assert(state.embedded_entry_name == "p01_i01.actData");
+    assert(state.reader_size == 156u);
+    assert(state.primary_record_count == 1u);
+    assert(store::current_document().has_value());
+
+    assert(!store::load_embedded_from_assets(
+            root.string(),
+            "player/actions_data/adata/p01/normal/player_01.actionsData",
+            "missing.actData"));
+    assert(store::snapshot().status == store::LoadStatus::kBundleEntryMissing);
+    assert(!store::current_document().has_value());
+
+    write_bundle(bundle, {
+        {"p01_i01.actData", valid_document()},
+        {"p01_i01.actData", valid_document()},
+    });
+    assert(!store::load_embedded_from_assets(
+            root.string(),
+            "player/actions_data/adata/p01/normal/player_01.actionsData",
+            "p01_i01.actData"));
+    assert(store::snapshot().status == store::LoadStatus::kBundleEntryAmbiguous);
+
+    assert(!store::load_embedded_from_assets(
+            root.string(),
+            "player/actions_data/adata/p01/normal/player_01.actionsData",
+            "../p01_i01.actData"));
+    assert(store::snapshot().status == store::LoadStatus::kBundleInvalidEntryName);
 
     assert(!store::load_from_assets(root.string(), "../player_start.actData"));
     state = store::snapshot();
