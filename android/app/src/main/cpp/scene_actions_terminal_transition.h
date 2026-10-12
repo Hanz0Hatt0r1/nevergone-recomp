@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 
 #include "scene_actions_play_state.h"
 
@@ -24,7 +25,8 @@ inline Result apply(
         scene_actions_play_state::State* state) {
     Result result;
     if (state == nullptr || !state->active_15d || exclusive_frame_limit == 0u ||
-            exclusive_frame_limit > static_cast<std::size_t>(INT32_MAX) ||
+            exclusive_frame_limit > static_cast<std::size_t>(
+                    std::numeric_limits<std::int32_t>::max()) ||
             state->mode_24e > 1u) {
         return result;
     }
