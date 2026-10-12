@@ -89,6 +89,9 @@ bool sync(Backend& backend) {
         texture.request_index = request_index;
         texture.sprite_command_index = asset.sprite_command_index;
         texture.pixel_format = asset.pixel_format;
+        texture.has_frame_offset = asset.has_frame_offset;
+        texture.frame_offset_x = asset.frame_offset_x;
+        texture.frame_offset_y = asset.frame_offset_y;
         texture.width = asset.width;
         texture.height = asset.height;
         texture.handle = handle;
