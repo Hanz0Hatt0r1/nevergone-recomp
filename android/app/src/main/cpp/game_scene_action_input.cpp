@@ -60,6 +60,25 @@ bool observe(Control control, Gesture gesture) {
     return true;
 }
 
+std::optional<int> original_controls_state(Control control) {
+    switch (control) {
+        case Control::kButtonA: return 7;
+        case Control::kButtonB: return 8;
+        case Control::kButtonC: return 9;
+        case Control::kNone: return std::nullopt;
+    }
+    return std::nullopt;
+}
+
+std::optional<Control> control_for_original_controls_state(int state) {
+    switch (state) {
+        case 7: return Control::kButtonA;
+        case 8: return Control::kButtonB;
+        case 9: return Control::kButtonC;
+        default: return std::nullopt;
+    }
+}
+
 Snapshot snapshot() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_state;
@@ -92,6 +111,11 @@ std::string status_report() {
     std::ostringstream out;
     out << "GameScene action input\n";
     out << "last control: " << control_name(state.last_control) << "\n";
+    if (const auto original_state = original_controls_state(state.last_control)) {
+        out << "last original Controls state: " << *original_state << "\n";
+    } else {
+        out << "last original Controls state: none\n";
+    }
     out << "last gesture: " << gesture_name(state.last_gesture) << "\n";
     out << "accepted inputs: " << state.accepted_input_count << "\n";
     out << "rejected inputs: " << state.rejected_input_count << "\n";
