@@ -52,6 +52,7 @@ int main() {
     assert(state.event_port_type == 7u);
     assert(state.matching_marker_count == 2u);
     assert(state.applied_marker_count == 2u);
+    assert(state.used_entry_marker);
     // loadingTex traverses every match; the later matching marker wins.
     assert(state.source_layer_index == 9u);
     assert(state.source_object_index == 0u);
@@ -78,13 +79,27 @@ int main() {
     assert(state.player_x == 650.0f);
     assert(state.player_y == 518.0f);
 
-    assert(!spawn::refresh(scene, 99u, 1136, 640));
+    // A valid scene with no type-6 marker matching GameLevels +0x40 is not a
+    // spawn failure in the original. The primary MEPlayer already exists and
+    // loadingTex simply skips the conditional setPlayerPos() override.
+    assert(spawn::refresh(scene, 99u, 1136, 640));
     state = spawn::snapshot();
-    assert(state.status == spawn::Status::kNoMatchingMarker);
+    assert(state.status == spawn::Status::kReady);
     assert(state.source_scene_index == 3u);
     assert(state.scene_guid == "scene-0");
     assert(state.matching_marker_count == 0u);
-    assert(!spawn::current_position().has_value());
+    assert(state.applied_marker_count == 0u);
+    assert(!state.used_entry_marker);
+    assert(state.bootstrap_x == 568.0f);
+    assert(state.bootstrap_y == 448.0f);
+    assert(state.scene_offset_x == 0.0f);
+    assert(state.scene_offset_y == 0.0f);
+    assert(state.player_x == 568.0f);
+    assert(state.player_y == 448.0f);
+    const auto bootstrap_current = spawn::current_position();
+    assert(bootstrap_current.has_value());
+    assert(bootstrap_current->x == 568.0f);
+    assert(bootstrap_current->y == 448.0f);
 
     assert(!spawn::refresh(scene, 7u, 0, 640));
     assert(spawn::snapshot().status == spawn::Status::kInvalidSurface);
