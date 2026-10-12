@@ -41,24 +41,30 @@ int main() {
 
     selector::complete_transition();
 
-    // Career 3 center: design y=315 -> top-origin surface y=325.
-    assert(input::on_touch_for_surface(0, 7, 568.0f, 325.0f, 1136, 640));
-    assert(input::pressed_tag() == 3);
-    assert(rune_layout::pressed_render_tag() == 3);
-    assert(rune_layout::frame_index(3, false) == 5);
-    assert(input::on_touch_for_surface(2, 7, 400.0f, 325.0f, 1136, 640));
+    // The paired frozen captures expose only career tags 1 and 2 as active
+    // menu items. A touch at retained-but-hidden tag 3 must not capture input.
+    assert(!input::on_touch_for_surface(0, 6, 568.0f, 325.0f, 1136, 640));
     assert(input::pressed_tag() == 0);
     assert(rune_layout::pressed_render_tag() == 0);
-    assert(rune_layout::frame_index(3, false) == 4);
-    assert(input::on_touch_for_surface(2, 7, 568.0f, 325.0f, 1136, 640));
-    assert(input::pressed_tag() == 3);
-    assert(rune_layout::pressed_render_tag() == 3);
-    assert(input::on_touch_for_surface(1, 7, 568.0f, 325.0f, 1136, 640));
+    assert(selector::snapshot().selected_career == 1);
+
+    // Career 2 center: design y=405 -> top-origin surface y=235.
+    assert(input::on_touch_for_surface(0, 7, 568.0f, 235.0f, 1136, 640));
+    assert(input::pressed_tag() == 2);
+    assert(rune_layout::pressed_render_tag() == 2);
+    assert(rune_layout::frame_index(2, false) == 3);
+    assert(input::on_touch_for_surface(2, 7, 400.0f, 235.0f, 1136, 640));
+    assert(input::pressed_tag() == 0);
+    assert(rune_layout::pressed_render_tag() == 0);
+    assert(input::on_touch_for_surface(2, 7, 568.0f, 235.0f, 1136, 640));
+    assert(input::pressed_tag() == 2);
+    assert(rune_layout::pressed_render_tag() == 2);
+    assert(input::on_touch_for_surface(1, 7, 568.0f, 235.0f, 1136, 640));
     assert(input::pressed_tag() == 0);
     assert(rune_layout::pressed_render_tag() == 0);
 
     auto state = selector::snapshot();
-    assert(state.selected_career == 3);
+    assert(state.selected_career == 2);
     assert(state.transition_pending);
     assert(!state.input_enabled);
     assert(state.selection_count == 1);
@@ -67,55 +73,43 @@ int main() {
     assert(transition.phase == timeline::Phase::kCareerChange);
     assert(transition.selector_generation == state.generation);
     assert(transition.old_career == 1);
-    assert(transition.new_career == 3);
+    assert(transition.new_career == 2);
     assert(transition.begin_tick == nevergone::game_clock::tick_count());
     assert(transition.unlock_tick ==
         transition.begin_tick + timeline::kNearCareerChangeUnlockTicks);
 
     // Locked input is consumed and cannot replace the pending selection or
     // publish a pressed presentation state.
-    assert(input::on_touch_for_surface(0, 8, 568.0f, 505.0f, 1136, 640));
-    assert(input::on_touch_for_surface(1, 8, 568.0f, 505.0f, 1136, 640));
-    assert(selector::snapshot().selected_career == 3);
+    assert(input::on_touch_for_surface(0, 8, 568.0f, 145.0f, 1136, 640));
+    assert(input::on_touch_for_surface(1, 8, 568.0f, 145.0f, 1136, 640));
+    assert(selector::snapshot().selected_career == 2);
     assert(rune_layout::pressed_render_tag() == 0);
 
     selector::complete_transition();
     timeline::reset();
 
     // Same-career click is a handled no-op and does not arm a new deadline.
-    assert(input::on_touch_for_surface(0, 9, 568.0f, 325.0f, 1136, 640));
-    assert(rune_layout::pressed_render_tag() == 3);
-    assert(input::on_touch_for_surface(1, 9, 568.0f, 325.0f, 1136, 640));
+    assert(input::on_touch_for_surface(0, 9, 568.0f, 235.0f, 1136, 640));
+    assert(rune_layout::pressed_render_tag() == 2);
+    assert(input::on_touch_for_surface(1, 9, 568.0f, 235.0f, 1136, 640));
     assert(rune_layout::pressed_render_tag() == 0);
     state = selector::snapshot();
-    assert(state.selected_career == 3);
+    assert(state.selected_career == 2);
     assert(state.input_enabled);
     assert(!state.transition_pending);
     assert(timeline::snapshot().phase == timeline::Phase::kInactive);
 
-    // Career 5 is a near change from 3 and arms the same 179-tick deadline.
-    assert(input::on_touch_for_surface(0, 10, 568.0f, 505.0f, 1136, 640));
-    assert(rune_layout::pressed_render_tag() == 5);
-    assert(input::on_touch_for_surface(1, 10, 568.0f, 505.0f, 1136, 640));
-    assert(rune_layout::pressed_render_tag() == 0);
-    transition = timeline::snapshot();
-    assert(transition.old_career == 3);
-    assert(transition.new_career == 5);
-    assert(transition.unlock_tick - transition.begin_tick ==
-        timeline::kNearCareerChangeUnlockTicks);
-
-    // Complete it, then test a far 5 -> 1 change and its 231-tick deadline.
-    selector::complete_transition();
-    timeline::reset();
-    assert(input::on_touch_for_surface(0, 11, 568.0f, 145.0f, 1136, 640));
+    // The other visible rune remains interactive and arms the recovered near
+    // transition back from career 2 to career 1.
+    assert(input::on_touch_for_surface(0, 10, 568.0f, 145.0f, 1136, 640));
     assert(rune_layout::pressed_render_tag() == 1);
-    assert(input::on_touch_for_surface(1, 11, 568.0f, 145.0f, 1136, 640));
+    assert(input::on_touch_for_surface(1, 10, 568.0f, 145.0f, 1136, 640));
     assert(rune_layout::pressed_render_tag() == 0);
     transition = timeline::snapshot();
-    assert(transition.old_career == 5);
+    assert(transition.old_career == 2);
     assert(transition.new_career == 1);
     assert(transition.unlock_tick - transition.begin_tick ==
-        timeline::kFarCareerChangeUnlockTicks);
+        timeline::kNearCareerChangeUnlockTicks);
 
     input::reset();
     assert(rune_layout::pressed_render_tag() == 0);
