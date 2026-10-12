@@ -10,6 +10,7 @@ on:
       - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'android/app/src/main/cpp/tutorial_gameplay_state.*'
       - 'android/app/src/main/cpp/render_bridge.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/game_scene_player_joystick_input_smoke.cpp'
@@ -27,6 +28,7 @@ on:
       - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'android/app/src/main/cpp/tutorial_gameplay_state.*'
       - 'android/app/src/main/cpp/render_bridge.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/game_scene_player_joystick_input_smoke.cpp'
@@ -50,6 +52,7 @@ jobs:
             android/app/src/main/cpp/game_clock.cpp \
             android/app/src/main/cpp/player_control_contract.cpp \
             android/app/src/main/cpp/player_control_runtime_state.cpp \
+            android/app/src/main/cpp/tutorial_gameplay_state.cpp \
             android/app/src/main/cpp/game_scene_player_joystick_input.cpp \
             tools/game_scene_player_joystick_input_smoke.cpp \
             -o /tmp/game_scene_player_joystick_input_smoke
