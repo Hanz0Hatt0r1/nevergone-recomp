@@ -37,16 +37,19 @@ inline game_scene_render_queue::Queue with_live_player(
     if (request.status != game_scene_player_frame_request::Status::kReady ||
         !request.resource.has_value() || !request.lookup.current_frame_in_range) return queue;
 
-    // Per-frame updateData transform offsets are a separate recovered boundary.
-    // Keep the already-proven play()/frame-0 body transform while changing only
-    // the sprite frame selected by live current_frame_1a4.
-    const auto body_transform =
-        me_actions_initial_sprite_transform::build(document->primary_records.front());
-    if (!body_transform.has_value()) return queue;
-
     const std::size_t frame_index = request.lookup.selected_primary_index;
     if (frame_index >= document->primary_records.size()) return queue;
     const auto& selected_frame = document->primary_records[frame_index];
+
+    // The recovered MeActionsSystem::updateData() body path reads position,
+    // anchor, scale, rotation, flip and child-Z from the *current* primary
+    // ActionFrameData, not permanently from frame zero. The project-supported
+    // play(int,float) path resets MeActionsSystem +0x204/+0x208 to zero before
+    // updateData(), so the existing validated direct-frame transform applies to
+    // each selected live frame without inventing extra mutable offsets.
+    const auto body_transform =
+        me_actions_initial_sprite_transform::build(selected_frame);
+    if (!body_transform.has_value()) return queue;
 
     float player_x = spawn.player_x;
     float player_y = spawn.player_y;
