@@ -9,6 +9,7 @@
 #include "player_control_runtime_state.h"
 #include "player_direction_combo_contract.h"
 #include "player_motion_contract.h"
+#include "tutorial_gameplay_state.h"
 
 namespace nevergone::game_scene_player_joystick_input {
 namespace {
@@ -223,6 +224,7 @@ void tick() {
     float direction_x = 0.0f;
     float direction_y = 0.0f;
     bool captured = false;
+    bool run_performed = false;
     std::uint32_t movement_action_state = player_motion_contract::kNormalMoveActionState;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
@@ -238,9 +240,25 @@ void tick() {
                 direction_y = local_y / length;
             }
             if (power > 0.05f) {
+                const std::uint64_t before_fast_reactivations =
+                    g_snapshot.fast_reactivation_count;
                 update_horizontal_combo_locked(angle, game_tick);
+                run_performed =
+                    g_snapshot.fast_reactivation_count > before_fast_reactivations;
             }
             movement_action_state = g_snapshot.movement_action_state;
+        }
+    }
+
+    // A recovered fast same-direction reactivation is the concrete gameplay
+    // outcome requested by the original Run lesson. Publish it outside the
+    // joystick mutex so tutorial progression can never participate in the
+    // input lock order. Ignore it when another tutorial step owns the surface.
+    if (run_performed) {
+        const auto tutorial = tutorial_gameplay_state::snapshot();
+        if (tutorial.step == tutorial_gameplay_state::Step::kRun) {
+            (void)tutorial_gameplay_state::observe(
+                tutorial_gameplay_state::Event::kRunPerformed);
         }
     }
 
