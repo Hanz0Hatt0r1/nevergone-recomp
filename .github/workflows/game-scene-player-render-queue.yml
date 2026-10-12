@@ -5,6 +5,8 @@ on:
     paths:
       - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
       - 'android/app/src/main/cpp/game_scene_player_joystick_render_queue.h'
+      - 'android/app/src/main/cpp/game_scene_player_motion_state.h'
+      - 'android/app/src/main/cpp/player_motion_contract.h'
       - 'android/app/src/main/cpp/game_scene_player_frame_request.*'
       - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.*'
       - 'android/app/src/main/cpp/game_scene_direct_geometry.*'
@@ -17,6 +19,8 @@ on:
     paths:
       - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
       - 'android/app/src/main/cpp/game_scene_player_joystick_render_queue.h'
+      - 'android/app/src/main/cpp/game_scene_player_motion_state.h'
+      - 'android/app/src/main/cpp/player_motion_contract.h'
       - 'android/app/src/main/cpp/game_scene_player_frame_request.*'
       - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.*'
       - 'android/app/src/main/cpp/game_scene_direct_geometry.*'
