@@ -1,0 +1,27 @@
+name: MEPlayer function gates
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/meplayer_function_gate_contract.*'
+      - 'tools/meplayer_function_gate_contract_smoke.cpp'
+      - '.github/workflows/meplayer-function-gates.yml'
+  push:
+    paths:
+      - 'android/app/src/main/cpp/meplayer_function_gate_contract.*'
+      - 'tools/meplayer_function_gate_contract_smoke.cpp'
+      - '.github/workflows/meplayer-function-gates.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run MEPlayer function-gate smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/meplayer_function_gate_contract_smoke.cpp \
+            android/app/src/main/cpp/meplayer_function_gate_contract.cpp \
+            -o /tmp/meplayer_function_gate_contract_smoke
+          /tmp/meplayer_function_gate_contract_smoke
