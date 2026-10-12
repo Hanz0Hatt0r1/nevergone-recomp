@@ -93,6 +93,21 @@ final class GameSceneAtlasResolver {
 
     private GameSceneAtlasResolver() {}
 
+    // CCSprite::create(file) ultimately resolves its texture name through
+    // CCFileUtils::fullPathForFilename(). Keep direct scene-sprite lookup on the
+    // same recovered root-first AddAllSearchPath ordering as atlas resources.
+    static File resolveResource(File assetRoot, String resourceName) {
+        if (assetRoot == null || !isSafeResource(resourceName)) return null;
+        try {
+            File root = assetRoot.getCanonicalFile();
+            if (!root.isDirectory()) return null;
+            String rootPrefix = root.getPath() + File.separator;
+            return resolveFirstResource(root, rootPrefix, resourceName);
+        } catch (Exception error) {
+            return null;
+        }
+    }
+
     // MEPlayer::createActions preloads the selected career's default sprite
     // plists. Keep the candidate set bounded and let frame resolution reject
     // ambiguous names rather than guessing the player clothes selector.
