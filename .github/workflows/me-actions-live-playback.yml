@@ -1,0 +1,32 @@
+name: MeActions live playback
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/me_actions_live_playback.*'
+      - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
+      - 'tools/me_actions_live_playback_smoke.cpp'
+      - '.github/workflows/me-actions-live-playback.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/me_actions_live_playback.*'
+      - 'android/app/src/main/cpp/game_scene_player_render_queue.h'
+      - 'tools/me_actions_live_playback_smoke.cpp'
+      - '.github/workflows/me-actions-live-playback.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run live MeActions playback smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/me_actions_live_playback_smoke.cpp \
+            android/app/src/main/cpp/me_actions_combo_boundaries.cpp \
+            android/app/src/main/cpp/me_actions_playback_timing.cpp \
+            android/app/src/main/cpp/me_actions_live_playback.cpp \
+            -o /tmp/me_actions_live_playback_smoke
+          /tmp/me_actions_live_playback_smoke
