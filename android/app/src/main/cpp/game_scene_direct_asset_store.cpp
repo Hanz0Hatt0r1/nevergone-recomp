@@ -38,6 +38,36 @@ bool supported_format(game_scene_texture_format::PixelFormat pixel_format) {
             pixel_format == PixelFormat::kRgba4444;
 }
 
+bool prepare_slot_locked(
+        std::uint64_t revision,
+        std::size_t request_index,
+        std::size_t* base_pixels,
+        bool* was_present) {
+    if (base_pixels == nullptr || was_present == nullptr ||
+        revision == 0 || revision != g_pending_revision ||
+        request_index >= g_pending_assets.size()) {
+        return false;
+    }
+    const auto& previous = g_pending_assets[request_index];
+    const std::size_t previous_pixels = previous.has_value()
+            ? previous->argb_pixels.size()
+            : 0u;
+    if (previous_pixels > g_pending_pixel_count) return false;
+    *base_pixels = g_pending_pixel_count - previous_pixels;
+    *was_present = previous.has_value();
+    return true;
+}
+
+void commit_slot_locked(
+        std::size_t request_index,
+        Asset asset,
+        std::size_t base_pixels,
+        bool was_present) {
+    if (!was_present) ++g_pending_uploaded_count;
+    g_pending_pixel_count = base_pixels + asset.argb_pixels.size();
+    g_pending_assets[request_index] = std::move(asset);
+}
+
 }  // namespace
 
 void clear() {
@@ -57,6 +87,25 @@ bool begin(std::uint64_t revision, std::size_t expected_count) {
     return true;
 }
 
+bool upload_hidden(
+        std::uint64_t revision,
+        std::size_t request_index,
+        std::size_t sprite_command_index) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    std::size_t base_pixels = 0;
+    bool was_present = false;
+    if (!prepare_slot_locked(revision, request_index, &base_pixels, &was_present)) {
+        return false;
+    }
+
+    Asset asset;
+    asset.request_index = request_index;
+    asset.sprite_command_index = sprite_command_index;
+    asset.hidden = true;
+    commit_slot_locked(request_index, std::move(asset), base_pixels, was_present);
+    return true;
+}
+
 bool upload(
         std::uint64_t revision,
         std::size_t request_index,
@@ -73,17 +122,12 @@ bool upload(
     }
 
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (revision == 0 || revision != g_pending_revision ||
-        request_index >= g_pending_assets.size()) {
+    std::size_t base_pixels = 0;
+    bool was_present = false;
+    if (!prepare_slot_locked(revision, request_index, &base_pixels, &was_present) ||
+        pixel_count > kMaxPendingPixelCount - base_pixels) {
         return false;
     }
-
-    const auto& previous = g_pending_assets[request_index];
-    const std::size_t previous_pixels = previous.has_value()
-            ? previous->argb_pixels.size()
-            : 0u;
-    const std::size_t base_pixels = g_pending_pixel_count - previous_pixels;
-    if (pixel_count > kMaxPendingPixelCount - base_pixels) return false;
 
     Asset asset;
     asset.request_index = request_index;
@@ -92,10 +136,7 @@ bool upload(
     asset.width = width;
     asset.height = height;
     asset.argb_pixels.assign(argb_pixels, argb_pixels + pixel_count);
-
-    if (!previous.has_value()) ++g_pending_uploaded_count;
-    g_pending_assets[request_index] = std::move(asset);
-    g_pending_pixel_count = base_pixels + pixel_count;
+    commit_slot_locked(request_index, std::move(asset), base_pixels, was_present);
     return true;
 }
 
