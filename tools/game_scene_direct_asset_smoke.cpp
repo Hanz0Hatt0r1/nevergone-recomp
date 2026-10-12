@@ -19,6 +19,18 @@ int main() {
     assert(path.has_value());
     assert(*path == "gamescene/gs_res_image_file/gktianchong.png");
 
+    const resource::Selection empty{resource::Kind::kDirectFile, "empty.png"};
+    const auto empty_path = asset::imported_relative_path(empty);
+    assert(empty_path.has_value());
+    assert(*empty_path == "empty.png");
+
+    const auto gkanniu = resource::select("gkanniu2.png");
+    assert(gkanniu.kind == resource::Kind::kDirectFile);
+    assert(gkanniu.resource_name == "empty.png");
+    const auto gkanniu_path = asset::imported_relative_path(gkanniu);
+    assert(gkanniu_path.has_value());
+    assert(*gkanniu_path == "empty.png");
+
     const resource::Selection frame{resource::Kind::kSpriteFrameByName, "gkshu01.png"};
     assert(!asset::imported_relative_path(frame).has_value());
 
