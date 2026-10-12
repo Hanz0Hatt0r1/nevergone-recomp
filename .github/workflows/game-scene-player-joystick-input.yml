@@ -12,6 +12,7 @@ on:
       - 'android/app/src/main/cpp/render_bridge.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/game_scene_player_joystick_input_smoke.cpp'
+      - 'tools/game_scene_player_motion_state_smoke.cpp'
       - 'tools/player_motion_contract_smoke.cpp'
       - '.github/workflows/game-scene-player-joystick-input.yml'
   push:
@@ -26,6 +27,7 @@ on:
       - 'android/app/src/main/cpp/render_bridge.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/game_scene_player_joystick_input_smoke.cpp'
+      - 'tools/game_scene_player_motion_state_smoke.cpp'
       - 'tools/player_motion_contract_smoke.cpp'
       - '.github/workflows/game-scene-player-joystick-input.yml'
 
@@ -55,3 +57,10 @@ jobs:
             tools/player_motion_contract_smoke.cpp \
             -o /tmp/player_motion_contract_smoke
           /tmp/player_motion_contract_smoke
+      - name: Build and run fixed-tick motion-state smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/game_scene_player_motion_state_smoke.cpp \
+            -o /tmp/game_scene_player_motion_state_smoke
+          /tmp/game_scene_player_motion_state_smoke
