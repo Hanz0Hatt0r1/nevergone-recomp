@@ -51,6 +51,7 @@ add_library(nevergone_recomp SHARED
     game_clock.cpp
     game_save_data_codec.cpp
     game_scene_action_input.cpp
+    game_scene_action_layout.cpp
     game_scene_construction_plan.cpp
     game_scene_direct_asset_bridge.cpp
     game_scene_direct_asset_store.cpp
