@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "game_scene_texture_format.h"
+
 namespace nevergone::game_scene_direct_asset_store {
 
 constexpr std::size_t kMaxAssetCount = 4096u;
@@ -13,6 +15,8 @@ constexpr std::size_t kMaxPendingPixelCount = 32u * 1024u * 1024u;
 struct Asset {
     std::size_t request_index = 0;
     std::size_t sprite_command_index = 0;
+    game_scene_texture_format::PixelFormat pixel_format =
+            game_scene_texture_format::PixelFormat::kRgba8888;
     int width = 0;
     int height = 0;
     std::vector<std::uint32_t> argb_pixels;
@@ -33,10 +37,34 @@ bool upload(
         std::uint64_t revision,
         std::size_t request_index,
         std::size_t sprite_command_index,
+        game_scene_texture_format::PixelFormat pixel_format,
         int width,
         int height,
         const std::uint32_t* argb_pixels,
         std::size_t pixel_count);
+
+// Existing callers without recovered per-request format evidence remain on the
+// original project-owned RGBA8888 default. The Android staging bridge uses the
+// explicit overload for player-body requests.
+inline bool upload(
+        std::uint64_t revision,
+        std::size_t request_index,
+        std::size_t sprite_command_index,
+        int width,
+        int height,
+        const std::uint32_t* argb_pixels,
+        std::size_t pixel_count) {
+    return upload(
+            revision,
+            request_index,
+            sprite_command_index,
+            game_scene_texture_format::PixelFormat::kRgba8888,
+            width,
+            height,
+            argb_pixels,
+            pixel_count);
+}
+
 bool finish(std::uint64_t revision);
 void cancel(std::uint64_t revision);
 Snapshot snapshot();

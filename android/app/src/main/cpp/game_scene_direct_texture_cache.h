@@ -3,13 +3,17 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "game_scene_texture_format.h"
+
 namespace nevergone::game_scene_direct_texture_cache {
 
 using TextureHandle = std::uint32_t;
+using PixelFormat = game_scene_texture_format::PixelFormat;
 
 struct Texture {
     std::size_t request_index = 0;
     std::size_t sprite_command_index = 0;
+    PixelFormat pixel_format = PixelFormat::kRgba8888;
     int width = 0;
     int height = 0;
     TextureHandle handle = 0;
@@ -25,11 +29,28 @@ struct Snapshot {
 class Backend {
 public:
     virtual ~Backend() = default;
+
+    // Compatibility entrypoint for backends/tests that only support the
+    // project-owned RGBA8888 path.
     virtual TextureHandle create_texture(
             int width,
             int height,
             const std::uint32_t* argb_pixels,
             std::size_t pixel_count) = 0;
+
+    // Format-aware path used by the live GLES backend. The default keeps old
+    // host test backends source-compatible while explicit formats propagate
+    // through the cache transaction.
+    virtual TextureHandle create_texture(
+            PixelFormat pixel_format,
+            int width,
+            int height,
+            const std::uint32_t* argb_pixels,
+            std::size_t pixel_count) {
+        (void) pixel_format;
+        return create_texture(width, height, argb_pixels, pixel_count);
+    }
+
     virtual void destroy_texture(TextureHandle handle) = 0;
 };
 

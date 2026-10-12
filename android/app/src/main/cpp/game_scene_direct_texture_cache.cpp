@@ -74,6 +74,7 @@ bool sync(Backend& backend) {
         }
 
         const TextureHandle handle = backend.create_texture(
+                asset.pixel_format,
                 asset.width,
                 asset.height,
                 asset.argb_pixels.data(),
@@ -87,6 +88,7 @@ bool sync(Backend& backend) {
         Texture texture;
         texture.request_index = request_index;
         texture.sprite_command_index = asset.sprite_command_index;
+        texture.pixel_format = asset.pixel_format;
         texture.width = asset.width;
         texture.height = asset.height;
         texture.handle = handle;

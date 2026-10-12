@@ -32,6 +32,7 @@ Java_org_nevergone_recomp_GameSceneDirectAssetStore_nativeUpload(
         jlong revision,
         jint request_index,
         jint sprite_command_index,
+        jboolean rgba4444,
         jint width,
         jint height,
         jintArray pixels) {
@@ -44,10 +45,14 @@ Java_org_nevergone_recomp_GameSceneDirectAssetStore_nativeUpload(
     if (length < 0) return JNI_FALSE;
     jint* values = env->GetIntArrayElements(pixels, nullptr);
     if (values == nullptr) return JNI_FALSE;
+    const auto pixel_format = rgba4444 == JNI_TRUE
+            ? nevergone::game_scene_texture_format::PixelFormat::kRgba4444
+            : nevergone::game_scene_texture_format::PixelFormat::kRgba8888;
     const bool uploaded = nevergone::game_scene_direct_asset_store::upload(
             static_cast<std::uint64_t>(revision),
             static_cast<std::size_t>(request_index),
             static_cast<std::size_t>(sprite_command_index),
+            pixel_format,
             static_cast<int>(width),
             static_cast<int>(height),
             reinterpret_cast<const std::uint32_t*>(values),

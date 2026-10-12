@@ -9,6 +9,7 @@ final class GameSceneDirectAssetStore {
             long revision,
             int requestIndex,
             int spriteCommandIndex,
+            boolean rgba4444,
             int width,
             int height,
             int[] pixels);
@@ -32,10 +33,16 @@ final class GameSceneDirectAssetStore {
             int width,
             int height,
             int[] pixels) {
+        // MeActionsSystem::initWithFile sets CCTexture2D's default alpha pixel
+        // format to recovered value 6 before loading the player action atlas.
+        // The original format-6 conversion is RGBA4444. Keep this decision at
+        // the request boundary so ordinary GameScene resources stay RGBA8888.
+        boolean rgba4444 = GameSceneDirectAssetRequests.isPlayerBodyAt(requestIndex);
         return nativeUpload(
                 revision,
                 requestIndex,
                 spriteCommandIndex,
+                rgba4444,
                 width,
                 height,
                 pixels);
