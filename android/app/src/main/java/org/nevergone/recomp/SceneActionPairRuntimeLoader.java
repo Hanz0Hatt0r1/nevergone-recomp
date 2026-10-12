@@ -23,6 +23,9 @@ final class SceneActionPairRuntimeLoader {
     private static native String nativeInitialAtlasPlist(int slot);
     private static native String nativeInitialFrameName(int slot);
     private static native int nativeInitialMode(int slot);
+    private static native String nativeCurrentAtlasPlist(int slot, int frameIndex);
+    private static native String nativeCurrentFrameName(int slot, int frameIndex);
+    private static native int nativeCurrentMode(int slot, int frameIndex);
     private static native void nativeReset();
     private static native String nativeStatusReport();
 
@@ -68,6 +71,17 @@ final class SceneActionPairRuntimeLoader {
         return new InitialFrame(atlas, frame, mode);
     }
 
+    static CurrentFrame currentFrame(int slot, int frameIndex) {
+        if ((slot != SLOT_BORN && slot != SLOT_IDLE) || frameIndex < 0) return null;
+        String atlas = nativeCurrentAtlasPlist(slot, frameIndex);
+        String frame = nativeCurrentFrameName(slot, frameIndex);
+        int mode = nativeCurrentMode(slot, frameIndex);
+        if (atlas == null || atlas.isEmpty() || frame == null || frame.isEmpty() || mode < 0) {
+            return null;
+        }
+        return new CurrentFrame(atlas, frame, mode, frameIndex);
+    }
+
     static String statusReport() {
         StringBuilder out = new StringBuilder();
         String nativeReport = nativeStatusReport();
@@ -91,6 +105,20 @@ final class SceneActionPairRuntimeLoader {
             this.atlasPlist = atlasPlist;
             this.frameName = frameName;
             this.mode = mode;
+        }
+    }
+
+    static final class CurrentFrame {
+        final String atlasPlist;
+        final String frameName;
+        final int mode;
+        final int frameIndex;
+
+        CurrentFrame(String atlasPlist, String frameName, int mode, int frameIndex) {
+            this.atlasPlist = atlasPlist;
+            this.frameName = frameName;
+            this.mode = mode;
+            this.frameIndex = frameIndex;
         }
     }
 
