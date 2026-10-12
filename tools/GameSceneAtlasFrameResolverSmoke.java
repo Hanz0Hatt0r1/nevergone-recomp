@@ -16,12 +16,15 @@ public final class GameSceneAtlasFrameResolverSmoke {
             String spriteSize,
             String sourceSize,
             boolean rotated) {
+        String colorRectXml = colorRect != null
+                ? "<key>spriteColorRect</key><string>" + colorRect + "</string>"
+                : "";
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                 "<plist version=\"1.0\"><dict>" +
                 "<key>frames</key><dict>" +
                 "<key>" + frameName + "</key><dict>" +
                 "<key>textureRect</key><string>" + textureRect + "</string>" +
-                "<key>spriteColorRect</key><string>" + colorRect + "</string>" +
+                colorRectXml +
                 "<key>spriteOffset</key><string>" + offset + "</string>" +
                 "<key>spriteSize</key><string>" + spriteSize + "</string>" +
                 "<key>spriteSourceSize</key><string>" + sourceSize + "</string>" +
@@ -55,7 +58,7 @@ public final class GameSceneAtlasFrameResolverSmoke {
                             "hero_idle.png",
                             "<string>hero_alias.png</string>",
                             "{{10,20},{30,40}}",
-                            "{{3,4},{30,40}}",
+                            "{{15,15},{30,40}}",
                             "{-2,5}",
                             "{30,40}",
                             "{64,80}",
@@ -73,7 +76,9 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert exact.canonicalName.equals("hero_idle.png");
             assert exact.textureX == 10 && exact.textureY == 20;
             assert exact.textureWidth == 30 && exact.textureHeight == 40;
-            assert exact.colorX == 3 && exact.colorY == 4;
+            // color geometry is derived from source size + sprite size + offset,
+            // matching the fields cocos2d-x 2.1.2 actually consumes.
+            assert exact.colorX == 15 && exact.colorY == 15;
             assert exact.colorWidth == 30 && exact.colorHeight == 40;
             assert exact.offsetX == -2 && exact.offsetY == 5;
             assert exact.spriteWidth == 30 && exact.spriteHeight == 40;
@@ -92,27 +97,112 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert oneShot != null;
             assert oneShot.canonicalName.equals("hero_idle.png");
 
-            // Duplicate membership across preloaded atlases is ambiguous at the
-            // clean-room boundary and must fail closed instead of inventing an
-            // overwrite/priority rule. Prepared lookup preserves that contract.
+            // cocos2d-x 2.1.2 keeps the first canonical frame loaded under a
+            // duplicate key and skips the later frame before processing its
+            // aliases. Match that cache precedence exactly.
             GameSceneAtlasResolver.Atlas duplicate = writeAtlas(
                     root,
                     "gamescene/gs_actions/res/b",
                     plist(
-                            "hero_idle.png", "", "{{0,0},{1,1}}", "{{0,0},{1,1}}",
+                            "hero_idle.png", "<string>duplicate_alias.png</string>",
+                            "{{0,0},{1,1}}", "{{0,0},{1,1}}",
                             "{0,0}", "{1,1}", "{1,1}", false));
             GameSceneAtlasFrameResolver.Prepared duplicatePrepared =
                     GameSceneAtlasFrameResolver.prepare(root, Arrays.asList(atlas, duplicate));
             assert duplicatePrepared != null;
-            assert duplicatePrepared.resolve("hero_idle.png") == null;
+            GameSceneAtlasFrameResolver.Frame duplicateWinner =
+                    duplicatePrepared.resolve("hero_idle.png");
+            assert duplicateWinner != null;
+            assert duplicateWinner.atlasIndex == 0;
+            assert duplicateWinner.textureX == 10;
+            assert duplicatePrepared.resolve("duplicate_alias.png") == null;
 
-            // Reject malformed trim geometry that escapes the declared source.
+            // Aliases are different in the shipped cache: accepted later frames
+            // overwrite an earlier alias mapping even though canonical frame
+            // duplicates themselves never overwrite.
+            GameSceneAtlasResolver.Atlas aliasOverride = writeAtlas(
+                    root,
+                    "gamescene/gs_actions/res/d",
+                    plist(
+                            "hero_second.png", "<string>hero_alias.png</string>",
+                            "{{1,2},{3,4}}", "{{0,0},{3,4}}",
+                            "{0,0}", "{3,4}", "{3,4}", false));
+            GameSceneAtlasFrameResolver.Prepared aliasPrepared =
+                    GameSceneAtlasFrameResolver.prepare(root, Arrays.asList(atlas, aliasOverride));
+            assert aliasPrepared != null;
+            GameSceneAtlasFrameResolver.Frame aliasWinner =
+                    aliasPrepared.resolve("hero_alias.png");
+            assert aliasWinner != null;
+            assert aliasWinner.atlasIndex == 1;
+            assert aliasWinner.canonicalName.equals("hero_second.png");
+
+            // A real canonical name always wins lookup before the alias map.
+            GameSceneAtlasResolver.Atlas canonicalOverride = writeAtlas(
+                    root,
+                    "gamescene/gs_actions/res/e",
+                    plist(
+                            "hero_alias.png", "",
+                            "{{5,6},{7,8}}", "{{0,0},{7,8}}",
+                            "{0,0}", "{7,8}", "{7,8}", false));
+            GameSceneAtlasFrameResolver.Prepared canonicalPrepared =
+                    GameSceneAtlasFrameResolver.prepare(
+                            root, Arrays.asList(atlas, aliasOverride, canonicalOverride));
+            assert canonicalPrepared != null;
+            GameSceneAtlasFrameResolver.Frame canonicalWinner =
+                    canonicalPrepared.resolve("hero_alias.png");
+            assert canonicalWinner != null;
+            assert canonicalWinner.atlasIndex == 2;
+            assert canonicalWinner.canonicalName.equals("hero_alias.png");
+
+            // spriteColorRect is not consumed by the original format-3 loader.
+            // A valid player/action plist may omit it entirely; derive the trim
+            // from the four authoritative geometry fields instead.
+            GameSceneAtlasResolver.Atlas noColorRect = writeAtlas(
+                    root,
+                    "player/Player01_Res/no-color",
+                    plist(
+                            "player_frame.png", "",
+                            "{{20,30},{12,20}}", null,
+                            "{2,-3}", "{12,20}", "{20,30}", false));
+            GameSceneAtlasFrameResolver.Prepared noColorPrepared =
+                    GameSceneAtlasFrameResolver.prepare(
+                            root, Collections.singletonList(noColorRect));
+            assert noColorPrepared != null;
+            GameSceneAtlasFrameResolver.Frame noColor =
+                    noColorPrepared.resolve("player_frame.png");
+            assert noColor != null;
+            assert noColor.colorX == 6;
+            assert noColor.colorY == 8;
+            assert noColor.colorWidth == 12;
+            assert noColor.colorHeight == 20;
+
+            // Even if an exporter writes a redundant spriteColorRect that does
+            // not match, original cocos2d-x ignores it. The clean resolver must
+            // likewise use the authoritative size/offset geometry.
+            GameSceneAtlasResolver.Atlas ignoredColorRect = writeAtlas(
+                    root,
+                    "player/Player01_Res/ignored-color",
+                    plist(
+                            "ignored_color.png", "",
+                            "{{0,0},{4,6}}", "{{99,99},{1,1}}",
+                            "{1,2}", "{4,6}", "{10,12}", false));
+            GameSceneAtlasFrameResolver.Prepared ignoredColorPrepared =
+                    GameSceneAtlasFrameResolver.prepare(
+                            root, Collections.singletonList(ignoredColorRect));
+            assert ignoredColorPrepared != null;
+            GameSceneAtlasFrameResolver.Frame ignoredColor =
+                    ignoredColorPrepared.resolve("ignored_color.png");
+            assert ignoredColor != null;
+            assert ignoredColor.colorX == 4;
+            assert ignoredColor.colorY == 1;
+
+            // Reject authoritative trim geometry that escapes the source.
             GameSceneAtlasResolver.Atlas malformed = writeAtlas(
                     root,
                     "gamescene/gs_actions/res/c",
                     plist(
-                            "bad.png", "", "{{0,0},{8,8}}", "{{7,7},{8,8}}",
-                            "{0,0}", "{8,8}", "{10,10}", false));
+                            "bad.png", "", "{{0,0},{8,8}}", null,
+                            "{7,0}", "{8,8}", "{10,10}", false));
             GameSceneAtlasFrameResolver.Prepared malformedPrepared =
                     GameSceneAtlasFrameResolver.prepare(
                             root, Collections.singletonList(malformed));
