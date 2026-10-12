@@ -158,3 +158,15 @@ Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativeIsPlayerBodyAt(
     const auto* request = request_at(request_index);
     return request != nullptr && request->player_body ? JNI_TRUE : JNI_FALSE;
 }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativePlayerAtlasPlistAt(
+        JNIEnv* env, jclass, jint request_index) {
+    if (env == nullptr) return nullptr;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const auto* request = request_at(request_index);
+    if (request == nullptr || !request->player_body || request->player_atlas_plist.empty()) {
+        return nullptr;
+    }
+    return env->NewStringUTF(request->player_atlas_plist.c_str());
+}
