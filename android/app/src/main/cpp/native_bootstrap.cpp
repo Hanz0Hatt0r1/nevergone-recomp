@@ -21,6 +21,7 @@
 #include "game_levels_enter_transition.h"
 #include "game_scene_direct_renderer.h"
 #include "game_scene_player_joystick_input.h"
+#include "game_scene_player_spawn_state.h"
 #include "initial_ui_transition.h"
 #include "login_lua_session.h"
 #include "lua_runtime.h"
@@ -177,6 +178,7 @@ std::string bootstrap_info() {
     out << nevergone::game_levels_asset_probe::status_report(runtime.files_dir);
     out << nevergone::game_levels_enter_transition::status_report();
     out << nevergone::game_scene_direct_renderer::status_report();
+    out << nevergone::game_scene_player_spawn_state::status_report();
     out << nevergone::game_scene_player_joystick_input::status_report();
     out << nevergone::player_control_runtime_state::status_report();
     out << nevergone::startup::smoke_test_report();
