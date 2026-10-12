@@ -1,0 +1,33 @@
+name: MeActions combo boundaries
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/me_actions_combo_boundaries.*'
+      - 'android/app/src/main/cpp/enemy_actions_wbg_combo_section.*'
+      - 'tools/me_actions_combo_boundaries_smoke.cpp'
+      - '.github/workflows/me-actions-combo-boundaries.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/me_actions_combo_boundaries.*'
+      - 'android/app/src/main/cpp/enemy_actions_wbg_combo_section.*'
+      - 'tools/me_actions_combo_boundaries_smoke.cpp'
+      - '.github/workflows/me-actions-combo-boundaries.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run MeActions combo-boundary smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/me_actions_combo_boundaries_smoke.cpp \
+            android/app/src/main/cpp/me_actions_combo_boundaries.cpp \
+            android/app/src/main/cpp/enemy_actions_wbg_combo_section.cpp \
+            android/app/src/main/cpp/enemy_actions_layout_evidence.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            -o /tmp/me_actions_combo_boundaries_smoke
+          /tmp/me_actions_combo_boundaries_smoke
