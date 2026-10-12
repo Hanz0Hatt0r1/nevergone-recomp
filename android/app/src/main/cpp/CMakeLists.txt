@@ -106,6 +106,8 @@ add_library(nevergone_recomp SHARED
     me_actions_playback_timing.cpp
     meplayer_function_gate_contract.cpp
     meplayer_live_action_state.cpp
+    minimal_runtime_save.cpp
+    minimal_runtime_save_runtime.cpp
     native_binding_registry.cpp
     native_bootstrap.cpp
     offline_startup_flow.cpp
