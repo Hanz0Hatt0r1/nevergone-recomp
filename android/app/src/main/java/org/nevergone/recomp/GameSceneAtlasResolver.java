@@ -190,7 +190,12 @@ final class GameSceneAtlasResolver {
         String textureName = readDirectMetadataTextureFileName(plist);
         File candidate;
         if (textureName != null && !textureName.isEmpty()) {
-            if (!isSafeResource(textureName)) return null;
+            // cocos2d-x 2.1.2 uses fullPathFromRelativeFile(textureName,
+            // plistPath): it joins the metadata value to the plist directory
+            // without lexically rejecting ".." components. Preserve that
+            // relative-path behavior, but canonicalize before accepting it so
+            // imported metadata can never escape the project-owned asset root.
+            if (!isSafeRelativeTextureName(textureName)) return null;
             candidate = new File(plist.getParentFile(), textureName).getCanonicalFile();
         } else {
             String name = plist.getName();
@@ -244,6 +249,12 @@ final class GameSceneAtlasResolver {
             if (component.isEmpty() || ".".equals(component) || "..".equals(component)) return false;
         }
         return true;
+    }
+
+    private static boolean isSafeRelativeTextureName(String value) {
+        return value != null && !value.isEmpty() &&
+                !value.startsWith("/") && !value.startsWith("\\") &&
+                value.indexOf('\0') < 0 && value.indexOf('\\') < 0;
     }
 
     private static String relativePath(File root, File file) {
