@@ -49,16 +49,18 @@ void sync_runtime_to_spawn(const nevergone::game_scene_player_spawn_state::Snaps
             player_index,
             tick);
 
-    // Persistence cannot choose a route, scene or player. It is consulted only
-    // after the normal reconstructed spawn/career path is ready and applies a
-    // saved offset only when all three identities match.
     const std::string& files_dir = nevergone::startup::config().files_dir;
     (void)nevergone::minimal_runtime_save_runtime::restore_for_spawn(
             files_dir,
             spawn,
             player_index,
             tick);
-    (void)nevergone::minimal_runtime_save_runtime::autosave_if_due(files_dir, tick);
+    const auto motion = nevergone::game_scene_player_motion_state::snapshot();
+    (void)nevergone::minimal_runtime_save_runtime::autosave_if_due(
+            files_dir,
+            spawn,
+            motion,
+            tick);
 
     const auto action_input = nevergone::game_scene_action_input::snapshot();
     (void)nevergone::meplayer_live_action_state::sync_spawn(
