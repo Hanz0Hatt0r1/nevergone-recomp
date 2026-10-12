@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -91,7 +93,7 @@ final class GameSceneDirectAssetStager {
         int currentRequestIndex = -1;
         int currentRequestKind = -1;
         int stagedCount = 0;
-        Map<String, Bitmap> atlasBitmaps = new HashMap<>();
+        Map<String, Bitmap> atlasBitmaps = new LinkedHashMap<>(16, 0.75f, true);
         Map<String, GameSceneAtlasFrameResolver.Prepared> playerFrameResolvers = new HashMap<>();
         try {
             File canonicalRoot = assetRoot.getCanonicalFile();
@@ -367,10 +369,45 @@ final class GameSceneDirectAssetStager {
                     long atlasPixels = (long) atlas.getWidth() * (long) atlas.getHeight();
                     if (atlas.getWidth() <= 0 || atlas.getHeight() <= 0 ||
                             atlasPixels <= 0L || atlasPixels > MAX_PIXELS_PER_ASSET ||
-                            cachedAtlasPixels + atlasPixels > MAX_CACHED_ATLAS_PIXELS) {
+                            atlasPixels > MAX_CACHED_ATLAS_PIXELS) {
                         atlas.recycle();
                         return reject(
                                 "atlas-pixel-bounds-failed",
+                                revision,
+                                count,
+                                requestIndex,
+                                kind,
+                                stagedCount);
+                    }
+
+                    // This cache exists only to avoid repeated BitmapFactory
+                    // work while one request revision is copied into the native
+                    // pixel store. Once a frame has been copied, retaining every
+                    // decoded atlas is not required for transaction correctness.
+                    // Evict least-recently-used Bitmaps until the next atlas fits
+                    // the bounded decode budget; an evicted sheet can be decoded
+                    // again if a later frame refers to it.
+                    while (cachedAtlasPixels + atlasPixels > MAX_CACHED_ATLAS_PIXELS &&
+                            !atlasBitmaps.isEmpty()) {
+                        Iterator<Map.Entry<String, Bitmap>> iterator =
+                                atlasBitmaps.entrySet().iterator();
+                        Map.Entry<String, Bitmap> eldest = iterator.next();
+                        Bitmap evicted = eldest.getValue();
+                        iterator.remove();
+                        if (evicted != null && !evicted.isRecycled()) {
+                            long evictedPixels =
+                                    (long) evicted.getWidth() * (long) evicted.getHeight();
+                            cachedAtlasPixels = evictedPixels > 0L &&
+                                    evictedPixels <= cachedAtlasPixels
+                                    ? cachedAtlasPixels - evictedPixels
+                                    : 0L;
+                            evicted.recycle();
+                        }
+                    }
+                    if (cachedAtlasPixels + atlasPixels > MAX_CACHED_ATLAS_PIXELS) {
+                        atlas.recycle();
+                        return reject(
+                                "atlas-cache-budget-failed",
                                 revision,
                                 count,
                                 requestIndex,
