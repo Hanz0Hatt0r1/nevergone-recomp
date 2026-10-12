@@ -13,6 +13,7 @@
 #include "game_scene_player_motion_state.h"
 #include "game_scene_player_spawn_state.h"
 #include "meplayer_live_action_state.h"
+#include "minimal_runtime_save_runtime.h"
 #include "player_action_document_store.h"
 #include "player_offline_career.h"
 #include "startup_contract.h"
@@ -40,10 +41,25 @@ void sync_runtime_to_spawn(const nevergone::game_scene_player_spawn_state::Snaps
         nevergone::meplayer_live_action_state::reset();
         return;
     }
+
+    const std::uint64_t tick = nevergone::game_clock::tick_count();
+    const std::uint32_t player_index = static_cast<std::uint32_t>(career);
     (void)nevergone::game_scene_player_motion_state::sync_spawn(
             spawn.generation,
-            static_cast<std::uint32_t>(career),
-            nevergone::game_clock::tick_count());
+            player_index,
+            tick);
+
+    // Persistence cannot choose a route, scene or player. It is consulted only
+    // after the normal reconstructed spawn/career path is ready and applies a
+    // saved offset only when all three identities match.
+    const std::string& files_dir = nevergone::startup::config().files_dir;
+    (void)nevergone::minimal_runtime_save_runtime::restore_for_spawn(
+            files_dir,
+            spawn,
+            player_index,
+            tick);
+    (void)nevergone::minimal_runtime_save_runtime::autosave_if_due(files_dir, tick);
+
     const auto action_input = nevergone::game_scene_action_input::snapshot();
     (void)nevergone::meplayer_live_action_state::sync_spawn(
             spawn.generation,
@@ -81,6 +97,7 @@ std::string runtime_status_report() {
     out << "document primary records: " << document.primary_record_count << "\n";
     out << nevergone::controls_function_state_runtime::status_report();
     out << nevergone::meplayer_live_action_state::status_report();
+    out << nevergone::minimal_runtime_save_runtime::status_report();
     return out.str();
 }
 
