@@ -58,9 +58,18 @@ def diagnostics(
     player_index: int = 1,
     game_tick: int = 100,
     steps: int = 10,
+    normal_steps: int | None = None,
+    fast_steps: int = 0,
+    last_action_state: int = 0,
+    direction_combo_state: int = 0,
+    direction_combo_released: bool = True,
+    movement_action_state: int = 0,
+    fast_reactivations: int = 0,
     offset_x: float = 0.0,
     offset_y: float = 0.0,
 ) -> str:
+    if normal_steps is None:
+        normal_steps = steps - fast_steps
     return SCENE + f"""GameScene player joystick
 captured: false
 pointer id: -1
@@ -69,6 +78,10 @@ accepted moves: {moves}
 design point: 204,173
 power: 0
 angle degrees: 0
+direction combo state: 0x{direction_combo_state:x}
+direction combo released: {'true' if direction_combo_released else 'false'}
+movement action state: 0x{movement_action_state:x}
+fast reactivations: {fast_reactivations}
 GameScene player motion
 ready: {'true' if motion_ready else 'false'}
 generation: {motion_generation}
@@ -76,6 +89,9 @@ spawn generation: {spawn_generation}
 player index: {player_index}
 last game tick: {game_tick}
 applied steps: {steps}
+normal steps: {normal_steps}
+fast steps: {fast_steps}
+last action state: 0x{last_action_state:x}
 offset: {offset_x},{offset_y}
 Player control runtime
 generation: {generation}
@@ -111,14 +127,22 @@ def main() -> int:
         motion_generation=21,
         game_tick=105,
         steps=15,
+        direction_combo_state=0x13,
         offset_x=40.0,
     )
     parsed_before, parsed_after = module.validate_transition(before, after)
     assert parsed_before.joystick.accepted_begins == 4
     assert parsed_after.joystick.accepted_moves == 11
+    assert parsed_after.joystick.direction_combo_state == 0x13
+    assert parsed_after.joystick.direction_combo_released
+    assert parsed_after.joystick.movement_action_state == 0
+    assert parsed_after.joystick.fast_reactivations == 0
     assert parsed_after.control.primary_state == "0x13"
     assert not parsed_after.control.flip_x
     assert parsed_after.motion.applied_steps == 15
+    assert parsed_after.motion.normal_steps == 15
+    assert parsed_after.motion.fast_steps == 0
+    assert parsed_after.motion.last_action_state == 0
     assert parsed_after.motion.offset_x == 40.0
     assert module.choose_direction(before) == "right"
     assert module.choose_direction(after) == "left"
@@ -132,6 +156,7 @@ def main() -> int:
         motion_generation=21,
         game_tick=105,
         steps=15,
+        direction_combo_state=0x13,
         offset_x=40.0,
     )
     after_left = diagnostics(
@@ -143,9 +168,35 @@ def main() -> int:
         motion_generation=22,
         game_tick=110,
         steps=20,
+        direction_combo_state=0x12,
         offset_x=0.0,
     )
     module.validate_transition(before_left, after_left)
+
+    # A fast-move diagnostic shape is parseable even though this validator only
+    # requires the broader movement/facing transition contract.
+    fast = diagnostics(
+        begins=7,
+        moves=16,
+        generation=10,
+        state="0x13",
+        flip=False,
+        motion_generation=23,
+        game_tick=115,
+        steps=21,
+        normal_steps=20,
+        fast_steps=1,
+        last_action_state=1,
+        direction_combo_state=0x11,
+        movement_action_state=1,
+        fast_reactivations=1,
+        offset_x=60.0,
+    )
+    parsed_fast = module.parse_snapshot(fast)
+    assert parsed_fast.motion.fast_steps == 1
+    assert parsed_fast.motion.last_action_state == 1
+    assert parsed_fast.joystick.direction_combo_state == 0x11
+    assert parsed_fast.joystick.fast_reactivations == 1
 
     expect_invalid(before, diagnostics(
         begins=4, moves=11, generation=8, state="0x13", flip=False,
