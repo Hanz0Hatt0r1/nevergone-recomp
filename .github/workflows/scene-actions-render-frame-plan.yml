@@ -1,0 +1,31 @@
+name: SceneActions render frame plan
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_render_frame_plan.h'
+      - 'android/app/src/main/cpp/scene_actions_primary_frame_plan.h'
+      - 'android/app/src/main/cpp/scene_action_initial_frame_pixel_store.*'
+      - 'tools/scene_actions_render_frame_plan_smoke.cpp'
+      - '.github/workflows/scene-actions-render-frame-plan.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_render_frame_plan.h'
+      - 'android/app/src/main/cpp/scene_actions_primary_frame_plan.h'
+      - 'android/app/src/main/cpp/scene_action_initial_frame_pixel_store.*'
+      - 'tools/scene_actions_render_frame_plan_smoke.cpp'
+      - '.github/workflows/scene-actions-render-frame-plan.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run SceneActions render-frame smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/scene_actions_render_frame_plan_smoke.cpp \
+            -o /tmp/scene_actions_render_frame_plan_smoke
+          /tmp/scene_actions_render_frame_plan_smoke
