@@ -161,9 +161,11 @@ bool draw() {
         return false;
     }
 
-    // Resolve and build every visible static type-0 sprite before altering the
-    // framebuffer. Hidden fallback entries retain request identity in the same
-    // atomic revision but do not require a GLES texture or geometry.
+    // Resolve and build every static type-0 sprite before altering the
+    // framebuffer. Direct-file and spriteFrameByName resources share one
+    // transactional request revision, so a new scene cannot be partially
+    // rendered with stale texture handles or atlas metadata. Hidden fallback
+    // entries retain request identity in that revision but have no draw.
     std::vector<PreparedSprite> prepared;
     prepared.reserve(order.size());
     for (std::size_t index = 0; index < order.size(); ++index) {
@@ -212,9 +214,15 @@ bool draw() {
 
     // nativeOnDrawFrame() has already rendered the generic entered-game phase.
     // A complete live GameScene revision replaces that fallback atomically.
+    // Attribute only errors produced by this renderer: earlier frame layers may
+    // have left an error flag in the shared GLES context, and treating that as
+    // our own failure would make P7 diagnostics nondeterministic.
     clear_gl_errors();
     glClear(GL_COLOR_BUFFER_BIT);
     glEnable(GL_BLEND);
+    // The shipped CCSprite::updateBlendFunc() uses GL_ONE for premultiplied
+    // textures. game_scene_direct_texture_gl reproduces the original PNG
+    // channel * (alpha + 1) >> 8 transform before every project-owned upload.
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(g_program);
     glActiveTexture(GL_TEXTURE0);
@@ -235,6 +243,10 @@ bool draw() {
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
 
+    // P7 evidence calls these "drawn frames". Do not promote a submission to a
+    // successful frame when GLES rejected any command in this renderer. Texture
+    // upload already fails closed on glGetError(); the final draw path must obey
+    // the same contract.
     if (glGetError() != GL_NO_ERROR) {
         return false;
     }
