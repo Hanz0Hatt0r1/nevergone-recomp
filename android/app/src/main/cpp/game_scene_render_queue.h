@@ -74,6 +74,15 @@ inline Queue build(const game_scene_construction_plan::ScenePlan& plan) {
             command.transform = *object.type0_sprite_transform;
             command.layer_camera_factor = layer.first_float;
 
+            // The original still allocates some placeholder sprites before
+            // calling setVisible(false). They have no draw submission and do not
+            // need a texture in the project-owned direct render queue. Keeping
+            // visibility on the resource selection preserves that recovered
+            // state without turning a hidden placeholder into a visible quad.
+            if (!command.resource.initially_visible) {
+                continue;
+            }
+
             if (command.resource.kind == game_scene_type0_resource::Kind::kDirectFile) {
                 command.direct_asset_relative_path =
                         game_scene_direct_asset::imported_relative_path(command.resource);
