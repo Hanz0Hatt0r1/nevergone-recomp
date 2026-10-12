@@ -1,0 +1,21 @@
+name: TrapActions compact block
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run TrapActions compact smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            android/app/src/main/cpp/trap_actions_compact.cpp \
+            tools/trap_actions_compact_smoke.cpp \
+            -o /tmp/trap_actions_compact_smoke
+          /tmp/trap_actions_compact_smoke
