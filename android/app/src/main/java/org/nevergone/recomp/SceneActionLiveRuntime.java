@@ -23,13 +23,13 @@ final class SceneActionLiveRuntime {
 
     // Native scene_actions_live_runtime::StartStatus ordinals.
     private static final int START_STARTED = 0;
-    private static final int START_ALREADY_STARTED = 1;
 
     private SceneActionLiveRuntime() {}
 
     private static native int nativeStartCurrentScene(int variant);
     private static native int nativeTick(int slot, float dtSeconds);
     private static native int nativeCurrentFrameIndex(int slot);
+    private static native boolean nativeReadyToSubmit(int slot);
     private static native int nativeSubmit(int slot);
     private static native int nativeCurrentVariant();
     private static native boolean nativeStarted();
@@ -41,20 +41,36 @@ final class SceneActionLiveRuntime {
      */
     static boolean start(File assetRoot, int variant) {
         if (assetRoot == null || variant < 1 || variant > 4) return false;
+
+        // Never mutate the retained document/pixel stores underneath an active
+        // controller. Repeating the same explicit trigger is idempotent; asking
+        // for another variant requires reset/recreated scene lifetime first.
+        if (nativeStarted()) return nativeCurrentVariant() == variant;
+
         if (!SceneActionVisualRuntime.stageVariant(assetRoot, variant)) return false;
 
         int status = nativeStartCurrentScene(variant);
         if (status != START_STARTED) {
-            if (status != START_ALREADY_STARTED || !nativeStarted() ||
-                    nativeCurrentVariant() != variant) {
-                return false;
-            }
+            SceneActionVisualRuntime.invalidate();
+            return false;
+        }
+
+        // Validate both renderer-ready frames before mutating either compositor
+        // submission. This makes malformed initial asset pairs fail as one unit.
+        if (!nativeReadyToSubmit(SLOT_BORN) || !nativeReadyToSubmit(SLOT_IDLE)) {
+            nativeReset();
+            SceneActionVisualRuntime.invalidate();
+            return false;
         }
 
         // Initial pixels were staged transactionally by SceneActionVisualRuntime.
         // Submit both retained children immediately, matching play()->updateData().
-        if (nativeSubmit(SLOT_BORN) != SUBMIT_SUBMITTED) return false;
-        if (nativeSubmit(SLOT_IDLE) != SUBMIT_SUBMITTED) return false;
+        if (nativeSubmit(SLOT_BORN) != SUBMIT_SUBMITTED ||
+                nativeSubmit(SLOT_IDLE) != SUBMIT_SUBMITTED) {
+            nativeReset();
+            SceneActionVisualRuntime.invalidate();
+            return false;
+        }
         return true;
     }
 
@@ -82,6 +98,7 @@ final class SceneActionLiveRuntime {
                 assetRoot, slot, variant, frameIndex)) {
             return STEP_STAGE_FAILED;
         }
+        if (!nativeReadyToSubmit(slot)) return STEP_SUBMIT_FAILED;
         if (nativeSubmit(slot) != SUBMIT_SUBMITTED) return STEP_SUBMIT_FAILED;
         return tick;
     }
