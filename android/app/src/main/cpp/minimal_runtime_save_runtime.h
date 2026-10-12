@@ -16,19 +16,20 @@ struct Snapshot {
     std::uint64_t restore_count = 0;
     std::uint64_t load_failure_count = 0;
     std::uint64_t write_failure_count = 0;
+    std::uint64_t last_saved_motion_generation = 0;
+    std::uint64_t last_save_game_tick = 0;
     minimal_runtime_save::Record record;
 };
 
 void reset_session();
-
-// Captures only an already-ready first-scene player/motion cursor. This does not
-// serialize the entire original game state and intentionally writes the
-// project-owned sidecar format.
 bool capture_current(const std::string& files_dir);
 
-// Loads the sidecar once per process and applies it only after the same scene
-// identity and player index have been reconstructed normally. A mismatch stays
-// pending instead of changing route/scene/player selection.
+// Render-thread autosave. It ignores an unchanged or never-moved cursor and
+// writes the first changed motion immediately, then at most once per 35 game
+// ticks. This makes the minimal restart slice independent of receiving an
+// Android pause callback before process death.
+bool autosave_if_due(const std::string& files_dir, std::uint64_t game_tick);
+
 bool restore_for_spawn(
     const std::string& files_dir,
     const game_scene_player_spawn_state::Snapshot& spawn,
