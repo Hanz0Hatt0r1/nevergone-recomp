@@ -17,12 +17,12 @@ bool finite_transform(const game_scene_construction_plan::Type0SpriteTransform& 
         std::isfinite(transform.scale_y);
 }
 
-}  // namespace
-
-bool build_quad(
+bool build_quad_with_local_center(
         const game_scene_construction_plan::Type0SpriteTransform& transform,
         int texture_width,
         int texture_height,
+        float local_center_x,
+        float local_center_y,
         int surface_width,
         int surface_height,
         Quad* out) {
@@ -30,14 +30,25 @@ bool build_quad(
     *out = {};
     if (texture_width <= 0 || texture_height <= 0 ||
         surface_width <= 0 || surface_height <= 0 ||
-        !finite_transform(transform)) {
+        !finite_transform(transform) ||
+        !std::isfinite(local_center_x) || !std::isfinite(local_center_y)) {
         return false;
     }
 
     const float half_w = static_cast<float>(texture_width) * 0.5f;
     const float half_h = static_cast<float>(texture_height) * 0.5f;
-    const float local_x[4] = {-half_w, -half_w, half_w, half_w};
-    const float local_y[4] = {half_h, -half_h, half_h, -half_h};
+    const float local_x[4] = {
+        local_center_x - half_w,
+        local_center_x - half_w,
+        local_center_x + half_w,
+        local_center_x + half_w,
+    };
+    const float local_y[4] = {
+        local_center_y + half_h,
+        local_center_y - half_h,
+        local_center_y + half_h,
+        local_center_y - half_h,
+    };
 
     // Cocos CCNode::nodeToParentTransform() multiplies positive rotation by
     // -pi/180. Reproduce that clockwise convention here.
@@ -72,6 +83,46 @@ bool build_quad(
         right_u, 1.0f,
     };
     return true;
+}
+
+}  // namespace
+
+bool build_quad(
+        const game_scene_construction_plan::Type0SpriteTransform& transform,
+        int texture_width,
+        int texture_height,
+        int surface_width,
+        int surface_height,
+        Quad* out) {
+    return build_quad_with_local_center(
+            transform,
+            texture_width,
+            texture_height,
+            0.0f,
+            0.0f,
+            surface_width,
+            surface_height,
+            out);
+}
+
+bool build_frame_quad(
+        const game_scene_construction_plan::Type0SpriteTransform& transform,
+        int texture_width,
+        int texture_height,
+        int frame_offset_x,
+        int frame_offset_y,
+        int surface_width,
+        int surface_height,
+        Quad* out) {
+    return build_quad_with_local_center(
+            transform,
+            texture_width,
+            texture_height,
+            static_cast<float>(frame_offset_x),
+            static_cast<float>(frame_offset_y),
+            surface_width,
+            surface_height,
+            out);
 }
 
 bool build_player_quad(
