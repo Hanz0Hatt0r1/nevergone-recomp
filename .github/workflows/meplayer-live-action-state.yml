@@ -1,0 +1,34 @@
+name: MEPlayer live action state
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/meplayer_live_action_state.*'
+      - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/meplayer_live_action_state_smoke.cpp'
+      - '.github/workflows/meplayer-live-action-state.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/meplayer_live_action_state.*'
+      - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
+      - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionRuntimeLoader.java'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/meplayer_live_action_state_smoke.cpp'
+      - '.github/workflows/meplayer-live-action-state.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run live MEPlayer action-state smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/meplayer_live_action_state_smoke.cpp \
+            android/app/src/main/cpp/meplayer_live_action_state.cpp \
+            -o /tmp/meplayer_live_action_state_smoke
+          /tmp/meplayer_live_action_state_smoke
