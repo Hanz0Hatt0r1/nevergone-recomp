@@ -18,6 +18,7 @@ int main() {
     const auto path = asset::imported_relative_path(direct);
     assert(path.has_value());
     assert(*path == "gamescene/gs_res_image_file/gktianchong.png");
+    assert(direct.initially_visible);
 
     const resource::Selection empty{resource::Kind::kDirectFile, "empty.png"};
     const auto empty_path = asset::imported_relative_path(empty);
@@ -27,6 +28,7 @@ int main() {
     const auto gkanniu = resource::select("gkanniu2.png");
     assert(gkanniu.kind == resource::Kind::kDirectFile);
     assert(gkanniu.resource_name == "empty.png");
+    assert(!gkanniu.initially_visible);
     const auto gkanniu_path = asset::imported_relative_path(gkanniu);
     assert(gkanniu_path.has_value());
     assert(*gkanniu_path == "empty.png");
