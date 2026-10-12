@@ -10,6 +10,7 @@
 namespace nevergone::minimal_runtime_save_runtime {
 namespace {
 
+constexpr std::uint64_t kAutosaveIntervalTicks = 35u;
 std::mutex g_mutex;
 Snapshot g_snapshot{};
 
@@ -57,10 +58,28 @@ bool capture_current(const std::string& files_dir) {
         return false;
     }
     ++g_snapshot.capture_count;
-    // Keep the just-written record visible for diagnostics. Do not mark it as a
-    // pending restore in this process; a process restart recreates this state and
-    // will load it through restore_for_spawn().
     g_snapshot.record = record;
+    return true;
+}
+
+bool autosave_if_due(const std::string& files_dir, std::uint64_t game_tick) {
+    const auto motion = game_scene_player_motion_state::snapshot();
+    if (!motion.ready || motion.applied_steps == 0u) return false;
+
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        if (motion.generation == g_snapshot.last_saved_motion_generation) return true;
+        if (g_snapshot.capture_count != 0u && game_tick >= g_snapshot.last_save_game_tick &&
+            game_tick - g_snapshot.last_save_game_tick < kAutosaveIntervalTicks) {
+            return true;
+        }
+    }
+
+    if (!capture_current(files_dir)) return false;
+
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_snapshot.last_saved_motion_generation = motion.generation;
+    g_snapshot.last_save_game_tick = game_tick;
     return true;
 }
 
@@ -87,9 +106,6 @@ bool restore_for_spawn(
         pending = g_snapshot.record;
     }
 
-    // A valid save from another scene/player is retained but cannot force the
-    // reconstructed runtime into that identity. It can be applied later only if
-    // normal game flow reaches the matching scene/player.
     if (!same_scene(pending, spawn, player_index)) return false;
 
     if (!game_scene_player_motion_state::restore_offset(
@@ -101,10 +117,13 @@ bool restore_for_spawn(
         return false;
     }
 
+    const auto restored_motion = game_scene_player_motion_state::snapshot();
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_snapshot.restored) return true;
     g_snapshot.restored = true;
     g_snapshot.pending_record = false;
+    g_snapshot.last_saved_motion_generation = restored_motion.generation;
+    g_snapshot.last_save_game_tick = game_tick;
     ++g_snapshot.restore_count;
     return true;
 }
@@ -125,6 +144,8 @@ std::string status_report() {
     out << "restores: " << state.restore_count << "\n";
     out << "load failures: " << state.load_failure_count << "\n";
     out << "write failures: " << state.write_failure_count << "\n";
+    out << "last saved motion generation: " << state.last_saved_motion_generation << "\n";
+    out << "last save tick: " << state.last_save_game_tick << "\n";
     if (!state.record.scene_guid.empty()) {
         out << "scene: " << state.record.scene_index << " " << state.record.scene_guid << "\n";
         out << "player index: " << state.record.player_index << "\n";
