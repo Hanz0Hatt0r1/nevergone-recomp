@@ -1,0 +1,23 @@
+name: SceneActions initial frame
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_initial_frame.h'
+      - 'tools/scene_actions_initial_frame_smoke.cpp'
+      - '.github/workflows/scene-actions-initial-frame.yml'
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run SceneActions initial-frame smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/scene_actions_initial_frame_smoke.cpp \
+            -o /tmp/scene_actions_initial_frame_smoke
+          /tmp/scene_actions_initial_frame_smoke
