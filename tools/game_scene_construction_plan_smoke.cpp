@@ -44,6 +44,7 @@ int main() {
     const auto gkanniu = resource_ns::select("gkanniu2.png");
     assert(gkanniu.kind == resource_ns::Kind::kDirectFile);
     assert(gkanniu.resource_name == "empty.png");
+    assert(!gkanniu.initially_visible);
     assert(resource_ns::select("klhuo-1.png").kind == resource_ns::Kind::kSceneActionPair);
 
     SceneInstance scene;
@@ -88,6 +89,7 @@ int main() {
     assert(cached.type0_resource.has_value());
     assert(cached.type0_resource->kind == resource_ns::Kind::kSpriteFrameByName);
     assert(cached.type0_resource->resource_name == "background.png");
+    assert(cached.type0_resource->initially_visible);
     assert(cached.type0_sprite_transform.has_value());
     assert(cached.type0_sprite_transform->position_x == 10.0f);
     assert(cached.type0_sprite_transform->position_y == 20.0f);
@@ -101,12 +103,14 @@ int main() {
     assert(direct.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
     assert(direct.type0_resource->kind == resource_ns::Kind::kDirectFile);
     assert(direct.type0_resource->resource_name == "gktianchong.png");
+    assert(direct.type0_resource->initially_visible);
     assert(direct.type0_sprite_transform.has_value());
 
     const auto& hidden = plan.layers[0].objects[2];
     assert(hidden.construction_kind == plan_ns::ObjectConstructionKind::kType0SpriteBacked);
     assert(hidden.type0_resource->kind == resource_ns::Kind::kDirectFile);
     assert(hidden.type0_resource->resource_name == "empty.png");
+    assert(!hidden.type0_resource->initially_visible);
     assert(hidden.type0_sprite_transform.has_value());
 
     const auto& action_pair = plan.layers[0].objects[3];
