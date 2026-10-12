@@ -17,21 +17,10 @@ struct SpriteCommand {
     std::size_t source_layer_index = 0;
     std::size_t source_object_index = 0;
     game_scene_type0_resource::Selection resource;
-    // Present only for evidence-backed CCSprite::create(basename) resources.
-    // The path is relative to filesDir/assets, matching OriginalObbImporter.
     std::optional<std::string> direct_asset_relative_path;
     game_scene_construction_plan::Type0SpriteTransform transform;
-    // GameScene::loadingTex() copies the serialized layer first_float into
-    // GameSceneClassLayer +0x140. updateCameraTrack()/move() consumes it as the
-    // horizontal object-parent camera/parallax factor.
     float layer_camera_factor = 0.0f;
-    // Present only for the first MeActionsSystem body sprite. Its geometry is
-    // local to the MEPlayer node and includes a non-central anchor.
     std::optional<me_actions_initial_sprite_transform::Plan> player_body_transform;
-    // ActionFrameData +0x60 is the plist-like resource loaded by
-    // MeActionsSystem::initWithFile() before the +0x68 spriteFrameByName lookup.
-    // Keep it attached to the player body command so Android staging can
-    // resolve the exact atlas instead of scanning unrelated player defaults.
     std::optional<std::string> player_body_atlas_plist;
 };
 
@@ -73,6 +62,10 @@ inline Queue build(const game_scene_construction_plan::ScenePlan& plan) {
             command.resource = *object.type0_resource;
             command.transform = *object.type0_sprite_transform;
             command.layer_camera_factor = layer.first_float;
+
+            if (!command.resource.initially_visible) {
+                continue;
+            }
 
             if (command.resource.kind == game_scene_type0_resource::Kind::kDirectFile) {
                 command.direct_asset_relative_path =
