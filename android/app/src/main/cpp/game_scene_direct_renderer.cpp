@@ -280,6 +280,7 @@ bool draw() {
         if (texture.hidden) continue;
         if (texture.handle == 0 || texture.width <= 0 || texture.height <= 0) return false;
 
+        const auto animated = animation_sample(sprite_command_index, tick);
         game_scene_direct_geometry::Quad quad;
         const auto& command = queue->sprites[sprite_command_index];
         const bool geometry_ready = command.player_body_transform.has_value()
@@ -291,8 +292,9 @@ bool draw() {
                     surface_width,
                     surface_height,
                     &quad)
-            : game_scene_direct_geometry::build_quad(
+            : game_scene_direct_geometry::build_quad_with_skew_x(
                     command.transform,
+                    animated.skew_parameter,
                     texture.width,
                     texture.height,
                     surface_width,
@@ -300,7 +302,6 @@ bool draw() {
                     &quad);
         if (!geometry_ready) return false;
 
-        const auto animated = animation_sample(sprite_command_index, tick);
         min_opacity = std::min(min_opacity, animated.opacity);
         prepared.push_back({texture, quad, static_cast<float>(animated.opacity) / 255.0f});
     }
