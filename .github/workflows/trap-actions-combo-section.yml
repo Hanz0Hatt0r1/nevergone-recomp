@@ -1,0 +1,21 @@
+name: TrapActions combo section
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run TrapActions combo smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            android/app/src/main/cpp/trap_actions_combo_section.cpp \
+            tools/trap_actions_combo_section_smoke.cpp \
+            -o /tmp/trap_actions_combo_section_smoke
+          /tmp/trap_actions_combo_section_smoke
