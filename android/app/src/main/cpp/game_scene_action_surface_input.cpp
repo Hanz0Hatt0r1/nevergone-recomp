@@ -6,8 +6,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "game_scene_player_joystick_input.h"
-
 namespace nevergone::game_scene_action_surface_input {
 namespace {
 
@@ -18,6 +16,7 @@ constexpr int kActionCancel = 3;
 constexpr int kActionPointerDown = 5;
 constexpr int kActionPointerUp = 6;
 constexpr float kDesignWidth = 1136.0f;
+constexpr float kDesignHeight = 640.0f;
 
 std::mutex g_mutex;
 Snapshot g_snapshot;
@@ -30,13 +29,22 @@ bool map_surface(
         float surface_y,
         float* design_x,
         float* design_y) {
-    return game_scene_player_joystick_input::surface_to_design(
-        surface_width,
-        surface_height,
-        surface_x,
-        surface_y,
-        design_x,
-        design_y);
+    if (design_x == nullptr || design_y == nullptr ||
+        surface_width <= 0 || surface_height <= 0 ||
+        !std::isfinite(surface_x) || !std::isfinite(surface_y)) {
+        return false;
+    }
+    const float width = static_cast<float>(surface_width);
+    const float height = static_cast<float>(surface_height);
+    if (surface_x < 0.0f || surface_x > width ||
+        surface_y < 0.0f || surface_y > height) {
+        return false;
+    }
+
+    // Same Cocos design-space mapping used by the recovered joystick route.
+    *design_x = surface_x * kDesignWidth / width;
+    *design_y = kDesignHeight - surface_y * kDesignHeight / height;
+    return std::isfinite(*design_x) && std::isfinite(*design_y);
 }
 
 game_scene_action_input::Control classify_locked(float design_x, float design_y) {
