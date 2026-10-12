@@ -99,6 +99,11 @@ bool route_active() {
         game_levels_enter_transition::Boundary::kRuntimeRenderQueueReady;
 }
 
+void clear_gl_errors() {
+    while (glGetError() != GL_NO_ERROR) {
+    }
+}
+
 }  // namespace
 
 void on_surface_created() {
@@ -203,6 +208,10 @@ bool draw() {
 
     // nativeOnDrawFrame() has already rendered the generic entered-game phase.
     // A complete live GameScene revision replaces that fallback atomically.
+    // Attribute only errors produced by this renderer: earlier frame layers may
+    // have left an error flag in the shared GLES context, and treating that as
+    // our own failure would make P7 diagnostics nondeterministic.
+    clear_gl_errors();
     glClear(GL_COLOR_BUFFER_BIT);
     glEnable(GL_BLEND);
     // The shipped CCSprite::updateBlendFunc() uses GL_ONE for premultiplied
@@ -227,6 +236,14 @@ bool draw() {
     glDisableVertexAttribArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
+
+    // P7 evidence calls these "drawn frames". Do not promote a submission to a
+    // successful frame when GLES rejected any command in this renderer. Texture
+    // upload already fails closed on glGetError(); the final draw path must obey
+    // the same contract.
+    if (glGetError() != GL_NO_ERROR) {
+        return false;
+    }
 
     g_last_drawn_sprite_count.store(prepared.size(), std::memory_order_relaxed);
     g_drawn_frame_count.fetch_add(1u, std::memory_order_relaxed);
