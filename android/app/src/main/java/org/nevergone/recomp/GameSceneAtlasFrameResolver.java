@@ -5,6 +5,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import java.io.File;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,9 +57,6 @@ final class GameSceneAtlasFrameResolver {
             this.textureRelativePath = atlas.textureRelativePath;
             this.textureX = textureRect[0];
             this.textureY = textureRect[1];
-            // Retain the raw exporter values for diagnostics only. The original
-            // cocos2d-x 2.1.2 format-3 loader ignores textureRect.size and uses
-            // spriteSize to construct the frame rectangle.
             this.textureWidth = textureRect[2];
             this.textureHeight = textureRect[3];
             this.colorX = colorRect[0];
@@ -80,9 +78,7 @@ final class GameSceneAtlasFrameResolver {
      *
      * The shipped cocos2d-x 2.1.2 CCSpriteFrameCache preloads sheets in order.
      * Canonical duplicate frame names are skipped after the first load, while
-     * aliases from accepted frames use the cache's latest mapping. Build those
-     * indexes once so spriteFrameByName lookups are O(1) and preserve the
-     * recovered cache precedence without retaining state between revisions.
+     * aliases from accepted format-3 frames use the cache's latest mapping.
      */
     static final class Prepared {
         private final Map<String, PreparedFrame> framesByName;
@@ -111,7 +107,8 @@ final class GameSceneAtlasFrameResolver {
                     prepared.atlasIndex,
                     requestedName,
                     new Match(canonicalName, prepared.frame),
-                    prepared.atlas);
+                    prepared.atlas,
+                    prepared.format);
         }
     }
 
@@ -119,14 +116,17 @@ final class GameSceneAtlasFrameResolver {
         final int atlasIndex;
         final GameSceneAtlasResolver.Atlas atlas;
         final Element frame;
+        final int format;
 
         PreparedFrame(
                 int atlasIndex,
                 GameSceneAtlasResolver.Atlas atlas,
-                Element frame) {
+                Element frame,
+                int format) {
             this.atlasIndex = atlasIndex;
             this.atlas = atlas;
             this.frame = frame;
+            this.format = format;
         }
     }
 
@@ -177,14 +177,14 @@ final class GameSceneAtlasFrameResolver {
                 Document document = parseDocument(plist);
                 Element plistRoot = document.getDocumentElement();
                 Element rootDict = plistRoot != null ? firstChildElement(plistRoot, "dict") : null;
-                Element frames = rootDict != null ? valueForKey(rootDict, "frames") : null;
+                if (rootDict == null) return null;
+                Integer format = atlasFormat(rootDict);
+                if (format == null) return null;
+                Element frames = valueForKey(rootDict, "frames");
                 if (frames == null) continue;
-                if (!"dict".equals(frames.getTagName())) {
-                    // Preserve the clean-room fail-closed boundary for malformed
-                    // imported plist structure instead of guessing membership.
-                    return null;
-                }
-                if (!indexFrames(atlasIndex, atlas, frames, framesByName, aliases)) {
+                if (!"dict".equals(frames.getTagName())) return null;
+                if (!indexFrames(
+                        atlasIndex, atlas, format.intValue(), frames, framesByName, aliases)) {
                     return null;
                 }
             }
@@ -194,9 +194,21 @@ final class GameSceneAtlasFrameResolver {
         }
     }
 
+    private static Integer atlasFormat(Element rootDict) {
+        Element metadata = valueForKey(rootDict, "metadata");
+        if (metadata == null) return Integer.valueOf(0);
+        if (!"dict".equals(metadata.getTagName())) return null;
+        Element formatValue = valueForKey(metadata, "format");
+        if (formatValue == null) return Integer.valueOf(0);
+        Integer format = integralScalar(formatValue);
+        if (format == null || format.intValue() < 0 || format.intValue() > 3) return null;
+        return format;
+    }
+
     private static boolean indexFrames(
             int atlasIndex,
             GameSceneAtlasResolver.Atlas atlas,
+            int format,
             Element frames,
             Map<String, PreparedFrame> framesByName,
             Map<String, String> aliases) {
@@ -210,13 +222,15 @@ final class GameSceneAtlasFrameResolver {
             Element frame = nextElement(key);
             if (frame == null || !"dict".equals(frame.getTagName())) return false;
 
-            // cocos2d-x 2.1.2 checks m_pSpriteFrames before parsing a new
-            // frame and continues immediately when the canonical key is already
-            // present. The first preloaded frame therefore wins and the skipped
-            // duplicate contributes no aliases either.
+            // cocos2d-x 2.1.2 skips a later duplicate canonical frame before
+            // parsing any format-specific fields or aliases.
             if (framesByName.containsKey(canonicalName)) continue;
-            framesByName.put(canonicalName, new PreparedFrame(atlasIndex, atlas, frame));
+            framesByName.put(
+                    canonicalName,
+                    new PreparedFrame(atlasIndex, atlas, frame, format));
 
+            // Aliases exist only in the format-3 branch of the original cache.
+            if (format != 3) continue;
             Element aliasArray = valueForKey(frame, "aliases");
             if (aliasArray == null) continue;
             if (!"array".equals(aliasArray.getTagName())) return false;
@@ -230,9 +244,6 @@ final class GameSceneAtlasFrameResolver {
                 if (!"string".equals(item.getTagName())) return false;
                 String alias = trimmedText(item);
                 if (!isSafeFrameName(alias)) return false;
-
-                // The original warns on an existing alias but still calls
-                // setObject(frameKey, alias), so the latest accepted alias wins.
                 aliases.put(alias, canonicalName);
             }
         }
@@ -243,24 +254,101 @@ final class GameSceneAtlasFrameResolver {
             int atlasIndex,
             String requestedName,
             Match match,
-            GameSceneAtlasResolver.Atlas atlas) {
-        int[] textureRect = rectValue(valueForKey(match.frame, "textureRect"));
-        int[] offset = pointValue(valueForKey(match.frame, "spriteOffset"));
-        int[] spriteSize = pointValue(valueForKey(match.frame, "spriteSize"));
-        int[] sourceSize = pointValue(valueForKey(match.frame, "spriteSourceSize"));
-        Boolean rotated = booleanValue(valueForKey(match.frame, "textureRotated"));
-        if (textureRect == null || offset == null || spriteSize == null ||
-                sourceSize == null || rotated == null || textureRect[0] < 0 || textureRect[1] < 0 ||
+            GameSceneAtlasResolver.Atlas atlas,
+            int format) {
+        int[] textureRect;
+        int[] offset;
+        int[] spriteSize;
+        int[] sourceSize;
+        boolean rotated;
+
+        if (format == 0) {
+            Integer x = integralScalar(valueForKey(match.frame, "x"));
+            Integer y = integralScalar(valueForKey(match.frame, "y"));
+            Integer width = integralScalar(valueForKey(match.frame, "width"));
+            Integer height = integralScalar(valueForKey(match.frame, "height"));
+            Integer offsetX = integralScalar(valueForKey(match.frame, "offsetX"));
+            Integer offsetY = integralScalar(valueForKey(match.frame, "offsetY"));
+            Integer originalWidth = integralScalar(valueForKey(match.frame, "originalWidth"));
+            Integer originalHeight = integralScalar(valueForKey(match.frame, "originalHeight"));
+            if (x == null || y == null || width == null || height == null ||
+                    offsetX == null || offsetY == null || originalWidth == null ||
+                    originalHeight == null || originalWidth.intValue() == Integer.MIN_VALUE ||
+                    originalHeight.intValue() == Integer.MIN_VALUE) {
+                return null;
+            }
+            int sourceWidth = Math.abs(originalWidth.intValue());
+            int sourceHeight = Math.abs(originalHeight.intValue());
+            textureRect = new int[]{x.intValue(), y.intValue(), width.intValue(), height.intValue()};
+            offset = new int[]{offsetX.intValue(), offsetY.intValue()};
+            spriteSize = new int[]{width.intValue(), height.intValue()};
+            sourceSize = new int[]{sourceWidth, sourceHeight};
+            rotated = false;
+        } else if (format == 1 || format == 2) {
+            textureRect = rectValue(valueForKey(match.frame, "frame"));
+            offset = pointValue(valueForKey(match.frame, "offset"));
+            sourceSize = pointValue(valueForKey(match.frame, "sourceSize"));
+            if (textureRect == null || offset == null || sourceSize == null) return null;
+            spriteSize = new int[]{textureRect[2], textureRect[3]};
+            if (format == 2) {
+                Element rotatedValue = valueForKey(match.frame, "rotated");
+                Boolean parsedRotated = rotatedValue == null
+                        ? Boolean.FALSE
+                        : booleanValue(rotatedValue);
+                if (parsedRotated == null) return null;
+                rotated = parsedRotated.booleanValue();
+            } else {
+                rotated = false;
+            }
+        } else if (format == 3) {
+            textureRect = rectValue(valueForKey(match.frame, "textureRect"));
+            offset = pointValue(valueForKey(match.frame, "spriteOffset"));
+            spriteSize = pointValue(valueForKey(match.frame, "spriteSize"));
+            sourceSize = pointValue(valueForKey(match.frame, "spriteSourceSize"));
+            Element rotatedValue = valueForKey(match.frame, "textureRotated");
+            Boolean parsedRotated = rotatedValue == null
+                    ? Boolean.FALSE
+                    : booleanValue(rotatedValue);
+            if (textureRect == null || offset == null || spriteSize == null ||
+                    sourceSize == null || parsedRotated == null) {
+                return null;
+            }
+            rotated = parsedRotated.booleanValue();
+        } else {
+            return null;
+        }
+
+        return buildFrame(
+                atlasIndex,
+                requestedName,
+                match.canonicalName,
+                atlas,
+                textureRect,
+                offset,
+                spriteSize,
+                sourceSize,
+                rotated);
+    }
+
+    private static Frame buildFrame(
+            int atlasIndex,
+            String requestedName,
+            String canonicalName,
+            GameSceneAtlasResolver.Atlas atlas,
+            int[] textureRect,
+            int[] offset,
+            int[] spriteSize,
+            int[] sourceSize,
+            boolean rotated) {
+        if (textureRect[0] < 0 || textureRect[1] < 0 ||
                 spriteSize[0] <= 0 || spriteSize[1] <= 0 ||
                 sourceSize[0] <= 0 || sourceSize[1] <= 0) {
             return null;
         }
 
-        // cocos2d-x 2.1.2 format-3 loading does not consume spriteColorRect or
-        // textureRect.size. CCSpriteFrame receives textureRect.origin combined
-        // with spriteSize, plus spriteOffset/sourceSize/rotation. Derive the trim
-        // rectangle from those authoritative fields and retain the parsed
-        // textureRect size only as non-authoritative diagnostics.
+        // CCSpriteFrame stores offset from the untrimmed sprite center to the
+        // trimmed sprite center. Convert that common format-0..3 representation
+        // into the project-owned top-left placement used during pixel staging.
         long colorX = ((long) sourceSize[0] - (long) spriteSize[0]) / 2L + offset[0];
         long colorY = ((long) sourceSize[1] - (long) spriteSize[1]) / 2L - offset[1];
         if (colorX < 0L || colorY < 0L ||
@@ -273,8 +361,8 @@ final class GameSceneAtlasFrameResolver {
                 (int) colorX, (int) colorY, spriteSize[0], spriteSize[1]};
 
         return new Frame(
-                atlasIndex, requestedName, match.canonicalName, atlas,
-                textureRect, colorRect, offset, spriteSize, sourceSize, rotated.booleanValue());
+                atlasIndex, requestedName, canonicalName, atlas,
+                textureRect, colorRect, offset, spriteSize, sourceSize, rotated);
     }
 
     private static Document parseDocument(File plist) throws Exception {
@@ -332,9 +420,31 @@ final class GameSceneAtlasFrameResolver {
     private static int[] parsePair(String value) {
         String[] parts = value.split(",", -1);
         if (parts.length != 2) return null;
+        Integer first = integralText(parts[0]);
+        Integer second = integralText(parts[1]);
+        return first != null && second != null
+                ? new int[]{first.intValue(), second.intValue()}
+                : null;
+    }
+
+    private static Integer integralScalar(Element value) {
+        if (value == null) return null;
+        String tag = value.getTagName();
+        if (!"integer".equals(tag) && !"real".equals(tag) && !"string".equals(tag)) {
+            return null;
+        }
+        return integralText(trimmedText(value));
+    }
+
+    private static Integer integralText(String text) {
+        if (text == null) return null;
         try {
-            return new int[]{Integer.parseInt(parts[0]), Integer.parseInt(parts[1])};
-        } catch (NumberFormatException error) {
+            return Integer.valueOf(new BigDecimal(text.trim()).intValueExact());
+        } catch (NumberFormatException | ArithmeticException error) {
+            // The original stores geometry as cocos2d float values. The current
+            // project-owned pixel path has integer texel semantics, so accept
+            // decimal spellings such as 12.0 only when they are exactly integral;
+            // never round a genuinely fractional atlas coordinate.
             return null;
         }
     }
