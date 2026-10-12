@@ -132,6 +132,22 @@ public final class GameSceneAtlasResolverSmoke {
                 "player/Player01_Res/p01_01_01_default.plist");
         assert GameSceneAtlasResolver.resolvePlayerDefaults(assets, 2) == null;
 
+        // MeActionsSystem loads the current ActionFrameData +0x60 plist directly
+        // before asking spriteFrameByName() for +0x68. Resolve that exact basename
+        // through the same recovered Cocos search order instead of scanning every
+        // player default atlas and treating unrelated membership as ambiguity.
+        File actionPlist = new File(assets,
+                "player/Player01_Res/p01_02_default.plist");
+        write(actionPlist, plist("p01_02_default.png", false));
+        write(new File(actionPlist.getParentFile(), "p01_02_default.png"), "png");
+        List<GameSceneAtlasResolver.Atlas> actionAtlas =
+                GameSceneAtlasResolver.resolve(assets, Arrays.asList("p01_02_default.plist"));
+        assert actionAtlas != null && actionAtlas.size() == 1;
+        assert actionAtlas.get(0).plistRelativePath.equals(
+                "player/Player01_Res/p01_02_default.plist");
+        assert actionAtlas.get(0).textureRelativePath.equals(
+                "player/Player01_Res/p01_02_default.png");
+
         deleteTree(root);
     }
 
