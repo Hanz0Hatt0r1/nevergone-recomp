@@ -1,18 +1,25 @@
 # SingleSelectHero career-rune presentation
 
-This note records the clean-room reconstruction of the shipped `SingleSelectHero::initUI()` career-rune menu. Original atlas bytes and disassembly are not stored in the repository; the renderer extracts frames only from the user-imported original assets at runtime.
+This note records the clean-room reconstruction of the shipped `SingleSelectHero::initUI()` career-rune menu. Original atlas bytes, screenshots, heap dumps and disassembly are not stored in the repository; the renderer extracts frames only from the user-imported original assets at runtime.
 
 ## Recovered menu construction
 
-`initUI()` creates five tagged `CCMenuItemSprite` entries. For tag `NN` it formats `xrfuwenNN.png` and `xrfuwenfaguangNN.png`. The first frame is normal and the `faguang` frame is selected/pressed; it is not a persistent current-career indicator.
+`initUI()` creates five tagged `CCMenuItemSprite` entries. For tag `NN` it formats `xrfuwenNN.png` and `xrfuwenfaguangNN.png`. The construction loop assigns sender tags `1..5`.
 
-The construction loop assigns sender tags `1..5`. All five are valid career controls.
+Two stable original-game scene-state captures now distinguish construction from runtime presentation:
+
+- all five tagged menu-item objects remain instantiated at the recovered positions;
+- only tags `1` and `2` are visible / interactive in the captured shipped state;
+- tags `3..5` remain retained state/geometry but are not presented;
+- the `faguang` frame is used for the currently selected visible career even after the touch gesture has ended.
+
+A capture with Dawn selected shows persistent glow on tag `1`; a second capture from the same process with Higgs selected shows the glow move to tag `2`. Because the process and ASLR base were unchanged, the same live menu-item structures could be compared directly. The tag-2 selected-image child changes from hidden to visible in the Higgs capture, while the parent geometry and tags remain unchanged.
 
 ## Exact positions
 
-All five items use `x = visibleWidth * 0.5` and `y = visibleHeight - 55 - 90 * tag`. On the recovered 1136x640 design surface the centers are `(568,495)`, `(568,405)`, `(568,315)`, `(568,225)`, and `(568,135)`.
+All five retained items use `x = visibleWidth * 0.5` and `y = visibleHeight - 55 - 90 * tag`. On the recovered 1136x640 design surface the centers are `(568,495)`, `(568,405)`, `(568,315)`, `(568,225)`, and `(568,135)`.
 
-`single_select_hero_rune_layout` maps each imported TexturePacker frame by its untrimmed source rectangle and trim offset through the shared centered aspect-fit transform. All five tags render at full opacity.
+`single_select_hero_rune_layout` maps each imported TexturePacker frame by its untrimmed source rectangle and trim offset through the shared centered aspect-fit transform. Runtime opacity is `1` only for visible tags `1` and `2` in this scene state.
 
 ## Touch rectangles
 
@@ -22,28 +29,29 @@ The visible atlas rectangle and the Cocos menu-item touch rectangle are not alwa
 | --- | --- | --- |
 | 1 | `79 x 99` | `(528.5,95.5)-(607.5,194.5)` |
 | 2 | `87 x 89` | `(524.5,190.5)-(611.5,279.5)` |
-| 3 | `75 x 95` | `(530.5,277.5)-(605.5,372.5)` |
-| 4 | `111 x 110` | `(512.5,360)-(623.5,470)` |
-| 5 | `137 x 131` | `(499.5,439.5)-(636.5,570.5)` |
+| 3 | `75 x 95` | retained geometry only |
+| 4 | `111 x 110` | retained geometry only |
+| 5 | `137 x 131` | retained geometry only |
 
-Career 2 demonstrates why this matters: its visible normal frame has a 3-pixel top trim, so drawing begins at design Y `193.5`, while the original menu-item hit rectangle begins at `190.5`.
+Career 2 demonstrates why this matters: its visible normal frame has a 3-pixel top trim, so drawing begins at design Y `193.5`, while the original menu-item content rectangle begins at `190.5`.
 
-The layout helper exposes source-size-based `hit_rect_for_surface()` and `hit_test()` using the same centered aspect-fit transform as rendering. Host coverage checks all five recovered rectangles, boundary inclusion/exclusion, invalid inputs, and a 2x surface.
+The layout helper exposes source-size-based `hit_rect_for_surface()` and `hit_test()` using the same centered aspect-fit transform as rendering. Only runtime-visible tags produce active touch rectangles.
 
-## Pressed frame behavior
+## Selected and pressed frame behavior
 
-The native rune input bridge now drives the staged glow frame directly:
+Selected and pressed presentation are distinct:
 
-- DOWN inside a rune publishes that tag as the presentation-only pressed rune;
-- MOVE outside clears the presentation tag and MOVE back inside restores it;
-- UP, POINTER_UP, CANCEL, locked input and reset clear it;
-- while the tag is present, `frame_index(tag, false)` resolves to the matching odd-numbered glow frame;
-- after the gesture ends, the renderer immediately returns to the normal frame even if that career became selected.
+- the selected visible career persistently resolves to `xrfuwenfaguangNN.png`;
+- DOWN inside the other visible rune temporarily publishes that rune as pressed, so it also resolves to its glow frame;
+- MOVE outside clears only the pressed presentation and MOVE back inside restores it;
+- UP, POINTER_UP, CANCEL, locked input and reset clear the pressed presentation;
+- after a successful career change, the persistent selected glow moves to the new selected tag;
+- selecting a semantic career without a runtime-visible rune clears the persistent visible-rune glow rather than inventing a hidden presentation.
 
-The published presentation tag is atomic because Android touch dispatch and GLES drawing can run on different threads. Career selection, transition locking and network/create-role state remain owned by their existing state machines.
+Both selected and pressed presentation tags are atomic because Android touch dispatch/state changes and GLES drawing can run on different threads.
 
 ## Runtime boundary
 
-`SingleSelectHeroBaseComposer` extracts all ten normal/pressed frames from the imported `Singleselechero.plist/png` atlas; no original image bytes are committed. Rune hit routing, pressed visual feedback and recovered near/far transition dispatch are now connected.
+`SingleSelectHeroBaseComposer` extracts all ten normal/glow frames from the imported `Singleselechero.plist/png` atlas; no original image bytes are committed. `single_select_hero_state` publishes the current selected visible career into the presentation layer, while the input bridge independently owns transient pressed feedback.
 
-The remaining interaction gap on this scene is the separate shipped `menuConfirm` control. It should be reconstructed from evidence-backed resources/content size/position and routed to the existing `single_select_hero_state::confirm_online()` path rather than approximated through the temporary Android compatibility overlay.
+The native Confirm control is reconstructed separately and routes into `single_select_hero_state::confirm_online()`. CharacterName remains the next presentation block after confirmation.
