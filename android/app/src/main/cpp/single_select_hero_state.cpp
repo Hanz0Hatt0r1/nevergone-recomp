@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "character_name_state.h"
+#include "single_select_hero_rune_layout.h"
 
 namespace nevergone::single_select_hero_state {
 namespace {
@@ -22,6 +23,11 @@ std::uint64_t g_character_name_open_count = 0;
 
 std::int64_t normalize_existing_career(std::int64_t career) {
     return is_valid_career(career) ? career : 0;
+}
+
+void publish_selected_render_tag_locked() {
+    single_select_hero_rune_layout::set_selected_render_tag(
+        static_cast<int>(g_selected_career));
 }
 
 Snapshot snapshot_locked() {
@@ -48,9 +54,8 @@ void begin(std::int64_t existing_career) {
     g_existing_career = normalize_existing_career(existing_career);
     g_selected_career =
         g_existing_career == kCareerOne ? kCareerTwo : kCareerOne;
+    publish_selected_render_tag_locked();
 
-    // initUI() writes the interaction byte false before the initial Carousel.
-    // A later visual transition executor restores it through OpenTheDoor(true).
     g_input_enabled = false;
     g_transition_pending = true;
     g_selection_count = 0;
@@ -65,6 +70,7 @@ void reset() {
     ++g_generation;
     g_existing_career = 0;
     g_selected_career = 0;
+    publish_selected_render_tag_locked();
     g_input_enabled = false;
     g_transition_pending = false;
     g_selection_count = 0;
@@ -96,6 +102,7 @@ bool select_career(std::int64_t career) {
     if (g_selected_career == career) return true;
 
     g_selected_career = career;
+    publish_selected_render_tag_locked();
     g_input_enabled = false;
     g_transition_pending = true;
     ++g_selection_count;
@@ -118,9 +125,6 @@ bool confirm_online() {
         ++g_character_name_open_count;
     }
 
-    // Avoid holding the selector mutex across the next reconstructed state
-    // boundary. The shipped online branch passes this exact integer to
-    // CharacterNameLayer::CretaUI(career).
     character_name_state::begin(selected_career);
     return true;
 }
