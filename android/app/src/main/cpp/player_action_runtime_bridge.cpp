@@ -1,6 +1,7 @@
 #include <jni.h>
 
 #include <cstdint>
+#include <sstream>
 #include <string>
 
 #include "game_clock.h"
@@ -39,6 +40,22 @@ void sync_motion_to_spawn(const nevergone::game_scene_player_spawn_state::Snapsh
             spawn.generation,
             static_cast<std::uint32_t>(career),
             nevergone::game_clock::tick_count());
+}
+
+std::string runtime_status_report() {
+    const auto career = nevergone::player_offline_career::current();
+    const auto document = nevergone::player_action_document_store::snapshot();
+
+    std::ostringstream out;
+    out << "Player action runtime\n";
+    out << "career state: " << (career.ready() ? "ready" : "idle") << "\n";
+    out << "career: " << career.career << "\n";
+    out << "career source: " << nevergone::player_offline_career::source_name(career.source) << "\n";
+    out << "document state: "
+        << nevergone::player_action_document_store::status_name(document.status) << "\n";
+    out << "document load attempts: " << document.load_attempt_count << "\n";
+    out << "document primary records: " << document.primary_record_count << "\n";
+    return out.str();
 }
 
 }  // namespace
@@ -113,4 +130,12 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeResetPlayerActionDocum
     nevergone::player_action_document_store::reset();
     nevergone::game_scene_player_spawn_state::reset();
     nevergone::game_scene_player_joystick_input::reset();
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeStatusReport(
+        JNIEnv* env,
+        jclass) {
+    const std::string report = runtime_status_report();
+    return env->NewStringUTF(report.c_str());
 }
