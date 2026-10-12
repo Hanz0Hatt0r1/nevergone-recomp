@@ -1,0 +1,33 @@
+name: SceneActions current frame resource
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_current_frame_resource.h'
+      - 'android/app/src/main/cpp/scene_action_pair_runtime_bridge.cpp'
+      - 'android/app/src/main/java/org/nevergone/recomp/SceneActionPairRuntimeLoader.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/SceneActionInitialFrameResolver.java'
+      - 'tools/scene_actions_current_frame_resource_smoke.cpp'
+      - '.github/workflows/scene-actions-current-frame-resource.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_current_frame_resource.h'
+      - 'android/app/src/main/cpp/scene_action_pair_runtime_bridge.cpp'
+      - 'android/app/src/main/java/org/nevergone/recomp/SceneActionPairRuntimeLoader.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/SceneActionInitialFrameResolver.java'
+      - 'tools/scene_actions_current_frame_resource_smoke.cpp'
+      - '.github/workflows/scene-actions-current-frame-resource.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run SceneActions current-frame resource smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/scene_actions_current_frame_resource_smoke.cpp \
+            -o /tmp/scene_actions_current_frame_resource_smoke
+          /tmp/scene_actions_current_frame_resource_smoke
