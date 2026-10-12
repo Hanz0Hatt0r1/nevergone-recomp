@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 
+#include "controls_function_state_runtime.h"
 #include "game_clock.h"
 #include "game_levels_runtime_state.h"
 #include "game_scene_camera_contract.h"
@@ -69,9 +70,6 @@ inline game_scene_render_queue::Queue with_live_player(
     }
     player.player_body_transform = transform;
 
-    // updateData() resolves each selected AFD's +0x68 frame from the plist at
-    // AFD +0x60. Use the current frame's imported plist identity rather than
-    // freezing this metadata to frame zero.
     if (!selected_frame.first_string.empty()) {
         player.player_body_atlas_plist = selected_frame.first_string;
     }
@@ -85,8 +83,6 @@ inline game_scene_render_queue::Queue with_live_player(
     return queue;
 }
 
-// Retain the previous focused helper for existing unit contracts. The live route
-// below no longer truncates the loaded document to one frame.
 inline game_scene_render_queue::Queue with_initial_player(
         game_scene_render_queue::Queue queue,
         const game_scene_player_spawn_state::Snapshot& spawn,
@@ -135,6 +131,17 @@ inline game_scene_render_queue::Queue current(game_scene_render_queue::Queue que
                 live_action.current_action_state,
                 *document,
                 game_clock::tick_count());
+
+            const auto playback = me_actions_live_playback::snapshot();
+            if (playback.ready && playback.cursor.timing.done_220) {
+                const auto function = controls_function_state_runtime::snapshot();
+                (void)meplayer_live_action_state::observe_action_completion(
+                    live_action.generation,
+                    live_action.loaded_revision,
+                    live_action.current_action_state,
+                    true,
+                    function.function_state);
+            }
             runtime = me_actions_live_playback::runtime_state();
         }
     }
