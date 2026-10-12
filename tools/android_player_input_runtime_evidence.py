@@ -34,6 +34,18 @@ class JoystickSnapshot:
 
 
 @dataclass(frozen=True)
+class MotionSnapshot:
+    ready: bool
+    generation: int
+    spawn_generation: int
+    player_index: int
+    last_game_tick: int
+    applied_steps: int
+    offset_x: float
+    offset_y: float
+
+
+@dataclass(frozen=True)
 class ControlSnapshot:
     generation: int
     primary_state: str
@@ -43,6 +55,7 @@ class ControlSnapshot:
 @dataclass(frozen=True)
 class PlayerInputSnapshot:
     joystick: JoystickSnapshot
+    motion: MotionSnapshot
     control: ControlSnapshot
 
 
@@ -84,6 +97,18 @@ def parse_snapshot(text: str) -> PlayerInputSnapshot:
         text,
         "GameScene player joystick report",
     )
+    motion = _single_match(
+        r"^GameScene player motion\n"
+        r"ready: (true|false)\n"
+        r"generation: (\d+)\n"
+        r"spawn generation: (\d+)\n"
+        r"player index: (\d+)\n"
+        r"last game tick: (\d+)\n"
+        r"applied steps: (\d+)\n"
+        r"offset: ([^,\n]+),([^\n]+)$",
+        text,
+        "GameScene player motion report",
+    )
     control = _single_match(
         r"^Player control runtime\n"
         r"generation: (\d+)\n"
@@ -103,12 +128,26 @@ def parse_snapshot(text: str) -> PlayerInputSnapshot:
         power=_finite(joystick.group(7), "joystick power"),
         angle_degrees=_finite(joystick.group(8), "joystick angle"),
     )
+    motion_snapshot = MotionSnapshot(
+        ready=motion.group(1) == "true",
+        generation=int(motion.group(2)),
+        spawn_generation=int(motion.group(3)),
+        player_index=int(motion.group(4)),
+        last_game_tick=int(motion.group(5)),
+        applied_steps=int(motion.group(6)),
+        offset_x=_finite(motion.group(7), "player motion offset x"),
+        offset_y=_finite(motion.group(8), "player motion offset y"),
+    )
     control_snapshot = ControlSnapshot(
         generation=int(control.group(1)),
         primary_state=control.group(2),
         flip_x=control.group(3) == "true",
     )
-    return PlayerInputSnapshot(joystick=joystick_snapshot, control=control_snapshot)
+    return PlayerInputSnapshot(
+        joystick=joystick_snapshot,
+        motion=motion_snapshot,
+        control=control_snapshot,
+    )
 
 
 def choose_direction(text: str) -> str:
@@ -223,6 +262,26 @@ def validate_transition(before_text: str, after_text: str) -> tuple[PlayerInputS
             "post-gesture facing does not match the recovered state contract: "
             f"state={after.control.primary_state}, flip_x={after.control.flip_x}"
         )
+
+    if not before.motion.ready or not after.motion.ready:
+        raise ValueError("player motion runtime is not ready in both snapshots")
+    if before.motion.spawn_generation != after.motion.spawn_generation:
+        raise ValueError("player spawn generation changed during the input proof")
+    if before.motion.player_index != after.motion.player_index:
+        raise ValueError("player index changed during the input proof")
+    if after.motion.last_game_tick <= before.motion.last_game_tick:
+        raise ValueError("player motion game tick did not advance")
+    if after.motion.applied_steps <= before.motion.applied_steps:
+        raise ValueError("no recovered player movement steps were applied")
+
+    delta_x = after.motion.offset_x - before.motion.offset_x
+    if abs(delta_x) <= 1e-6:
+        raise ValueError("player horizontal motion offset did not change")
+    if after.control.primary_state == "0x13" and delta_x <= 0.0:
+        raise ValueError("right-facing joystick state did not move the player right")
+    if after.control.primary_state == "0x12" and delta_x >= 0.0:
+        raise ValueError("left-facing joystick state did not move the player left")
+
     return before, after
 
 
@@ -262,7 +321,9 @@ def main() -> int:
         f"begins={before.joystick.accepted_begins}->{after.joystick.accepted_begins} "
         f"moves={before.joystick.accepted_moves}->{after.joystick.accepted_moves} "
         f"control={before.control.primary_state}->{after.control.primary_state} "
-        f"flip_x={str(after.control.flip_x).lower()}"
+        f"flip_x={str(after.control.flip_x).lower()} "
+        f"motion_steps={before.motion.applied_steps}->{after.motion.applied_steps} "
+        f"offset_x={before.motion.offset_x}->{after.motion.offset_x}"
     )
     return 0
 
