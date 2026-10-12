@@ -10,6 +10,16 @@ The observed startup chain is:
 
 The post-lesson DialogueUI is modal. A captured first line is progressively typeset while the complete sentence is already present in runtime memory, so dialogue completion is modeled as an explicit event rather than a guessed timer.
 
+## Session lifecycle
+
+`tutorial_session_state` preserves the coarse original boundaries independently of the individual gameplay prompts:
+
+`Loading -> LessonOverlay -> Dialogue -> Interactive -> Complete`
+
+Loading, LessonOverlay, and Dialogue are modal phases and report gameplay input as blocked. Interactive unlocks gameplay input and delegates progression to `tutorial_gameplay_state`. The session may enter Complete only after the interactive state machine itself has reached its terminal step. A new loading session increments a generation counter and clears stale gameplay tutorial state.
+
+The startup handoff is deliberately kept separate from this lifecycle contract in this change: the original loading completion trigger and LessonLayer bootstrap still need an evidence-backed runtime caller instead of a fabricated timer.
+
 ## Observed interactive order
 
 Frozen captures directly establish the first five interactive steps and their presentation:
@@ -64,4 +74,6 @@ This keeps the tutorial dependent on the same movement state that drives player 
 - transition/rejected-event counters for diagnostics;
 - a generation counter so scene restarts cannot reuse stale tutorial events.
 
-The module deliberately does **not** yet decide rendering geometry or wire itself directly into every control/combat callback. Remaining Jump/combat/item/Execution connections should feed the semantic events above when the corresponding reconstructed gameplay systems can prove the event occurred.
+`tutorial_session_state` additionally exposes the coarse tutorial phase, modal-input gate, lifecycle transition counters, and lifecycle generation.
+
+The modules deliberately do **not** yet decide rendering geometry or wire themselves directly into every control/combat callback. Remaining Jump/combat/item/Execution connections should feed the semantic events above when the corresponding reconstructed gameplay systems can prove the event occurred.
