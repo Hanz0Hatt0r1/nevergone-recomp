@@ -39,8 +39,6 @@ player index 2: movement = (direction.x * 16.0, direction.y * 8.0)
 player index 3: movement = (direction.x * 16.0, direction.y * 8.0)
 ```
 
-The current reconstruction exposes the action-state-1 values as evidence but does not select that path for normal joystick locomotion.
-
 Two captured runtime pairs independently validate the literal action-state-0/action-state-1 scales:
 
 ```text
@@ -57,6 +55,48 @@ action 1, player index 1
 
 The small displayed differences are ordinary float formatting/rounding.
 
+## Fast movement is a timed same-direction reactivation
+
+The same runtime capture resolves how action state `1` is selected; it is not a simple consequence of holding the joystick.
+
+`Controls::comboJoyStickUpdate(float,float)` at ELF `0x0029713c` retains its direction-combo state at `Controls +0x110`. `Controls::tick(float)` at ELF `0x002967a8` increments the `+0x158` timer while the retained direction-combo state is in the `0x0e..0x13` range. The shipped comparisons use these strict timing constants:
+
+```text
+fast reactivation: timer > 0.03 and timer < 0.40 seconds
+deactivation expiry: timer > 0.50 seconds
+```
+
+For the two horizontal sectors used by locomotion:
+
+```text
+right sector: -45 < angle < 45
+  initial state: 0x13
+  same-direction reactivation in the fast window: 0x11
+
+left sector: angle < -135 or angle > 135
+  initial state: 0x12
+  same-direction reactivation in the fast window: 0x0f
+```
+
+`Controls::onCCJoyStickDeactivated()` at ELF `0x002970d4` marks the retained combo as released while preserving the timer/state for a short second-tap window; it clears the retained timer/state only when the timer is already greater than `0.50` seconds.
+
+`MEPlayer::setDirComboState()` at ELF `0x0031df78` accepts both fast horizontal values `0x11` and `0x0f`, updates the player facing direction as needed, and calls `MEPlayer::setActionState(1, false)`. Once selected, action state `1` remains the movement state while the active joystick gesture continues even after the short-lived Controls combo code later clears `+0x110`.
+
+The captured rightward sequence provides a direct dynamic example:
+
+```text
+frame 187: first joystick begin
+frame 188: right sample creates Controls dir-combo 0x13, timer 0
+frame 190: first joystick release, retained timer ~= 0.0386 s
+frame 193: second joystick begin, retained 0x13 timer ~= 0.1461 s
+frame 194: right sample sees released 0x13 with timer ~= 0.2122 s
+frame 195: GameScene receives dir-combo 0x11 and MEPlayer selects action state 1
+```
+
+The subsequent captured `MEPlayer::movePlayer()` deltas match the player-index-1 action-state-1 `20x/10y` scale. This independently ties the timed same-direction reactivation to the fast movement branch.
+
+The native cross-direction combo states `0x0e` and `0x10` are visible in the same `comboJoyStickUpdate()` function, but their downstream action semantics are not assigned here. The reconstruction therefore does not reinterpret those branches as fast movement.
+
 ## Position and action boundary
 
 `MEPlayer::movePlayer(CCPoint)` copies its incoming point into `MEPlayer +0x248`; the argument is therefore the player's target/live position cursor, not an additive delta API.
@@ -67,14 +107,16 @@ The existing `MEPlayer::setControlsState(...)` disassembly also proves the minim
 
 ## Reconstructed boundary
 
-The project-owned implementation therefore now models only the bounded subset required to make the first reconstructed player move visibly:
+The project-owned implementation therefore models the bounded subset required for first-scene visible locomotion:
 
 1. Android touch -> recovered fixed joystick geometry;
 2. joystick sample -> normalized direction and `0x12`/`0x13` facing state;
 3. the already retained fixed 35 Hz project game clock supplies logical movement ticks;
-4. normal locomotion uses action-state-0 `8x/4y` movement for proven player indices `1..3`;
-5. the accumulated live offset is composed with the recovered first-scene spawn point before the player body is drawn.
+4. ordinary action-state-0 locomotion uses `8x/4y` movement for proven player indices `1..3`;
+5. a same-direction second joystick activation inside the recovered strict `0.03..0.40` second window selects action state `1`;
+6. action-state-1 movement uses `20x/10y` for player index `1` and `16x/8y` for indices `2..3`;
+7. the accumulated live offset is composed with the recovered first-scene spawn point before the player body is drawn.
 
-Neutral logical ticks are consumed without movement so a later joystick activation cannot accumulate a time backlog. A new spawn generation clears the accumulated movement cursor.
+Neutral logical ticks are consumed without movement so a later joystick activation cannot accumulate a time backlog. A new spawn generation clears the accumulated movement cursor. A release resets the active movement action to normal while preserving only the short native combo window needed to recognize the next same-direction tap.
 
-The implementation intentionally fails closed for player indices `4..5` until their `playerMoveValue()` branches are independently recovered. It also does not yet reproduce scene-border clamping, collision response, camera movement, action-state-1 selection, attack displacement, or animation switching.
+The implementation intentionally fails closed for player indices `4..5` until their `playerMoveValue()` branches are independently recovered. It also does not yet reproduce cross-direction combo action semantics, scene-border clamping, collision response, camera movement, attack displacement, vertical physics, or animation switching.
