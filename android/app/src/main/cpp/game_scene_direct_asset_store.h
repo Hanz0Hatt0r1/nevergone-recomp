@@ -17,6 +17,9 @@ struct Asset {
     std::size_t sprite_command_index = 0;
     game_scene_texture_format::PixelFormat pixel_format =
             game_scene_texture_format::PixelFormat::kRgba8888;
+    bool has_frame_offset = false;
+    int frame_offset_x = 0;
+    int frame_offset_y = 0;
     int width = 0;
     int height = 0;
     std::vector<std::uint32_t> argb_pixels;
@@ -38,14 +41,40 @@ bool upload(
         std::size_t request_index,
         std::size_t sprite_command_index,
         game_scene_texture_format::PixelFormat pixel_format,
+        bool has_frame_offset,
+        int frame_offset_x,
+        int frame_offset_y,
         int width,
         int height,
         const std::uint32_t* argb_pixels,
         std::size_t pixel_count);
 
-// Existing callers without recovered per-request format evidence remain on the
-// original project-owned RGBA8888 default. The Android staging bridge uses the
-// explicit overload for player-body requests.
+// Existing callers without frame-layout metadata retain the standalone-image
+// behavior. Atlas staging uses the explicit overload after rotating a packed
+// frame into logical sprite orientation.
+inline bool upload(
+        std::uint64_t revision,
+        std::size_t request_index,
+        std::size_t sprite_command_index,
+        game_scene_texture_format::PixelFormat pixel_format,
+        int width,
+        int height,
+        const std::uint32_t* argb_pixels,
+        std::size_t pixel_count) {
+    return upload(
+            revision,
+            request_index,
+            sprite_command_index,
+            pixel_format,
+            false,
+            0,
+            0,
+            width,
+            height,
+            argb_pixels,
+            pixel_count);
+}
+
 inline bool upload(
         std::uint64_t revision,
         std::size_t request_index,
