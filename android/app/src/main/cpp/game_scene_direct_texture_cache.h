@@ -13,6 +13,7 @@ using PixelFormat = game_scene_texture_format::PixelFormat;
 struct Texture {
     std::size_t request_index = 0;
     std::size_t sprite_command_index = 0;
+    bool hidden = false;
     PixelFormat pixel_format = PixelFormat::kRgba8888;
     int width = 0;
     int height = 0;
@@ -60,8 +61,9 @@ public:
 void reset_for_new_context();
 
 // Synchronize the cache to the active atomic direct-asset store revision. A new
-// revision is committed only after every texture has been created successfully.
-// Failed uploads leave the previous texture revision untouched.
+// revision is committed only after every visible texture has been created
+// successfully; hidden entries retain request/sprite identity without allocating
+// a GLES texture. Failed uploads leave the previous texture revision untouched.
 bool sync(Backend& backend);
 
 // Explicitly release the active textures in the current GL context.

@@ -164,7 +164,8 @@ bool draw() {
     // Resolve and build every static type-0 sprite before altering the
     // framebuffer. Direct-file and spriteFrameByName resources share one
     // transactional request revision, so a new scene cannot be partially
-    // rendered with stale texture handles or atlas metadata.
+    // rendered with stale texture handles or atlas metadata. Hidden fallback
+    // entries retain request identity in that revision but have no draw.
     std::vector<PreparedSprite> prepared;
     prepared.reserve(order.size());
     for (std::size_t index = 0; index < order.size(); ++index) {
@@ -176,8 +177,13 @@ bool draw() {
 
         game_scene_direct_texture_cache::Texture texture;
         if (!game_scene_direct_texture_gl::texture_for_sprite_command(
-                    sprite_command_index, &texture) ||
-            texture.handle == 0 || texture.width <= 0 || texture.height <= 0) {
+                    sprite_command_index, &texture)) {
+            return false;
+        }
+        if (texture.hidden) {
+            continue;
+        }
+        if (texture.handle == 0 || texture.width <= 0 || texture.height <= 0) {
             return false;
         }
 

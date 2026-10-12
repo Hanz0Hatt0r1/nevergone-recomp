@@ -5,6 +5,10 @@ final class GameSceneDirectAssetStore {
 
     private static native void nativeClear();
     private static native boolean nativeBegin(long revision, int expectedCount);
+    private static native boolean nativeUploadHidden(
+            long revision,
+            int requestIndex,
+            int spriteCommandIndex);
     private static native boolean nativeUpload(
             long revision,
             int requestIndex,
@@ -24,6 +28,13 @@ final class GameSceneDirectAssetStore {
 
     static boolean begin(long revision, int expectedCount) {
         return nativeBegin(revision, expectedCount);
+    }
+
+    static boolean uploadHidden(
+            long revision,
+            int requestIndex,
+            int spriteCommandIndex) {
+        return nativeUploadHidden(revision, requestIndex, spriteCommandIndex);
     }
 
     static boolean upload(

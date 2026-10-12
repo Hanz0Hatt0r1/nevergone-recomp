@@ -39,13 +39,11 @@ int main() {
     assert(state.pending_pixel_count == 4u);
     assert(!store::finish(11u));
 
-    // Replacing a slot must not increase uploaded-count or leak its old pixel count.
     assert(store::upload(11u, 0u, 4u, 2, 1, pixels_b, 2u));
     state = store::snapshot();
     assert(state.pending_uploaded_count == 1u);
     assert(state.pending_pixel_count == 2u);
 
-    // Explicit player-format metadata survives the atomic staging boundary.
     assert(store::upload(
             11u,
             1u,
@@ -65,6 +63,7 @@ int main() {
     assert(store::copy_active_asset(0u, &copied));
     assert(copied.request_index == 0u);
     assert(copied.sprite_command_index == 4u);
+    assert(!copied.hidden);
     assert(copied.pixel_format == PixelFormat::kRgba8888);
     assert(copied.width == 2);
     assert(copied.height == 1);
@@ -72,10 +71,10 @@ int main() {
     assert(copied.argb_pixels[0] == pixels_b[0]);
     assert(store::copy_active_asset(1u, &copied));
     assert(copied.sprite_command_index == 8u);
+    assert(!copied.hidden);
     assert(copied.pixel_format == PixelFormat::kRgba4444);
     assert(!store::copy_active_asset(2u, &copied));
 
-    // A failed/cancelled next revision leaves the completed active set untouched.
     assert(store::begin(12u, 1u));
     assert(store::upload(12u, 0u, 9u, 2, 2, pixels_a, 4u));
     store::cancel(12u);
@@ -84,22 +83,50 @@ int main() {
     assert(state.active_asset_count == 2u);
     assert(state.pending_revision == 0u);
 
-    // Successful replacement publishes atomically.
-    assert(store::begin(13u, 1u));
-    assert(store::upload(13u, 0u, 15u, 2, 2, pixels_a, 4u));
+    assert(store::begin(13u, 2u));
+    assert(store::upload_hidden(13u, 0u, 15u));
+    state = store::snapshot();
+    assert(state.pending_uploaded_count == 1u);
+    assert(state.pending_pixel_count == 0u);
+    assert(store::upload(13u, 1u, 16u, 2, 2, pixels_a, 4u));
+    state = store::snapshot();
+    assert(state.pending_uploaded_count == 2u);
+    assert(state.pending_pixel_count == 4u);
     assert(store::finish(13u));
     state = store::snapshot();
     assert(state.active_revision == 13u);
-    assert(state.active_asset_count == 1u);
-    assert(store::copy_active_asset(0u, &copied));
-    assert(copied.sprite_command_index == 15u);
-    assert(copied.pixel_format == PixelFormat::kRgba8888);
+    assert(state.active_asset_count == 2u);
 
-    // A live revision with no direct sprites is still a valid completed set.
-    assert(store::begin(14u, 0u));
-    assert(store::finish(14u));
+    assert(store::copy_active_asset(0u, &copied));
+    assert(copied.request_index == 0u);
+    assert(copied.sprite_command_index == 15u);
+    assert(copied.hidden);
+    assert(copied.width == 0);
+    assert(copied.height == 0);
+    assert(copied.argb_pixels.empty());
+    assert(store::copy_active_asset(1u, &copied));
+    assert(copied.sprite_command_index == 16u);
+    assert(!copied.hidden);
+
+    // Replacing a hidden slot with pixels and vice versa must update the live
+    // pending pixel budget without changing uploaded-count.
+    assert(store::begin(14u, 1u));
+    assert(store::upload(14u, 0u, 20u, 2, 1, pixels_b, 2u));
     state = store::snapshot();
-    assert(state.active_revision == 14u);
+    assert(state.pending_uploaded_count == 1u);
+    assert(state.pending_pixel_count == 2u);
+    assert(store::upload_hidden(14u, 0u, 20u));
+    state = store::snapshot();
+    assert(state.pending_uploaded_count == 1u);
+    assert(state.pending_pixel_count == 0u);
+    assert(store::finish(14u));
+    assert(store::copy_active_asset(0u, &copied));
+    assert(copied.hidden);
+
+    assert(store::begin(15u, 0u));
+    assert(store::finish(15u));
+    state = store::snapshot();
+    assert(state.active_revision == 15u);
     assert(state.active_asset_count == 0u);
 
     store::clear();

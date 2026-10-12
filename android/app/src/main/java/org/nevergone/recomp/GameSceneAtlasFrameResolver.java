@@ -103,12 +103,23 @@ final class GameSceneAtlasFrameResolver {
                 if (prepared == null) return null;
             }
 
-            return parseFrame(
+            Frame resolved = parseFrame(
                     prepared.atlasIndex,
                     requestedName,
                     new Match(canonicalName, prepared.frame),
                     prepared.atlas,
                     prepared.format);
+            if (resolved != null) return resolved;
+
+            // A null CCSpriteFrameCache lookup and a frame whose authoritative
+            // metadata cannot be represented by the clean-room pixel path are
+            // different states. The GameScene hidden fallback is valid only for
+            // the former. Preserve membership here with a deliberately invalid
+            // zero-sized frame so staging remains fail-closed on its existing
+            // crop/reconstruction bounds instead of treating bad metadata as a
+            // missing frame.
+            return invalidMetadataFrame(
+                    prepared.atlasIndex, requestedName, canonicalName, prepared.atlas);
         }
     }
 
@@ -328,6 +339,26 @@ final class GameSceneAtlasFrameResolver {
                 spriteSize,
                 sourceSize,
                 rotated);
+    }
+
+    private static Frame invalidMetadataFrame(
+            int atlasIndex,
+            String requestedName,
+            String canonicalName,
+            GameSceneAtlasResolver.Atlas atlas) {
+        int[] zero = new int[]{0, 0};
+        int[] zeroRect = new int[]{0, 0, 0, 0};
+        return new Frame(
+                atlasIndex,
+                requestedName,
+                canonicalName,
+                atlas,
+                zeroRect,
+                zeroRect,
+                zero,
+                zero,
+                zero,
+                false);
     }
 
     private static Frame buildFrame(
