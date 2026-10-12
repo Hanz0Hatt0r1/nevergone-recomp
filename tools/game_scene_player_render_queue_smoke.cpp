@@ -56,6 +56,45 @@ int main() {
     assert(requests.requests[0].player_body);
     assert(requests.requests[0].player_atlas_plist == "p01_02_default.plist");
 
+    // Live updateData() uses the currently selected ActionFrameData for the body
+    // transform as well as the sprite-frame key. A later frame must therefore
+    // carry its own position/anchor/scale/rotation/Z instead of inheriting frame 0.
+    enemy_actions_wbg_document::Document live_document;
+    live_document.primary_records.push_back(frame);
+    auto frame1 = frame;
+    frame1.first_string = "p01_03_default.plist";
+    frame1.first_string_length_i32 = 20;
+    frame1.third_string = "player_002.png";
+    frame1.third_string_length_i32 = 14;
+    frame1.float_values[0] = 12.0f;
+    frame1.float_values[1] = -7.0f;
+    frame1.float_values[2] = 0.25f;
+    frame1.float_values[3] = 0.75f;
+    frame1.float_values[8] = 9.0f;
+    frame1.float_values[9] = 15.0f;
+    frame1.float_values[10] = 1.25f;
+    frame1.float_values[11] = 0.8f;
+    live_document.primary_records.push_back(frame1);
+    me_actions_runtime_state::State second_frame;
+    second_frame.current_frame_1a4 = 1;
+    second_frame.previous_frame_1a8 = 0;
+    const auto live = game_scene_player_render_queue::with_live_player(
+            scene, spawn, &live_document, second_frame);
+    assert(live.sprites.size() == 3u);
+    assert(live.sprites[1].resource.resource_name == "player_002.png");
+    assert(live.sprites[1].player_body_atlas_plist.has_value());
+    assert(*live.sprites[1].player_body_atlas_plist == "p01_03_default.plist");
+    assert(live.sprites[1].player_body_transform.has_value());
+    const auto& live_transform = *live.sprites[1].player_body_transform;
+    assert(live_transform.position_x == 12.0f);
+    assert(live_transform.position_y == -7.0f);
+    assert(live_transform.anchor_x == 0.25f);
+    assert(live_transform.anchor_y == 0.75f);
+    assert(live_transform.scale_x == 1.25f);
+    assert(live_transform.scale_y == 0.8f);
+    assert(live_transform.rotation == 15.0f);
+    assert(live_transform.child_z_order == 9);
+
     // BattleManager/player is a GameScene child, not a class-layer object. The
     // original camera therefore contributes the full -eyeX world translation.
     const auto camera_shifted =
