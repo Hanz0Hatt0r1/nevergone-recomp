@@ -1,0 +1,39 @@
+name: GameScene action input
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_scene_action_input.*'
+      - 'android/app/src/main/cpp/tutorial_gameplay_state.*'
+      - 'android/app/src/main/cpp/tutorial_session_state.*'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/game_scene_action_input_smoke.cpp'
+      - '.github/workflows/game-scene-action-input.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_scene_action_input.*'
+      - 'android/app/src/main/cpp/tutorial_gameplay_state.*'
+      - 'android/app/src/main/cpp/tutorial_session_state.*'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/game_scene_action_input_smoke.cpp'
+      - '.github/workflows/game-scene-action-input.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run semantic action-input smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/game_scene_action_input.cpp \
+            android/app/src/main/cpp/tutorial_gameplay_state.cpp \
+            android/app/src/main/cpp/tutorial_session_state.cpp \
+            tools/game_scene_action_input_smoke.cpp \
+            -o /tmp/game_scene_action_input_smoke
+          /tmp/game_scene_action_input_smoke
