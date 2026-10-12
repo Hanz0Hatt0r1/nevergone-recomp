@@ -42,8 +42,9 @@ int main() {
     selector::complete_transition();
 
     // The paired frozen captures expose only career tags 1 and 2 as active
-    // menu items. A touch at retained-but-hidden tag 3 must not capture input.
-    assert(!input::on_touch_for_surface(0, 6, 568.0f, 325.0f, 1136, 640));
+    // menu items. The selector surface consumes an outside/hidden DOWN while
+    // active, but it must not capture a rune gesture or change the selection.
+    assert(input::on_touch_for_surface(0, 6, 568.0f, 325.0f, 1136, 640));
     assert(input::pressed_tag() == 0);
     assert(rune_layout::pressed_render_tag() == 0);
     assert(selector::snapshot().selected_career == 1);
