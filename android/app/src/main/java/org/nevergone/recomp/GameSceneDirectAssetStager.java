@@ -211,8 +211,8 @@ final class GameSceneDirectAssetStager {
                 final int spriteCommandIndex = spriteCommandIndices[requestIndex];
 
                 if (kind == GameSceneDirectAssetRequests.KIND_DIRECT_FILE) {
-                    File source = new File(canonicalRoot, value).getCanonicalFile();
-                    if (!source.getPath().startsWith(rootPrefix) || !source.isFile()) {
+                    File source = GameSceneAtlasResolver.resolveResource(canonicalRoot, value);
+                    if (source == null) {
                         return reject(
                                 "direct-file-unavailable",
                                 revision,
