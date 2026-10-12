@@ -31,8 +31,22 @@ public final class GameSceneAtlasFrameResolverSmoke {
                 "<key>textureRotated</key>" + (rotated ? "<true/>" : "<false/>") +
                 "<key>aliases</key><array>" + aliases + "</array>" +
                 "</dict></dict>" +
-                "<key>metadata</key><dict><key>textureFileName</key><string>sheet.png</string></dict>" +
-                "</dict></plist>";
+                "<key>metadata</key><dict>" +
+                "<key>format</key><integer>3</integer>" +
+                "<key>textureFileName</key><string>sheet.png</string>" +
+                "</dict></dict></plist>";
+    }
+
+    private static String legacyPlist(int format, String frameName, String frameBody) {
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                "<plist version=\"1.0\"><dict>" +
+                "<key>frames</key><dict><key>" + frameName + "</key><dict>" +
+                frameBody +
+                "</dict></dict>" +
+                "<key>metadata</key><dict>" +
+                "<key>format</key><integer>" + format + "</integer>" +
+                "<key>textureFileName</key><string>sheet.png</string>" +
+                "</dict></dict></plist>";
     }
 
     private static GameSceneAtlasResolver.Atlas writeAtlas(
@@ -76,8 +90,6 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert exact.canonicalName.equals("hero_idle.png");
             assert exact.textureX == 10 && exact.textureY == 20;
             assert exact.textureWidth == 30 && exact.textureHeight == 40;
-            // color geometry is derived from source size + sprite size + offset,
-            // matching the fields cocos2d-x 2.1.2 actually consumes.
             assert exact.colorX == 15 && exact.colorY == 15;
             assert exact.colorWidth == 30 && exact.colorHeight == 40;
             assert exact.offsetX == -2 && exact.offsetY == 5;
@@ -91,15 +103,13 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert alias.requestedName.equals("hero_alias.png");
             assert prepared.resolve("missing.png") == null;
 
-            // The compatibility one-shot API uses the same prepared path.
             GameSceneAtlasFrameResolver.Frame oneShot = GameSceneAtlasFrameResolver.resolve(
                     root, Collections.singletonList(atlas), "hero_idle.png");
             assert oneShot != null;
             assert oneShot.canonicalName.equals("hero_idle.png");
 
             // cocos2d-x 2.1.2 keeps the first canonical frame loaded under a
-            // duplicate key and skips the later frame before processing its
-            // aliases. Match that cache precedence exactly.
+            // duplicate key and skips the later frame before processing aliases.
             GameSceneAtlasResolver.Atlas duplicate = writeAtlas(
                     root,
                     "gamescene/gs_actions/res/b",
@@ -117,9 +127,6 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert duplicateWinner.textureX == 10;
             assert duplicatePrepared.resolve("duplicate_alias.png") == null;
 
-            // Aliases are different in the shipped cache: accepted later frames
-            // overwrite an earlier alias mapping even though canonical frame
-            // duplicates themselves never overwrite.
             GameSceneAtlasResolver.Atlas aliasOverride = writeAtlas(
                     root,
                     "gamescene/gs_actions/res/d",
@@ -136,7 +143,6 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert aliasWinner.atlasIndex == 1;
             assert aliasWinner.canonicalName.equals("hero_second.png");
 
-            // A real canonical name always wins lookup before the alias map.
             GameSceneAtlasResolver.Atlas canonicalOverride = writeAtlas(
                     root,
                     "gamescene/gs_actions/res/e",
@@ -154,9 +160,7 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert canonicalWinner.atlasIndex == 2;
             assert canonicalWinner.canonicalName.equals("hero_alias.png");
 
-            // spriteColorRect is not consumed by the original format-3 loader.
-            // A valid player/action plist may omit it entirely; derive the trim
-            // from the four authoritative geometry fields instead.
+            // Format 3 does not consume spriteColorRect.
             GameSceneAtlasResolver.Atlas noColorRect = writeAtlas(
                     root,
                     "player/Player01_Res/no-color",
@@ -176,9 +180,6 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert noColor.colorWidth == 12;
             assert noColor.colorHeight == 20;
 
-            // Even if an exporter writes a redundant spriteColorRect that does
-            // not match, original cocos2d-x ignores it. The clean resolver must
-            // likewise use the authoritative size/offset geometry.
             GameSceneAtlasResolver.Atlas ignoredColorRect = writeAtlas(
                     root,
                     "player/Player01_Res/ignored-color",
@@ -196,7 +197,92 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert ignoredColor.colorX == 4;
             assert ignoredColor.colorY == 1;
 
-            // Reject authoritative trim geometry that escapes the source.
+            // Format 0: exact legacy x/y/width/height + offsets/original size.
+            // Numeric XML values may be written as integral-valued decimals;
+            // the integer pixel path accepts them without rounding.
+            GameSceneAtlasResolver.Atlas format0 = writeAtlas(
+                    root,
+                    "player/Player01_Res/format0",
+                    legacyPlist(
+                            0,
+                            "legacy0.png",
+                            "<key>x</key><real>10.0</real>" +
+                            "<key>y</key><real>20.0</real>" +
+                            "<key>width</key><real>30.0</real>" +
+                            "<key>height</key><real>40.0</real>" +
+                            "<key>offsetX</key><real>-2.0</real>" +
+                            "<key>offsetY</key><real>5.0</real>" +
+                            "<key>originalWidth</key><integer>-64</integer>" +
+                            "<key>originalHeight</key><integer>-80</integer>"));
+            GameSceneAtlasFrameResolver.Prepared format0Prepared =
+                    GameSceneAtlasFrameResolver.prepare(
+                            root, Collections.singletonList(format0));
+            assert format0Prepared != null;
+            GameSceneAtlasFrameResolver.Frame legacy0 = format0Prepared.resolve("legacy0.png");
+            assert legacy0 != null;
+            assert legacy0.textureX == 10 && legacy0.textureY == 20;
+            assert legacy0.spriteWidth == 30 && legacy0.spriteHeight == 40;
+            assert legacy0.sourceWidth == 64 && legacy0.sourceHeight == 80;
+            assert legacy0.offsetX == -2 && legacy0.offsetY == 5;
+            assert !legacy0.rotated;
+
+            // Format 1: frame/offset/sourceSize, never rotated.
+            GameSceneAtlasResolver.Atlas format1 = writeAtlas(
+                    root,
+                    "player/Player01_Res/format1",
+                    legacyPlist(
+                            1,
+                            "legacy1.png",
+                            "<key>frame</key><string>{{10.0,20.0},{30.0,40.0}}</string>" +
+                            "<key>offset</key><string>{-2.0,5.0}</string>" +
+                            "<key>sourceSize</key><string>{64.0,80.0}</string>"));
+            GameSceneAtlasFrameResolver.Prepared format1Prepared =
+                    GameSceneAtlasFrameResolver.prepare(
+                            root, Collections.singletonList(format1));
+            assert format1Prepared != null;
+            GameSceneAtlasFrameResolver.Frame legacy1 = format1Prepared.resolve("legacy1.png");
+            assert legacy1 != null;
+            assert legacy1.textureX == 10 && legacy1.textureY == 20;
+            assert legacy1.spriteWidth == 30 && legacy1.spriteHeight == 40;
+            assert !legacy1.rotated;
+
+            // Format 2 adds the rotated flag to the format-1 schema.
+            GameSceneAtlasResolver.Atlas format2 = writeAtlas(
+                    root,
+                    "player/Player01_Res/format2",
+                    legacyPlist(
+                            2,
+                            "legacy2.png",
+                            "<key>frame</key><string>{{10,20},{30,40}}</string>" +
+                            "<key>rotated</key><true/>" +
+                            "<key>offset</key><string>{-2,5}</string>" +
+                            "<key>sourceSize</key><string>{64,80}</string>"));
+            GameSceneAtlasFrameResolver.Prepared format2Prepared =
+                    GameSceneAtlasFrameResolver.prepare(
+                            root, Collections.singletonList(format2));
+            assert format2Prepared != null;
+            GameSceneAtlasFrameResolver.Frame legacy2 = format2Prepared.resolve("legacy2.png");
+            assert legacy2 != null;
+            assert legacy2.rotated;
+            assert legacy2.spriteWidth == 30 && legacy2.spriteHeight == 40;
+
+            // Do not silently round genuinely fractional texel geometry.
+            GameSceneAtlasResolver.Atlas fractional = writeAtlas(
+                    root,
+                    "player/Player01_Res/fractional",
+                    legacyPlist(
+                            2,
+                            "fractional.png",
+                            "<key>frame</key><string>{{10.5,20},{30,40}}</string>" +
+                            "<key>rotated</key><false/>" +
+                            "<key>offset</key><string>{0,0}</string>" +
+                            "<key>sourceSize</key><string>{30,40}</string>"));
+            GameSceneAtlasFrameResolver.Prepared fractionalPrepared =
+                    GameSceneAtlasFrameResolver.prepare(
+                            root, Collections.singletonList(fractional));
+            assert fractionalPrepared != null;
+            assert fractionalPrepared.resolve("fractional.png") == null;
+
             GameSceneAtlasResolver.Atlas malformed = writeAtlas(
                     root,
                     "gamescene/gs_actions/res/c",
@@ -209,7 +295,16 @@ public final class GameSceneAtlasFrameResolverSmoke {
             assert malformedPrepared != null;
             assert malformedPrepared.resolve("bad.png") == null;
 
-            // Resolved atlas paths remain confined to the imported asset root.
+            GameSceneAtlasResolver.Atlas unsupported = writeAtlas(
+                    root,
+                    "player/Player01_Res/format4",
+                    legacyPlist(
+                            4,
+                            "unsupported.png",
+                            "<key>frame</key><string>{{0,0},{1,1}}</string>"));
+            assert GameSceneAtlasFrameResolver.prepare(
+                    root, Collections.singletonList(unsupported)) == null;
+
             GameSceneAtlasResolver.Atlas traversal =
                     new GameSceneAtlasResolver.Atlas("../outside.plist", "../outside.png");
             assert GameSceneAtlasFrameResolver.prepare(
