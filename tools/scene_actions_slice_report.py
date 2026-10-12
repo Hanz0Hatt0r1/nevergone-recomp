@@ -2,10 +2,10 @@
 """Summarize the bounded SceneActions Ghidra export without retaining raw decompiler text.
 
 The exporter in tools/ghidra/ExportSceneActionTriggerSlice.java intentionally writes a
-small local-only evidence slice.  This helper turns that slice into a compact review
+small local-only evidence slice. This helper turns that slice into a compact review
 report that can be committed or shared safely: it records target resolution plus
 short candidate lines around the two still-open boundaries (spatial trigger and the
-TrapActionsData +0xbc frame-count edge).  It never copies complete instruction or
+TrapActionsData +0xbc frame-count edge). It never copies complete instruction or
 C-decompiler sections into the report.
 """
 
@@ -22,13 +22,13 @@ from typing import Iterable
 SEPARATOR = "=" * 60
 EXPECTED_TARGETS = (
     "GameScene::TriggerSceneAction(float)",
-    "GameSceneClassLayer::showEventObjTip(...) ",
+    "GameSceneClassLayer::showEventObjTip(...)",
     "GameSceneObject::triggerSceneAction()",
     "GameSceneObject::isContainsRect(CCRect)",
     "GameSceneObject::isContainsRect(CCRect,const char*)",
     "GameSceneObject::getObjectRect()",
     "SceneActionsSystem::waUpdate(float)",
-    "TrapActionsData::loadWBGFile(...) ",
+    "TrapActionsData::loadWBGFile(...)",
 )
 
 SPATIAL_TARGETS = EXPECTED_TARGETS[:6]
@@ -40,7 +40,7 @@ SECTION_MARKERS = {
     "-- DECOMPILE --": "decompile",
 }
 
-# Deliberately lexical only.  These patterns surface local evidence; they do not
+# Deliberately lexical only. These patterns surface local evidence; they do not
 # claim that an offset or branch has already been semantically identified.
 COUNT_PATTERNS = (
     re.compile(r"\b0x0*bc\b", re.IGNORECASE),
