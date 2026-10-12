@@ -116,9 +116,33 @@ public final class GameSceneAtlasResolverSmoke {
         assert ordered != null && ordered.size() == 1;
         assert ordered.get(0).plistRelativePath.equals("other/ordered.plist");
 
+        // CCSpriteFrameCache resolves the plist and its texture in two distinct
+        // CCFileUtils searches. The plist can therefore come from a later root
+        // while the logical texture name resolves from an earlier root.
+        write(new File(assets, "other/cross-root.plist"),
+                plist("cross-root.png", false));
+        write(new File(assets, "other/cross-root.png"), "later-texture");
+        write(new File(assets, "player/cross-root.png"), "earlier-texture");
+        List<GameSceneAtlasResolver.Atlas> crossRoot =
+                GameSceneAtlasResolver.resolve(assets, Arrays.asList("cross-root.plist"));
+        assert crossRoot != null && crossRoot.size() == 1;
+        assert crossRoot.get(0).plistRelativePath.equals("other/cross-root.plist");
+        assert crossRoot.get(0).textureRelativePath.equals("player/cross-root.png");
+
+        // The extension-replacement fallback follows the same independent
+        // search. It must not be pinned to the physical plist directory either.
+        write(new File(assets, "other/cross-fallback.plist"), plist(null, false));
+        write(new File(assets, "other/cross-fallback.png"), "later-texture");
+        write(new File(assets, "player/cross-fallback.png"), "earlier-texture");
+        List<GameSceneAtlasResolver.Atlas> crossFallback =
+                GameSceneAtlasResolver.resolve(assets, Arrays.asList("cross-fallback.plist"));
+        assert crossFallback != null && crossFallback.size() == 1;
+        assert crossFallback.get(0).plistRelativePath.equals("other/cross-fallback.plist");
+        assert crossFallback.get(0).textureRelativePath.equals("player/cross-fallback.png");
+
         // CCFileUtils::fullPathFromRelativeFile joins textureFileName to the
-        // plist directory and permits parent-relative components. Preserve that
-        // behavior when canonicalization still keeps the texture inside assets.
+        // logical plist directory and permits parent-relative components. Keep
+        // that behavior when canonicalization stays inside imported assets.
         File parentRelativePlist = new File(assets, "gamescene/l02/res/relative.plist");
         File parentRelativePng = new File(assets, "gamescene/l02/shared.png");
         write(parentRelativePlist, plist("../shared.png", false));
