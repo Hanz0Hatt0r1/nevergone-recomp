@@ -27,6 +27,8 @@ int main() {
     spawn.source_y = 300.0f;
 
     enemy_actions_wbg_prefix::ActionFrameRecord frame;
+    frame.first_string = "p01_02_default.plist";
+    frame.first_string_length_i32 = 20;
     frame.third_string = "player_001.png";
     frame.third_string_length_i32 = 14;
     frame.float_values[2] = 0.5f;
@@ -43,6 +45,8 @@ int main() {
     assert(ready.sprites[1].transform.position_x == 600.0f);
     assert(ready.sprites[1].transform.position_y == 468.0f);
     assert(ready.sprites[1].player_body_transform.has_value());
+    assert(ready.sprites[1].player_body_atlas_plist.has_value());
+    assert(*ready.sprites[1].player_body_atlas_plist == "p01_02_default.plist");
     assert(!ready.sprites[1].player_body_transform->flip_x);
     assert(ready.sprites[1].layer_z_index == 7u);
     const auto requests = game_scene_direct_asset_requests::build(ready);
@@ -50,6 +54,7 @@ int main() {
     assert(requests.requests[0].sprite_command_index == 1u);
     assert(requests.requests[0].frame_name == "player_001.png");
     assert(requests.requests[0].player_body);
+    assert(requests.requests[0].player_atlas_plist == "p01_02_default.plist");
 
     // BattleManager/player is a GameScene child, not a class-layer object. The
     // original camera therefore contributes the full -eyeX world translation.
