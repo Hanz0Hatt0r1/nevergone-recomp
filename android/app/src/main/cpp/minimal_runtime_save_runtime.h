@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 
+#include "game_scene_player_motion_state.h"
 #include "game_scene_player_spawn_state.h"
 #include "minimal_runtime_save.h"
 
@@ -22,13 +23,19 @@ struct Snapshot {
 };
 
 void reset_session();
-bool capture_current(const std::string& files_dir);
 
-// Render-thread autosave. It ignores an unchanged or never-moved cursor and
-// writes the first changed motion immediately, then at most once per 35 game
-// ticks. This makes the minimal restart slice independent of receiving an
-// Android pause callback before process death.
-bool autosave_if_due(const std::string& files_dir, std::uint64_t game_tick);
+bool capture_current(
+    const std::string& files_dir,
+    const game_scene_player_spawn_state::Snapshot& spawn,
+    const game_scene_player_motion_state::Snapshot& motion);
+
+// Render-thread autosave. Snapshots are supplied by the caller so persistence
+// observes one coherent scene/player sample rather than re-reading globals.
+bool autosave_if_due(
+    const std::string& files_dir,
+    const game_scene_player_spawn_state::Snapshot& spawn,
+    const game_scene_player_motion_state::Snapshot& motion,
+    std::uint64_t game_tick);
 
 bool restore_for_spawn(
     const std::string& files_dir,
