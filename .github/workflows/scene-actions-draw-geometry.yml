@@ -1,0 +1,26 @@
+name: SceneActions draw geometry
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_draw_geometry.h'
+      - 'tools/scene_actions_draw_geometry_smoke.cpp'
+      - '.github/workflows/scene-actions-draw-geometry.yml'
+  push:
+    paths:
+      - 'android/app/src/main/cpp/scene_actions_draw_geometry.h'
+      - 'tools/scene_actions_draw_geometry_smoke.cpp'
+      - '.github/workflows/scene-actions-draw-geometry.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run SceneActions draw geometry smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/scene_actions_draw_geometry_smoke.cpp \
+            -o /tmp/scene_actions_draw_geometry_smoke
+          /tmp/scene_actions_draw_geometry_smoke
