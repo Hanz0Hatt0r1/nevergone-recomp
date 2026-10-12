@@ -242,19 +242,33 @@ final class GameSceneAtlasFrameResolver {
             Match match,
             GameSceneAtlasResolver.Atlas atlas) {
         int[] textureRect = rectValue(valueForKey(match.frame, "textureRect"));
-        int[] colorRect = rectValue(valueForKey(match.frame, "spriteColorRect"));
         int[] offset = pointValue(valueForKey(match.frame, "spriteOffset"));
         int[] spriteSize = pointValue(valueForKey(match.frame, "spriteSize"));
         int[] sourceSize = pointValue(valueForKey(match.frame, "spriteSourceSize"));
         Boolean rotated = booleanValue(valueForKey(match.frame, "textureRotated"));
-        if (textureRect == null || colorRect == null || offset == null || spriteSize == null ||
+        if (textureRect == null || offset == null || spriteSize == null ||
                 sourceSize == null || rotated == null || textureRect[0] < 0 || textureRect[1] < 0 ||
-                textureRect[2] <= 0 || textureRect[3] <= 0 || colorRect[0] < 0 || colorRect[1] < 0 ||
-                colorRect[2] <= 0 || colorRect[3] <= 0 || spriteSize[0] <= 0 || spriteSize[1] <= 0 ||
-                sourceSize[0] <= 0 || sourceSize[1] <= 0 || colorRect[0] + colorRect[2] > sourceSize[0] ||
-                colorRect[1] + colorRect[3] > sourceSize[1]) {
+                textureRect[2] <= 0 || textureRect[3] <= 0 || spriteSize[0] <= 0 || spriteSize[1] <= 0 ||
+                sourceSize[0] <= 0 || sourceSize[1] <= 0) {
             return null;
         }
+
+        // cocos2d-x 2.1.2 format-3 loading does not consume spriteColorRect.
+        // CCSpriteFrame receives only textureRect, spriteSize, spriteOffset,
+        // spriteSourceSize and textureRotated. Derive the trim rectangle from
+        // those authoritative fields instead of requiring a redundant exporter
+        // key that valid original-compatible plists may omit.
+        long colorX = ((long) sourceSize[0] - (long) spriteSize[0]) / 2L + offset[0];
+        long colorY = ((long) sourceSize[1] - (long) spriteSize[1]) / 2L - offset[1];
+        if (colorX < 0L || colorY < 0L ||
+                colorX + spriteSize[0] > sourceSize[0] ||
+                colorY + spriteSize[1] > sourceSize[1] ||
+                colorX > Integer.MAX_VALUE || colorY > Integer.MAX_VALUE) {
+            return null;
+        }
+        int[] colorRect = new int[]{
+                (int) colorX, (int) colorY, spriteSize[0], spriteSize[1]};
+
         return new Frame(
                 atlasIndex, requestedName, match.canonicalName, atlas,
                 textureRect, colorRect, offset, spriteSize, sourceSize, rotated.booleanValue());
