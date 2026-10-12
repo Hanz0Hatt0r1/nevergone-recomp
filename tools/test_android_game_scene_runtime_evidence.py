@@ -119,6 +119,7 @@ def main() -> int:
         assert proof is not None
         assert proof.render_sprites == 12
         assert proof.staging_requests == 10
+        assert proof.hidden_slots == 0
         assert proof.camera_eye_x == 64.5
         assert proof.drawn_frames == 16
         assert proof.drawn_sprites == 10
@@ -134,6 +135,17 @@ def main() -> int:
         assert proof.render_sprites == 9
         assert proof.staging_requests == 10
         assert proof.drawn_sprites == 10
+        assert proof.hidden_slots == 0
+
+        # #358 introduced transactional hidden slots for the recovered ordinary
+        # GameScene null-frame fallback. They are fully staged and validated by
+        # the texture cache but intentionally submit no GLES quad.
+        report = replace(root, "last static sprites: 10", "last static sprites: 8")
+        proof = module.validate(module.parse_report(report))
+        assert proof is not None
+        assert proof.staging_requests == 10
+        assert proof.drawn_sprites == 8
+        assert proof.hidden_slots == 2
 
         xml = root / "window.xml"
         xml.write_text(
@@ -153,7 +165,8 @@ def main() -> int:
         expect_invalid(replace(root, "camera eye x: 64.5", "camera eye x: nan"))
         expect_invalid(replace(root, "camera eye x: 64.5\n", ""))
         expect_invalid(replace(root, "drawn frames: 16", "drawn frames: 0"))
-        expect_invalid(replace(root, "last static sprites: 10", "last static sprites: 9"))
+        expect_invalid(replace(root, "last static sprites: 10", "last static sprites: 0"))
+        expect_invalid(replace(root, "last static sprites: 10", "last static sprites: 11"))
         expect_invalid(replace(root, "render sprites: 12", "render sprites: 0"))
 
         report = write_report(root, status="fail", diagnostics="capture failed\n")

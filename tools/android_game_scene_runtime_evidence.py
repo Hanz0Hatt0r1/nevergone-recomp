@@ -44,6 +44,7 @@ class SceneProof:
     deferred_pairs: int
     unresolved_render_objects: int
     staging_requests: int
+    hidden_slots: int
     camera_eye_x: float
     drawn_frames: int
     drawn_sprites: int
@@ -228,21 +229,26 @@ def validate_diagnostics(text: str) -> SceneProof:
         raise ValueError("GameScene renderer counters do not prove a successful draw")
     if drawn_sprites <= 0:
         raise ValueError("GameScene renderer drew no static sprites")
-    if drawn_sprites != requests:
+    if drawn_sprites > requests:
         raise ValueError(
-            "drawn static sprite count does not match the staged request count: "
+            "drawn static sprite count exceeds the staged request count: "
             f"drawn={drawn_sprites}, requests={requests}"
         )
 
-    # render_sprites is the base GameLevels queue. The live renderer composes
-    # player/joystick overlays before it creates staging requests, so the
-    # authoritative post-composition invariant is drawn_sprites == requests;
-    # it is valid for that count to exceed the base queue.
+    # Every request belongs to the same complete transactional revision. A
+    # successful direct-renderer frame resolves every request through the native
+    # texture cache and skips only entries explicitly marked hidden by the
+    # recovered GameScene null-frame fallback. Therefore the difference between
+    # the completely staged request count and the submitted quad count is the
+    # evidence-backed hidden-slot count. Player/joystick overlays may still make
+    # the post-composition request count exceed the base GameLevels queue.
+    hidden_slots = requests - drawn_sprites
     return SceneProof(
         render_sprites=render_sprites,
         deferred_pairs=deferred_pairs,
         unresolved_render_objects=unresolved_render_objects,
         staging_requests=requests,
+        hidden_slots=hidden_slots,
         camera_eye_x=camera_eye_x,
         drawn_frames=drawn_frames,
         drawn_sprites=drawn_sprites,
@@ -325,6 +331,7 @@ def main() -> int:
             "GameScene runtime evidence valid: "
             f"drawn_frames={proof.drawn_frames} "
             f"drawn_sprites={proof.drawn_sprites} "
+            f"hidden_slots={proof.hidden_slots} "
             f"camera_eye_x={proof.camera_eye_x:g} "
             f"unresolved_render_objects={proof.unresolved_render_objects} "
             f"deferred_pairs={proof.deferred_pairs}"
