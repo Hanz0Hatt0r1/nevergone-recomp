@@ -114,11 +114,17 @@ bool build_frame_quad(
         int surface_width,
         int surface_height,
         Quad* out) {
+    // A full untrimmed bitmap mirrored around the sprite center also mirrors the
+    // transparent padding. Once only the trimmed frame is retained, reproduce
+    // that same placement by negating the CCSpriteFrame X offset on flipX.
+    const float local_center_x = transform.flip_x
+            ? -static_cast<float>(frame_offset_x)
+            : static_cast<float>(frame_offset_x);
     return build_quad_with_local_center(
             transform,
             texture_width,
             texture_height,
-            static_cast<float>(frame_offset_x),
+            local_center_x,
             static_cast<float>(frame_offset_y),
             surface_width,
             surface_height,
