@@ -1,5 +1,7 @@
 package nevergone;
 
+import capstone.api.Instruction;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.github.unidbg.AndroidEmulator;
 import com.github.unidbg.Module;
@@ -15,6 +17,8 @@ final class ActionDataCreateProbe {
     private static final long GHIDRA_BIAS = 0x10000L;
     private static final long GHIDRA_CREATE_A = 0x29ec10L;
     private static final long GHIDRA_CREATE_B = 0x29ed0cL;
+    private static final int PREFLIGHT_BYTES = 0x80;
+    private static final int PREFLIGHT_MAX_INSTRUCTIONS = 64;
 
     static void run(AndroidEmulator emulator, Module module, String requestedAddress) {
         long ghidraAddress = parseAddress(requestedAddress);
@@ -27,6 +31,8 @@ final class ActionDataCreateProbe {
         if (runtimeOffset < 0 || runtimeOffset >= module.size)
             throw new IllegalArgumentException(String.format(
                     "ActionData create runtime offset outside module: 0x%x", runtimeOffset));
+
+        emitPreflightDisassembly(emulator, module, ghidraAddress, runtimeOffset);
 
         JSONObject row = new JSONObject(true);
         row.put("schema", 2);
@@ -57,6 +63,67 @@ final class ActionDataCreateProbe {
             if (error instanceof Error) throw (Error) error;
             throw new RuntimeException(error);
         }
+    }
+
+    private static void emitPreflightDisassembly(AndroidEmulator emulator, Module module,
+                                                  long ghidraAddress, long runtimeOffset) {
+        long runtimeAddress = module.base + runtimeOffset;
+        int maxBytes = (int) Math.min(PREFLIGHT_BYTES, module.size - runtimeOffset);
+        byte[] code = emulator.getBackend().mem_read(runtimeAddress, maxBytes);
+        Instruction[] instructions = emulator.disassemble(
+                runtimeAddress, code, true, PREFLIGHT_MAX_INSTRUCTIONS);
+
+        JSONObject row = new JSONObject(true);
+        row.put("schema", 1);
+        row.put("kind", "action_data_create_preflight_disassembly");
+        row.put("module", module.name);
+        row.put("source_id", module.name + ":" + String.format("%08x", ghidraAddress));
+        row.put("ghidra_address", String.format("0x%x", ghidraAddress));
+        row.put("runtime_offset", String.format("0x%x", runtimeOffset));
+        row.put("byte_limit", maxBytes);
+        row.put("instruction_limit", PREFLIGHT_MAX_INSTRUCTIONS);
+
+        JSONArray decoded = new JSONArray();
+        JSONObject byGhidraAddress = new JSONObject(true);
+        if (instructions != null) {
+            for (Instruction instruction : instructions) {
+                long instructionRuntimeOffset = instruction.getAddress() - module.base;
+                if (instructionRuntimeOffset < runtimeOffset ||
+                        instructionRuntimeOffset >= runtimeOffset + maxBytes)
+                    continue;
+                long instructionGhidraAddress = instructionRuntimeOffset + GHIDRA_BIAS;
+                JSONObject item = new JSONObject(true);
+                item.put("ghidra_address", String.format("0x%x", instructionGhidraAddress));
+                item.put("runtime_offset", String.format("0x%x", instructionRuntimeOffset));
+                item.put("mnemonic", instruction.getMnemonic());
+                item.put("operands", instruction.getOpStr());
+                decoded.add(item);
+                byGhidraAddress.put(String.format("0x%x", instructionGhidraAddress),
+                        instruction.getMnemonic() +
+                                ((instruction.getOpStr() == null || instruction.getOpStr().isEmpty())
+                                        ? "" : " " + instruction.getOpStr()));
+            }
+        }
+        row.put("decoded_instruction_count", decoded.size());
+        row.put("instructions", decoded);
+
+        JSONArray expectedSites = new JSONArray();
+        long[] sites = ghidraAddress == GHIDRA_CREATE_A
+                ? new long[] {0x29ec26L, 0x29ec3cL}
+                : new long[] {0x29ed22L, 0x29ed38L};
+        for (long site : sites) {
+            JSONObject siteRow = new JSONObject(true);
+            String key = String.format("0x%x", site);
+            siteRow.put("ghidra_address", key);
+            siteRow.put("runtime_offset", String.format("0x%x", site - GHIDRA_BIAS));
+            String decodedText = byGhidraAddress.getString(key);
+            siteRow.put("instruction_boundary", decodedText != null);
+            siteRow.put("instruction", decodedText);
+            siteRow.put("is_blx", decodedText != null && decodedText.startsWith("blx"));
+            expectedSites.add(siteRow);
+        }
+        row.put("expected_dispatch_sites", expectedSites);
+        EvidenceProbe.emit(row);
     }
 
     private static long parseAddress(String value) {
