@@ -26,6 +26,7 @@ final class DispatchReceiverProvenance {
             long vtable = readU32(emulator, receiver);
             row.put("receiver_vtable_raw", hex32(vtable));
             String vtableId = putPointerIdentity(emulator, row, "receiver_vtable", vtable);
+            row.put("receiver_vtable_id", vtableId);
 
             if (slotOffset == null) {
                 row.put("receiver_provenance_status", "missing_slot_offset");
