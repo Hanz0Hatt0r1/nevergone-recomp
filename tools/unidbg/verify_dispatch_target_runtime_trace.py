@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 JAVA = ROOT / "tools/unidbg/src/main/java/nevergone/DispatchTargetRuntimeTrace.java"
+RECEIVER = ROOT / "tools/unidbg/src/main/java/nevergone/DispatchReceiverProvenance.java"
 HARNESS = ROOT / "tools/unidbg/src/main/java/nevergone/NevergoneHarness.java"
 BUILDER = ROOT / "tools/ml/build_nevergone_dispatch_runtime_probe_plan.py"
 CONVERTER = ROOT / "tools/ml/convert_nevergone_dispatch_runtime_trace_to_seeds.py"
@@ -22,6 +23,7 @@ def require(text: str, token: str, where: str) -> None:
 
 def main() -> int:
     java = JAVA.read_text(encoding="utf-8")
+    receiver = RECEIVER.read_text(encoding="utf-8")
     harness = HARNESS.read_text(encoding="utf-8")
     for token in (
         "Debugger debugger = emulator.attach()",
@@ -35,12 +37,23 @@ def main() -> int:
         "target_runtime_id",
         "target_ghidra_address",
         "target_id",
+        "DispatchReceiverProvenance.capture",
         "MAX_SITES = 128",
     ):
         require(java, token, str(JAVA))
+    for token in (
+        'row.put("receiver_pointer"',
+        'row.put("receiver_vtable_id"',
+        'row.put("receiver_dispatch_key"',
+        'row.put("receiver_slot_matches_blx_target"',
+        '"verified_slot_match"',
+        'lastIndexOf("@0x")',
+        "mem_read(address, 4)",
+    ):
+        require(receiver, token, str(RECEIVER))
     if "getBackend().addBreakPoint" in java:
         raise AssertionError("dispatch tracer must register callbacks through Debugger, not Backend directly")
-    if ".callFunction(" in java:
+    if ".callFunction(" in java or ".callFunction(" in receiver:
         raise AssertionError("runtime tracer must observe only and never call native functions")
     require(harness, '"--trace-dispatch-targets"', str(HARNESS))
     require(harness, "DispatchTargetRuntimeTrace.install", str(HARNESS))
@@ -103,6 +116,16 @@ def main() -> int:
                 "target_module": "libcocos2dcpp.so",
                 "target_module_offset": "0xaaaa",
                 "target_thumb": True,
+                "receiver_pointer": "0x14001000",
+                "receiver_vtable_id": "libcocos2dcpp.so:00022000",
+                "receiver_vtable_module": "libcocos2dcpp.so",
+                "receiver_vtable_module_offset": "0x12000",
+                "receiver_vtable_ghidra_address": "0x22000",
+                "dispatch_slot_offset": "0x4",
+                "receiver_dispatch_key": "libcocos2dcpp.so:00022000@slot=0x4",
+                "receiver_slot_target_raw": "0x1200aaaa",
+                "receiver_slot_matches_blx_target": True,
+                "receiver_provenance_status": "verified_slot_match",
             },
             {
                 "kind": "dispatch_runtime_target",
@@ -117,6 +140,11 @@ def main() -> int:
                 "target_module": "libcocos2dcpp.so",
                 "target_module_offset": "0xbbbb",
                 "target_thumb": True,
+                "receiver_vtable_id": "libcocos2dcpp.so:00023000",
+                "dispatch_slot_offset": "0x4",
+                "receiver_dispatch_key": "libcocos2dcpp.so:00023000@slot=0x4",
+                "receiver_slot_matches_blx_target": True,
+                "receiver_provenance_status": "verified_slot_match",
             },
         ]
         trace.write_text("loader noise\n" + "\n".join("EVIDENCE " + json.dumps(row) for row in observations) + "\n", encoding="utf-8")
@@ -128,6 +156,11 @@ def main() -> int:
             "libcocos2dcpp.so:0001aaaa",
             "libcocos2dcpp.so:0001bbbb",
         }
+        assert {row["receiver_vtable_id"] for row in converted} == {
+            "libcocos2dcpp.so:00022000",
+            "libcocos2dcpp.so:00023000",
+        }
+        assert all(row["receiver_slot_matches_blx_target"] is True for row in converted)
 
     print("dispatch target runtime trace contract: ok")
     return 0
