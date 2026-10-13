@@ -7,18 +7,19 @@ import com.github.unidbg.AndroidEmulator;
 import com.github.unidbg.Module;
 
 /**
- * Bounded direct-entry probe for the two zero-argument ActionData create functions
- * selected by static dispatch-equivalence analysis.
+ * Bounded direct-entry probe for allowlisted zero-argument dispatch create functions.
  *
- * CLI offsets are Ghidra addresses. libcocos2dcpp.so is loaded in Ghidra at
- * ELF/runtime module offset + 0x10000, so the native call subtracts that bias.
- * Appending `:fallback` enables a bounded post-first-call R0 override so the
- * native function follows its own fallback path to the second virtual dispatch.
+ * The legacy class name is retained for CLI/source compatibility. CLI offsets are
+ * Ghidra addresses. libcocos2dcpp.so is loaded in Ghidra at ELF/runtime module
+ * offset + 0x10000, so the native call subtracts that bias. Appending `:fallback`
+ * enables a bounded post-first-call R0 override so the native function follows its
+ * own fallback path to the second virtual dispatch.
  */
 final class ActionDataCreateProbe {
     private static final long GHIDRA_BIAS = 0x10000L;
     private static final long GHIDRA_CREATE_A = 0x29ec10L;
     private static final long GHIDRA_CREATE_B = 0x29ed0cL;
+    private static final long GHIDRA_CREATE_C = 0x2ace4cL;
     private static final int PREFLIGHT_BYTES = 0x80;
     private static final int PREFLIGHT_MAX_INSTRUCTIONS = 64;
     private static final String FALLBACK_SUFFIX = ":fallback";
@@ -29,22 +30,23 @@ final class ActionDataCreateProbe {
                 ? requestedAddress.substring(0, requestedAddress.length() - FALLBACK_SUFFIX.length())
                 : requestedAddress;
         long ghidraAddress = parseAddress(addressText);
-        if (ghidraAddress != GHIDRA_CREATE_A && ghidraAddress != GHIDRA_CREATE_B)
+        if (ghidraAddress != GHIDRA_CREATE_A && ghidraAddress != GHIDRA_CREATE_B &&
+                ghidraAddress != GHIDRA_CREATE_C)
             throw new IllegalArgumentException(String.format(
-                    "ActionData create probe Ghidra address is not allowlisted: 0x%x", ghidraAddress));
+                    "Dispatch create probe Ghidra address is not allowlisted: 0x%x", ghidraAddress));
         if (ghidraAddress < GHIDRA_BIAS)
             throw new IllegalArgumentException("Ghidra address is below libcocos bias");
         long runtimeOffset = ghidraAddress - GHIDRA_BIAS;
         if (runtimeOffset < 0 || runtimeOffset >= module.size)
             throw new IllegalArgumentException(String.format(
-                    "ActionData create runtime offset outside module: 0x%x", runtimeOffset));
+                    "Dispatch create runtime offset outside module: 0x%x", runtimeOffset));
 
         emitPreflightDisassembly(emulator, module, ghidraAddress, runtimeOffset);
         if (fallbackPathRequested)
             ActionDataFallbackPathControl.install(emulator, module, emulator.attach(), addressText);
 
         JSONObject row = new JSONObject(true);
-        row.put("schema", 3);
+        row.put("schema", 4);
         row.put("kind", "action_data_create_entry");
         row.put("module", module.name);
         row.put("module_base", String.format("0x%x", module.base));
@@ -55,6 +57,10 @@ final class ActionDataCreateProbe {
         row.put("signature_evidence", "undefined __stdcall create(void)");
         row.put("guest_argument_count", 0);
         row.put("thumb_entry_offset", String.format("0x%x", runtimeOffset | 1L));
+        row.put("expected_receiver_class_from_static_inference", expectedReceiverClass(ghidraAddress));
+        row.put("allowlist_evidence", ghidraAddress == GHIDRA_CREATE_C
+                ? "create_void_plus_static_receiver_vtable_exact_slot_candidates"
+                : "create_void_plus_runtime_receiver_vtable_verified");
         row.put("fallback_path_requested", fallbackPathRequested);
         row.put("fallback_control", fallbackPathRequested
                 ? "post_first_virtual_call_r0_zero_only" : "none");
@@ -75,6 +81,13 @@ final class ActionDataCreateProbe {
             if (error instanceof Error) throw (Error) error;
             throw new RuntimeException(error);
         }
+    }
+
+    private static String expectedReceiverClass(long ghidraAddress) {
+        if (ghidraAddress == GHIDRA_CREATE_A) return "ActionData";
+        if (ghidraAddress == GHIDRA_CREATE_B) return "EenemyActionDataSet";
+        if (ghidraAddress == GHIDRA_CREATE_C) return "WeaponsItemData";
+        return null;
     }
 
     private static void emitPreflightDisassembly(AndroidEmulator emulator, Module module,
@@ -120,9 +133,14 @@ final class ActionDataCreateProbe {
         row.put("instructions", decoded);
 
         JSONArray expectedSites = new JSONArray();
-        long[] sites = ghidraAddress == GHIDRA_CREATE_A
-                ? new long[] {0x29ec26L, 0x29ec3cL}
-                : new long[] {0x29ed22L, 0x29ed38L};
+        long[] sites;
+        if (ghidraAddress == GHIDRA_CREATE_A) {
+            sites = new long[] {0x29ec26L, 0x29ec3cL};
+        } else if (ghidraAddress == GHIDRA_CREATE_B) {
+            sites = new long[] {0x29ed22L, 0x29ed38L};
+        } else {
+            sites = new long[] {0x2ace64L, 0x2ace7aL};
+        }
         for (long site : sites) {
             JSONObject siteRow = new JSONObject(true);
             String key = String.format("0x%x", site);

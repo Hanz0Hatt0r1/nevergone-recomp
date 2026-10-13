@@ -9,30 +9,34 @@ import com.github.unidbg.debugger.Debugger;
 import unicorn.ArmConst;
 
 /**
- * Bounded path-control for the two allowlisted ActionData create functions.
+ * Bounded path-control for the allowlisted zero-argument dispatch create functions.
  *
- * The first virtual call is allowed to execute normally. At the instruction
- * immediately after that BLX returns, this control records the native return
- * value and replaces only R0 with zero. The original create() code then follows
- * its own failure/fallback branch and reaches the second virtual dispatch slot.
- * No call target, vtable entry, object memory, PC, LR, or stack state is changed.
+ * The legacy class name is retained for CLI/source compatibility. The first virtual
+ * call is allowed to execute normally. At the instruction immediately after that
+ * BLX returns, this control records the native return value and replaces only R0
+ * with zero. The original create() code then follows its own failure/fallback branch
+ * and reaches the second virtual dispatch slot. No call target, vtable entry, object
+ * memory, PC, LR, or stack state is changed.
  */
 final class ActionDataFallbackPathControl {
     private static final long GHIDRA_BIAS = 0x10000L;
     private static final long GHIDRA_CREATE_A = 0x29ec10L;
     private static final long GHIDRA_CREATE_B = 0x29ed0cL;
+    private static final long GHIDRA_CREATE_C = 0x2ace4cL;
     private static final long GHIDRA_FIRST_CALL_A = 0x29ec26L;
     private static final long GHIDRA_FIRST_CALL_B = 0x29ed22L;
+    private static final long GHIDRA_FIRST_CALL_C = 0x2ace64L;
 
     static void install(AndroidEmulator emulator, Module module, Debugger debugger, String requestedAddress) {
         long createGhidra = parseAddress(requestedAddress);
         final long firstCallGhidra;
         if (createGhidra == GHIDRA_CREATE_A) firstCallGhidra = GHIDRA_FIRST_CALL_A;
         else if (createGhidra == GHIDRA_CREATE_B) firstCallGhidra = GHIDRA_FIRST_CALL_B;
+        else if (createGhidra == GHIDRA_CREATE_C) firstCallGhidra = GHIDRA_FIRST_CALL_C;
         else throw new IllegalArgumentException(String.format(
-                "ActionData fallback probe Ghidra address is not allowlisted: 0x%x", createGhidra));
+                "Dispatch create fallback probe Ghidra address is not allowlisted: 0x%x", createGhidra));
 
-        // Both allowlisted first dispatches are verified 16-bit Thumb `blx r3`.
+        // All allowlisted first dispatches are verified 16-bit Thumb `blx r3` sites.
         final long postCallGhidra = firstCallGhidra + 2L;
         final long postCallOffset = postCallGhidra - GHIDRA_BIAS;
         if (postCallOffset < 0 || postCallOffset >= module.size)
