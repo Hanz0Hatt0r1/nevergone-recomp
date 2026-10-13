@@ -4,6 +4,7 @@ import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.Pointer;
+import ghidra.program.model.data.TypeDef;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.pcode.HighFunction;
 import ghidra.program.model.pcode.HighVariable;
@@ -21,15 +22,22 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 // Export conservative High-P-code type evidence for the receiver (first call
 // argument) of CALLIND sites. This is evidence only: it does not infer a class
 // from the call target, does not inspect decompiler C text, and does not mutate
-// the program.
+// the program. Version 2 additionally follows only transparent value-flow ops
+// (COPY/CAST/INDIRECT/MULTIEQUAL) to recover class-pointer type evidence lost at
+// the final receiver varnode. Pointer arithmetic is deliberately not traversed.
 public class ExportIndirectCallReceiverTypes extends GhidraScript {
-    private static final String FORMAT = "NEVERGONE.GhidraIndirectReceiverType/1";
+    private static final String FORMAT = "NEVERGONE.GhidraIndirectReceiverType/2";
+    private static final int MAX_FLOW_DEPTH = 4;
+    private static final int MAX_FLOW_NODES = 16;
 
     private static class PlanRow {
         final String sourceId;
@@ -40,6 +48,18 @@ public class ExportIndirectCallReceiverTypes extends GhidraScript {
             this.sourceId = sourceId;
             this.sourceEntry = sourceEntry;
             this.expectedCalls = expectedCalls;
+        }
+    }
+
+    private static class TypeInfo {
+        final DataType type;
+        final int pointerDepth;
+        final DataType pointee;
+
+        TypeInfo(DataType type, int pointerDepth, DataType pointee) {
+            this.type = type;
+            this.pointerDepth = pointerDepth;
+            this.pointee = pointee;
         }
     }
 
@@ -69,6 +89,68 @@ public class ExportIndirectCallReceiverTypes extends GhidraScript {
                 seq.getTime() + ":" + node.getSize();
         }
         return storageKind(node) + ":" + cell(node.getAddress()) + ":" + node.getSize();
+    }
+
+    private DataType unwrapTypedef(DataType type) {
+        if (type instanceof TypeDef) return ((TypeDef) type).getBaseDataType();
+        return type;
+    }
+
+    private TypeInfo inspectType(DataType original) {
+        DataType type = unwrapTypedef(original);
+        int pointerDepth = 0;
+        DataType pointee = null;
+        DataType cursor = type;
+        while (cursor instanceof Pointer) {
+            pointerDepth++;
+            DataType next = unwrapTypedef(((Pointer) cursor).getDataType());
+            if (pointerDepth == 1) pointee = next;
+            if (next == null || next == cursor) break;
+            cursor = next;
+        }
+        return new TypeInfo(type, pointerDepth, pointee);
+    }
+
+    private void collectTransparentTypeEvidence(Varnode node, int depth, Set<Varnode> seen,
+            List<DataType> types) {
+        if (node == null || depth > MAX_FLOW_DEPTH || seen.size() >= MAX_FLOW_NODES || !seen.add(node)) return;
+        HighVariable high = node.getHigh();
+        if (high != null && high.getDataType() != null) types.add(high.getDataType());
+        PcodeOp def = node.getDef();
+        if (def == null || depth == MAX_FLOW_DEPTH) return;
+        int opcode = def.getOpcode();
+        if (opcode == PcodeOp.COPY || opcode == PcodeOp.CAST || opcode == PcodeOp.INDIRECT) {
+            if (def.getNumInputs() >= 1) collectTransparentTypeEvidence(def.getInput(0), depth + 1, seen, types);
+        } else if (opcode == PcodeOp.MULTIEQUAL) {
+            for (int i = 0; i < def.getNumInputs(); i++)
+                collectTransparentTypeEvidence(def.getInput(i), depth + 1, seen, types);
+        }
+    }
+
+    private String jsonString(String value) {
+        if (value == null) return "null";
+        StringBuilder out = new StringBuilder("\"");
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == '\\' || c == '\"') out.append('\\').append(c);
+            else if (c == '\n') out.append("\\n");
+            else if (c == '\r') out.append("\\r");
+            else if (c == '\t') out.append("\\t");
+            else if (c < 0x20) out.append(String.format("\\u%04x", (int)c));
+            else out.append(c);
+        }
+        return out.append('\"').toString();
+    }
+
+    private String jsonArray(Set<String> values) {
+        StringBuilder out = new StringBuilder("[");
+        boolean first = true;
+        for (String value : values) {
+            if (!first) out.append(',');
+            first = false;
+            out.append(jsonString(value));
+        }
+        return out.append(']').toString();
     }
 
     private Function resolveFunction(String token) throws Exception {
@@ -104,7 +186,9 @@ public class ExportIndirectCallReceiverTypes extends GhidraScript {
     private void writeHeader(BufferedWriter out) throws Exception {
         out.write("format\tsource_id\tfunction_entry\tcall_index\tcall_address\tcall_time\targ_count\t" +
             "receiver_present\treceiver_storage_kind\treceiver_token\treceiver_type_name\t" +
-            "receiver_type_display\treceiver_pointer_depth\tpointee_type_name\tpointee_type_display");
+            "receiver_type_display\treceiver_pointer_depth\tpointee_type_name\tpointee_type_display\t" +
+            "flow_type_node_count\tflow_single_pointer_pointee_names_json\t" +
+            "flow_single_pointer_pointee_displays_json");
         out.newLine();
     }
 
@@ -114,26 +198,30 @@ public class ExportIndirectCallReceiverTypes extends GhidraScript {
         int argCount = Math.max(0, op.getNumInputs() - 1);
         Varnode receiver = op.getNumInputs() >= 2 ? op.getInput(1) : null;
         HighVariable high = receiver == null ? null : receiver.getHigh();
-        DataType type = high == null ? null : high.getDataType();
+        DataType originalType = high == null ? null : high.getDataType();
+        TypeInfo direct = inspectType(originalType);
 
-        int pointerDepth = 0;
-        DataType pointee = null;
-        DataType cursor = type;
-        while (cursor instanceof Pointer) {
-            pointerDepth++;
-            DataType next = ((Pointer) cursor).getDataType();
-            if (pointerDepth == 1) pointee = next;
-            if (next == null || next == cursor) break;
-            cursor = next;
+        List<DataType> flowTypes = new ArrayList<DataType>();
+        collectTransparentTypeEvidence(receiver, 0, new HashSet<Varnode>(), flowTypes);
+        LinkedHashSet<String> flowNames = new LinkedHashSet<String>();
+        LinkedHashSet<String> flowDisplays = new LinkedHashSet<String>();
+        for (DataType candidate : flowTypes) {
+            TypeInfo info = inspectType(candidate);
+            if (info.pointerDepth != 1 || info.pointee == null) continue;
+            String name = info.pointee.getName();
+            String display = info.pointee.getDisplayName();
+            if (name != null && !name.isEmpty()) flowNames.add(name);
+            if (display != null && !display.isEmpty()) flowDisplays.add(display);
         }
 
         out.write(FORMAT + "\t" + cell(sourceId) + "\t" + cell(function.getEntryPoint()) + "\t" +
             callIndex + "\t" + cell(seq.getTarget()) + "\t" + seq.getTime() + "\t" + argCount + "\t" +
             (receiver == null ? 0 : 1) + "\t" + storageKind(receiver) + "\t" + nodeToken(receiver) + "\t" +
-            cell(type == null ? null : type.getName()) + "\t" +
-            cell(type == null ? null : type.getDisplayName()) + "\t" + pointerDepth + "\t" +
-            cell(pointee == null ? null : pointee.getName()) + "\t" +
-            cell(pointee == null ? null : pointee.getDisplayName()));
+            cell(originalType == null ? null : originalType.getName()) + "\t" +
+            cell(originalType == null ? null : originalType.getDisplayName()) + "\t" + direct.pointerDepth + "\t" +
+            cell(direct.pointee == null ? null : direct.pointee.getName()) + "\t" +
+            cell(direct.pointee == null ? null : direct.pointee.getDisplayName()) + "\t" +
+            flowTypes.size() + "\t" + jsonArray(flowNames) + "\t" + jsonArray(flowDisplays));
         out.newLine();
     }
 
