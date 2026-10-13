@@ -38,6 +38,7 @@ jobs:
             tools/ml/select_nevergone_internal_test_corpus.py \
             tools/ml/mine_nevergone_function_families.py \
             tools/ml/nevergone_family_grouped_cv.py \
+            tools/ml/nevergone_nested_routing_cv.py \
             tools/ml/nevergone_tiny_encoder_features.py \
             tools/ml/nevergone_tiny_encoder_cv.py \
             tools/ml/nevergone_hybrid_residual_cv.py \
