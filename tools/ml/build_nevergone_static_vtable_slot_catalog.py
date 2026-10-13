@@ -104,10 +104,29 @@ def main() -> int:
             if previous is None or str(row.get("is_primary")).lower() == "true":
                 vtables[key] = candidate
 
-    interesting_from: dict[int, tuple[int, str, int]] = {}
-    for (address_point, class_name), _vtable in vtables.items():
+    # Never allow one bounded scan to consume slots belonging to the next decoded
+    # vtable. This is stricter than a fixed window alone and prevents nearby
+    # classes from being merged when their `_ZTV` symbols are adjacent.
+    sorted_starts = sorted({v["vtable_symbol_start"] for v in vtables.values()})
+    next_start_by_start: dict[int, int | None] = {}
+    for i, start in enumerate(sorted_starts):
+        next_start_by_start[start] = sorted_starts[i + 1] if i + 1 < len(sorted_starts) else None
+
+    def slot_addresses(vtable: dict[str, Any]):
+        address_point = int(vtable["address_point"])
+        next_start = next_start_by_start.get(int(vtable["vtable_symbol_start"]))
+        hard_end = address_point + args.max_slot_offset + POINTER_SIZE
+        end_exclusive = min(hard_end, next_start) if next_start is not None else hard_end
         for slot_offset in range(0, args.max_slot_offset + POINTER_SIZE, POINTER_SIZE):
-            interesting_from[address_point + slot_offset] = (address_point, class_name, slot_offset)
+            slot_address = address_point + slot_offset
+            if slot_address >= end_exclusive:
+                break
+            yield slot_offset, slot_address, end_exclusive, next_start
+
+    interesting_from: set[int] = set()
+    for vtable in vtables.values():
+        for _slot_offset, slot_address, _end, _next in slot_addresses(vtable):
+            interesting_from.add(slot_address)
 
     xrefs_by_from: dict[int, list[dict[str, Any]]] = defaultdict(list)
     with open_tsv(args.xrefs_tsv_gz) as handle:
@@ -142,8 +161,7 @@ def main() -> int:
     out: list[dict[str, Any]] = []
     for (address_point, class_name), vtable in sorted(vtables.items()):
         vtable_id = f"{MODULE}:{address_point:08x}"
-        for slot_offset in range(0, args.max_slot_offset + POINTER_SIZE, POINTER_SIZE):
-            slot_address = address_point + slot_offset
+        for slot_offset, slot_address, end_exclusive, next_start in slot_addresses(vtable):
             refs = xrefs_by_from.get(slot_address, [])
             if not refs:
                 continue
@@ -182,6 +200,9 @@ def main() -> int:
                 "receiver_vtable_address_point": f"0x{address_point:x}",
                 "receiver_vtable_id": vtable_id,
                 "address_point_delta": ITANIUM_ARM32_ADDRESS_POINT_DELTA,
+                "scan_end_exclusive": f"0x{end_exclusive:x}",
+                "bounded_by_next_vtable_symbol": next_start is not None and end_exclusive == next_start,
+                "next_vtable_symbol_start": f"0x{next_start:x}" if next_start is not None else None,
                 "dispatch_slot_offset": slot_hex,
                 "slot_address": f"0x{slot_address:x}",
                 "class_slot_key": f"{class_name}@slot={slot_hex}",
