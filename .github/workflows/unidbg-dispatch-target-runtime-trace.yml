@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'tools/unidbg/src/main/java/nevergone/DispatchTargetRuntimeTrace.java'
+      - 'tools/unidbg/src/main/java/nevergone/DispatchReceiverProvenance.java'
       - 'tools/unidbg/src/main/java/nevergone/NevergoneHarness.java'
       - 'tools/unidbg/verify_dispatch_target_runtime_trace.py'
       - 'tools/ml/build_nevergone_dispatch_runtime_probe_plan.py'
