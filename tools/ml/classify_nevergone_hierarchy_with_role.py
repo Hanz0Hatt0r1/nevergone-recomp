@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Run Nevergone hierarchy with a parallel function-role production head.
+"""Run Nevergone hierarchy with a parallel function-role advisory head.
 
 The existing hierarchical router remains authoritative for ``final_action``:
-objective origin -> code_domain -> optional subsystem.  This wrapper adds a
-parallel ``function_role`` prediction for every internal function.  Function
+objective origin -> code_domain -> optional subsystem. This wrapper adds a
+parallel ``function_role`` prediction for every internal function. Function
 role does not upgrade the hierarchy's final action; it is auxiliary semantic
 information for downstream analysis selection.
 
-Only independently validated role labels may retain model ``accept``.  By
-default only ``callback`` is allowed.  Any model accept for a non-whitelisted
-role is demoted to ``review`` and annotated with a production guard.
+No function-role label is allowed to retain model ``accept`` by default. Fresh
+identity-unseen audit evidence invalidated the earlier callback whitelist, so
+all role accepts are demoted to ``review`` unless a caller explicitly opts a
+label back in with ``--allow-function-role-accept`` after independent validation.
 """
 from __future__ import annotations
 
@@ -24,7 +25,7 @@ from typing import Any
 
 
 FORMAT = "NEVERGONE.HierarchicalFunctionRouterWithRole/1"
-DEFAULT_ACCEPT_ROLES = {"callback"}
+DEFAULT_ACCEPT_ROLES: set[str] = set()
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -190,7 +191,7 @@ def main() -> int:
         nargs="*",
         default=sorted(DEFAULT_ACCEPT_ROLES),
         metavar="LABEL",
-        help="role labels independently validated for auto-accept (default: callback)",
+        help="role labels independently validated for auto-accept (default: none)",
     )
     args = parser.parse_args()
 
