@@ -1,0 +1,34 @@
+name: Nevergone ML analysis plan smoke
+
+on:
+  push:
+    paths:
+      - 'tools/ml/build_nevergone_analysis_plan.py'
+      - 'tools/ml/nevergone_analysis_plan_smoke.py'
+      - 'tools/ghidra/ExportIndirectCallEvidence.java'
+      - '.github/workflows/ml-analysis-plan-smoke.yml'
+  pull_request:
+    paths:
+      - 'tools/ml/build_nevergone_analysis_plan.py'
+      - 'tools/ml/nevergone_analysis_plan_smoke.py'
+      - 'tools/ghidra/ExportIndirectCallEvidence.java'
+      - '.github/workflows/ml-analysis-plan-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  analysis-plan-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile plan tools
+        run: |
+          python -m py_compile \
+            tools/ml/build_nevergone_analysis_plan.py \
+            tools/ml/nevergone_analysis_plan_smoke.py
+      - name: Run analysis plan smoke
+        run: python tools/ml/nevergone_analysis_plan_smoke.py
