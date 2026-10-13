@@ -12,6 +12,8 @@ import com.github.unidbg.Module;
  *
  * CLI offsets are Ghidra addresses. libcocos2dcpp.so is loaded in Ghidra at
  * ELF/runtime module offset + 0x10000, so the native call subtracts that bias.
+ * Appending `:fallback` enables a bounded post-first-call R0 override so the
+ * native function follows its own fallback path to the second virtual dispatch.
  */
 final class ActionDataCreateProbe {
     private static final long GHIDRA_BIAS = 0x10000L;
@@ -19,9 +21,14 @@ final class ActionDataCreateProbe {
     private static final long GHIDRA_CREATE_B = 0x29ed0cL;
     private static final int PREFLIGHT_BYTES = 0x80;
     private static final int PREFLIGHT_MAX_INSTRUCTIONS = 64;
+    private static final String FALLBACK_SUFFIX = ":fallback";
 
     static void run(AndroidEmulator emulator, Module module, String requestedAddress) {
-        long ghidraAddress = parseAddress(requestedAddress);
+        boolean fallbackPathRequested = requestedAddress != null && requestedAddress.endsWith(FALLBACK_SUFFIX);
+        String addressText = fallbackPathRequested
+                ? requestedAddress.substring(0, requestedAddress.length() - FALLBACK_SUFFIX.length())
+                : requestedAddress;
+        long ghidraAddress = parseAddress(addressText);
         if (ghidraAddress != GHIDRA_CREATE_A && ghidraAddress != GHIDRA_CREATE_B)
             throw new IllegalArgumentException(String.format(
                     "ActionData create probe Ghidra address is not allowlisted: 0x%x", ghidraAddress));
@@ -33,9 +40,11 @@ final class ActionDataCreateProbe {
                     "ActionData create runtime offset outside module: 0x%x", runtimeOffset));
 
         emitPreflightDisassembly(emulator, module, ghidraAddress, runtimeOffset);
+        if (fallbackPathRequested)
+            ActionDataFallbackPathControl.install(emulator, module, emulator.attach(), addressText);
 
         JSONObject row = new JSONObject(true);
-        row.put("schema", 2);
+        row.put("schema", 3);
         row.put("kind", "action_data_create_entry");
         row.put("module", module.name);
         row.put("module_base", String.format("0x%x", module.base));
@@ -46,6 +55,9 @@ final class ActionDataCreateProbe {
         row.put("signature_evidence", "undefined __stdcall create(void)");
         row.put("guest_argument_count", 0);
         row.put("thumb_entry_offset", String.format("0x%x", runtimeOffset | 1L));
+        row.put("fallback_path_requested", fallbackPathRequested);
+        row.put("fallback_control", fallbackPathRequested
+                ? "post_first_virtual_call_r0_zero_only" : "none");
 
         try {
             Number result = module.callFunction(emulator, runtimeOffset | 1L);
