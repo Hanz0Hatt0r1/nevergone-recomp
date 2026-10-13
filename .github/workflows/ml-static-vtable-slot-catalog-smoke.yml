@@ -1,0 +1,19 @@
+name: Nevergone ML static vtable slot catalog smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/build_nevergone_static_vtable_slot_catalog.py'
+      - 'tools/ml/nevergone_static_vtable_slot_catalog_smoke.py'
+      - 'tools/ml/analyze_nevergone_vtable_static_provenance.py'
+      - '.github/workflows/ml-static-vtable-slot-catalog-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate static vtable slot catalog
+        run: python3 tools/ml/nevergone_static_vtable_slot_catalog_smoke.py
