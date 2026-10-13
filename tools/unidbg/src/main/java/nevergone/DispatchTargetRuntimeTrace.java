@@ -146,6 +146,7 @@ final class DispatchTargetRuntimeTrace {
         row.put("ordered_group_id", spec.getString("ordered_group_id"));
         row.put("ordered_position", spec.getInteger("ordered_position"));
         row.put("ordered_group_size", spec.getInteger("ordered_group_size"));
+        DispatchEvidenceContext.annotate(row);
         return row;
     }
 
