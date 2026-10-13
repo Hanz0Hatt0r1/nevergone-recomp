@@ -1,0 +1,31 @@
+name: Nevergone ML static receiver-vtable inference smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportIndirectCallReceiverTypes.java'
+      - 'tools/ml/build_nevergone_receiver_type_plan.py'
+      - 'tools/ml/infer_nevergone_static_receiver_vtables.py'
+      - 'tools/ml/nevergone_static_receiver_vtable_inference_smoke.py'
+      - '.github/workflows/ml-static-receiver-vtable-inference-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile inference tools
+        run: |
+          python -m py_compile \
+            tools/ml/build_nevergone_receiver_type_plan.py \
+            tools/ml/infer_nevergone_static_receiver_vtables.py \
+            tools/ml/nevergone_static_receiver_vtable_inference_smoke.py
+      - name: Run static receiver-vtable inference smoke
+        run: python tools/ml/nevergone_static_receiver_vtable_inference_smoke.py
