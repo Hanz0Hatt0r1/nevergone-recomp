@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import csv
+import gzip
 import json
 import subprocess
 import sys
@@ -15,6 +17,14 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
     path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
 
 
+def write_functions(path: Path) -> None:
+    with gzip.open(path, "wt", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
+        writer.writerow(["entry", "name", "address_count", "is_external", "signature"])
+        writer.writerow(["0029e9ba", "ActionData::init", "8", "false", "undefined __thiscall init(ActionData * this)"])
+        writer.writerow(["0029eb4a", "EenemyActionDataSet::init", "20", "false", "undefined __thiscall init(EenemyActionDataSet * this)"])
+
+
 def main() -> int:
     subprocess.run([sys.executable, "-m", "py_compile", str(TOOL)], check=True)
 
@@ -22,6 +32,7 @@ def main() -> int:
         tmp = Path(raw)
         keys = tmp / "keys.jsonl"
         provenance = tmp / "provenance.jsonl"
+        functions = tmp / "functions.tsv.gz"
         out = tmp / "catalog.jsonl"
 
         write_jsonl(keys, [
@@ -62,14 +73,17 @@ def main() -> int:
                 "resolved_class_name": "EenemyActionDataSet",
             },
         ])
+        write_functions(functions)
 
         subprocess.run([
             sys.executable, str(TOOL), str(keys), str(provenance),
+            "--functions-tsv-gz", str(functions),
             "--output", str(out),
         ], check=True)
 
         rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line.strip()]
         assert len(rows) == 2
+        assert {row["format"] for row in rows} == {"NEVERGONE.ClassDispatchCatalog/2"}
         by_class = {row["resolved_class_name"]: row for row in rows}
         a = by_class["ActionData"]
         e = by_class["EenemyActionDataSet"]
@@ -79,10 +93,15 @@ def main() -> int:
         assert e["class_slot_key"] == "EenemyActionDataSet@slot=0x24"
         assert a["target_ids"] == ["libcocos2dcpp.so:0029e9ba"]
         assert e["target_ids"] == ["libcocos2dcpp.so:0029eb4a"]
+        assert a["target_functions"][0]["name"] == "ActionData::init"
+        assert e["target_functions"][0]["name"] == "EenemyActionDataSet::init"
+        assert "ActionData * this" in a["target_functions"][0]["signature"]
+        assert a["target_functions"][0]["metadata_source"] == "ghidra_functions_index"
         assert a["target_transfer_scope"] == "same_receiver_vtable_only"
         assert a["cross_vtable_transfer_allowed"] is False
         assert a["cross_class_transfer_allowed"] is False
         assert a["class_inferred_from_target_name"] is False
+        assert a["target_metadata_used_for_resolution"] is False
 
     print("class dispatch catalog smoke: ok")
     return 0
