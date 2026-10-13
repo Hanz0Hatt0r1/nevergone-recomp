@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <vector>
 
 #include "game_scene_render_queue.h"
 #include "scene_action_pair_document_store.h"
@@ -8,6 +9,8 @@
 #include "scene_actions_current_scene_binding.h"
 #include "scene_actions_render_submit.h"
 #include "scene_actions_runtime_controller.h"
+#include "scene_actions_spatial_pair_binding.h"
+#include "scene_actions_timed_spatial_trigger.h"
 
 namespace nevergone::scene_actions_live_runtime {
 
@@ -40,6 +43,16 @@ struct StartResult {
             scene_actions_runtime_controller::StartStatus::kInvalidPlan;
 };
 
+struct TimedStartResult {
+    scene_actions_timed_spatial_trigger::Result trigger{};
+    std::optional<StartResult> start;
+};
+
+inline bool timed_trigger_requests_start(
+        const scene_actions_timed_spatial_trigger::Result& trigger) {
+    return trigger.status == scene_actions_timed_spatial_trigger::Status::kPairTriggered;
+}
+
 // Read-only current-scene preflight. This resolves only the retained project
 // render queue and klhuo pair cardinality/shape; it does not inspect/stage a
 // variant, consume the trigger gate, mutate playback, or submit GLES state.
@@ -54,6 +67,18 @@ StartResult start_current_scene(int variant);
 // Queue-injected form used by deterministic callers/tests. Parsed born/idle
 // documents still come from the retained scene-action pair document store.
 StartResult start_from_queue(const game_scene_render_queue::Queue& queue, int variant);
+
+// Reconstruct one timed TriggerSceneAction(dt) call plus spatial dispatch and
+// start the retained klhuo pair only when that exact pair appears in the
+// recovered trigger target set. `objects` still carries explicit ObjectView
+// evidence; this function does not infer +0x108 event IDs or sprBoundingBox().
+// The caller must also provide the already staged/recovered variant.
+TimedStartResult advance_timed_spatial_start(
+        float dt_seconds,
+        const game_scene_render_queue::Queue& queue,
+        const std::vector<scene_actions_spatial_pair_binding::BoundObject>& objects,
+        int variant,
+        scene_actions_timed_spatial_trigger::State* trigger_state);
 
 scene_actions_active_playback::TickResult tick(
         scene_action_pair_document_store::Slot slot,
