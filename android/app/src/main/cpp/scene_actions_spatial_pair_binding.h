@@ -72,7 +72,7 @@ inline Result evaluate(
     views.reserve(objects.size());
     for (const auto& object : objects) views.push_back(object.view);
 
-    out.spatial = scene_actions_spatial_trigger::evaluate(event_id, views);
+    out.spatial = scene_actions_spatial_trigger::dispatch(event_id, views);
     if (out.spatial.status != scene_actions_spatial_trigger::Status::kReady) {
         out.status = Status::kSpatialRejected;
         return out;
