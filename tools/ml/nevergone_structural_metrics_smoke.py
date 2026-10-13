@@ -41,6 +41,30 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
+        extractor = Path(__file__).with_name("extract_nevergone_structural_metrics.py")
+
+        # Raw corpus rows intentionally have no dataset-style `id`/`text` fields.
+        corpus = root / "corpus.jsonl"
+        extracted = root / "extracted.jsonl"
+        corpus.write_text(
+            json.dumps({
+                "format": "NEVERGONE.MlPcodeCorpus/2",
+                "program": "libcocos2dcpp.so",
+                "source_entry": "002a1234",
+                "model_text": text,
+            }) + "\n",
+            encoding="utf-8",
+        )
+        subprocess.run(
+            [sys.executable, str(extractor), str(corpus), "--output", str(extracted)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        extracted_row = json.loads(extracted.read_text(encoding="utf-8"))
+        assert extracted_row["id"] == "libcocos2dcpp.so:002a1234"
+        assert extracted_row["metrics"]["op_count"] == 10
+
         analysis = root / "analysis.jsonl"
         metrics = root / "metrics.jsonl"
         output = root / "joined.jsonl"
