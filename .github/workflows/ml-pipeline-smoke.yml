@@ -37,12 +37,17 @@ jobs:
             tools/ml/nevergone_tiny_encoder_features.py \
             tools/ml/nevergone_tiny_encoder_cv.py \
             tools/ml/nevergone_hybrid_residual_cv.py \
+            tools/ml/train_nevergone_production_classifier.py \
+            tools/ml/classify_nevergone_pcode.py \
             tools/ml/nevergone_ml_pipeline_smoke.py \
             tools/ml/nevergone_family_miner_smoke.py \
-            tools/ml/nevergone_tiny_encoder_smoke.py
+            tools/ml/nevergone_tiny_encoder_smoke.py \
+            tools/ml/nevergone_production_classifier_smoke.py
       - name: Run synthetic pipeline smoke
         run: python tools/ml/nevergone_ml_pipeline_smoke.py
       - name: Run function family miner smoke
         run: python tools/ml/nevergone_family_miner_smoke.py
       - name: Run tiny encoder feature smoke
         run: python tools/ml/nevergone_tiny_encoder_smoke.py
+      - name: Run production classifier helper smoke
+        run: python tools/ml/nevergone_production_classifier_smoke.py
