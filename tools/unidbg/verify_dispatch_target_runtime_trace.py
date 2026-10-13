@@ -24,7 +24,8 @@ def main() -> int:
     java = JAVA.read_text(encoding="utf-8")
     harness = HARNESS.read_text(encoding="utf-8")
     for token in (
-        "addBreakPoint",
+        "Debugger debugger = emulator.attach()",
+        "debugger.addBreakPoint(breakpointAddress | 1L",
         '"blx".equals(instruction.getMnemonic())',
         "ARM_OP_REG",
         "LIBCOCOS_GHIDRA_BIAS = 0x10000L",
@@ -37,6 +38,8 @@ def main() -> int:
         "MAX_SITES = 128",
     ):
         require(java, token, str(JAVA))
+    if "getBackend().addBreakPoint" in java:
+        raise AssertionError("dispatch tracer must register callbacks through Debugger, not Backend directly")
     if ".callFunction(" in java:
         raise AssertionError("runtime tracer must observe only and never call native functions")
     require(harness, '"--trace-dispatch-targets"', str(HARNESS))
