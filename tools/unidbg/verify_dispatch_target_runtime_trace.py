@@ -28,6 +28,9 @@ def main() -> int:
         '"blx".equals(instruction.getMnemonic())',
         "ARM_OP_REG",
         "LIBCOCOS_GHIDRA_BIAS = 0x10000L",
+        'PLAN_FORMAT = "NEVERGONE.DispatchRuntimeProbePlan/2"',
+        "Stale/unsupported dispatch runtime plan",
+        "Inconsistent Ghidra/runtime call-site mapping",
         "target_runtime_id",
         "target_ghidra_address",
         "target_id",
@@ -73,9 +76,15 @@ def main() -> int:
         subprocess.run([sys.executable, str(BUILDER), str(template), "--output", str(plan)], check=True)
         built = json.loads(plan.read_text(encoding="utf-8"))
         assert len(built) == 2
+        assert {row["format"] for row in built} == {"NEVERGONE.DispatchRuntimeProbePlan/2"}
         assert {row["call_site_offset"] for row in built} == {"0x1010", "0x2010"}
         assert {row["ghidra_address_bias"] for row in built} == {"0x10000"}
         assert {row["ghidra_call_site_address"] for row in built} == {"0x11010", "0x12010"}
+        for row in built:
+            ghidra = int(row["ghidra_call_site_address"], 0)
+            bias = int(row["ghidra_address_bias"], 0)
+            runtime = int(row["call_site_offset"], 0)
+            assert ghidra - bias == runtime
 
         observations = [
             {
