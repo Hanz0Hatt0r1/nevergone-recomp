@@ -25,9 +25,11 @@ def main() -> int:
     harness = HARNESS.read_text(encoding="utf-8")
     for token in (
         "addBreakPoint",
-        "return true; // observe only; continue normal execution",
         '"blx".equals(instruction.getMnemonic())',
         "ARM_OP_REG",
+        "LIBCOCOS_GHIDRA_BIAS = 0x10000L",
+        "target_runtime_id",
+        "target_ghidra_address",
         "target_id",
         "MAX_SITES = 128",
     ):
@@ -49,31 +51,22 @@ def main() -> int:
         seeds = tmp / "seeds.jsonl"
         template_rows = [
             {
-                "source_id": "libcocos2dcpp.so:00001000",
+                "source_id": "libcocos2dcpp.so:00011000",
                 "call_index": 0,
-                "call_address": "00001010",
+                "call_address": "00011010",
                 "slot_group_id": "shapeA@0x4",
                 "ordered_position": 0,
                 "ordered_group_id": "ordered_sequence:test",
                 "ordered_group_size": 2,
             },
             {
-                "source_id": "libcocos2dcpp.so:00002000",
+                "source_id": "libcocos2dcpp.so:00012000",
                 "call_index": 0,
-                "call_address": "00002010",
+                "call_address": "00012010",
                 "slot_group_id": "shapeA@0x4",
                 "ordered_position": 0,
                 "ordered_group_id": "ordered_sequence:test",
                 "ordered_group_size": 2,
-            },
-            {
-                "source_id": "libcocos2dcpp.so:00003000",
-                "call_index": 0,
-                "call_address": "00003010",
-                "slot_group_id": "single@0x8",
-                "ordered_position": 0,
-                "ordered_group_id": "ordered_sequence:single",
-                "ordered_group_size": 1,
             },
         ]
         template.write_text("".join(json.dumps(row) + "\n" for row in template_rows), encoding="utf-8")
@@ -81,32 +74,34 @@ def main() -> int:
         built = json.loads(plan.read_text(encoding="utf-8"))
         assert len(built) == 2
         assert {row["call_site_offset"] for row in built} == {"0x1010", "0x2010"}
+        assert {row["ghidra_address_bias"] for row in built} == {"0x10000"}
+        assert {row["ghidra_call_site_address"] for row in built} == {"0x11010", "0x12010"}
 
         observations = [
             {
                 "kind": "dispatch_runtime_target",
-                "source_id": "libcocos2dcpp.so:00001000",
+                "source_id": "libcocos2dcpp.so:00011000",
                 "call_index": 0,
-                "call_address": "00001010",
+                "call_address": "00011010",
                 "slot_group_id": "shapeA@0x4",
                 "ordered_position": 0,
                 "ordered_group_id": "ordered_sequence:test",
                 "ordered_group_size": 2,
-                "target_id": "libcocos2dcpp.so:0000aaaa",
+                "target_id": "libcocos2dcpp.so:0001aaaa",
                 "target_module": "libcocos2dcpp.so",
                 "target_module_offset": "0xaaaa",
                 "target_thumb": True,
             },
             {
                 "kind": "dispatch_runtime_target",
-                "source_id": "libcocos2dcpp.so:00001000",
+                "source_id": "libcocos2dcpp.so:00011000",
                 "call_index": 0,
-                "call_address": "00001010",
+                "call_address": "00011010",
                 "slot_group_id": "shapeA@0x4",
                 "ordered_position": 0,
                 "ordered_group_id": "ordered_sequence:test",
                 "ordered_group_size": 2,
-                "target_id": "libcocos2dcpp.so:0000bbbb",
+                "target_id": "libcocos2dcpp.so:0001bbbb",
                 "target_module": "libcocos2dcpp.so",
                 "target_module_offset": "0xbbbb",
                 "target_thumb": True,
@@ -118,8 +113,8 @@ def main() -> int:
         assert len(converted) == 2
         assert all(row["verified"] is True for row in converted)
         assert {row["target_id"] for row in converted} == {
-            "libcocos2dcpp.so:0000aaaa",
-            "libcocos2dcpp.so:0000bbbb",
+            "libcocos2dcpp.so:0001aaaa",
+            "libcocos2dcpp.so:0001bbbb",
         }
 
     print("dispatch target runtime trace contract: ok")
