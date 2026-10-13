@@ -92,6 +92,33 @@ def _opcode(line: str) -> str:
     return parts[1]
 
 
+def _extract_record(row: dict[str, Any], line_no: int) -> tuple[str, str]:
+    """Accept both dataset rows and raw MlPcodeCorpus/2 rows.
+
+    Dataset rows use ``id`` + ``text``. Raw corpus rows use ``program`` +
+    ``source_entry`` for identity and usually ``model_text`` for model input.
+    Keep the same fallback identity convention as classify_nevergone_pcode.py so
+    metrics join directly with hierarchy/classifier output for the same corpus.
+    """
+    text = row.get("model_text")
+    if not isinstance(text, str) or not text:
+        text = row.get("text")
+    if not isinstance(text, str) or not text:
+        raise ValueError(f"input row {line_no} has neither model_text nor text")
+
+    record_id = row.get("id")
+    if not isinstance(record_id, str) or not record_id:
+        program = row.get("program")
+        source_entry = row.get("source_entry")
+        if isinstance(program, str) and program and isinstance(source_entry, str) and source_entry:
+            record_id = f"{program}:{source_entry}"
+        else:
+            raise ValueError(
+                f"input row {line_no} has neither id nor program/source_entry identity"
+            )
+    return record_id, text
+
+
 def structural_metrics(text: str) -> dict[str, Any]:
     lines = _portable_lines(text)
     opcodes = [_opcode(line) for line in lines]
@@ -180,15 +207,10 @@ def main() -> int:
     seen: set[str] = set()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as handle:
-        for row in rows:
-            record_id = row.get("id")
-            text = row.get("text")
-            if not isinstance(record_id, str) or not record_id:
-                raise ValueError("row missing id")
+        for line_no, row in enumerate(rows, 1):
+            record_id, text = _extract_record(row, line_no)
             if record_id in seen:
                 raise ValueError(f"duplicate id: {record_id}")
-            if not isinstance(text, str) or not text:
-                raise ValueError(f"row {record_id} missing text")
             output = {
                 "format": FORMAT,
                 "id": record_id,
