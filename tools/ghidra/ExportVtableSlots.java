@@ -21,8 +21,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 
-// Export bounded ARM32 Itanium vtable slot pointers from analyzed program memory.
-// Reads metadata/pointers only; does not modify the program or emit function bytes.
+// Export conservative ARM32 Itanium primary-vtable slot pointers from analyzed
+// program memory. Starting at the primary address point (+8), only the contiguous
+// function-pointer prefix is emitted. The first zero/unreadable/non-function word
+// terminates that vtable. Reads metadata/pointers only; never modifies the program.
 public class ExportVtableSlots extends GhidraScript {
     private static final int ADDRESS_POINT_DELTA = 8;
     private static final int POINTER_SIZE = 4;
@@ -87,9 +89,6 @@ public class ExportVtableSlots extends GhidraScript {
             if (direct != null) return direct;
         }
 
-        // Shared-object vtable entries commonly store module-relative offsets while
-        // this Ghidra project is loaded at image base +0x10000. Reject any addition
-        // that would leave the program's address space instead of wrapping it.
         Long biased = checkedBiasedOffset(canonical, imageBase);
         if (biased != null) {
             Address biasedAddress = checkedAddress(biased.longValue());
@@ -129,7 +128,6 @@ public class ExportVtableSlots extends GhidraScript {
                 "max-slot-offset must be 4-byte aligned and in range 0..0x4000");
         }
 
-        // Deduplicate aliases at the same symbol address, preferring the primary symbol.
         Map<Long, VtableSymbol> byStart = new LinkedHashMap<>();
         SymbolIterator symbols = currentProgram.getSymbolTable().getAllSymbols(true);
         while (symbols.hasNext() && !monitor.isCancelled()) {
@@ -152,7 +150,10 @@ public class ExportVtableSlots extends GhidraScript {
         long imageBase = currentProgram.getImageBase().getOffset();
         long rows = 0;
         long resolved = 0;
-        long skippedUnreadable = 0;
+        long stoppedZero = 0;
+        long stoppedNonFunction = 0;
+        long stoppedUnreadable = 0;
+        long stoppedMemoryBoundary = 0;
 
         try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(
                 new GZIPOutputStream(new FileOutputStream(output)), StandardCharsets.UTF_8))) {
@@ -172,19 +173,28 @@ public class ExportVtableSlots extends GhidraScript {
                     long slotLong = addressPoint.getOffset() + slotOffset;
                     if (Long.compareUnsigned(slotLong, nextStart) >= 0) break;
                     Address slotAddress = checkedAddress(slotLong);
-                    if (slotAddress == null || !memory.contains(slotAddress)) break;
+                    if (slotAddress == null || !memory.contains(slotAddress)) {
+                        stoppedMemoryBoundary++;
+                        break;
+                    }
 
                     final long rawValue;
                     try {
                         rawValue = Integer.toUnsignedLong(memory.getInt(slotAddress));
                     } catch (MemoryAccessException ex) {
-                        skippedUnreadable++;
-                        continue;
+                        stoppedUnreadable++;
+                        break;
                     }
-                    if (rawValue == 0) continue;
+                    if (rawValue == 0) {
+                        stoppedZero++;
+                        break;
+                    }
 
                     Function target = resolveFunction(functions, rawValue, imageBase);
-                    if (target == null) continue;
+                    if (target == null) {
+                        stoppedNonFunction++;
+                        break;
+                    }
 
                     boolean thumb = (rawValue & 1L) != 0;
                     String mode = resolutionMode(target, rawValue, imageBase);
@@ -201,11 +211,14 @@ public class ExportVtableSlots extends GhidraScript {
             }
         }
 
-        println("VTABLE_SLOT_FORMAT=NEVERGONE.GhidraVtableSlots/1");
+        println("VTABLE_SLOT_FORMAT=NEVERGONE.GhidraVtableSlots/2");
         println("VTABLE_SYMBOLS=" + vtables.size());
         println("VTABLE_SLOT_ROWS=" + rows);
         println("VTABLE_SLOT_RESOLVED_FUNCTIONS=" + resolved);
-        println("VTABLE_SLOT_UNREADABLE=" + skippedUnreadable);
+        println("VTABLE_SLOT_STOP_ZERO=" + stoppedZero);
+        println("VTABLE_SLOT_STOP_NON_FUNCTION=" + stoppedNonFunction);
+        println("VTABLE_SLOT_STOP_UNREADABLE=" + stoppedUnreadable);
+        println("VTABLE_SLOT_STOP_MEMORY_BOUNDARY=" + stoppedMemoryBoundary);
         println("VTABLE_SLOT_IMAGE_BASE=" + hex(imageBase));
         println("VTABLE_SLOT_MAX_OFFSET=" + hex(maxSlotOffset));
         println("VTABLE_SLOT_OUTPUT=" + output.getAbsolutePath());
