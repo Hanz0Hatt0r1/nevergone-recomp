@@ -75,7 +75,7 @@ public class ExportFunctionOperands extends GhidraScript {
             Address targetAddress,
             String targetType) throws Exception {
         out.write(cell(function.getEntryPoint()) + "\t" + cell(instructionAddress) + "\t" +
-            operandIndex + "\t" + kind + "\t" + scalar.getBitLength() + "\t" +
+            operandIndex + "\t" + kind + "\t" + scalar.bitLength() + "\t" +
             scalar.getSignedValue() + "\t" + scalarUnsignedHex(scalar) + "\t" +
             (targetAddress == null ? "-" : cell(targetAddress)) + "\t" +
             (targetType == null ? "-" : cell(targetType)) + "\t-");
