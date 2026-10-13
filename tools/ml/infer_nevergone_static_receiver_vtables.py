@@ -64,6 +64,15 @@ def normalize_slot(value: Any) -> str | None:
     return f"0x{parsed:x}" if parsed >= 0 else None
 
 
+def parse_int_cell(value: Any, *, default: int = 0) -> int:
+    if value in (None, "", "-"):
+        return default
+    try:
+        return int(str(value), 0)
+    except ValueError as error:
+        raise ValueError(f"invalid integer cell: {value!r}") from error
+
+
 def clean_type_name(value: Any) -> str | None:
     if not isinstance(value, str):
         return None
@@ -190,7 +199,7 @@ def main() -> int:
             slot = normalize_slot(call.get("primary_slot_offset_candidate"))
             receiver = receivers.get((source_id, call_index))
 
-            pointer_depth = int(receiver.get("receiver_pointer_depth", "0")) if receiver else 0
+            pointer_depth = parse_int_cell(receiver.get("receiver_pointer_depth")) if receiver else 0
             flow_names: list[str] = []
             flow_displays: list[str] = []
             if receiver and receiver.get("format") == "NEVERGONE.GhidraIndirectReceiverType/2":
@@ -219,7 +228,7 @@ def main() -> int:
                 "pointee_type_name": receiver.get("pointee_type_name") if receiver else None,
                 "pointee_type_display": receiver.get("pointee_type_display") if receiver else None,
                 "receiver_storage_kind": receiver.get("receiver_storage_kind") if receiver else None,
-                "flow_type_node_count": int(receiver.get("flow_type_node_count", "0")) if receiver else 0,
+                "flow_type_node_count": parse_int_cell(receiver.get("flow_type_node_count")) if receiver else 0,
                 "flow_single_pointer_pointee_names": flow_names,
                 "flow_single_pointer_pointee_displays": flow_displays,
                 "class_name": None,
