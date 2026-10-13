@@ -6,6 +6,11 @@ virtual target name alone. A class label is emitted only when the Ghidra symbol
 index contains explicit vtable-like symbol evidence near the observed receiver
 address point. For ARM32 Itanium ABI, an address point 8 bytes after the vtable
 symbol is treated as the strongest layout match.
+
+Simple Itanium ABI vtable symbols (for example ``_ZTV10ActionData`` and nested
+source-name forms such as ``_ZTVN4game8DataNodeE``) are decoded locally without
+calling an external demangler. Unsupported mangling constructs remain unresolved
+rather than being guessed.
 """
 from __future__ import annotations
 
@@ -18,7 +23,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-FORMAT = "NEVERGONE.VtableStaticProvenance/1"
+FORMAT = "NEVERGONE.VtableStaticProvenance/2"
 ITANIUM_ARM32_ADDRESS_POINT_DELTA = 8
 WINDOW = 0x20
 
@@ -58,6 +63,56 @@ def vtable_id_address(vtable_id: str) -> int:
     return int(value, 16)
 
 
+def _parse_itanium_source_names(payload: str, *, nested: bool) -> list[str] | None:
+    """Decode only a bounded sequence of Itanium <source-name> components.
+
+    A source-name is ``<decimal length><identifier>``. Nested names are wrapped
+    in N...E. Substitutions, templates, operators, anonymous namespaces, ABI tags,
+    and other richer mangling constructs are intentionally unsupported.
+    """
+    parts: list[str] = []
+    pos = 0
+    limit = len(payload)
+    while pos < limit:
+        if nested and payload[pos] == "E":
+            pos += 1
+            break
+        start = pos
+        while pos < limit and payload[pos].isdigit():
+            pos += 1
+        if pos == start:
+            return None
+        length = int(payload[start:pos])
+        if length <= 0 or pos + length > limit:
+            return None
+        ident = payload[pos:pos + length]
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", ident):
+            return None
+        parts.append(ident)
+        pos += length
+        if not nested:
+            # A non-nested Itanium name contains one unqualified source-name.
+            break
+    if not parts or pos != limit:
+        return None
+    return parts
+
+
+def decode_itanium_vtable_class(name: str) -> str | None:
+    """Decode conservative `_ZTV<type-name>` class names without guessing."""
+    leaf = name.rsplit("::", 1)[-1]
+    if not leaf.startswith("_ZTV"):
+        return None
+    payload = leaf[4:]
+    if not payload:
+        return None
+    if payload.startswith("N"):
+        parts = _parse_itanium_source_names(payload[1:], nested=True)
+    else:
+        parts = _parse_itanium_source_names(payload, nested=False)
+    return "::".join(parts) if parts else None
+
+
 def symbol_class_name(name: str) -> tuple[str | None, str | None]:
     low = name.lower()
     markers = ("vtable for ", "construction vtable for ")
@@ -65,10 +120,13 @@ def symbol_class_name(name: str) -> tuple[str | None, str | None]:
         pos = low.find(marker)
         if pos >= 0:
             return name[pos + len(marker):].strip(), "demangled_vtable_symbol"
-    # Keep a raw Itanium symbol as evidence, but do not pretend to demangle it.
+
     leaf = name.rsplit("::", 1)[-1]
     if leaf.startswith("_ZTV"):
-        return None, "itanium_mangled_vtable_symbol"
+        decoded = decode_itanium_vtable_class(leaf)
+        if decoded is not None:
+            return decoded, "itanium_mangled_vtable_symbol_decoded"
+        return None, "itanium_mangled_vtable_symbol_unsupported"
     return None, None
 
 
@@ -167,7 +225,7 @@ def main() -> int:
             resolved_class = best["class_name"]
             status = "resolved_explicit_symbol"
         elif best and len(tied) == 1:
-            status = "vtable_symbol_without_demangled_class"
+            status = "vtable_symbol_without_decodable_class"
         elif len(tied) > 1:
             status = "ambiguous_vtable_symbols"
 
