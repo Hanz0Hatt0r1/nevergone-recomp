@@ -1,0 +1,20 @@
+name: Nevergone entry probe feasibility smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/analyze_nevergone_entry_probe_candidates.py'
+      - 'tools/ml/nevergone_entry_probe_feasibility_smoke.py'
+      - '.github/workflows/ml-entry-probe-feasibility-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Compile
+        run: python3 -m py_compile tools/ml/analyze_nevergone_entry_probe_candidates.py tools/ml/nevergone_entry_probe_feasibility_smoke.py
+      - name: Run smoke
+        run: python3 tools/ml/nevergone_entry_probe_feasibility_smoke.py
