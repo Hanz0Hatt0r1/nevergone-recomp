@@ -5,29 +5,92 @@ Experimental clean-room reverse-engineering and recompilation project for the An
 The goal is to reconstruct the original game runtime as maintainable source code for modern Android, including `arm64-v8a`, without depending on the obsolete original Android toolchain and without redistributing proprietary game binaries or assets.
 
 > [!IMPORTANT]
-> The project is **not yet a playable recompilation**. It is now beyond the bootstrap/research phase: the clean runtime reaches the first-scene construction boundary, the renderer and imported-asset pipeline are in place, the first player sprite/control path is reconstructed, and modern Android lifecycle/page-size CI exists. The main blocker is no longer missing core infrastructure; it is obtaining **contiguous real-device evidence** for P7-P9 and then adding the first gameplay/persistence slice.
+> The project is **not yet a playable recompilation**. The clean runtime, imported-asset renderer, player spawn/input/action path, bounded persistence slice and substantial first-scene action runtime are implemented. The dominant blockers are now **contiguous real-device acceptance for P7-P10**, the first actual enemy/damage/death gameplay slice, and arm64 physical-device validation.
 
-## Readiness review — 2026-10-11
+## Readiness review — 2026-10-13
 
-Assessment is based on current `main` through commit `588530c` and the project milestone/issues. Percentages are engineering planning estimates, not measured code coverage.
+Assessment is based on `main` through commit `cd5f4c3` (`cd5f4c339bdce0dd7ca82c2b083cf2fe8e0a49c3`) and the authoritative playable-path document. Percentages below are engineering planning estimates, not measured code coverage.
 
-- **Strict technical-alpha gate:** P0-P6 are complete, while P7-P9 still require contiguous real-device proof: **7/10 checkpoints (70%)**.
-- **Engineering readiness toward technical alpha:** approximately **85%**. Most of the missing P7-P9 implementation exists; validation/integration is now the dominant risk.
-- **Early playable alpha:** **not reached**. A real-device first-scene/player/input proof, first enemy interaction, damage/death loop and minimal persistence are still required.
-- **Release readiness:** approximately **40%**. Core runtime/tooling is strong, but gameplay breadth, persistence, arm64 device validation and release hardening remain incomplete.
+- **Strict technical-alpha gate:** **7/10 checkpoints (70%)**. P0-P6 are accepted; P7-P9 still require one contiguous retained real-device proof.
+- **Engineering readiness toward technical alpha:** approximately **92%**. The scene, player/input/action and P10 persistence implementations largely exist; integration/device evidence is now the main uncertainty.
+- **Early playable-alpha readiness:** approximately **65%**, but the gate is **not reached**. Real-device P7-P10 proof plus one enemy interaction and damage/death loop are still required.
+- **Release readiness:** approximately **50%**. Runtime/tooling/resource recovery are mature, but gameplay breadth, physical arm64 evidence, release-device coverage and final hardening remain incomplete.
 
-The authoritative milestone tracker is [#151 — M4 -> First Offline Scene / Technical Alpha path](https://github.com/Hanz0Hatt0r1/nevergone-recomp/issues/151).
+The strict acceptance source is [`docs/playable-path.md`](docs/playable-path.md). The milestone tracker is [#151 — M4 -> First Offline Scene / Technical Alpha path](https://github.com/Hanz0Hatt0r1/nevergone-recomp/issues/151).
 
 ### Current acceptance boundary
 
-The next project-wide proof is a real Android run using user-owned imported data that demonstrates, in one contiguous project-owned path:
+The next project-wide proof is one retained Android run with user-owned imported data that demonstrates, in one contiguous project-owned path:
 
-1. P7: first offline scene visibly renders from imported data;
-2. P8: the reconstructed player visual is present at the recovered spawn point;
-3. P9: an actual Android gesture changes visible player/control state;
-4. P10 follows with minimal save -> process restart -> restore.
+1. **P7:** the first offline scene visibly renders;
+2. **P8:** the reconstructed player visual appears at the recovered spawn point;
+3. **P9:** a real Android gesture visibly changes player/control state;
+4. **P10:** changed player motion survives a real process restart through the implemented project-owned sidecar.
 
-Recent work already supplies a fail-closed P7 device-capture harness and the P8/P9 runtime pieces. The remaining issue is evidence and final route integration, not a missing rendering/input architecture.
+Implementation beyond P6 does not move the strict completion marker until the preceding checkpoints are accepted in that same runtime path.
+
+## What changed since the previous readiness review
+
+The previous README assessment was anchored at `588530c`. Current `main` is 134 commits ahead of that point and now includes several material additions:
+
+- a bounded project-owned **P10 sidecar/autosave/restart-restore runtime** for scene/player identity and player motion offset;
+- recovered **player motion state**, live `MeActionsSystem` frame advancement and full currently loaded player action playback on the fixed 35 Hz logical clock;
+- recovered player function/action gates and live action-state transitions used by tutorial/action-button paths;
+- tutorial loading/session/gameplay state foundations;
+- substantially expanded `TrapActionsData` structural reconstruction;
+- a live **SceneActions** pair runtime with imported action documents, initial/current frame staging, GLES submission and recovered born/idle playback behavior;
+- recovered SceneActions timed schedule, spatial trigger contract, current-scene pair binding and timed+spatial live-start gate;
+- recovered `GameSceneObject` event-ID mapping and a builder from parsed scene records to spatial trigger objects;
+- additional renderer/resource fixes and regression coverage across scene, player, actions, controls and persistence.
+
+An open follow-up PR after the assessed `main` head is intentionally not counted in these readiness numbers.
+
+## Delivery readiness
+
+The primary delivery metric is [`docs/playable-path.md`](docs/playable-path.md). A checkpoint counts only when every earlier checkpoint works in the same project-owned runtime path.
+
+| ID | Checkpoint | Current state |
+| --- | --- | --- |
+| P0 | Clean project-owned launch | **Done** |
+| P1 | User-owned original data available | **Done** |
+| P2 | Reconstructed startup/login | **Done** |
+| P3 | Server selection end-to-end | **Done** — issue #144 closed |
+| P4 | ChooseHero end-to-end | **Done** for the tracked existing-role route — issue #145 closed |
+| P5 | Deterministic enter-game transition | **Done** for the tracked existing-role route — issue #145 closed |
+| P6 | GameLevels first scene-construction boundary | **Done** — issue #146 closed |
+| P7 | First offline scene instantiated and visibly rendered | **In progress** — implementation/capture tooling exists; contiguous real-device proof remains |
+| P8 | Player spawned | **In progress** — spawn/frame/action/render implementation exists; contiguous real-device proof remains |
+| P9 | Input visibly changes player state | **In progress** — joystick/motion/facing/action implementation exists; contiguous real-device proof remains |
+| P10 | Minimal save -> restart -> restore | **Implemented, proof pending** — bounded sidecar/autosave/restore runtime and host regression exist; real-device restart proof remains |
+
+By the strict technical-alpha definition (P0-P9), the highest contiguous accepted checkpoint remains **P6: 7/10 = 70%**.
+
+## Readiness by area
+
+| Area | Estimated readiness | Notes |
+| --- | ---: | --- |
+| Build/tooling/clean runtime | **97%** | Modern Gradle/CMake app, JNI/native runtime, Lua, dual ABI and broad regression infrastructure |
+| Original-data import/resource recovery | **96%** | APK/OBB import and core transformed-resource paths are established |
+| Startup/login/server/ChooseHero route | **92%** | P3-P5 accepted for the tracked route; fresh-role callback continuation remains a separate boundary |
+| GameLevels/scene model | **90%** | P6 accepted; retained scene/camera/render models are substantial |
+| First-scene rendering | **90%** | Direct + atlas + GLES2 paths and capture tooling exist; P7 device acceptance remains |
+| Player spawn/input/action | **92%** | Spawn, motion, joystick, facing, live action playback and action-state transitions are implemented; P8/P9 proof remains |
+| SceneActions runtime | **78%** | Pair loading/playback, timed/spatial triggering and event-ID mapping exist; some dynamic geometry/PRNG/runtime semantics remain bounded gaps |
+| Persistence | **85%** | Minimal bounded P10 sidecar/autosave/restore is implemented; real process-restart proof remains |
+| Offline combat/gameplay | **35%** | Player/action/tutorial and structural enemy/trap foundations exist, but no accepted first enemy interaction or damage/death loop |
+| Modern Android runtime validation | **72%** | API 35/36 x86_64 and Android 15 16 KiB runtime coverage exist; API 35/36 arm64 physical-device proof remains |
+| Evidence/reproducibility | **98%** | Extensive bounded docs, CI, Ghidra/unidbg/device-capture and fail-closed reconstruction tooling |
+
+## Immediate critical path
+
+1. Retain one contiguous real-device P7 capture from user-owned imported data showing the first offline scene actually rendered.
+2. In that same path, prove the reconstructed player spawn/frame/action state and close P8.
+3. Record one actual Android gesture that visibly changes player/control state and close P9.
+4. Perform a real process restart and retain evidence that the implemented P10 sidecar restores the expected player motion state.
+5. Validate the current Android build on API 35/36 arm64 hardware and record the release-gate matrix.
+6. Connect the minimum genuine enemy/action data needed for one first enemy interaction and damage/death loop.
+7. Validate EnemyActions/TrapActions structural parsers against genuine user-owned payloads before attaching broader gameplay semantics.
+8. Continue SceneActions geometry/PRNG recovery only where it materially advances the first playable scene; keep unresolved behavior fail-closed rather than guessed.
 
 ## Current state
 
@@ -41,89 +104,46 @@ Recent work already supplies a fail-closed P7 device-capture harness and the P8/
 - reconstructed Android -> JNI -> startup/lifecycle state;
 - reconstructed `AppDelegate`, splash/scene-generation and `HelloWorld` -> `ManagementLayer` behavior;
 - completed tracked P3 server-selection and P4/P5 ChooseHero -> enter-game transitions;
-- a bounds-checked `HPData` replacement and the completed tracked P6 first scene-construction boundary;
-- retained GameLevels scene/model state and evidence-backed construction order;
+- a bounds-checked `HPData` replacement and completed P6 first scene-construction boundary;
+- retained GameLevels scene/model state, recovered camera/parallax inputs and evidence-backed construction order;
 - a live GameScene render queue;
 - direct-file and sprite-frame asset request domains;
 - imported plist/atlas parsing, texture resolution and atlas-frame staging;
-- Java `BitmapFactory` staging and transactional ARGB pixel revisions;
+- Java bitmap staging and transactional pixel revisions;
 - GLES2 texture upload/cache and project-owned sprite drawing;
 - recovered 1136x640 ExactFit geometry, anchor, scale, rotation and flip behavior;
-- a project-owned initial player sprite path from `MeActionsSystem` frame state into the atlas/GLES renderer;
-- role-scoped player atlas resolution separated from ordinary scene atlas resolution;
-- recovered player spawn composition and body transform;
-- an evidence-backed player control state (`0x12` / `0x13`) connected to visible `flipX` state;
+- reconstructed player spawn composition and body transform;
+- recovered player motion state and fixed-clock advancement;
 - recovered Android `CCJoyStick` touch geometry and pointer ownership;
-- recovered joystick dock visuals (`Dock.png` idle, `Dock_s.png` while active) in the live render queue;
-- CharacterName asset-path/bootstrap fixes and a real-device path that reaches a valid `CreateCharacter` Lua dispatch;
+- recovered joystick dock visuals and visible facing state;
+- live player action document loading and frame-by-frame `MeActionsSystem` playback;
+- recovered player function/action gates and selected action-state transitions;
+- tutorial loading/session/gameplay state foundations;
+- CharacterName asset-path/bootstrap fixes and a real-device route reaching valid `CreateCharacter` Lua dispatch;
 - a reconstructed `GameSaveData::Encode/Decode` leaf codec validated against bounded native probes;
-- a transactional `EnemyActionsData` WBG Sections A-G structural parser with synthetic host coverage;
-- a repaired unidbg harness that completes explicit `JNI_OnLoad` for the recorded dependency set and runs bounded synthetic probes;
-- original-device derived memory/frame evidence for `MeActionsSystem` and `EnemyActionsSystem` fields;
-- API 35 and API 36 x86_64 lifecycle CI;
-- Android 15 16 KiB runtime CI with `PAGE_SIZE=16384`;
-- an arm64 real-device evidence harness awaiting execution on an API 35/36 arm64 target.
+- an independent bounded P10 minimal save/autosave/restart-restore runtime;
+- transactional `EnemyActionsData` structural parsing and expanded `TrapActionsData` reconstruction;
+- a live SceneActions current-scene pair runtime with document/pixel staging and GLES submission;
+- recovered SceneActions timed and spatial trigger contracts, event-ID mapping and parsed spatial-object construction;
+- a repaired unidbg harness completing explicit `JNI_OnLoad` for the recorded dependency set;
+- original-device derived player/enemy runtime evidence;
+- API 35/36 x86_64 lifecycle CI and Android 15 16 KiB runtime CI;
+- an arm64 real-device evidence harness awaiting physical-device acceptance.
 
 ### Important current limitations
 
-- P7 is still open because the complete first scene has not yet been accepted from a retained real-device imported-data capture.
-- P8/P9 code is substantially implemented, but the project still lacks the real-device proof that an Android gesture visibly changes the imported player/control rendering.
-- One tested user-owned archive did not contain the referenced `p01_i01.actData`, so the corresponding player action cannot be visually proven from that data set.
-- The fresh-role CharacterName route dispatches `CreateCharacter`, but the tested offline path did not receive a create-character callback to continue into the scene. This is a separate route-integration boundary, not a reason to reopen the already-completed tracked existing-role P4/P5 path.
-- EnemyActions parsing remains **structural evidence**, not functioning combat.
-- Actual API 35/36 `arm64-v8a` runtime evidence is still required.
-
-## Delivery readiness
-
-The primary delivery metric is [`docs/playable-path.md`](docs/playable-path.md). A checkpoint counts only when every earlier checkpoint works in the same project-owned runtime path.
-
-| ID | Checkpoint | Current state |
-| --- | --- | --- |
-| P0 | Clean project-owned launch | **Done** |
-| P1 | User-owned original data available | **Done** |
-| P2 | Reconstructed startup/login | **Done** |
-| P3 | Server selection end-to-end | **Done** — tracked issue #144 closed |
-| P4 | ChooseHero end-to-end | **Done** — tracked issue #145 closed |
-| P5 | Deterministic enter-game transition | **Done** — tracked issue #145 closed |
-| P6 | GameLevels data sufficient for first scene-construction boundary | **Done** — tracked issue #146 closed |
-| P7 | First offline scene instantiated and visibly rendered | **In progress** — implementation/capture harness exists; real-device proof remains |
-| P8 | Player spawned | **In progress** — spawn/frame/render path implemented; device proof remains |
-| P9 | Input visibly changes player state | **In progress** — recovered joystick/facing/dock path implemented; device proof remains |
-| P10 | Minimal save -> restart -> restore | **Not yet** — leaf save codec recovered |
-
-By the strict technical-alpha definition (P0-P9), the contiguous completion marker is **P6: 7/10 = 70%**.
-
-This strict number understates implementation depth in P7-P9: much of the downstream code exists, but the project intentionally does not promote those checkpoints until the required real-device imported-data evidence is retained and validated.
-
-## Readiness by area
-
-| Area | Estimated readiness | Notes |
-| --- | ---: | --- |
-| Build/tooling/clean runtime | **95%** | Modern app, JNI/native runtime, Lua, dual ABI, broad CI |
-| Original-data import/resource recovery | **95%** | APK/OBB import and core transforms are established |
-| Startup/login/server/ChooseHero route | **90%** | P3-P5 tracked gates closed; fresh-role callback path still has an offline boundary |
-| GameLevels/scene model | **85%** | P6 gate closed; enough model exists for first-scene construction work |
-| First-scene rendering | **85%** | Direct + atlas pipelines exist; retained real-device P7 proof is missing |
-| Player spawn/input | **80%** | Initial sprite, spawn composition, joystick, facing and dock states are implemented; P8/P9 device proof missing |
-| Offline combat/gameplay | **20%** | Structural action data exists; enemy instantiation and combat loop do not |
-| Persistence | **30%** | Leaf codec recovered; P10 vertical slice not implemented |
-| Modern Android runtime validation | **70%** | API 35/36 x86_64 + 16 KiB runtime CI pass; API 35/36 arm64 physical-device proof pending |
-| Evidence/reproducibility | **95%** | Extensive bounded docs, CI, Ghidra/unidbg/device capture tooling |
-
-## Immediate critical path
-
-1. Run and retain the P7 real-device evidence flow with a user-owned data set that can actually reach/render the first offline scene.
-2. Close the remaining imported-data blocker for the initial player action resource (`p01_i01.actData` or an equivalent valid role/data path) without committing proprietary assets.
-3. Use the merged player sprite + joystick/dock path to record one Android gesture producing a visible state change; close P8/P9.
-4. Resolve the fresh-role `CreateCharacter` offline callback boundary if fresh-role creation is required for the chosen contiguous acceptance path.
-5. Implement P10 minimal project-owned save -> restart -> restore.
-6. Validate the WBG parser against genuine user-owned inputs and connect only the minimum enemy/action behavior needed for the first combat slice.
-7. Add one enemy interaction and damage/death loop.
-8. Run the arm64 evidence harness on an API 35/36 arm64 device and record the release-gate matrix.
+- P7 remains open because a complete accepted real-device imported-data first-scene capture has not yet been retained.
+- P8/P9 implementations are deep, but the required contiguous device proof of visible player + real touch-driven state change is still missing.
+- P10 is implemented but has not yet been promoted because the real process restart/restore proof is still missing.
+- One previously tested user-owned archive lacked a referenced `p01_i01.actData`; acceptance must use a data path that can actually provide the required player action asset.
+- The fresh-role CharacterName route dispatches `CreateCharacter`, but its tested offline callback continuation remains separate from the already accepted existing-role P4/P5 path.
+- SceneActions still has explicit evidence boundaries around some dynamic sprite geometry/current parent movement and original process-global PRNG selection/order.
+- Enemy/Trap action parsing remains mostly structural evidence; it is not yet an accepted combat loop.
+- Actual API 35/36 `arm64-v8a` physical-device evidence is still required.
 
 ## Established findings
 
-The reconstruction has established that:
+The reconstruction has established, among other things, that:
 
 - package: `com.hippiegame.nevergone`;
 - original version: `1.0.9`;
@@ -131,32 +151,18 @@ The reconstruction has established that:
 - original native libraries: `libcocos2dcpp.so` and `libffmpeg.so`;
 - the main library identifies its engine as **`cocos2d-2.1rc0-x-2.1.2`**;
 - the embedded Lua runtime is **Lua 5.2.3**;
-- the APK contains **107 transformed `.lua` modules**;
-- the shipped `cocos2d::Decode` transform/key have been recovered and all 107 Lua payloads can be decoded locally from a user-owned APK;
+- the APK contains **107 transformed `.lua` modules** and all 107 can be decoded locally from a user-owned APK with the recovered transform;
 - the static Lua graph contains 107 modules, 104 resolved edges and 101 modules reachable from `Game.StartLua`;
 - the original `libcocos2dcpp.so` retains roughly **26,875 defined function symbols**;
 - the launcher is `com.hippiegame.nevergone.TJ_P_01` and the Java/JNI/native lifecycle path is mapped;
-- `AppDelegate::AddAllSearchPath()` and its 59 child search directories have been recovered;
-- startup reaches `Game.StartLua`, `Game.ClientRequire`, `ShareLogic.require`, `HelloWorld` and `ManagementLayer` through known paths;
-- original `NewServerList` preselection/tap-vs-drag/one-shot confirmation behavior is reconstructed;
-- the shipped ChooseHero `PartThree()` / `BalckCloud()` path and thunder scheduling behavior are substantially reconstructed;
-- the original 32-bit `HPRange` is `{byte_offset, byte_length}`;
-- `GameLevels::LoadGameLevels()` loads scene, action, global and port-node sections in a recovered fixed order;
-- the first GameScene construction boundary needed by tracked P6 is implemented with bounds-checked project-owned models;
-- the visual scene path preserves recovered ordered layer traversal;
-- type-0 visual objects use evidence-backed resource selection and transforms where proven;
+- `AppDelegate::AddAllSearchPath()` and its 59 child search directories are recovered;
+- `GameLevels::LoadGameLevels()` section order and the first GameScene construction boundary are reconstructed;
 - the original design space is 1136x640 with Cocos ExactFit behavior;
-- imported direct-file and atlas-backed pixels can be staged and uploaded into the project-owned GLES2 renderer;
-- player atlas requests are isolated from scene atlas requests;
-- `MeActionsSystem::initWithFile()` / `play()` establish initial player frame state `current=0`, `previous=-1` before the first primary frame lookup;
-- the recovered player visual position composes the bootstrap point with the type-6 scene offset;
-- the recovered horizontal Controls states map to player sprite `flipX` changes;
-- the recovered fixed joystick node is at design coordinate `(204,173)`, with begin hit radius `165` and update radius `290`;
-- joystick dock visuals switch between `Dock.png` and `Dock_s.png` for inactive/active touch ownership;
-- `GameSaveData::Encode/Decode` use the recovered byte transform with a counter cycling `0..126`;
-- bounded unidbg work completed explicit `JNI_OnLoad` after loading the recorded runtime dependency set and validated selected isolated helpers/transforms;
-- `EnemyActionsData::loadWBGFile` is confirmed as an HPData-backed dependency and the recovered A-G stream topology is parsed transactionally in project-owned code;
-- original-device memory evidence corroborates changing runtime frame-counter fields while retaining the static/instruction-path evidence as the semantic source of truth;
+- imported direct-file and atlas-backed pixels can be staged and rendered through project-owned GLES2 code;
+- `MeActionsSystem` initial state, frame advancement, completion behavior and a substantial live playback path are reconstructed;
+- horizontal controls, joystick geometry and player motion/facing state are reconstructed for the supported path;
+- `GameSaveData::Encode/Decode` byte transform is recovered, while P10 intentionally uses a bounded independent project-owned sidecar;
+- the SceneActions timed trigger schedule, spatial dispatch contract, current-pair binding and event-ID source are recovered for the supported path;
 - API 35/36 x86_64 lifecycle tests and an Android 15 16 KiB runtime test pass in CI.
 
 ## Project status
@@ -175,20 +181,24 @@ The reconstruction has established that:
 | Fresh-role CharacterName -> callback continuation | In progress |
 | `HPData` foundation | Done for current parser needs |
 | GameLevels P6 first-scene construction boundary | Done |
-| Retained scene instance / construction plan | Implemented |
+| Retained scene / camera / construction plan | Implemented |
 | Live GameScene render queue | Implemented |
 | Direct imported sprite pipeline | Implemented |
-| Atlas plist/frame/texture pipeline | Implemented for current scene/player needs |
+| Atlas plist/frame/texture pipeline | Implemented for current scene/player/action needs |
 | Direct + atlas GLES2 sprite drawing | Implemented |
 | P7 complete first offline scene evidence | Pending real-device acceptance |
-| Initial player frame/spawn/render path | Implemented |
-| Recovered joystick input/facing path | Implemented |
-| Recovered joystick dock visual path | Implemented |
+| Player spawn + motion state | Implemented |
+| Recovered joystick input/facing/dock path | Implemented |
+| Live player action playback | Implemented for the currently recovered supported path |
 | P8/P9 real-device visible proof | Pending |
 | `GameSaveData` Encode/Decode leaf codec | Implemented |
-| P10 minimal save/restart/restore | Not yet |
-| EnemyActions WBG Sections A-G parser | Implemented structurally; real-file/gameplay proof pending |
-| Offline combat/gameplay | Not yet functional |
+| P10 minimal sidecar/autosave/restart/restore | Implemented; device proof pending |
+| EnemyActions structural parser | Implemented structurally; genuine-file/gameplay proof pending |
+| TrapActions structural reconstruction | Substantial; semantic/gameplay proof pending |
+| SceneActions live pair runtime | Implemented for current bounded pair path |
+| SceneActions timed/spatial trigger path | Substantially implemented; remaining geometry/PRNG gaps explicit |
+| First enemy interaction | Not yet accepted |
+| Damage/death loop | Not yet |
 | `arm64-v8a` build target | Done |
 | API 35/36 x86_64 lifecycle runtime CI | Passing |
 | Android 15 16 KiB runtime CI | Passing |
@@ -207,11 +217,11 @@ The current strategy is dependency-driven and evidence-driven:
 4. reconstruct state machines at verified semantic boundaries instead of copying the old ABI;
 5. convert callback/save/resource payloads into bounded project-owned models before attaching them to renderer state;
 6. reconstruct binary readers only through proven field widths/order and stop when evidence runs out;
-7. use bounded native execution (including unidbg probes) where static analysis is insufficient;
+7. use bounded native execution, Ghidra slices and real-device probes where static analysis is insufficient;
 8. preserve recovered traversal, transforms and resource-selection semantics separately from unknown gameplay meaning;
 9. build project-owned scene/runtime state from those proven models;
-10. recreate only the behavior required by the reachable offline path;
-11. validate observable behavior on real Android hardware before declaring a playable-path checkpoint complete.
+10. recreate only behavior required by the reachable offline path;
+11. validate observable behavior on real Android hardware before declaring playable-path checkpoints complete.
 
 ## Repository layout
 
@@ -232,7 +242,7 @@ Original Never Gone APK/OBB files, decoded proprietary scripts, saves, raw proce
 
 ## Reconstructed runtime flow
 
-Current project-owned flow:
+Current project-owned flow, simplified:
 
 ```text
 Android launcher/lifecycle
@@ -241,12 +251,8 @@ Android launcher/lifecycle
 reconstructed AppDelegate
         |
         v
-HelloWorld::createUI()
+HelloWorld / ManagementLayer
         |
-        v
-ManagementLayer::initLoginLayer()
-        |
-        +--> announcement
         +--> server selection (P3)
         +--> role selection / ChooseHero (P4)
         `--> enter-game (P5)
@@ -255,80 +261,88 @@ ManagementLayer::initLoginLayer()
           GameLevels model (P6)
                  |
                  v
-        retained scene instance
+       retained scene + camera
                  |
                  v
        construction/render queue
-           /             \
-          v               v
- direct-file requests   sprite-frame requests
-          |               |
-          v               v
-  ARGB pixel staging   scene/player atlas domains
-          \               /
-           v             v
-             GLES2 textures
+          /       |        \
+         v        v         v
+   scene assets  player   SceneActions
+         \        |         /
+          \       v        /
+             GLES2 renderer
                   |
                   v
-           scene/player sprites
+          joystick / controls
                   |
                   v
-      recovered joystick/control state
+        player motion/actions
+                  |
+                  v
+       minimal P10 autosave
+                  |
+                  v
+        process restart/restore
 ```
 
 The runtime does **not** link against the original `libcocos2dcpp.so`.
 
 ## First-scene and player reconstruction
 
-The first-scene stack now separates binary evidence, project-owned state and rendering:
+The first-scene stack separates binary evidence, project-owned state and rendering:
 
 - GameLevels/HPData parsing is bounds-checked and transactional;
-- the tracked P6 scene-construction boundary is complete;
-- retained scene state feeds an ordered construction/render plan;
-- direct-file resources and `spriteFrameByName()` resources use separate explicit request paths;
-- scene atlases and selected-player atlases are resolved in separate domains;
-- plist frame metadata is consumed by the project-owned atlas staging path;
+- retained scene state feeds ordered camera/construction/render models;
+- direct-file resources and `spriteFrameByName()` resources use explicit request paths;
+- scene atlases and selected-player/action atlases remain separate resource domains where required;
 - imported pixels are published transactionally and uploaded into GLES2 textures;
-- the first reconstructed player frame uses the recovered `MeActionsSystem` initial state and body transform;
-- the player spawn point uses the recovered bootstrap + type-6 scene-offset composition;
-- player-facing state is driven by the recovered horizontal control states;
-- Android motion events feed the recovered `CCJoyStick` geometry;
-- joystick dock texture state is rendered as a screen-space overlay.
+- player spawn/motion state is project-owned and generation-bound;
+- live action playback consumes the loaded action document and recovered frame cursor rather than synthesizing a single static frame;
+- Android motion events feed recovered joystick geometry and movement/facing state;
+- tutorial/action-button foundations can drive supported player action-state changes.
 
-**Remaining boundary:** retain an accepted real-device capture that proves the scene, player and touch-driven visual state from user-owned imported data in the same contiguous runtime path.
+**Remaining acceptance boundary:** retain one real-device run proving scene + player + real input in the same imported-data path.
 
-## EnemyActionsData WBG structural reconstruction
+## SceneActions reconstruction
 
-The clean-room `enemy_actions_wbg_document` parser composes all currently recovered sections of `EnemyActionsData::loadWBGFile` in native read order:
+The current SceneActions path includes:
 
-| Stream part | Reconstructed boundary |
-| --- | --- |
-| Header | Fixed 16-byte prefix and primary-record count |
-| A | Counted variable-length primary `ActionFrameData` records |
-| B | Counted 12-byte compact records |
-| C | Nested counted variable-length action-frame groups |
-| D | Six or twenty groups selected by the first header word (`> 0x68` selects twenty) |
-| E | Counted fixed 53-byte action-frame records |
-| F | One 24-byte combo tuple per primary record |
-| G | One 4-byte final-table integer per primary record; recovered reciprocal transform |
+- parsed pair documents and imported frame-resource resolution;
+- initial/current frame pixel staging and GLES submission;
+- recovered born/idle playback transitions;
+- one current-scene pair binding with fail-closed preflight;
+- the recovered timed trigger schedule;
+- the recovered spatial trigger predicate/order;
+- `GameSceneObject` event-ID recovery from parsed object data;
+- composition of timed + spatial gating into the live runtime start path;
+- typed spatial-object construction from parsed scene records.
 
-All child parsers use the bounds-checked project-owned `HPData` reader, validate cursor advancement and publish output transactionally.
+**Remaining boundary:** complete only the dynamic geometry/current-parent inputs and original PRNG semantics that are actually required by the first playable scene; unsupported behavior remains explicit rather than guessed.
 
-**Boundary:** the format still needs validation against genuine user-owned WBG payloads, semantic interpretation and runtime enemy/action consumers. This work does not by itself constitute combat.
+## Persistence slice
 
-See [`docs/evidence/enemy-actions-wbg-document.md`](docs/evidence/enemy-actions-wbg-document.md).
+P10 uses a deliberately small project-owned sidecar under app-private storage rather than claiming compatibility with unproven original save containers.
+
+The bounded record stores the minimum visible restart state: scene identity, player identity and player motion offset. It validates magic/version/size/checksum/ranges, writes transactionally through a temporary file, autosaves changed motion at a bounded cadence, and applies a matching record only after normal runtime flow has independently reconstructed the corresponding scene/player spawn.
+
+See [`docs/minimal-save-restart-restore.md`](docs/minimal-save-restart-restore.md).
+
+## Enemy/Trap action reconstruction
+
+EnemyActions and TrapActions work currently provides structural, bounds-checked project-owned models and evidence needed for later combat integration. These parsers do **not** by themselves constitute combat.
+
+The next gameplay milestone is intentionally small: validate genuine user-owned action data, instantiate one enemy interaction, then implement the minimum damage/death loop required for early playable alpha.
 
 ## Native dynamic and device evidence
 
 The repository contains bounded unidbg, Ghidra and real-device tooling. Current evidence includes:
 
 - repaired native dependency loading and explicit `JNI_OnLoad` completion for the recorded unidbg run;
-- synthetic validation of the recovered asset decoder and selected Cocos geometry helpers;
-- `GameSaveData::Encode/Decode` comparisons against native probes;
-- bounded EnemyActions layout/topology evidence;
-- derived original-device vtable/frame-field observations for `MeActionsSystem` and `EnemyActionsSystem`;
-- a full-readable-memory capture tool for local/private evidence collection;
-- a fail-closed first-scene Android capture/validator;
+- synthetic validation of recovered asset/geometry/state helpers;
+- GameSaveData comparisons against bounded native probes;
+- bounded EnemyActions/TrapActions and SceneActions evidence slices;
+- original-device player/enemy runtime observations;
+- fail-closed first-scene/player-input Android capture tooling;
 - arm64 retained-evidence tooling for API 35/36 hardware validation.
 
 Raw proprietary process memory, screenshots containing game assets and original binaries remain local and are not committed.
@@ -386,34 +400,31 @@ The debug APK is normally produced under:
 android/app/build/outputs/apk/debug/
 ```
 
-A full Android debug build was revalidated after the recent player-bootstrap/CharacterName fixes for both configured ARM ABIs.
-
 ## Testing and CI
 
 Synthetic fixtures and host probes are used wherever possible so proprietary resources do not need to live in source control.
 
-Coverage includes:
+Coverage now includes:
 
-- Lua/startup compatibility;
-- AppDelegate/lifecycle and initial UI state;
+- Lua/startup compatibility and lifecycle;
 - server/role/ChooseHero transitions;
 - HPData/GameLevels parsing and failure bounds;
-- retained scene state and construction order;
+- retained scene/camera state and construction order;
 - render-queue ordering and resource domains;
 - direct-file and atlas asset staging;
-- GLES2 texture/cache/render contracts;
-- ExactFit/sprite geometry;
-- player initial-frame/spawn/body transform;
-- player atlas isolation;
-- recovered joystick input, facing and dock visual states;
-- GameSaveData codec regression;
-- EnemyActions WBG structural parsing;
+- GLES2 texture/cache/render contracts and sprite geometry;
+- player spawn/motion/joystick/facing state;
+- player action loading, timing, frame advancement, function/action gates and live playback;
+- tutorial action/gameplay state foundations;
+- P10 minimal save/autosave/restart-restore regression;
+- EnemyActions/TrapActions structural parsing;
+- SceneActions document/frame/render/playback/timed/spatial trigger contracts;
 - Ghidra/unidbg evidence tooling;
 - API 35/36 lifecycle runtime CI;
 - Android 15 16 KiB runtime CI;
-- arm64 real-device evidence validation tooling.
+- arm64 real-device evidence tooling.
 
-Device gameplay evidence still requires user-owned original data and is intentionally not represented by proprietary fixtures in CI.
+Device gameplay acceptance still requires user-owned original data and is intentionally not represented by committed proprietary fixtures.
 
 ## Major milestones
 
@@ -453,27 +464,28 @@ Device gameplay evidence still requires user-owned original data and is intentio
 - [x] P3 server selection
 - [x] P4/P5 ChooseHero -> enter-game tracked route
 - [x] P6 GameLevels first scene-construction boundary
-- [x] retained scene instance + construction/render pipeline
+- [x] retained scene/camera/construction/render pipeline
 - [x] direct-file and atlas asset pipelines
-- [x] initial player sprite/frame/spawn path
-- [x] recovered Android joystick input state
-- [x] recovered visible player-facing state
-- [x] recovered joystick dock visual state
+- [x] player spawn/motion/action runtime foundations
+- [x] recovered Android joystick/facing/dock state
+- [x] P10 bounded minimal persistence implementation
 - [ ] P7 retained real-device first-scene proof
 - [ ] P8 retained real-device player proof
-- [ ] P9 retained real-device visible input proof
-- [ ] P10 minimal save/restart/restore
+- [ ] P9 retained real-device visible-input proof
+- [ ] P10 retained real process-restart/restore proof
 
 ### M5 — Offline gameplay
 
 - [x] GameSaveData Encode/Decode leaf transform recovered
-- [x] bounded EnemyActionsData layout/dependency evidence
-- [x] recovered EnemyActions WBG Sections A-G structural parser
-- [ ] validate WBG parser against genuine user-owned files
+- [x] live player action playback for the supported path
+- [x] tutorial/action-state foundations
+- [x] EnemyActions structural reconstruction
+- [x] substantial TrapActions structural reconstruction
+- [x] substantial bounded SceneActions runtime/trigger reconstruction
+- [ ] validate action parsers against genuine user-owned files
 - [ ] first enemy interaction
 - [ ] damage/death loop
 - [ ] minimum combat systems
-- [ ] minimal persistence vertical slice
 - [ ] broader inventory/equipment/audio/video/progression work
 
 ### M6 — Modern Android release target
@@ -493,12 +505,16 @@ Key documents:
 
 - [`docs/playable-path.md`](docs/playable-path.md) — primary delivery metric and P0-P10 definitions
 - [`docs/roadmap.md`](docs/roadmap.md) — phased reconstruction plan
-- [`docs/hpdata-gamelevels.md`](docs/hpdata-gamelevels.md) — HPRange and binary scene parsing evidence
+- [`docs/minimal-save-restart-restore.md`](docs/minimal-save-restart-restore.md) — bounded P10 persistence slice
+- [`docs/live-player-action-playback.md`](docs/live-player-action-playback.md) — recovered live player action playback path
+- [`docs/player-input-runtime-evidence.md`](docs/player-input-runtime-evidence.md) — player input/runtime evidence
+- [`docs/tutorial-gameplay-state.md`](docs/tutorial-gameplay-state.md) — tutorial gameplay-state reconstruction
+- [`docs/scene-action-pair-runtime.md`](docs/scene-action-pair-runtime.md) — SceneActions pair runtime
+- [`docs/scene-actions-device-probe.md`](docs/scene-actions-device-probe.md) — bounded SceneActions device probe
+- [`docs/hpdata-gamelevels.md`](docs/hpdata-gamelevels.md) — HPRange and scene parsing evidence
 - [`docs/game-scene-object-construction.md`](docs/game-scene-object-construction.md) — scene traversal/construction evidence
 - [`docs/game-scene-resource-loading.md`](docs/game-scene-resource-loading.md) — atlas/sprite-frame resource-loading evidence
 - [`docs/evidence/unidbg-2026-10-10/README.md`](docs/evidence/unidbg-2026-10-10/README.md) — bounded native dynamic evidence
-- [`docs/evidence/enemy-actions-wbg-document.md`](docs/evidence/enemy-actions-wbg-document.md) — WBG A-G structural parser evidence
-- [`docs/evidence/original-runtime-memory-2026-10-11.md`](docs/evidence/original-runtime-memory-2026-10-11.md) — derived original-device memory/frame observations
 - [`docs/server-selection-runtime.md`](docs/server-selection-runtime.md) — `NewServerList` behavior
 - [`docs/jni-map.md`](docs/jni-map.md) — Java/JNI/native mapping
 - [`docs/native-analysis.md`](docs/native-analysis.md) — native symbol/runtime evidence
