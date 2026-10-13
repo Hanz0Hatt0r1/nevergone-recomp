@@ -1,0 +1,21 @@
+name: Nevergone ML dispatch receiver provenance smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/analyze_nevergone_dispatch_receiver_provenance.py'
+      - 'tools/ml/nevergone_dispatch_receiver_provenance_smoke.py'
+      - 'tools/ml/convert_nevergone_dispatch_runtime_trace_to_seeds.py'
+      - 'tools/unidbg/src/main/java/nevergone/DispatchReceiverProvenance.java'
+      - 'tools/unidbg/src/main/java/nevergone/DispatchTargetRuntimeTrace.java'
+      - '.github/workflows/ml-dispatch-receiver-provenance-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate receiver-aware dispatch evidence
+        run: python3 tools/ml/nevergone_dispatch_receiver_provenance_smoke.py
