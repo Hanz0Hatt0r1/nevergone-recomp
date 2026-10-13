@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'tools/ghidra/ExportVtableSlots.java'
+      - 'tools/ghidra/ExportFunctionOperands.java'
       - 'tools/ghidra/verify_export_vtable_slots.py'
       - 'tools/ml/build_nevergone_static_vtable_slot_catalog_from_export.py'
       - 'tools/ml/nevergone_static_vtable_slot_export_smoke.py'
