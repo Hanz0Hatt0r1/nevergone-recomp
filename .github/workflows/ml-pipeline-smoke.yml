@@ -52,6 +52,8 @@ jobs:
             tools/ml/attach_nevergone_similarity_transfer.py \
             tools/ml/extract_nevergone_structural_metrics.py \
             tools/ml/attach_nevergone_structural_metrics.py \
+            tools/ml/extract_nevergone_callgraph_metrics.py \
+            tools/ml/attach_nevergone_callgraph_metrics.py \
             tools/ml/nevergone_family_grouped_cv.py \
             tools/ml/nevergone_nested_routing_cv.py \
             tools/ml/nevergone_nested_routing_audit.py \
@@ -83,6 +85,7 @@ jobs:
             tools/ml/nevergone_evidence_fusion_smoke.py \
             tools/ml/nevergone_conditional_fusion_smoke.py \
             tools/ml/nevergone_structural_metrics_smoke.py \
+            tools/ml/nevergone_callgraph_metrics_smoke.py \
             tools/ml/nevergone_nested_selective_metrics_smoke.py
       - name: Run synthetic pipeline smoke
         run: python tools/ml/nevergone_ml_pipeline_smoke.py
@@ -120,5 +123,7 @@ jobs:
         run: python tools/ml/nevergone_conditional_fusion_smoke.py
       - name: Run structural metrics smoke
         run: python tools/ml/nevergone_structural_metrics_smoke.py
+      - name: Run callgraph metrics smoke
+        run: python tools/ml/nevergone_callgraph_metrics_smoke.py
       - name: Run nested selective metrics smoke
         run: python tools/ml/nevergone_nested_selective_metrics_smoke.py
