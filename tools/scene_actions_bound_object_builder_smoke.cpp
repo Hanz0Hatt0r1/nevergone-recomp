@@ -1,6 +1,11 @@
 #include <cassert>
+#include <cmath>
 
 #include "scene_actions_bound_object_builder.h"
+
+bool near(float a, float b) {
+    return std::fabs(a - b) < 0.001f;
+}
 
 int main() {
     namespace builder = nevergone::scene_actions_bound_object_builder;
@@ -32,6 +37,45 @@ int main() {
     assert(no_event.view.event_id_108 == 0);
     assert(!no_event.view.sprite_bounds.has_value());
     assert(no_event.view.object_position_x == 0.0f);
+
+    nevergone::game_scene_render_queue::SceneActionPairCommand command;
+    command.layer_z_index = 2u;  // native GameSceneClassLayer ID 3
+    command.source_layer_index = 4u;
+    command.source_object_index = 9u;
+    command.resource = {
+        nevergone::game_scene_type0_resource::Kind::kSceneActionPair,
+        "klhuo-1.png",
+        true,
+    };
+    command.layer_camera_factor = 0.25f;
+    command.record.string_value = "klhuo-1.png";
+    command.record.first_point_x = 100.0f;
+    command.record.first_point_y = 200.0f;
+    command.record.middle_float = 0.0f;
+    command.record.second_point_x = 1.0f;
+    command.record.second_point_y = 1.0f;
+    command.record.conditional_present = true;
+    command.record.conditional_first_u32 = 2001u;
+
+    const auto klhuo = builder::build_klhuo(command, 80.0f);
+    assert(klhuo.has_value());
+    assert(klhuo->ref.layer_index == 4u);
+    assert(klhuo->ref.object_index == 9u);
+    assert(klhuo->view.event_id_108 == 2001);
+    assert(near(klhuo->view.object_position_x, 60.0f));
+    assert(klhuo->view.sprite_bounds.has_value());
+    assert(near(klhuo->view.sprite_bounds->x, 90.0f));
+    assert(near(klhuo->view.sprite_bounds->y, 190.0f));
+    assert(near(klhuo->view.sprite_bounds->width, 20.0f));
+    assert(near(klhuo->view.sprite_bounds->height, 20.0f));
+
+    command.layer_z_index = 7u;  // native mode 8 forces parent X = 0.
+    const auto mode8 = builder::build_klhuo(command, 999.0f);
+    assert(mode8.has_value());
+    assert(near(mode8->view.object_position_x, 0.0f));
+
+    command.record.string_value = "gkshu01.png";
+    assert(!builder::build_klhuo(command, 0.0f).has_value());
 
     return 0;
 }
