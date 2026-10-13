@@ -39,6 +39,7 @@ jobs:
             tools/ml/classify_nevergone_hierarchy_with_role.py \
             tools/ml/select_nevergone_internal_test_corpus.py \
             tools/ml/augment_nevergone_function_roles.py \
+            tools/ml/audit_nevergone_fresh_roles.py \
             tools/ml/mine_nevergone_function_families.py \
             tools/ml/nevergone_family_grouped_cv.py \
             tools/ml/nevergone_nested_routing_cv.py \
@@ -63,6 +64,7 @@ jobs:
             tools/ml/nevergone_hierarchical_router_smoke.py \
             tools/ml/nevergone_hierarchy_with_role_smoke.py \
             tools/ml/nevergone_function_role_smoke.py \
+            tools/ml/nevergone_fresh_role_audit_smoke.py \
             tools/ml/nevergone_nested_selective_metrics_smoke.py
       - name: Run synthetic pipeline smoke
         run: python tools/ml/nevergone_ml_pipeline_smoke.py
@@ -84,5 +86,7 @@ jobs:
         run: python tools/ml/nevergone_hierarchy_with_role_smoke.py
       - name: Run function-role augmenter smoke
         run: python tools/ml/nevergone_function_role_smoke.py
+      - name: Run fresh role audit smoke
+        run: python tools/ml/nevergone_fresh_role_audit_smoke.py
       - name: Run nested selective metrics smoke
         run: python tools/ml/nevergone_nested_selective_metrics_smoke.py
