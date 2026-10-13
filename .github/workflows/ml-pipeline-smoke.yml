@@ -30,6 +30,7 @@ jobs:
           python -m py_compile \
             tools/ml/build_nevergone_dataset.py \
             tools/ml/build_nevergone_seed_labels.py \
+            tools/ml/inspect_nevergone_corpus.py \
             tools/ml/nevergone_ml_pipeline_smoke.py
       - name: Run synthetic pipeline smoke
         run: python tools/ml/nevergone_ml_pipeline_smoke.py
