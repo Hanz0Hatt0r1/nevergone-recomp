@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Build a bounded unidbg runtime CALLIND trace plan from seed-template rows.
 
-Only call sites that belong to repeated exact ordered dispatch groups are selected.
-The output is a JSON array consumed by DispatchTargetRuntimeTrace; it contains no
-runtime targets and does not modify routing.
+The seed-template addresses are Ghidra addresses. For libcocos2dcpp.so the analyzed
+Ghidra program was loaded at ELF/runtime module offset + 0x10000, so runtime
+breakpoint offsets must subtract that bias. The output keeps both coordinate
+systems explicit and does not modify routing.
 """
 from __future__ import annotations
 
@@ -13,7 +14,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-FORMAT = "NEVERGONE.DispatchRuntimeProbePlan/1"
+FORMAT = "NEVERGONE.DispatchRuntimeProbePlan/2"
+DEFAULT_GHIDRA_BIAS = 0x10000
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -29,13 +31,17 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def parse_call_address(value: Any) -> int:
+def parse_hex_address(value: Any, field: str) -> int:
     if not isinstance(value, str) or not value:
-        raise ValueError(f"invalid call_address: {value!r}")
+        raise ValueError(f"invalid {field}: {value!r}")
     token = value.lower()
     if token.startswith("0x"):
         token = token[2:]
     return int(token, 16)
+
+
+def parse_int_auto(value: str) -> int:
+    return int(value, 0)
 
 
 def main() -> int:
@@ -44,11 +50,19 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--min-group-size", type=int, default=2)
     parser.add_argument("--max-sites", type=int, default=128)
+    parser.add_argument(
+        "--ghidra-bias",
+        type=parse_int_auto,
+        default=DEFAULT_GHIDRA_BIAS,
+        help="Ghidra address bias relative to runtime module offsets (default: 0x10000)",
+    )
     args = parser.parse_args()
     if args.min_group_size < 2:
         raise SystemExit("--min-group-size must be >= 2")
     if args.max_sites < 1 or args.max_sites > 128:
         raise SystemExit("--max-sites must be 1..128")
+    if args.ghidra_bias < 0:
+        raise SystemExit("--ghidra-bias must be >= 0")
 
     rows = read_jsonl(args.seed_template)
     selected: list[dict[str, Any]] = []
@@ -61,19 +75,29 @@ def main() -> int:
         call_index = row.get("call_index")
         if not isinstance(source_id, str) or not source_id or not isinstance(call_index, int):
             raise ValueError("seed-template row missing source_id/call_index")
+        if not source_id.startswith("libcocos2dcpp.so:"):
+            raise ValueError(f"runtime address translation only supports libcocos2dcpp.so: {source_id}")
         key = (source_id, call_index)
         if key in seen:
             continue
         seen.add(key)
+
         call_address = row.get("call_address")
-        offset = parse_call_address(call_address)
+        ghidra_address = parse_hex_address(call_address, "call_address")
+        if ghidra_address < args.ghidra_bias:
+            raise ValueError(
+                f"Ghidra call address 0x{ghidra_address:x} is below bias 0x{args.ghidra_bias:x}"
+            )
+        runtime_offset = ghidra_address - args.ghidra_bias
         selected.append(
             {
                 "format": FORMAT,
                 "source_id": source_id,
                 "call_index": call_index,
                 "call_address": call_address,
-                "call_site_offset": f"0x{offset:x}",
+                "ghidra_call_site_address": f"0x{ghidra_address:x}",
+                "ghidra_address_bias": f"0x{args.ghidra_bias:x}",
+                "call_site_offset": f"0x{runtime_offset:x}",
                 "slot_group_id": row.get("slot_group_id"),
                 "ordered_group_id": row.get("ordered_group_id"),
                 "ordered_position": row.get("ordered_position"),
@@ -102,6 +126,7 @@ def main() -> int:
     print("format:", FORMAT)
     print("selected sites:", len(selected))
     print("ordered groups:", len(groups))
+    print("ghidra bias:", f"0x{args.ghidra_bias:x}")
     print("group sizes:", dict(sorted(groups.items())))
     print("output:", args.output)
     return 0
