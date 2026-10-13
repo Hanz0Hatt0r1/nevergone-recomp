@@ -8,6 +8,7 @@ from train_nevergone_production_classifier import (
     route_action,
     route_action_for_class,
 )
+from train_nevergone_production_classifier_v3 import route_action_with_ood
 
 
 def main() -> int:
@@ -60,21 +61,29 @@ def main() -> int:
         "engine": {
             "accept_threshold": 0.90,
             "review_threshold": 0.70,
+            "ood_accept_threshold": 0.55,
         },
         "game": {
             "accept_threshold": None,
             "review_threshold": 0.80,
+            "ood_accept_threshold": None,
         },
         "media_library": {
-            "accept_threshold": None,
-            "review_threshold": None,
+            "accept_threshold": 0.90,
+            "review_threshold": 0.70,
+            "ood_accept_threshold": None,
         },
     }
     assert route_action_for_class("engine", 0.95, policies) == "accept"
     assert route_action_for_class("engine", 0.80, policies) == "review"
     assert route_action_for_class("game", 0.95, policies) == "review"
-    assert route_action_for_class("media_library", 0.99, policies) == "escalate"
-    assert route_action_for_class("unknown", 1.0, policies) == "escalate"
+
+    # v3 accept requires both confidence and family-similarity support.
+    assert route_action_with_ood("engine", 0.95, 0.70, policies) == "accept"
+    assert route_action_with_ood("engine", 0.95, 0.40, policies) == "review"
+    assert route_action_with_ood("engine", 0.80, 0.90, policies) == "review"
+    assert route_action_with_ood("media_library", 0.99, 0.99, policies) == "review"
+    assert route_action_with_ood("unknown", 1.0, 1.0, policies) == "escalate"
 
     print("production classifier smoke: ok")
     return 0
