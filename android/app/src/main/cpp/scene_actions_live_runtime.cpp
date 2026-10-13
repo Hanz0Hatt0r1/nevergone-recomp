@@ -96,6 +96,24 @@ StartResult start_from_queue(const game_scene_render_queue::Queue& queue, int re
     return out;
 }
 
+TimedStartResult advance_timed_spatial_start(
+        float dt_seconds,
+        const game_scene_render_queue::Queue& queue,
+        const std::vector<scene_actions_spatial_pair_binding::BoundObject>& objects,
+        int requested_variant,
+        scene_actions_timed_spatial_trigger::State* trigger_state) {
+    TimedStartResult out;
+    out.trigger = scene_actions_timed_spatial_trigger::advance(
+            dt_seconds, queue, objects, trigger_state);
+    if (!timed_trigger_requests_start(out.trigger)) return out;
+
+    // start_from_queue owns the controller mutex. Keep timed/spatial evaluation
+    // outside that lock so malformed/rejected ObjectView input cannot mutate or
+    // block the live controller.
+    out.start = start_from_queue(queue, requested_variant);
+    return out;
+}
+
 scene_actions_active_playback::TickResult tick(
         scene_action_pair_document_store::Slot slot,
         float dt_seconds) {
