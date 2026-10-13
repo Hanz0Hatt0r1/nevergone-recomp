@@ -11,6 +11,7 @@ import com.github.unidbg.Emulator;
 import com.github.unidbg.Module;
 import com.github.unidbg.arm.context.RegisterContext;
 import com.github.unidbg.debugger.BreakPointCallback;
+import com.github.unidbg.debugger.Debugger;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +29,15 @@ final class DispatchTargetRuntimeTrace {
         JSONArray plan = JSON.parseArray(new String(Files.readAllBytes(planFile.toPath()), StandardCharsets.UTF_8));
         if (plan == null || plan.isEmpty() || plan.size() > MAX_SITES)
             throw new IllegalArgumentException("Expected 1.." + MAX_SITES + " dispatch trace sites");
+
+        /*
+         * BreakPointCallback dispatch is owned by AbstractARMDebugger.breakMap.
+         * Installing directly through Backend.addBreakPoint() creates the low-level
+         * Unicorn breakpoint but bypasses that registry, so callbacks are never
+         * recovered on break. Always install through Debugger and use an odd
+         * address so the debugger records the breakpoint as Thumb.
+         */
+        Debugger debugger = emulator.attach();
 
         Set<Long> offsets = new HashSet<>();
         for (int index = 0; index < plan.size(); index++) {
@@ -58,7 +68,7 @@ final class DispatchTargetRuntimeTrace {
                 throw new IllegalArgumentException("Duplicate call-site offset: 0x" + Long.toHexString(offset));
 
             final long breakpointAddress = module.base + offset;
-            emulator.getBackend().addBreakPoint(breakpointAddress, new BreakPointCallback() {
+            debugger.addBreakPoint(breakpointAddress | 1L, new BreakPointCallback() {
                 @Override public boolean onHit(Emulator<?> ignored, long address) {
                     try {
                         emitHit(emulator, module, spec, offset, address);
@@ -71,7 +81,7 @@ final class DispatchTargetRuntimeTrace {
                     }
                     return true;
                 }
-            }, true);
+            });
         }
         System.out.printf("DISPATCH_TRACE_SITES=%d%n", offsets.size());
         return offsets.size();
