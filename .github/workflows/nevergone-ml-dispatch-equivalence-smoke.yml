@@ -1,0 +1,26 @@
+name: Nevergone ML dispatch equivalence smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/analyze_nevergone_dispatch_equivalence.py'
+      - 'tools/ml/nevergone_dispatch_equivalence_smoke.py'
+      - '.github/workflows/nevergone-ml-dispatch-equivalence-smoke.yml'
+  push:
+    paths:
+      - 'tools/ml/analyze_nevergone_dispatch_equivalence.py'
+      - 'tools/ml/nevergone_dispatch_equivalence_smoke.py'
+      - '.github/workflows/nevergone-ml-dispatch-equivalence-smoke.yml'
+
+jobs:
+  dispatch-equivalence-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile tools
+        run: python -m py_compile tools/ml/analyze_nevergone_dispatch_equivalence.py tools/ml/nevergone_dispatch_equivalence_smoke.py
+      - name: Run smoke
+        run: python tools/ml/nevergone_dispatch_equivalence_smoke.py
