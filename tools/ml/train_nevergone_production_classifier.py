@@ -20,7 +20,8 @@ from typing import Any, Iterable
 
 from nevergone_pcode_features import portable_pcode
 
-ARTIFACT_FORMAT = "NEVERGONE.ProductionClassifier/1"
+LEGACY_ARTIFACT_FORMAT = "NEVERGONE.ProductionClassifier/1"
+ARTIFACT_FORMAT = "NEVERGONE.ProductionClassifier/2"
 
 
 def _require_dependencies():
@@ -190,7 +191,9 @@ def choose_precision_threshold(
     index = 0
     while index < total:
         threshold = pairs[index][0]
-        while index < total and math.isclose(pairs[index][0], threshold, rel_tol=0.0, abs_tol=1e-12):
+        while index < total and math.isclose(
+            pairs[index][0], threshold, rel_tol=0.0, abs_tol=1e-12
+        ):
             accepted += 1
             hits += int(bool(pairs[index][1]))
             index += 1
@@ -223,6 +226,72 @@ def route_action(
     return "escalate"
 
 
+def route_action_for_class(
+    prediction: str,
+    confidence: float,
+    class_policies: dict[str, dict[str, Any]],
+) -> str:
+    policy = class_policies.get(prediction)
+    if not isinstance(policy, dict):
+        return "escalate"
+    return route_action(
+        confidence,
+        accept_threshold=policy.get("accept_threshold"),
+        review_threshold=policy.get("review_threshold"),
+    )
+
+
+def calibrate_confidence(
+    prediction: str,
+    raw_confidence: float,
+    *,
+    global_calibrator,
+    class_calibrators: dict[str, Any],
+) -> tuple[float, str]:
+    """Calibrate correctness probability for the predicted class.
+
+    A class-specific calibrator is preferred. The family-grouped global OOF
+    calibrator is used only when a class does not have enough varied OOF evidence
+    to fit a stable isotonic mapping.
+    """
+    calibrator = class_calibrators.get(prediction)
+    source = "classwise"
+    if calibrator is None:
+        calibrator = global_calibrator
+        source = "global_fallback"
+    return float(calibrator.predict([raw_confidence])[0]), source
+
+
+def _fit_isotonic(deps, x, y, *, min_examples: int):
+    if len(x) < min_examples:
+        return None
+    values = {int(bool(item)) for item in y}
+    if len(values) < 2:
+        return None
+    calibrator = deps["IsotonicRegression"](
+        y_min=0.0,
+        y_max=1.0,
+        out_of_bounds="clip",
+    )
+    calibrator.fit(x, y)
+    return calibrator
+
+
+def _selective_summary(actions: list[str], correct, np) -> dict[str, dict[str, float | int]]:
+    result: dict[str, dict[str, float | int]] = {}
+    total = len(actions)
+    action_array = np.asarray(actions, dtype=object)
+    for action in ("accept", "review", "escalate"):
+        mask = action_array == action
+        count = int(mask.sum())
+        result[action] = {
+            "examples": count,
+            "coverage": float(count / total) if total else 0.0,
+            "precision": float(correct[mask].mean()) if count else 0.0,
+        }
+    return result
+
+
 def _sha256_rows(rows: list[dict[str, str]]) -> str:
     digest = hashlib.sha256()
     for row in sorted(rows, key=lambda item: item["id"]):
@@ -249,12 +318,18 @@ def main() -> int:
     parser.add_argument("--accept-precision", type=float, default=0.95)
     parser.add_argument("--review-precision", type=float, default=0.85)
     parser.add_argument("--min-threshold-examples", type=int, default=25)
+    parser.add_argument("--min-class-calibration-examples", type=int, default=25)
+    parser.add_argument("--min-class-threshold-examples", type=int, default=10)
     args = parser.parse_args()
 
     if args.folds < 2:
         raise SystemExit("--folds must be >= 2")
     if args.review_precision > args.accept_precision:
         raise SystemExit("--review-precision must be <= --accept-precision")
+    if args.min_class_calibration_examples < 2:
+        raise SystemExit("--min-class-calibration-examples must be >= 2")
+    if args.min_class_threshold_examples < 1:
+        raise SystemExit("--min-class-threshold-examples must be >= 1")
 
     deps = _require_dependencies()
     np = deps["np"]
@@ -295,59 +370,127 @@ def main() -> int:
         for source_index, label in enumerate(model_classes):
             aligned[:, class_index[label]] = probabilities[:, source_index]
         pred_index = aligned.argmax(axis=1)
-        predictions = np.asarray([args.classes[index] for index in pred_index], dtype=object)
+        predictions = np.asarray(
+            [args.classes[index] for index in pred_index], dtype=object
+        )
         oof_pred[test_idx] = predictions
         oof_probs[test_idx] = aligned
         oof_raw_conf[test_idx] = aligned.max(axis=1)
         fold_balanced = deps["balanced_accuracy_score"](labels[test_idx], predictions)
-        fold_macro = deps["f1_score"](labels[test_idx], predictions, average="macro", zero_division=0)
+        fold_macro = deps["f1_score"](
+            labels[test_idx], predictions, average="macro", zero_division=0
+        )
         print(
             f"fold={fold} balanced={fold_balanced:.4f} macro_f1={fold_macro:.4f} "
             f"n={len(test_idx)} families={len(set(groups[test_idx].tolist()))}"
         )
 
     correct = oof_pred == labels
-    calibrator = deps["IsotonicRegression"](
+    global_calibrator = deps["IsotonicRegression"](
         y_min=0.0,
         y_max=1.0,
         out_of_bounds="clip",
     )
-    calibrator.fit(oof_raw_conf, correct.astype(np.float64))
-    calibrated = np.asarray(calibrator.predict(oof_raw_conf), dtype=np.float64)
+    global_calibrator.fit(oof_raw_conf, correct.astype(np.float64))
 
-    accept = choose_precision_threshold(
+    class_calibrators: dict[str, Any] = {}
+    for label in args.classes:
+        mask = oof_pred == label
+        calibrator = _fit_isotonic(
+            deps,
+            oof_raw_conf[mask],
+            correct[mask].astype(np.float64),
+            min_examples=args.min_class_calibration_examples,
+        )
+        if calibrator is not None:
+            class_calibrators[label] = calibrator
+
+    calibrated = np.zeros(len(rows), dtype=np.float64)
+    confidence_sources: list[str] = []
+    for index in range(len(rows)):
+        value, source = calibrate_confidence(
+            str(oof_pred[index]),
+            float(oof_raw_conf[index]),
+            global_calibrator=global_calibrator,
+            class_calibrators=class_calibrators,
+        )
+        calibrated[index] = value
+        confidence_sources.append(source)
+
+    global_accept = choose_precision_threshold(
         calibrated.tolist(),
         correct.tolist(),
         target_precision=args.accept_precision,
         min_examples=args.min_threshold_examples,
     )
-    review = choose_precision_threshold(
+    global_review = choose_precision_threshold(
         calibrated.tolist(),
         correct.tolist(),
         target_precision=args.review_precision,
         min_examples=args.min_threshold_examples,
     )
-    accept_threshold = float(accept["threshold"]) if accept else None
-    review_threshold = float(review["threshold"]) if review else None
-    if accept_threshold is not None and review_threshold is not None:
-        accept_threshold = max(accept_threshold, review_threshold)
+
+    class_policies: dict[str, dict[str, Any]] = {}
+    for label in args.classes:
+        mask = oof_pred == label
+        class_conf = calibrated[mask].tolist()
+        class_correct = correct[mask].tolist()
+        accept = choose_precision_threshold(
+            class_conf,
+            class_correct,
+            target_precision=args.accept_precision,
+            min_examples=args.min_class_threshold_examples,
+        )
+        review = choose_precision_threshold(
+            class_conf,
+            class_correct,
+            target_precision=args.review_precision,
+            min_examples=args.min_class_threshold_examples,
+        )
+        accept_threshold = float(accept["threshold"]) if accept else None
+        review_threshold = float(review["threshold"]) if review else None
+        if accept_threshold is not None and review_threshold is not None:
+            accept_threshold = max(accept_threshold, review_threshold)
+        predicted_examples = int(mask.sum())
+        class_policies[label] = {
+            "predicted_examples": predicted_examples,
+            "oof_precision": float(correct[mask].mean()) if predicted_examples else 0.0,
+            "confidence_calibrator": (
+                "classwise" if label in class_calibrators else "global_fallback"
+            ),
+            "accept": accept,
+            "review": review,
+            "accept_threshold": accept_threshold,
+            "review_threshold": review_threshold,
+        }
 
     actions = [
-        route_action(
-            float(value),
-            accept_threshold=accept_threshold,
-            review_threshold=review_threshold,
+        route_action_for_class(
+            str(oof_pred[index]),
+            float(calibrated[index]),
+            class_policies,
         )
-        for value in calibrated
+        for index in range(len(rows))
     ]
     action_counts = Counter(actions)
+    selective = _selective_summary(actions, correct, np)
 
     overall = {
         "accuracy": float(deps["accuracy_score"](labels, oof_pred)),
-        "balanced_accuracy": float(deps["balanced_accuracy_score"](labels, oof_pred)),
-        "macro_f1": float(deps["f1_score"](labels, oof_pred, average="macro", zero_division=0)),
-        "raw_confidence_brier": float(np.mean((oof_raw_conf - correct.astype(np.float64)) ** 2)),
-        "calibrated_confidence_brier": float(np.mean((calibrated - correct.astype(np.float64)) ** 2)),
+        "balanced_accuracy": float(
+            deps["balanced_accuracy_score"](labels, oof_pred)
+        ),
+        "macro_f1": float(
+            deps["f1_score"](
+                labels, oof_pred, average="macro", zero_division=0
+            )
+        ),
+        "raw_confidence_brier": float(
+            np.mean((oof_raw_conf - correct.astype(np.float64)) ** 2)
+        ),
+        "calibrated_confidence_brier": float(
+            np.mean((calibrated - correct.astype(np.float64)) ** 2)
+        ),
     }
 
     print()
@@ -362,9 +505,19 @@ def main() -> int:
         f"raw={overall['raw_confidence_brier']:.4f}",
         f"calibrated={overall['calibrated_confidence_brier']:.4f}",
     )
-    print("accept policy:", accept)
-    print("review policy:", review)
+    print("global accept diagnostic:", global_accept)
+    print("global review diagnostic:", global_review)
+    print("class policies:")
+    for label in args.classes:
+        policy = class_policies[label]
+        print(
+            f"  {label}: predicted={policy['predicted_examples']} "
+            f"precision={policy['oof_precision']:.4f} "
+            f"calibrator={policy['confidence_calibrator']} "
+            f"accept={policy['accept']} review={policy['review']}"
+        )
     print("OOF actions:", dict(sorted(action_counts.items())))
+    print("selective OOF:", selective)
 
     final_model = _make_model(deps, args.seed)
     final_model.fit(texts.tolist(), labels.tolist())
@@ -377,9 +530,9 @@ def main() -> int:
             "task": args.task,
             "classes": args.classes,
             "model": final_model,
-            "confidence_calibrator": calibrator,
-            "accept_threshold": accept_threshold,
-            "review_threshold": review_threshold,
+            "confidence_calibrator": global_calibrator,
+            "class_confidence_calibrators": class_calibrators,
+            "class_policies": class_policies,
         },
         artifact_path,
     )
@@ -401,21 +554,25 @@ def main() -> int:
             "class_weight": "balanced",
         },
         "calibration": {
-            "kind": "isotonic_correctness_probability",
+            "kind": "predicted_class_isotonic_correctness_probability",
+            "fallback": "global_family_grouped_oof_isotonic",
             "source": "family_grouped_oof",
             "folds": args.folds,
             "seed": args.seed,
+            "min_class_calibration_examples": args.min_class_calibration_examples,
+            "classwise_calibrators": sorted(class_calibrators),
             "metrics": overall,
         },
         "routing": {
+            "kind": "predicted_class_precision_thresholds",
             "accept_target_precision": args.accept_precision,
             "review_target_precision": args.review_precision,
-            "min_threshold_examples": args.min_threshold_examples,
-            "accept": accept,
-            "review": review,
-            "accept_threshold": accept_threshold,
-            "review_threshold": review_threshold,
+            "min_class_threshold_examples": args.min_class_threshold_examples,
+            "class_policies": class_policies,
+            "global_accept_diagnostic": global_accept,
+            "global_review_diagnostic": global_review,
             "oof_action_counts": dict(sorted(action_counts.items())),
+            "selective_oof": selective,
         },
         "leakage_policy": {
             "function_names_used": False,
@@ -430,17 +587,24 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    with (args.output_dir / "oof_predictions.jsonl").open("w", encoding="utf-8") as handle:
+    with (args.output_dir / "oof_predictions.jsonl").open(
+        "w", encoding="utf-8"
+    ) as handle:
         for index, row in enumerate(rows):
+            prediction = str(oof_pred[index])
+            policy = class_policies[prediction]
             result = {
                 "id": row["id"],
                 "family_id": row["family_id"],
                 "truth": row["label"],
-                "prediction": str(oof_pred[index]),
+                "prediction": prediction,
                 "correct": bool(correct[index]),
                 "raw_confidence": float(oof_raw_conf[index]),
                 "confidence": float(calibrated[index]),
+                "confidence_source": confidence_sources[index],
                 "action": actions[index],
+                "accept_threshold": policy.get("accept_threshold"),
+                "review_threshold": policy.get("review_threshold"),
                 "probabilities": {
                     label: float(oof_probs[index, class_index[label]])
                     for label in args.classes
