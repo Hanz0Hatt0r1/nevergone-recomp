@@ -22,6 +22,7 @@ import java.util.Set;
 final class DispatchTargetRuntimeTrace {
     private static final int MAX_SITES = 128;
     private static final long LIBCOCOS_GHIDRA_BIAS = 0x10000L;
+    private static final String PLAN_FORMAT = "NEVERGONE.DispatchRuntimeProbePlan/2";
 
     static int install(AndroidEmulator emulator, Module module, File planFile) throws Exception {
         JSONArray plan = JSON.parseArray(new String(Files.readAllBytes(planFile.toPath()), StandardCharsets.UTF_8));
@@ -31,12 +32,26 @@ final class DispatchTargetRuntimeTrace {
         Set<Long> offsets = new HashSet<>();
         for (int index = 0; index < plan.size(); index++) {
             final JSONObject spec = plan.getJSONObject(index);
+            if (!PLAN_FORMAT.equals(spec.getString("format")))
+                throw new IllegalArgumentException(
+                        "Stale/unsupported dispatch runtime plan; rebuild with current builder: " + spec.getString("format"));
+
             String sourceId = spec.getString("source_id");
             String expectedPrefix = module.name + ":";
             if (sourceId == null || !sourceId.startsWith(expectedPrefix))
                 throw new IllegalArgumentException("Plan source_id outside " + module.name + ": " + sourceId);
 
             final long offset = parseOffset(spec.getString("call_site_offset"));
+            final long ghidraAddress = parseOffset(spec.getString("ghidra_call_site_address"));
+            final long ghidraBias = parseOffset(spec.getString("ghidra_address_bias"));
+            if (ghidraBias != LIBCOCOS_GHIDRA_BIAS)
+                throw new IllegalArgumentException(String.format(
+                        "Unexpected libcocos Ghidra bias: expected 0x%x got 0x%x",
+                        LIBCOCOS_GHIDRA_BIAS, ghidraBias));
+            if (ghidraAddress < ghidraBias || ghidraAddress - ghidraBias != offset)
+                throw new IllegalArgumentException(String.format(
+                        "Inconsistent Ghidra/runtime call-site mapping: ghidra=0x%x bias=0x%x runtime=0x%x",
+                        ghidraAddress, ghidraBias, offset));
             if (offset < 0 || offset >= module.size)
                 throw new IllegalArgumentException("Call-site offset outside module: 0x" + Long.toHexString(offset));
             if (!offsets.add(offset))
@@ -147,7 +162,7 @@ final class DispatchTargetRuntimeTrace {
 
     private static long parseOffset(String value) {
         if (value == null || !value.matches("0x[0-9a-fA-F]+"))
-            throw new IllegalArgumentException("Invalid call_site_offset: " + value);
+            throw new IllegalArgumentException("Invalid hexadecimal offset: " + value);
         return Long.parseLong(value.substring(2), 16);
     }
 
