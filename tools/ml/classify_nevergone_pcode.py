@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, Iterable, TextIO
 
+from nevergone_ood_similarity import nearest_family_by_predicted_class
 from train_nevergone_production_classifier import (
     ARTIFACT_FORMAT,
     LEGACY_ARTIFACT_FORMAT,
@@ -15,6 +16,10 @@ from train_nevergone_production_classifier import (
     normalize_portable,
     route_action,
     route_action_for_class,
+)
+from train_nevergone_production_classifier_v3 import (
+    ARTIFACT_FORMAT_V3,
+    route_action_with_ood,
 )
 
 
@@ -90,7 +95,8 @@ def main() -> int:
     artifact_path = args.model_dir / "classifier.joblib"
     artifact = joblib.load(artifact_path)
     artifact_format = artifact.get("format") if isinstance(artifact, dict) else None
-    if artifact_format not in {ARTIFACT_FORMAT, LEGACY_ARTIFACT_FORMAT}:
+    supported = {ARTIFACT_FORMAT_V3, ARTIFACT_FORMAT, LEGACY_ARTIFACT_FORMAT}
+    if artifact_format not in supported:
         raise SystemExit(f"unsupported classifier artifact: {artifact_path}")
 
     model = artifact["model"]
@@ -112,16 +118,37 @@ def main() -> int:
         probabilities = model.predict_proba(texts)
         model_classes = list(model.named_steps["classifier"].classes_)
         class_positions = {label: index for index, label in enumerate(model_classes)}
+        predictions: list[str] = []
+        probability_maps: list[dict[str, float]] = []
+        raw_confidences: list[float] = []
 
-        for row_index, record_id in enumerate(ids):
+        for row_index in range(len(ids)):
             probability_map = {
                 label: float(probabilities[row_index, class_positions[label]])
                 for label in classes
             }
             prediction = max(probability_map, key=probability_map.get)
-            raw_confidence = float(probability_map[prediction])
+            predictions.append(prediction)
+            probability_maps.append(probability_map)
+            raw_confidences.append(float(probability_map[prediction]))
 
-            if artifact_format == ARTIFACT_FORMAT:
+        nearest = [(0.0, None)] * len(ids)
+        if artifact_format == ARTIFACT_FORMAT_V3:
+            vectorizer = model.named_steps["tfidf"]
+            nearest = nearest_family_by_predicted_class(
+                vectorizer,
+                artifact["family_prototypes"],
+                texts,
+                predictions,
+            )
+
+        for row_index, record_id in enumerate(ids):
+            probability_map = probability_maps[row_index]
+            prediction = predictions[row_index]
+            raw_confidence = raw_confidences[row_index]
+            family_similarity, nearest_training_family = nearest[row_index]
+
+            if artifact_format in {ARTIFACT_FORMAT_V3, ARTIFACT_FORMAT}:
                 confidence, confidence_source = calibrate_confidence(
                     prediction,
                     raw_confidence,
@@ -131,20 +158,31 @@ def main() -> int:
                     ),
                 )
                 class_policies = artifact.get("class_policies", {})
-                action = route_action_for_class(
-                    prediction,
-                    confidence,
-                    class_policies,
-                )
                 policy = class_policies.get(prediction, {})
                 accept_threshold = policy.get("accept_threshold")
                 review_threshold = policy.get("review_threshold")
+                ood_accept_threshold = policy.get("ood_accept_threshold")
+
+                if artifact_format == ARTIFACT_FORMAT_V3:
+                    action = route_action_with_ood(
+                        prediction,
+                        confidence,
+                        family_similarity,
+                        class_policies,
+                    )
+                else:
+                    action = route_action_for_class(
+                        prediction,
+                        confidence,
+                        class_policies,
+                    )
             else:
                 calibrator = artifact["confidence_calibrator"]
                 confidence = float(calibrator.predict([raw_confidence])[0])
                 confidence_source = "legacy_global"
                 accept_threshold = artifact.get("accept_threshold")
                 review_threshold = artifact.get("review_threshold")
+                ood_accept_threshold = None
                 action = route_action(
                     confidence,
                     accept_threshold=accept_threshold,
@@ -163,6 +201,18 @@ def main() -> int:
                 "accept_threshold": accept_threshold,
                 "review_threshold": review_threshold,
             }
+            if artifact_format == ARTIFACT_FORMAT_V3:
+                result.update(
+                    {
+                        "family_similarity": float(family_similarity),
+                        "nearest_training_family": nearest_training_family,
+                        "ood_accept_threshold": ood_accept_threshold,
+                        "ood_accept_pass": bool(
+                            ood_accept_threshold is not None
+                            and family_similarity >= float(ood_accept_threshold)
+                        ),
+                    }
+                )
             if not args.no_probabilities:
                 result["probabilities"] = probability_map
             output_handle.write(json.dumps(result, sort_keys=True) + "\n")
