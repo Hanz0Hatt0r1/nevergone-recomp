@@ -16,16 +16,19 @@ def main() -> int:
     harness = HARNESS.read_text(encoding="utf-8")
 
     for token in (
-        "0x29ec10L",
-        "0x29ed0cL",
-        "offset != CREATE_A && offset != CREATE_B",
-        "module.callFunction(emulator, offset | 1L)",
+        "GHIDRA_BIAS = 0x10000L",
+        "GHIDRA_CREATE_A = 0x29ec10L",
+        "GHIDRA_CREATE_B = 0x29ed0cL",
+        "runtimeOffset = ghidraAddress - GHIDRA_BIAS",
+        "module.callFunction(emulator, runtimeOffset | 1L)",
         '"guest_argument_count", 0',
+        '"ghidra_address"',
+        '"runtime_offset"',
         '"action_data_create_entry"',
     ):
         require(probe, token, str(PROBE))
 
-    if "module.callFunction(emulator, offset | 1L," in probe:
+    if "module.callFunction(emulator, runtimeOffset | 1L," in probe:
         raise AssertionError("create(void) probe must not pass guest arguments")
     if "0x2ace4c" in probe.lower():
         raise AssertionError("higher-risk 0x2ace4c must not be in direct-entry allowlist")

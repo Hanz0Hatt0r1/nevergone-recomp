@@ -8,35 +8,41 @@ import com.github.unidbg.Module;
  * Bounded direct-entry probe for the two zero-argument ActionData create functions
  * selected by static dispatch-equivalence analysis.
  *
- * Only the two audited offsets are accepted. The call is made with no guest
- * arguments and the Thumb bit is set explicitly on the numeric module offset.
+ * CLI offsets are Ghidra addresses. libcocos2dcpp.so is loaded in Ghidra at
+ * ELF/runtime module offset + 0x10000, so the native call subtracts that bias.
  */
 final class ActionDataCreateProbe {
-    private static final long CREATE_A = 0x29ec10L;
-    private static final long CREATE_B = 0x29ed0cL;
+    private static final long GHIDRA_BIAS = 0x10000L;
+    private static final long GHIDRA_CREATE_A = 0x29ec10L;
+    private static final long GHIDRA_CREATE_B = 0x29ed0cL;
 
-    static void run(AndroidEmulator emulator, Module module, String requestedOffset) {
-        long offset = parseOffset(requestedOffset);
-        if (offset != CREATE_A && offset != CREATE_B)
+    static void run(AndroidEmulator emulator, Module module, String requestedAddress) {
+        long ghidraAddress = parseAddress(requestedAddress);
+        if (ghidraAddress != GHIDRA_CREATE_A && ghidraAddress != GHIDRA_CREATE_B)
             throw new IllegalArgumentException(String.format(
-                    "ActionData create probe offset is not allowlisted: 0x%x", offset));
-        if (offset < 0 || offset >= module.size)
+                    "ActionData create probe Ghidra address is not allowlisted: 0x%x", ghidraAddress));
+        if (ghidraAddress < GHIDRA_BIAS)
+            throw new IllegalArgumentException("Ghidra address is below libcocos bias");
+        long runtimeOffset = ghidraAddress - GHIDRA_BIAS;
+        if (runtimeOffset < 0 || runtimeOffset >= module.size)
             throw new IllegalArgumentException(String.format(
-                    "ActionData create probe offset outside module: 0x%x", offset));
+                    "ActionData create runtime offset outside module: 0x%x", runtimeOffset));
 
         JSONObject row = new JSONObject(true);
-        row.put("schema", 1);
+        row.put("schema", 2);
         row.put("kind", "action_data_create_entry");
         row.put("module", module.name);
         row.put("module_base", String.format("0x%x", module.base));
-        row.put("source_id", module.name + ":" + String.format("%08x", offset));
-        row.put("offset", String.format("0x%x", offset));
+        row.put("source_id", module.name + ":" + String.format("%08x", ghidraAddress));
+        row.put("ghidra_address", String.format("0x%x", ghidraAddress));
+        row.put("ghidra_address_bias", String.format("0x%x", GHIDRA_BIAS));
+        row.put("runtime_offset", String.format("0x%x", runtimeOffset));
         row.put("signature_evidence", "undefined __stdcall create(void)");
         row.put("guest_argument_count", 0);
-        row.put("thumb_entry_offset", String.format("0x%x", offset | 1L));
+        row.put("thumb_entry_offset", String.format("0x%x", runtimeOffset | 1L));
 
         try {
-            Number result = module.callFunction(emulator, offset | 1L);
+            Number result = module.callFunction(emulator, runtimeOffset | 1L);
             long raw = Integer.toUnsignedLong(result.intValue());
             row.put("status", "returned");
             row.put("return_raw", String.format("0x%08x", raw));
@@ -53,9 +59,9 @@ final class ActionDataCreateProbe {
         }
     }
 
-    private static long parseOffset(String value) {
+    private static long parseAddress(String value) {
         if (value == null || !value.matches("0x[0-9a-fA-F]+"))
-            throw new IllegalArgumentException("Expected hexadecimal module offset, got: " + value);
+            throw new IllegalArgumentException("Expected hexadecimal Ghidra address, got: " + value);
         return Long.parseLong(value.substring(2), 16);
     }
 
