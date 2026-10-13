@@ -1,0 +1,32 @@
+name: Nevergone ML indirect call patterns smoke
+
+on:
+  push:
+    paths:
+      - 'tools/ml/analyze_nevergone_indirect_call_patterns.py'
+      - 'tools/ml/nevergone_indirect_call_patterns_smoke.py'
+      - '.github/workflows/ml-indirect-call-patterns-smoke.yml'
+  pull_request:
+    paths:
+      - 'tools/ml/analyze_nevergone_indirect_call_patterns.py'
+      - 'tools/ml/nevergone_indirect_call_patterns_smoke.py'
+      - '.github/workflows/ml-indirect-call-patterns-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  indirect-call-patterns-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile tools
+        run: |
+          python -m py_compile \
+            tools/ml/analyze_nevergone_indirect_call_patterns.py \
+            tools/ml/nevergone_indirect_call_patterns_smoke.py
+      - name: Run smoke
+        run: python tools/ml/nevergone_indirect_call_patterns_smoke.py
