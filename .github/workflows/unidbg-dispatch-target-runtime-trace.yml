@@ -1,0 +1,21 @@
+name: Nevergone unidbg dispatch target runtime trace
+
+on:
+  pull_request:
+    paths:
+      - 'tools/unidbg/src/main/java/nevergone/DispatchTargetRuntimeTrace.java'
+      - 'tools/unidbg/src/main/java/nevergone/NevergoneHarness.java'
+      - 'tools/unidbg/verify_dispatch_target_runtime_trace.py'
+      - 'tools/ml/build_nevergone_dispatch_runtime_probe_plan.py'
+      - 'tools/ml/convert_nevergone_dispatch_runtime_trace_to_seeds.py'
+      - '.github/workflows/unidbg-dispatch-target-runtime-trace.yml'
+
+jobs:
+  dispatch-runtime-trace-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate bounded runtime trace contract
+        run: python3 tools/unidbg/verify_dispatch_target_runtime_trace.py
