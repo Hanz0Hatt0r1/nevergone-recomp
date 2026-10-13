@@ -1,0 +1,37 @@
+name: Nevergone ML indirect slice smoke
+
+on:
+  push:
+    paths:
+      - 'tools/ghidra/ExportIndirectCallSlice.java'
+      - 'tools/ml/build_nevergone_indirect_slice_plan.py'
+      - 'tools/ml/summarize_nevergone_indirect_call_slices.py'
+      - 'tools/ml/nevergone_indirect_slice_smoke.py'
+      - '.github/workflows/ml-indirect-slice-smoke.yml'
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportIndirectCallSlice.java'
+      - 'tools/ml/build_nevergone_indirect_slice_plan.py'
+      - 'tools/ml/summarize_nevergone_indirect_call_slices.py'
+      - 'tools/ml/nevergone_indirect_slice_smoke.py'
+      - '.github/workflows/ml-indirect-slice-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  indirect-slice-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile tools
+        run: |
+          python -m py_compile \
+            tools/ml/build_nevergone_indirect_slice_plan.py \
+            tools/ml/summarize_nevergone_indirect_call_slices.py \
+            tools/ml/nevergone_indirect_slice_smoke.py
+      - name: Run smoke
+        run: python tools/ml/nevergone_indirect_slice_smoke.py
