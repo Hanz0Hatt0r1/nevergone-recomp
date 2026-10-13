@@ -41,6 +41,10 @@ final class ActionDataCreateProbe {
             throw new IllegalArgumentException(String.format(
                     "Dispatch create runtime offset outside module: 0x%x", runtimeOffset));
 
+        // Each direct-entry workload starts natural. A fallback callback may switch
+        // subsequent dispatch observations to interventional origin; finally reset
+        // so no later workload can inherit that state.
+        DispatchEvidenceContext.reset();
         emitPreflightDisassembly(emulator, module, ghidraAddress, runtimeOffset);
         if (fallbackPathRequested)
             ActionDataFallbackPathControl.install(emulator, module, emulator.attach(), addressText);
@@ -80,6 +84,8 @@ final class ActionDataCreateProbe {
             if (error instanceof RuntimeException) throw (RuntimeException) error;
             if (error instanceof Error) throw (Error) error;
             throw new RuntimeException(error);
+        } finally {
+            DispatchEvidenceContext.reset();
         }
     }
 
