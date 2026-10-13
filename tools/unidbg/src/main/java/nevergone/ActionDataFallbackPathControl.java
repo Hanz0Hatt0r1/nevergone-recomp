@@ -52,11 +52,14 @@ final class ActionDataFallbackPathControl {
                         emulator.getBackend().reg_read(ArmConst.UC_ARM_REG_R0).intValue());
                 emulator.getBackend().reg_write(ArmConst.UC_ARM_REG_R0, 0);
 
+                String sourceId = module.name + ":" + String.format("%08x", createGhidra);
+                DispatchEvidenceContext.markInterventionalFallback(sourceId);
+
                 JSONObject row = new JSONObject(true);
-                row.put("schema", 1);
+                row.put("schema", 2);
                 row.put("kind", "action_data_fallback_return_override");
                 row.put("module", module.name);
-                row.put("source_id", module.name + ":" + String.format("%08x", createGhidra));
+                row.put("source_id", sourceId);
                 row.put("ghidra_address_bias", String.format("0x%x", GHIDRA_BIAS));
                 row.put("first_dispatch_ghidra_address", String.format("0x%x", firstCallGhidra));
                 row.put("post_call_ghidra_address", String.format("0x%x", postCallGhidra));
@@ -68,6 +71,7 @@ final class ActionDataFallbackPathControl {
                 row.put("first_virtual_call_executed_normally", true);
                 row.put("call_target_modified", false);
                 row.put("receiver_memory_modified", false);
+                DispatchEvidenceContext.annotate(row);
                 EvidenceProbe.emit(row);
                 return true;
             }
