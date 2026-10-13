@@ -1,0 +1,18 @@
+name: Nevergone ML dispatch target runtime gate smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/gate_nevergone_dispatch_target_candidates.py'
+      - 'tools/ml/nevergone_dispatch_target_runtime_gate_smoke.py'
+      - '.github/workflows/ml-dispatch-target-runtime-gate-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate runtime conflict gating
+        run: python3 tools/ml/nevergone_dispatch_target_runtime_gate_smoke.py
