@@ -1,0 +1,32 @@
+name: Nevergone ML evidence ingest smoke
+
+on:
+  push:
+    paths:
+      - 'tools/ml/ingest_nevergone_analysis_evidence.py'
+      - 'tools/ml/nevergone_analysis_evidence_ingest_smoke.py'
+      - '.github/workflows/ml-evidence-ingest-smoke.yml'
+  pull_request:
+    paths:
+      - 'tools/ml/ingest_nevergone_analysis_evidence.py'
+      - 'tools/ml/nevergone_analysis_evidence_ingest_smoke.py'
+      - '.github/workflows/ml-evidence-ingest-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-ingest-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile evidence ingest tools
+        run: |
+          python -m py_compile \
+            tools/ml/ingest_nevergone_analysis_evidence.py \
+            tools/ml/nevergone_analysis_evidence_ingest_smoke.py
+      - name: Run evidence ingest smoke
+        run: python tools/ml/nevergone_analysis_evidence_ingest_smoke.py
