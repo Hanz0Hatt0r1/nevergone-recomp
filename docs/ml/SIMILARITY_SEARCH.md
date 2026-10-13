@@ -39,3 +39,22 @@ Each result contains:
 - `neighbors`: ranked known family IDs with family size, known label distributions, and optional trace examples.
 
 These are descriptive retrieval signals only. There is deliberately no `accept`, `review`, or project-goal-dependent priority attached to similarity output.
+
+## Family-held-out label-transfer validation
+
+Before using nearest-family labels as evidence, evaluate transfer with the query family completely excluded from the reference index:
+
+```bash
+python3 tools/ml/nevergone_similarity_transfer_cv.py \
+  /tmp/nevergone-ml-v2/dataset-4class-internal \
+  /tmp/nevergone-ml-v2/families-internal.jsonl \
+  --task code_domain \
+  --classes game engine runtime_library media_library \
+  --folds 5
+```
+
+For `subsystem`, use the same command with `--task subsystem --classes scene combat save`.
+
+On every fold the TF-IDF vocabulary is fit only on training families. Query functions are compared only with training-family centroids, and mixed-label reference families are omitted for the evaluated task. The evaluator reports overall transfer accuracy, confusion, per-predicted-class precision, and a descriptive precision/coverage grid over `top_similarity` and `top_gap`.
+
+The threshold grid is exploratory. Selecting a threshold from the same held-out results and then quoting its precision as an independent production guarantee would be optimistic. Any chosen transfer policy should be validated again with a nested or separate holdout before it is allowed to influence production routing.
