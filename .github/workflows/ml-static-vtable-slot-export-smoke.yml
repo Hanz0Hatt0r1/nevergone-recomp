@@ -1,0 +1,33 @@
+name: Nevergone ML static vtable slot memory export smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportVtableSlots.java'
+      - 'tools/ghidra/verify_export_vtable_slots.py'
+      - 'tools/ml/build_nevergone_static_vtable_slot_catalog_from_export.py'
+      - 'tools/ml/nevergone_static_vtable_slot_export_smoke.py'
+      - '.github/workflows/ml-static-vtable-slot-export-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile Python tools
+        run: |
+          python -m py_compile \
+            tools/ghidra/verify_export_vtable_slots.py \
+            tools/ml/build_nevergone_static_vtable_slot_catalog_from_export.py \
+            tools/ml/nevergone_static_vtable_slot_export_smoke.py
+      - name: Verify Ghidra exporter contract
+        run: python tools/ghidra/verify_export_vtable_slots.py
+      - name: Run static vtable slot export smoke
+        run: python tools/ml/nevergone_static_vtable_slot_export_smoke.py
