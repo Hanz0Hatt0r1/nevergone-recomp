@@ -30,6 +30,7 @@ def build_family_prototypes(vectorizer, texts: list[str], labels: list[str], fam
         idx = members[family_id]
         family_labels = {labels[i] for i in idx}
         if len(family_labels) != 1:
+            # A mixed-label family is unsafe as a semantic reference prototype.
             continue
         centroid = matrix[idx].mean(axis=0)
         centroid = sparse.csr_matrix(centroid)
@@ -50,13 +51,13 @@ def build_family_prototypes(vectorizer, texts: list[str], labels: list[str], fam
     }
 
 
-def max_similarity_by_predicted_class(
+def nearest_family_by_predicted_class(
     vectorizer,
     prototypes,
     texts: Iterable[str],
     predicted_labels: Iterable[str],
-) -> list[float]:
-    """Maximum cosine similarity to a family prototype of the predicted class."""
+) -> list[tuple[float, str | None]]:
+    """Return max cosine similarity and nearest family for each predicted class."""
     texts = list(texts)
     predicted_labels = list(predicted_labels)
     if len(texts) != len(predicted_labels):
@@ -65,20 +66,42 @@ def max_similarity_by_predicted_class(
     matrix = vectorizer.transform(texts)
     proto_matrix = prototypes["matrix"]
     proto_labels = list(prototypes["labels"])
+    proto_families = list(prototypes["families"])
 
     class_indices: dict[str, list[int]] = defaultdict(list)
     for index, label in enumerate(proto_labels):
         class_indices[label].append(index)
 
-    result: list[float] = []
+    result: list[tuple[float, str | None]] = []
     for row_index, label in enumerate(predicted_labels):
         indices = class_indices.get(label)
         if not indices:
-            result.append(0.0)
+            result.append((0.0, None))
             continue
         similarities = matrix[row_index].dot(proto_matrix[indices].T)
-        if similarities.nnz:
-            result.append(float(similarities.max()))
-        else:
-            result.append(0.0)
+        dense = similarities.toarray().ravel()
+        if dense.size == 0:
+            result.append((0.0, None))
+            continue
+        local_index = int(dense.argmax())
+        prototype_index = indices[local_index]
+        result.append((float(dense[local_index]), proto_families[prototype_index]))
     return result
+
+
+def max_similarity_by_predicted_class(
+    vectorizer,
+    prototypes,
+    texts: Iterable[str],
+    predicted_labels: Iterable[str],
+) -> list[float]:
+    """Maximum cosine similarity to a family prototype of the predicted class."""
+    return [
+        similarity
+        for similarity, _family in nearest_family_by_predicted_class(
+            vectorizer,
+            prototypes,
+            texts,
+            predicted_labels,
+        )
+    ]
