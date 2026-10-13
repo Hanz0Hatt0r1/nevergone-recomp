@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Build deterministic local analysis queues from Nevergone function evidence.
-
-The plan is workflow output only. It does not change routing, semantic labels, or
-model inputs. Every recommendation already present in ``suggested_analysis_method``
-is preserved so multi-signal functions remain visible after their primary step.
-"""
+"""Build deterministic local analysis queues from Nevergone function evidence."""
 from __future__ import annotations
 
 import argparse
@@ -91,10 +86,7 @@ def ghidra_runner(entries: list[dict[str, Any]], exporter: str, subdir: str, ext
         '  [[ -n "$entry" ]] || continue',
         '  safe="${record_id//[:\\/]/_}"',
         '  echo "[$score] $record_id"',
-        '  "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \\\',
-        '    -process "$GHIDRA_PROGRAM" -recursive -noanalysis \\\',
-        '    -scriptPath "$REPO_ROOT/tools/ghidra" \\\',
-        f'    -postScript {exporter} "$entry" "$OUT_ROOT/$safe.{extension}"',
+        f'  "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" -process "$GHIDRA_PROGRAM" -recursive -noanalysis -scriptPath "$REPO_ROOT/tools/ghidra" -postScript {exporter} "$entry" "$OUT_ROOT/$safe.{extension}"',
         "done <<'NEVERGONE_ANALYSIS_QUEUE'",
     ]
     for entry in entries:
@@ -121,7 +113,6 @@ def main() -> int:
     function_rows = read_tsv_gz(args.functions)
     known_entries = {row.get("entry", "") for row in function_rows if row.get("entry")}
     call_rows = read_tsv_gz(args.calls)
-
     callers: dict[str, set[str]] = defaultdict(set)
     callees: dict[str, set[str]] = defaultdict(set)
     for edge in call_rows:
@@ -188,7 +179,6 @@ def main() -> int:
     command_dir = out / "commands"
     queue_dir.mkdir(parents=True, exist_ok=True)
     command_dir.mkdir(parents=True, exist_ok=True)
-
     for method in METHODS:
         entries = sort_entries(queues.get(method, []))
         write_jsonl(queue_dir / f"{method}.jsonl", entries)
@@ -220,7 +210,9 @@ def main() -> int:
         "queues": {method: len(queues.get(method, [])) for method in METHODS},
         "routing_modified": False,
     }
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (out / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
     print("format:", FORMAT)
     print("functions:", len(analysis))
