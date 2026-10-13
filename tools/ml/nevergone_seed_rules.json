@@ -1,0 +1,81 @@
+{
+  "format": "NEVERGONE.MlSeedRules/1",
+  "rules": [
+    {
+      "program_pattern": "(^|/)libffmpeg\\.so$",
+      "pattern": ".+",
+      "quality": "gold",
+      "evidence": "Ghidra program identity is the bundled libffmpeg.so",
+      "labels": {
+        "code_domain": "media_library"
+      }
+    },
+    {
+      "program_pattern": "(^|/)libcocos2dcpp\\.so$",
+      "pattern": "(^|::)(GameScene|GameSceneObject|GameSceneClassLayer|SceneActionsSystem|TrapActionsData)(::|$)",
+      "quality": "gold",
+      "evidence": "qualified game class/function identity retained by Ghidra",
+      "labels": {
+        "code_domain": "game",
+        "subsystem": "scene"
+      }
+    },
+    {
+      "program_pattern": "(^|/)libcocos2dcpp\\.so$",
+      "pattern": "(^|::)EnemyActions(Data|System)(::|$)",
+      "quality": "gold",
+      "evidence": "qualified EnemyActions class/function identity retained by Ghidra and independently used by project evidence",
+      "labels": {
+        "code_domain": "game",
+        "subsystem": "combat"
+      }
+    },
+    {
+      "program_pattern": "(^|/)libcocos2dcpp\\.so$",
+      "pattern": "(^|::)BattleManager(::|$)",
+      "quality": "gold",
+      "evidence": "qualified BattleManager identity retained by Ghidra",
+      "labels": {
+        "code_domain": "game",
+        "subsystem": "combat"
+      }
+    },
+    {
+      "program_pattern": "(^|/)libcocos2dcpp\\.so$",
+      "pattern": "(^|::)HPData(::|$)",
+      "quality": "gold",
+      "evidence": "qualified HPData identity retained by Ghidra and independently exercised by unidbg probes",
+      "labels": {
+        "code_domain": "game",
+        "subsystem": "assets_data"
+      }
+    },
+    {
+      "program_pattern": "(^|/)libcocos2dcpp\\.so$",
+      "pattern": "(^|::)GameSaveData(::|$)",
+      "quality": "gold",
+      "evidence": "qualified GameSaveData identity retained by Ghidra and independently exercised by native probes",
+      "labels": {
+        "code_domain": "game",
+        "subsystem": "save"
+      }
+    },
+    {
+      "program_pattern": "(^|/)libcocos2dcpp\\.so$",
+      "pattern": "(^|::)cocos2d::",
+      "quality": "gold",
+      "evidence": "qualified cocos2d namespace retained by Ghidra",
+      "labels": {
+        "code_domain": "engine"
+      }
+    },
+    {
+      "pattern": "(^|::)(std|__gnu_cxx)::",
+      "quality": "gold",
+      "evidence": "qualified standard-library namespace retained by Ghidra",
+      "labels": {
+        "code_domain": "runtime_library"
+      }
+    }
+  ]
+}

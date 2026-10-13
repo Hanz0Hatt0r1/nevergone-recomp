@@ -1,0 +1,35 @@
+name: Nevergone ML pipeline smoke
+
+on:
+  push:
+    paths:
+      - 'tools/ml/**'
+      - 'tools/ghidra/ExportMlPcodeCorpus.java'
+      - 'docs/ml/**'
+      - '.github/workflows/ml-pipeline-smoke.yml'
+  pull_request:
+    paths:
+      - 'tools/ml/**'
+      - 'tools/ghidra/ExportMlPcodeCorpus.java'
+      - 'docs/ml/**'
+      - '.github/workflows/ml-pipeline-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  python-pipeline-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile Python tools
+        run: |
+          python -m py_compile \
+            tools/ml/build_nevergone_dataset.py \
+            tools/ml/build_nevergone_seed_labels.py \
+            tools/ml/nevergone_ml_pipeline_smoke.py
+      - name: Run synthetic pipeline smoke
+        run: python tools/ml/nevergone_ml_pipeline_smoke.py
