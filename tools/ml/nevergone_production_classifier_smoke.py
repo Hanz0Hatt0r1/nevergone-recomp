@@ -6,6 +6,7 @@ from train_nevergone_production_classifier import (
     choose_precision_threshold,
     normalize_portable,
     route_action,
+    route_action_for_class,
 )
 
 
@@ -54,6 +55,26 @@ def main() -> int:
     assert route_action(0.90, accept_threshold=0.95, review_threshold=0.80) == "review"
     assert route_action(0.50, accept_threshold=0.95, review_threshold=0.80) == "escalate"
     assert route_action(0.99, accept_threshold=None, review_threshold=None) == "escalate"
+
+    policies = {
+        "engine": {
+            "accept_threshold": 0.90,
+            "review_threshold": 0.70,
+        },
+        "game": {
+            "accept_threshold": None,
+            "review_threshold": 0.80,
+        },
+        "media_library": {
+            "accept_threshold": None,
+            "review_threshold": None,
+        },
+    }
+    assert route_action_for_class("engine", 0.95, policies) == "accept"
+    assert route_action_for_class("engine", 0.80, policies) == "review"
+    assert route_action_for_class("game", 0.95, policies) == "review"
+    assert route_action_for_class("media_library", 0.99, policies) == "escalate"
+    assert route_action_for_class("unknown", 1.0, policies) == "escalate"
 
     print("production classifier smoke: ok")
     return 0
