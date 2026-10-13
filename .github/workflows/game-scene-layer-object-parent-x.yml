@@ -1,0 +1,20 @@
+name: GameSceneObject layer parent X
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build layer parent-X smoke
+        run: >-
+          c++ -std=c++17 -Wall -Wextra -Werror
+          -Iandroid/app/src/main/cpp
+          tools/game_scene_layer_object_parent_x_smoke.cpp
+          -o /tmp/game_scene_layer_object_parent_x_smoke
+      - name: Run layer parent-X smoke
+        run: /tmp/game_scene_layer_object_parent_x_smoke
