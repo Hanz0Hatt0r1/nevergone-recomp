@@ -18,15 +18,10 @@ import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Observe a bounded allowlist of ARM32 Thumb CALLIND sites.
- *
- * The tracer never invokes a target by itself. It installs exact breakpoints at
- * preselected call sites and records the BLX register value when normal probe or
- * debugger execution reaches one of them.
- */
+/** Observe a bounded allowlist of ARM32 Thumb CALLIND sites. */
 final class DispatchTargetRuntimeTrace {
     private static final int MAX_SITES = 128;
+    private static final long LIBCOCOS_GHIDRA_BIAS = 0x10000L;
 
     static int install(AndroidEmulator emulator, Module module, File planFile) throws Exception {
         JSONArray plan = JSON.parseArray(new String(Files.readAllBytes(planFile.toPath()), StandardCharsets.UTF_8));
@@ -59,7 +54,7 @@ final class DispatchTargetRuntimeTrace {
                         row.put("error", String.valueOf(error.getMessage()));
                         EvidenceProbe.emit(row);
                     }
-                    return true; // observe only; continue normal execution
+                    return true;
                 }
             }, true);
         }
@@ -115,6 +110,8 @@ final class DispatchTargetRuntimeTrace {
         row.put("source_id", spec.getString("source_id"));
         row.put("call_index", spec.getInteger("call_index"));
         row.put("call_address", spec.getString("call_address"));
+        row.put("ghidra_call_site_address", spec.getString("ghidra_call_site_address"));
+        row.put("ghidra_address_bias", spec.getString("ghidra_address_bias"));
         row.put("call_site_offset", String.format("0x%x", offset));
         row.put("slot_group_id", spec.getString("slot_group_id"));
         row.put("ordered_group_id", spec.getString("ordered_group_id"));
@@ -126,15 +123,25 @@ final class DispatchTargetRuntimeTrace {
     private static void putTargetIdentity(AndroidEmulator emulator, JSONObject row, long codeTarget) {
         for (Module loaded : emulator.getMemory().getLoadedModules()) {
             if (codeTarget >= loaded.base && codeTarget < loaded.base + loaded.size) {
-                long targetOffset = codeTarget - loaded.base;
+                long runtimeOffset = codeTarget - loaded.base;
                 row.put("target_module", loaded.name);
-                row.put("target_module_offset", String.format("0x%x", targetOffset));
-                row.put("target_id", loaded.name + ":" + String.format("%08x", targetOffset));
+                row.put("target_module_offset", String.format("0x%x", runtimeOffset));
+                row.put("target_runtime_id", loaded.name + ":" + String.format("%08x", runtimeOffset));
+                if ("libcocos2dcpp.so".equals(loaded.name)) {
+                    long ghidraAddress = runtimeOffset + LIBCOCOS_GHIDRA_BIAS;
+                    row.put("target_ghidra_address", String.format("0x%x", ghidraAddress));
+                    row.put("target_id", loaded.name + ":" + String.format("%08x", ghidraAddress));
+                } else {
+                    row.put("target_ghidra_address", null);
+                    row.put("target_id", loaded.name + ":" + String.format("%08x", runtimeOffset));
+                }
                 return;
             }
         }
         row.put("target_module", null);
         row.put("target_module_offset", null);
+        row.put("target_runtime_id", "absolute:" + String.format("0x%08x", codeTarget));
+        row.put("target_ghidra_address", null);
         row.put("target_id", "absolute:" + String.format("0x%08x", codeTarget));
     }
 
