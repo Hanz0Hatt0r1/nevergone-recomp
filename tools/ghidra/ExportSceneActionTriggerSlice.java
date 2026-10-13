@@ -41,6 +41,11 @@ public class ExportSceneActionTriggerSlice extends GhidraScript {
         new Target("GameSceneObject::isContainsRect(CCRect)", "0034e268"),
         new Target("GameSceneObject::isContainsRect(CCRect,const char*)", "0034e454"),
         new Target("GameSceneObject::getObjectRect()", "0034e4a6"),
+        // These two targets bridge the remaining event-field boundary:
+        // serialized LoadGL_Scene object fields -> GameSceneLayerObjectData ->
+        // GameSceneObject retained +0x108 consumed by showEventObjTip().
+        new Target("GameLevels::LoadGL_Scene()", "002d27b8"),
+        new Target("GameSceneObject::initWithData(GameSceneLayerObjectData*)", "003500e0"),
         new Target("SceneActionsSystem::waUpdate(float)", "003531f0"),
         // The loader address is deliberately resolved by demangled/name substring.
         // This avoids baking an unverified address into the clean-room exporter.
