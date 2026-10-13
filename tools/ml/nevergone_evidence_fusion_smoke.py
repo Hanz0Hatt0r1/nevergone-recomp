@@ -2,10 +2,24 @@
 """Dependency-light smoke checks for evidence-fusion summaries."""
 from __future__ import annotations
 
-from nevergone_nested_evidence_fusion_cv import summarize_fused_accept, summarize_rows
+from nevergone_nested_evidence_fusion_cv import (
+    merge_dependency_contracts,
+    summarize_fused_accept,
+    summarize_rows,
+)
 
 
 def main() -> int:
+    merged = merge_dependency_contracts(
+        {"np": object(), "StratifiedGroupKFold": object()},
+        {"sparse": object(), "normalize": object(), "TfidfVectorizer": object()},
+    )
+    assert "np" in merged
+    assert "StratifiedGroupKFold" in merged
+    assert "sparse" in merged
+    assert "normalize" in merged
+    assert "TfidfVectorizer" in merged
+
     rows = [
         {
             "truth": "runtime_library",
