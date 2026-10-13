@@ -14,7 +14,24 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
-FORMAT = "NEVERGONE.MlDataset/1"
+FORMAT = "NEVERGONE.MlDataset/2"
+CORPUS_FORMAT = "NEVERGONE.MlPcodeCorpus/2"
+MAX_MODEL_OP_LINES = 256
+REQUIRED_MODEL_HEADERS = (
+    "ARCH=",
+    "ENDIAN=",
+    "PTR_SIZE=",
+    "CALLCONV=",
+    "PARAMS=",
+    "BODY_ADDRS_BUCKET=",
+    "OPS_BUCKET=",
+    "CALLS_BUCKET=",
+    "INDIRECT_CALLS_BUCKET=",
+    "BRANCHES_BUCKET=",
+    "LOADS_BUCKET=",
+    "STORES_BUCKET=",
+    "TRUNCATED=",
+)
 DEFAULT_QUALITY_WEIGHTS = {
     "gold": 1.0,
     "silver": 0.6,
@@ -42,8 +59,12 @@ def stable_id(program: str, entry: str) -> str:
     return digest[:24]
 
 
-def split_name(record_id: str) -> str:
-    bucket = int(hashlib.sha256(record_id.encode("ascii")).hexdigest()[:8], 16) % 100
+def structural_group_id(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
+
+
+def split_name(group_id: str) -> str:
+    bucket = int(hashlib.sha256(group_id.encode("ascii")).hexdigest()[:8], 16) % 100
     if bucket < 80:
         return "train"
     if bucket < 90:
@@ -66,12 +87,48 @@ def label_weight(row: dict[str, Any]) -> float:
     return DEFAULT_QUALITY_WEIGHTS[quality]
 
 
+def validate_model_text(row: dict[str, Any], text: str) -> None:
+    lines = text.splitlines()
+    for prefix in REQUIRED_MODEL_HEADERS:
+        if not any(line.startswith(prefix) for line in lines):
+            raise ValueError(
+                f"corpus row {row.get('program')} {row.get('source_entry')} "
+                f"is missing required model header {prefix}"
+            )
+
+    if any(line.startswith("LANG=") for line in lines):
+        raise ValueError("legacy raw Ghidra LANG identifier found in model_text")
+    if "FUN_" in text:
+        raise ValueError("Ghidra FUN_* identity leaked into model_text")
+
+    for field in ("source_entry", "source_name"):
+        value = row.get(field)
+        if isinstance(value, str) and value and value in text:
+            raise ValueError(f"{field} leaked into model_text: {value!r}")
+
+    op_lines = sum(
+        1
+        for line in lines
+        if len(line) > 1 and line[0] == "o" and line[1].isdigit()
+    )
+    if op_lines > MAX_MODEL_OP_LINES:
+        raise ValueError(
+            f"model_text has {op_lines} P-code rows; maximum is {MAX_MODEL_OP_LINES}"
+        )
+
+
 def load_corpus(path: Path) -> tuple[dict[tuple[str, str], dict[str, Any]], dict[tuple[str, str], list[tuple[str, str]]], Counter]:
     by_entry: dict[tuple[str, str], dict[str, Any]] = {}
     by_name: dict[tuple[str, str], list[tuple[str, str]]] = defaultdict(list)
     stats: Counter = Counter()
     for row in read_jsonl(path):
         stats["rows"] += 1
+        row_format = row.get("format")
+        if row_format != CORPUS_FORMAT:
+            raise ValueError(
+                f"unsupported corpus format {row_format!r}; expected {CORPUS_FORMAT}. "
+                "Re-export with the current ExportMlPcodeCorpus.java."
+            )
         if row.get("decompile_status") != "ok":
             stats["decompile_failed"] += 1
             continue
@@ -82,12 +139,16 @@ def load_corpus(path: Path) -> tuple[dict[tuple[str, str], dict[str, Any]], dict
         if not all(isinstance(value, str) and value for value in (program, entry, name, text)):
             stats["invalid_ok_rows"] += 1
             continue
+        validate_model_text(row, text)
         key = (program, entry)
         if key in by_entry:
             raise ValueError(f"duplicate corpus key: {program} {entry}")
         by_entry[key] = row
         by_name[(program, name)].append(key)
         stats["usable"] += 1
+        metrics = row.get("metrics")
+        if isinstance(metrics, dict) and metrics.get("truncated") is True:
+            stats["truncated"] += 1
     return by_entry, by_name, stats
 
 
@@ -171,6 +232,7 @@ def build_dataset(corpus_path: Path, labels_path: Path, output_dir: Path) -> dic
     split_counts: Counter = Counter()
     task_counts: dict[str, Counter] = defaultdict(Counter)
     quality_counts: Counter = Counter()
+    structural_group_counts: Counter = Counter()
     emitted = 0
 
     handles = {name: path.open("w", encoding="utf-8") for name, path in split_paths.items()}
@@ -180,7 +242,8 @@ def build_dataset(corpus_path: Path, labels_path: Path, output_dir: Path) -> dic
             row = by_entry[key]
             program, entry = key
             record_id = stable_id(program, entry)
-            split = split_name(record_id)
+            group_id = structural_group_id(row["model_text"])
+            split = split_name(group_id)
             labels = labels_by_key[key]
             weights = weights_by_key[key]
             qualities = quality_by_key[key]
@@ -195,6 +258,7 @@ def build_dataset(corpus_path: Path, labels_path: Path, output_dir: Path) -> dic
 
             trace_row = {
                 "id": record_id,
+                "structural_group_id": group_id,
                 "program": program,
                 "source_entry": entry,
                 "source_name": row["source_name"],
@@ -202,11 +266,13 @@ def build_dataset(corpus_path: Path, labels_path: Path, output_dir: Path) -> dic
                 "labels": labels,
                 "qualities": qualities,
                 "evidence": evidence_by_key.get(key, {}),
+                "metrics": row.get("metrics", {}),
             }
             trace.write(json.dumps(trace_row, sort_keys=True) + "\n")
 
             emitted += 1
             split_counts[split] += 1
+            structural_group_counts[group_id] += 1
             for task, value in labels.items():
                 task_counts[task][value] += 1
                 quality_counts[qualities[task]] += 1
@@ -217,12 +283,17 @@ def build_dataset(corpus_path: Path, labels_path: Path, output_dir: Path) -> dic
 
     report = {
         "format": FORMAT,
+        "corpus_format": CORPUS_FORMAT,
         "corpus": str(corpus_path),
         "labels": str(labels_path),
         "corpus_stats": dict(corpus_stats),
         "label_rows": label_rows,
         "labelled_functions": len(labels_by_key),
         "emitted_functions": emitted,
+        "structural_groups": len(structural_group_counts),
+        "duplicate_structure_functions": sum(
+            count - 1 for count in structural_group_counts.values() if count > 1
+        ),
         "unlabelled_usable_functions": max(0, len(by_entry) - len(labels_by_key)),
         "splits": dict(split_counts),
         "task_distribution": {
@@ -233,7 +304,10 @@ def build_dataset(corpus_path: Path, labels_path: Path, output_dir: Path) -> dic
             "unlabelled_becomes_negative": False,
             "source_entry_in_model_text": False,
             "source_name_in_model_text": False,
-            "split_is_deterministic_by_source_identity": True,
+            "raw_ghidra_language_id_in_model_text": False,
+            "max_model_op_lines": MAX_MODEL_OP_LINES,
+            "split_is_deterministic_by_exact_structure": True,
+            "near_duplicate_family_grouping": False,
         },
     }
     (output_dir / "manifest.json").write_text(
@@ -254,6 +328,7 @@ def main() -> int:
     print(f"format: {report['format']}")
     print(f"usable corpus functions: {report['corpus_stats'].get('usable', 0)}")
     print(f"labelled functions: {report['labelled_functions']}")
+    print(f"structural groups: {report['structural_groups']}")
     print(f"splits: {report['splits']}")
     print(f"output: {args.output_dir}")
     return 0

@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 // Bulk clean-room high-P-code exporter intended for local ML dataset generation.
@@ -27,15 +28,29 @@ import java.util.Map;
 //   * function and symbol names;
 //   * assembly bytes/disassembly;
 //   * decompiler C;
-//   * strings/assets.
+//   * strings/assets;
+//   * Ghidra address-space IDs and internal op-reference operands.
 //
 // source_entry/source_name are join keys only. Dataset builders must not copy
 // them into model input. Large constants are bucketed so embedded code/data
 // addresses do not become accidental identifiers. Small constants are retained
 // because field offsets, loop bounds and flags are useful structural evidence.
 public class ExportMlPcodeCorpus extends GhidraScript {
-    private static final String FORMAT = "NEVERGONE.MlPcodeCorpus/1";
+    private static final String FORMAT = "NEVERGONE.MlPcodeCorpus/2";
     private static final long SMALL_CONST_MAX = 0x1000L;
+    private static final int MAX_MODEL_OPS = 256;
+
+    private static class ModelRecord {
+        String text;
+        int ops;
+        int emittedOps;
+        int calls;
+        int indirectCalls;
+        int branches;
+        int loads;
+        int stores;
+        boolean truncated;
+    }
 
     private String json(String value) {
         if (value == null) return "null";
@@ -86,7 +101,7 @@ public class ExportMlPcodeCorpus extends GhidraScript {
         if (definition != null) {
             Integer id = opIds.get(seqKey(definition.getSeqnum()));
             if (id != null) return "v" + id + ":" + node.getSize();
-            return "def:unknown:" + node.getSize();
+            return "def:omitted:" + node.getSize();
         }
         if (node.isRegister()) return "reg:" + node.getSize();
         if (node.isUnique()) return "tmp:" + node.getSize();
@@ -131,26 +146,172 @@ public class ExportMlPcodeCorpus extends GhidraScript {
         return target.isExternal() ? "call:external" : "call:internal";
     }
 
-    private String buildModelText(Function function, HighFunction high) {
-        List<PcodeOpAST> ops = new ArrayList<>();
-        Map<String, Integer> opIds = new HashMap<>();
-        Iterator<PcodeOpAST> iterator = high.getPcodeOps();
-        while (iterator.hasNext() && !monitor.isCancelled()) {
-            PcodeOpAST op = iterator.next();
-            int id = ops.size();
-            ops.add(op);
-            opIds.put(seqKey(op.getSeqnum()), id);
+    private String countBucket(long value) {
+        if (value <= 0) return "0";
+        if (value == 1) return "1";
+        long lower = 2;
+        long upper = 3;
+        while (upper < value && upper < 65535) {
+            lower = upper + 1;
+            upper = (upper << 1) + 1;
+        }
+        if (upper >= 65535 && value > upper) return "65536+";
+        return lower + "-" + upper;
+    }
+
+    private String[] normalizedArchitecture() {
+        String raw = currentProgram.getLanguageID().toString();
+        String[] parts = raw.split(":");
+        String processor = parts.length > 0 ? parts[0].toUpperCase(Locale.ROOT) : "UNKNOWN";
+        String endian = parts.length > 1 ? parts[1].toUpperCase(Locale.ROOT) : "UNKNOWN";
+        String bits = parts.length > 2 ? parts[2] : "";
+        String arch = processor;
+        String pointerSize = "unknown";
+        try {
+            int bitCount = Integer.parseInt(bits);
+            arch = processor + bitCount;
+            if (bitCount > 0 && (bitCount % 8) == 0) {
+                pointerSize = Integer.toString(bitCount / 8);
+            }
+        } catch (NumberFormatException ignored) {
+            // Keep a processor-only architecture when the language ID is unusual.
+        }
+        return new String[] { arch, endian, pointerSize };
+    }
+
+    private List<PcodeOpAST> selectModelOps(List<PcodeOpAST> all) {
+        if (all.size() <= MAX_MODEL_OPS) return new ArrayList<>(all);
+        int head = MAX_MODEL_OPS / 2;
+        int tail = MAX_MODEL_OPS - head;
+        List<PcodeOpAST> selected = new ArrayList<>(MAX_MODEL_OPS);
+        selected.addAll(all.subList(0, head));
+        selected.addAll(all.subList(all.size() - tail, all.size()));
+        return selected;
+    }
+
+    private void appendGenericInputs(StringBuilder text, PcodeOpAST op,
+            Map<String, Integer> opIds, int start, String label) {
+        for (int index = start; index < op.getNumInputs(); index++) {
+            text.append(' ').append(label).append('=')
+                .append(varnodeToken(op.getInput(index), opIds));
+        }
+    }
+
+    private void appendOperands(StringBuilder text, PcodeOpAST op, Map<String, Integer> opIds) {
+        int opcode = op.getOpcode();
+        int inputs = op.getNumInputs();
+
+        // LOAD/STORE input 0 is an address-space identifier, not a program
+        // constant. Emitting it caused the real Nevergone sample to repeat
+        // const:small:0x1a1 hundreds of times.
+        if (opcode == PcodeOp.LOAD) {
+            if (inputs >= 2) {
+                text.append(" addr=").append(varnodeToken(op.getInput(1), opIds));
+            }
+            return;
+        }
+        if (opcode == PcodeOp.STORE) {
+            if (inputs >= 2) {
+                text.append(" addr=").append(varnodeToken(op.getInput(1), opIds));
+            }
+            if (inputs >= 3) {
+                text.append(" value=").append(varnodeToken(op.getInput(2), opIds));
+            }
+            return;
         }
 
+        // CALL/CALLIND input 0 is the call target. The target identity is
+        // replaced by callKind(); only normalized arguments remain.
+        if (opcode == PcodeOp.CALL || opcode == PcodeOp.CALLIND) {
+            appendGenericInputs(text, op, opIds, 1, "arg");
+            return;
+        }
+
+        // Direct branch targets and the technical return target are not useful
+        // semantic features. Preserve only the condition/return values.
+        if (opcode == PcodeOp.BRANCH) return;
+        if (opcode == PcodeOp.CBRANCH) {
+            if (inputs >= 2) {
+                text.append(" cond=").append(varnodeToken(op.getInput(1), opIds));
+            }
+            return;
+        }
+        if (opcode == PcodeOp.RETURN) {
+            appendGenericInputs(text, op, opIds, Math.min(1, inputs), "ret");
+            return;
+        }
+
+        // INDIRECT input 1 is an internal reference to another P-code op
+        // (iop-space), which is decompiler bookkeeping rather than game data.
+        if (opcode == PcodeOp.INDIRECT) {
+            if (inputs >= 1) {
+                text.append(" in=").append(varnodeToken(op.getInput(0), opIds));
+            }
+            return;
+        }
+
+        appendGenericInputs(text, op, opIds, 0, "in");
+    }
+
+    private ModelRecord buildModelRecord(Function function, HighFunction high) {
+        List<PcodeOpAST> all = new ArrayList<>();
+        Iterator<PcodeOpAST> iterator = high.getPcodeOps();
+        ModelRecord record = new ModelRecord();
+        while (iterator.hasNext() && !monitor.isCancelled()) {
+            PcodeOpAST op = iterator.next();
+            all.add(op);
+            switch (op.getOpcode()) {
+                case PcodeOp.CALL:
+                    record.calls++;
+                    break;
+                case PcodeOp.CALLIND:
+                    record.calls++;
+                    record.indirectCalls++;
+                    break;
+                case PcodeOp.BRANCH:
+                case PcodeOp.CBRANCH:
+                case PcodeOp.BRANCHIND:
+                    record.branches++;
+                    break;
+                case PcodeOp.LOAD:
+                    record.loads++;
+                    break;
+                case PcodeOp.STORE:
+                    record.stores++;
+                    break;
+                default:
+                    break;
+            }
+        }
+        record.ops = all.size();
+
+        List<PcodeOpAST> selected = selectModelOps(all);
+        record.emittedOps = selected.size();
+        record.truncated = selected.size() != all.size();
+
+        Map<String, Integer> opIds = new HashMap<>();
+        for (int id = 0; id < selected.size(); id++) {
+            opIds.put(seqKey(selected.get(id).getSeqnum()), id);
+        }
+
+        String[] architecture = normalizedArchitecture();
         StringBuilder text = new StringBuilder();
-        text.append("LANG=").append(currentProgram.getLanguageID().toString()).append('\n');
+        text.append("ARCH=").append(architecture[0]).append('\n');
+        text.append("ENDIAN=").append(architecture[1]).append('\n');
+        text.append("PTR_SIZE=").append(architecture[2]).append('\n');
         text.append("CALLCONV=").append(function.getCallingConventionName()).append('\n');
         text.append("PARAMS=").append(function.getParameterCount()).append('\n');
-        text.append("BODY_ADDRS=").append(function.getBody().getNumAddresses()).append('\n');
-        text.append("OPS=").append(ops.size()).append('\n');
+        text.append("BODY_ADDRS_BUCKET=").append(countBucket(function.getBody().getNumAddresses())).append('\n');
+        text.append("OPS_BUCKET=").append(countBucket(record.ops)).append('\n');
+        text.append("CALLS_BUCKET=").append(countBucket(record.calls)).append('\n');
+        text.append("INDIRECT_CALLS_BUCKET=").append(countBucket(record.indirectCalls)).append('\n');
+        text.append("BRANCHES_BUCKET=").append(countBucket(record.branches)).append('\n');
+        text.append("LOADS_BUCKET=").append(countBucket(record.loads)).append('\n');
+        text.append("STORES_BUCKET=").append(countBucket(record.stores)).append('\n');
+        text.append("TRUNCATED=").append(record.truncated ? "1" : "0").append('\n');
 
-        for (int id = 0; id < ops.size(); id++) {
-            PcodeOpAST op = ops.get(id);
+        for (int id = 0; id < selected.size(); id++) {
+            PcodeOpAST op = selected.get(id);
             text.append('o').append(id).append(' ').append(op.getMnemonic());
             String kind = callKind(op);
             if (kind != null) text.append(' ').append(kind);
@@ -159,17 +320,14 @@ public class ExportMlPcodeCorpus extends GhidraScript {
             if (output != null) {
                 text.append(" out=").append(varnodeToken(output, opIds));
             }
-
-            int start = (op.getOpcode() == PcodeOp.CALL || op.getOpcode() == PcodeOp.CALLIND) ? 1 : 0;
-            for (int index = start; index < op.getNumInputs(); index++) {
-                text.append(" in=").append(varnodeToken(op.getInput(index), opIds));
-            }
+            appendOperands(text, op, opIds);
             text.append('\n');
         }
-        return text.toString();
+        record.text = text.toString();
+        return record;
     }
 
-    private void writeSuccess(BufferedWriter out, Function function, String modelText) throws Exception {
+    private void writeSuccess(BufferedWriter out, Function function, ModelRecord record) throws Exception {
         out.write("{" +
             "\"format\":" + json(FORMAT) + "," +
             "\"program\":" + json(currentProgram.getName()) + "," +
@@ -177,7 +335,17 @@ public class ExportMlPcodeCorpus extends GhidraScript {
             "\"source_name\":" + json(function.getName(true)) + "," +
             "\"external\":false," +
             "\"decompile_status\":\"ok\"," +
-            "\"model_text\":" + json(modelText) +
+            "\"metrics\":{" +
+                "\"ops\":" + record.ops + "," +
+                "\"emitted_ops\":" + record.emittedOps + "," +
+                "\"calls\":" + record.calls + "," +
+                "\"indirect_calls\":" + record.indirectCalls + "," +
+                "\"branches\":" + record.branches + "," +
+                "\"loads\":" + record.loads + "," +
+                "\"stores\":" + record.stores + "," +
+                "\"truncated\":" + record.truncated +
+            "}," +
+            "\"model_text\":" + json(record.text) +
             "}");
         out.newLine();
     }
@@ -216,6 +384,7 @@ public class ExportMlPcodeCorpus extends GhidraScript {
         long visited = 0;
         long exported = 0;
         long failed = 0;
+        long truncated = 0;
         try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(
                 new FileOutputStream(output), StandardCharsets.UTF_8))) {
             FunctionIterator functions = currentProgram.getFunctionManager().getFunctions(true);
@@ -238,10 +407,13 @@ public class ExportMlPcodeCorpus extends GhidraScript {
                     continue;
                 }
 
-                writeSuccess(out, function, buildModelText(function, results.getHighFunction()));
+                ModelRecord record = buildModelRecord(function, results.getHighFunction());
+                writeSuccess(out, function, record);
                 exported++;
+                if (record.truncated) truncated++;
                 if ((visited % 250) == 0) {
-                    println("ML corpus progress: visited=" + visited + " exported=" + exported + " failed=" + failed);
+                    println("ML corpus progress: visited=" + visited + " exported=" + exported +
+                        " failed=" + failed + " truncated=" + truncated);
                 }
             }
         } finally {
@@ -249,6 +421,6 @@ public class ExportMlPcodeCorpus extends GhidraScript {
         }
 
         println("ML P-code corpus: visited=" + visited + " exported=" + exported +
-            " failed=" + failed + " -> " + output);
+            " failed=" + failed + " truncated=" + truncated + " -> " + output);
     }
 }
