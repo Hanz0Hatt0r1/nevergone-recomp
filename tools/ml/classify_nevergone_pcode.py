@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, Iterable, TextIO
 
-from nevergone_ood_similarity import nearest_family_by_predicted_class
+from nevergone_ood_similarity import contrastive_family_scores, nearest_family_by_predicted_class
 from train_nevergone_production_classifier import (
     ARTIFACT_FORMAT,
     LEGACY_ARTIFACT_FORMAT,
@@ -20,6 +20,10 @@ from train_nevergone_production_classifier import (
 from train_nevergone_production_classifier_v3 import (
     ARTIFACT_FORMAT_V3,
     route_action_with_ood,
+)
+from train_nevergone_production_classifier_v4 import (
+    ARTIFACT_FORMAT_V4,
+    route_action_with_contrastive_ood,
 )
 
 
@@ -95,7 +99,12 @@ def main() -> int:
     artifact_path = args.model_dir / "classifier.joblib"
     artifact = joblib.load(artifact_path)
     artifact_format = artifact.get("format") if isinstance(artifact, dict) else None
-    supported = {ARTIFACT_FORMAT_V3, ARTIFACT_FORMAT, LEGACY_ARTIFACT_FORMAT}
+    supported = {
+        ARTIFACT_FORMAT_V4,
+        ARTIFACT_FORMAT_V3,
+        ARTIFACT_FORMAT,
+        LEGACY_ARTIFACT_FORMAT,
+    }
     if artifact_format not in supported:
         raise SystemExit(f"unsupported classifier artifact: {artifact_path}")
 
@@ -133,9 +142,18 @@ def main() -> int:
             raw_confidences.append(float(probability_map[prediction]))
 
         nearest = [(0.0, None)] * len(ids)
+        contrastive = [None] * len(ids)
         if artifact_format == ARTIFACT_FORMAT_V3:
             vectorizer = model.named_steps["tfidf"]
             nearest = nearest_family_by_predicted_class(
+                vectorizer,
+                artifact["family_prototypes"],
+                texts,
+                predictions,
+            )
+        elif artifact_format == ARTIFACT_FORMAT_V4:
+            vectorizer = model.named_steps["tfidf"]
+            contrastive = contrastive_family_scores(
                 vectorizer,
                 artifact["family_prototypes"],
                 texts,
@@ -146,24 +164,48 @@ def main() -> int:
             probability_map = probability_maps[row_index]
             prediction = predictions[row_index]
             raw_confidence = raw_confidences[row_index]
-            family_similarity, nearest_training_family = nearest[row_index]
 
-            if artifact_format in {ARTIFACT_FORMAT_V3, ARTIFACT_FORMAT}:
+            family_similarity = 0.0
+            nearest_training_family = None
+            competing_similarity = 0.0
+            nearest_competing_family = None
+            nearest_competing_label = None
+            contrast_margin = 0.0
+
+            if artifact_format == ARTIFACT_FORMAT_V3:
+                family_similarity, nearest_training_family = nearest[row_index]
+            elif artifact_format == ARTIFACT_FORMAT_V4:
+                score = contrastive[row_index]
+                family_similarity = float(score["predicted_similarity"])
+                nearest_training_family = score["predicted_family"]
+                competing_similarity = float(score["competing_similarity"])
+                nearest_competing_family = score["competing_family"]
+                nearest_competing_label = score["competing_label"]
+                contrast_margin = float(score["contrast_margin"])
+
+            if artifact_format in {ARTIFACT_FORMAT_V4, ARTIFACT_FORMAT_V3, ARTIFACT_FORMAT}:
                 confidence, confidence_source = calibrate_confidence(
                     prediction,
                     raw_confidence,
                     global_calibrator=artifact["confidence_calibrator"],
-                    class_calibrators=artifact.get(
-                        "class_confidence_calibrators", {}
-                    ),
+                    class_calibrators=artifact.get("class_confidence_calibrators", {}),
                 )
                 class_policies = artifact.get("class_policies", {})
                 policy = class_policies.get(prediction, {})
                 accept_threshold = policy.get("accept_threshold")
                 review_threshold = policy.get("review_threshold")
                 ood_accept_threshold = policy.get("ood_accept_threshold")
+                contrast_accept_threshold = policy.get("contrast_accept_threshold")
 
-                if artifact_format == ARTIFACT_FORMAT_V3:
+                if artifact_format == ARTIFACT_FORMAT_V4:
+                    action = route_action_with_contrastive_ood(
+                        prediction,
+                        confidence,
+                        family_similarity,
+                        contrast_margin,
+                        class_policies,
+                    )
+                elif artifact_format == ARTIFACT_FORMAT_V3:
                     action = route_action_with_ood(
                         prediction,
                         confidence,
@@ -171,11 +213,7 @@ def main() -> int:
                         class_policies,
                     )
                 else:
-                    action = route_action_for_class(
-                        prediction,
-                        confidence,
-                        class_policies,
-                    )
+                    action = route_action_for_class(prediction, confidence, class_policies)
             else:
                 calibrator = artifact["confidence_calibrator"]
                 confidence = float(calibrator.predict([raw_confidence])[0])
@@ -183,6 +221,7 @@ def main() -> int:
                 accept_threshold = artifact.get("accept_threshold")
                 review_threshold = artifact.get("review_threshold")
                 ood_accept_threshold = None
+                contrast_accept_threshold = None
                 action = route_action(
                     confidence,
                     accept_threshold=accept_threshold,
@@ -201,7 +240,7 @@ def main() -> int:
                 "accept_threshold": accept_threshold,
                 "review_threshold": review_threshold,
             }
-            if artifact_format == ARTIFACT_FORMAT_V3:
+            if artifact_format in {ARTIFACT_FORMAT_V3, ARTIFACT_FORMAT_V4}:
                 result.update(
                     {
                         "family_similarity": float(family_similarity),
@@ -210,6 +249,20 @@ def main() -> int:
                         "ood_accept_pass": bool(
                             ood_accept_threshold is not None
                             and family_similarity >= float(ood_accept_threshold)
+                        ),
+                    }
+                )
+            if artifact_format == ARTIFACT_FORMAT_V4:
+                result.update(
+                    {
+                        "competing_similarity": float(competing_similarity),
+                        "nearest_competing_family": nearest_competing_family,
+                        "nearest_competing_label": nearest_competing_label,
+                        "contrast_margin": float(contrast_margin),
+                        "contrast_accept_threshold": contrast_accept_threshold,
+                        "contrast_accept_pass": bool(
+                            contrast_accept_threshold is not None
+                            and contrast_margin >= float(contrast_accept_threshold)
                         ),
                     }
                 )
