@@ -4,9 +4,9 @@
 The exporter in tools/ghidra/ExportSceneActionTriggerSlice.java intentionally writes a
 small local-only evidence slice. This helper turns that slice into a compact review
 report that can be committed or shared safely: it records target resolution plus
-short candidate lines around the two still-open boundaries (spatial trigger and the
-TrapActionsData +0xbc frame-count edge). It never copies complete instruction or
-C-decompiler sections into the report.
+short candidate lines around the remaining trigger/object-field and TrapActionsData
+frame-count boundaries. It never copies complete instruction or C-decompiler sections
+into the report.
 """
 
 from __future__ import annotations
@@ -27,12 +27,15 @@ EXPECTED_TARGETS = (
     "GameSceneObject::isContainsRect(CCRect)",
     "GameSceneObject::isContainsRect(CCRect,const char*)",
     "GameSceneObject::getObjectRect()",
+    "GameLevels::LoadGL_Scene()",
+    "GameSceneObject::initWithData(GameSceneLayerObjectData*)",
     "SceneActionsSystem::waUpdate(float)",
     "TrapActionsData::loadWBGFile(...)",
 )
 
 SPATIAL_TARGETS = EXPECTED_TARGETS[:6]
-COUNT_TARGETS = EXPECTED_TARGETS[6:]
+EVENT_FIELD_TARGETS = EXPECTED_TARGETS[6:8]
+COUNT_TARGETS = EXPECTED_TARGETS[8:]
 
 SECTION_MARKERS = {
     "-- CALLERS --": "callers",
@@ -55,8 +58,19 @@ SPATIAL_PATTERNS = (
     re.compile(r"CCRect", re.IGNORECASE),
     re.compile(r"contains", re.IGNORECASE),
 )
+EVENT_FIELD_PATTERNS = (
+    re.compile(r"\b0x0*108\b", re.IGNORECASE),
+    re.compile(r"#0x0*108\b", re.IGNORECASE),
+    re.compile(r"\b264\b"),
+    re.compile(r"#264\b"),
+    re.compile(r"GameSceneLayerObjectData", re.IGNORECASE),
+)
 BRANCH_PATTERN = re.compile(
     r"\b(?:cmp|cmn|bgt|bge|blt|ble|beq|bne|bhi|bhs|blo|bls)\b",
+    re.IGNORECASE,
+)
+MEMORY_PATTERN = re.compile(
+    r"\b(?:ldr|ldrb|ldrh|str|strb|strh)\b",
     re.IGNORECASE,
 )
 
@@ -185,6 +199,18 @@ def build_report(header: dict[str, str], blocks: dict[str, TargetBlock]) -> dict
             [*block.instructions, *block.decompile], SPATIAL_PATTERNS
         )
 
+    event_field_candidates: dict[str, dict[str, list[str]]] = {}
+    for target in EVENT_FIELD_TARGETS:
+        block = blocks.get(target)
+        if block is None or not block.resolved:
+            event_field_candidates[target] = {"offset_108": [], "memory_ops": []}
+            continue
+        combined = [*block.instructions, *block.decompile]
+        event_field_candidates[target] = {
+            "offset_108": _candidate_lines(combined, EVENT_FIELD_PATTERNS, limit=20),
+            "memory_ops": _candidate_lines(block.instructions, (MEMORY_PATTERN,), limit=24),
+        }
+
     count_candidates: dict[str, dict[str, list[str]]] = {}
     for target in COUNT_TARGETS:
         block = blocks.get(target)
@@ -199,7 +225,7 @@ def build_report(header: dict[str, str], blocks: dict[str, TargetBlock]) -> dict
         }
 
     return {
-        "format": "nevergone-scene-actions-slice-report-v1",
+        "format": "nevergone-scene-actions-slice-report-v2",
         "source": {
             "program": header.get("program", ""),
             "imageBase": header.get("imageBase", ""),
@@ -210,10 +236,12 @@ def build_report(header: dict[str, str], blocks: dict[str, TargetBlock]) -> dict
         "unresolved_targets": unresolved,
         "targets": targets,
         "spatial_trigger_candidates": spatial_candidates,
+        "event_field_candidates": event_field_candidates,
         "frame_count_candidates": count_candidates,
         "interpretation_note": (
             "Candidate lines are lexical evidence only. The report intentionally does not infer "
-            "rectangle semantics, a +0xbc mutation, count/index equivalence, or PRNG ordering."
+            "a serialized-to-+0x108 field mapping, rectangle semantics, a +0xbc mutation, "
+            "count/index equivalence, or PRNG ordering."
         ),
     }
 
@@ -249,6 +277,28 @@ def render_markdown(report: dict[str, object]) -> str:
                 lines.append(f"- `{candidate}`")
         else:
             lines.append("- No lexical candidate surfaced.")
+        lines.append("")
+
+    lines.extend(["## Event-field candidates", ""])
+    event_fields = report["event_field_candidates"]
+    assert isinstance(event_fields, dict)
+    for target, groups in event_fields.items():
+        assert isinstance(groups, dict)
+        lines.append(f"### `{target}`")
+        offset_lines = groups.get("offset_108", [])
+        memory_lines = groups.get("memory_ops", [])
+        lines.append("- `+0x108` / object-data candidates:")
+        if offset_lines:
+            for candidate in offset_lines:
+                lines.append(f"  - `{candidate}`")
+        else:
+            lines.append("  - none")
+        lines.append("- memory-operation candidates:")
+        if memory_lines:
+            for candidate in memory_lines:
+                lines.append(f"  - `{candidate}`")
+        else:
+            lines.append("  - none")
         lines.append("")
 
     lines.extend(["## Frame-count candidates", ""])
