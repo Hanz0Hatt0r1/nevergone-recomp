@@ -162,7 +162,8 @@ def main() -> int:
         assert "op.getInput(1)" in java
         assert "instanceof Pointer" in java
         assert "getHigh()" in java
-        assert "infer a class from the call target" in java
+        assert "does not infer a class" in java
+        assert "call target" in java
 
     print("nevergone static receiver vtable inference smoke: ok")
     return 0
