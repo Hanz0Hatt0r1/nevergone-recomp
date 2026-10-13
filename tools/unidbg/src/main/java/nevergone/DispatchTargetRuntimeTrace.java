@@ -124,6 +124,10 @@ final class DispatchTargetRuntimeTrace {
         for (int i = 0; i < 4; i++)
             args.put("r" + i, String.format("0x%08x", Integer.toUnsignedLong(context.getIntArg(i))));
         row.put("arg_registers", args);
+
+        // Receiver evidence is advisory and bounded. Failure to read it never removes
+        // the already verified BLX target observation.
+        DispatchReceiverProvenance.capture(emulator, row, spec, context, rawTarget);
         EvidenceProbe.emit(row);
     }
 
