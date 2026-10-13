@@ -21,6 +21,19 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
     path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
 
 
+def slot_row(start: int, symbol: str, ap: int, off: int, target: int, name: str, next_start: str) -> str:
+    raw = target - 0x10000
+    if raw & 1 == 0:
+        raw |= 1
+    target_entry = target & ~1
+    return (
+        f"0x{start:x}\t{symbol}\t0x{ap:x}\t0x{off:x}\t0x{ap + off:x}\t"
+        f"0x{raw:x}\ttrue\t{target_entry:08x}\t{name}\t"
+        f"undefined __thiscall {name.split('::')[-1]}(void * this)\t"
+        f"image_base_plus_module_offset\t{next_start}\n"
+    )
+
+
 def main() -> int:
     subprocess.run([sys.executable, "-m", "py_compile", str(TOOL)], check=True)
 
@@ -35,13 +48,41 @@ def main() -> int:
             "slot_address\traw_value\ttarget_thumb\ttarget_entry\ttarget_name\t"
             "target_signature\tresolution_mode\tnext_vtable_symbol_start\n"
         )
-        rows = [
-            "0x8f3920\t_ZTV10ActionData\t0x8f3928\t0x8\t0x8f3930\t0x28ea5d\ttrue\t0029ea5c\tActionData::~ActionData\tundefined __thiscall ~ActionData(ActionData * this)\timage_base_plus_module_offset\t0x8f3950\n",
-            "0x8f3920\t_ZTV10ActionData\t0x8f3928\t0xc\t0x8f3934\t0x280001\ttrue\t00290000\tActionData::staticOnly\tundefined __thiscall staticOnly(ActionData * this)\timage_base_plus_module_offset\t0x8f3950\n",
-            "0x8f3920\t_ZTV10ActionData\t0x8f3928\t0x24\t0x8f394c\t0x28e9bb\ttrue\t0029e9ba\tActionData::init\tundefined __thiscall init(ActionData * this)\timage_base_plus_module_offset\t0x8f3950\n",
-            "0x8f3950\t_ZTV19EenemyActionDataSet\t0x8f3958\t0x8\t0x8f3960\t0x28eaed\ttrue\t0029eaec\tEenemyActionDataSet::~EenemyActionDataSet\tundefined __thiscall ~EenemyActionDataSet(EenemyActionDataSet * this)\timage_base_plus_module_offset\t-\n",
-            "0x8f3950\t_ZTV19EenemyActionDataSet\t0x8f3958\t0x24\t0x8f397c\t0x28eb4b\ttrue\t0029eb4a\tEenemyActionDataSet::init\tundefined __thiscall init(EenemyActionDataSet * this)\timage_base_plus_module_offset\t-\n",
-        ]
+
+        rows: list[str] = []
+        action_targets = {
+            0x00: (0x29e900, "ActionData::v0"),
+            0x04: (0x29e920, "ActionData::v1"),
+            0x08: (0x29ea5c, "ActionData::~ActionData"),
+            0x0c: (0x290000, "ActionData::staticOnly"),
+            0x10: (0x29e940, "ActionData::v4"),
+            0x14: (0x29e960, "ActionData::v5"),
+            0x18: (0x29e980, "ActionData::v6"),
+            0x1c: (0x29e9a0, "ActionData::v7"),
+            0x20: (0x29e9c0, "ActionData::v8"),
+            0x24: (0x29e9ba, "ActionData::init"),
+        }
+        for off, (target, name) in action_targets.items():
+            rows.append(slot_row(0x8f3920, "_ZTV10ActionData", 0x8f3928, off, target, name, "0x8f3950"))
+        # Deliberate post-prefix contamination: slot 0x28 is missing, so 0x2c must be rejected.
+        rows.append(slot_row(0x8f3920, "_ZTV10ActionData", 0x8f3928, 0x2c,
+                             0x2a1234, "Unrelated::pointer", "0x8f3950"))
+
+        enemy_targets = {
+            0x00: (0x29ea80, "EenemyActionDataSet::v0"),
+            0x04: (0x29eaa0, "EenemyActionDataSet::v1"),
+            0x08: (0x29eaec, "EenemyActionDataSet::~EenemyActionDataSet"),
+            0x0c: (0x29eb00, "EenemyActionDataSet::v3"),
+            0x10: (0x29eb10, "EenemyActionDataSet::v4"),
+            0x14: (0x29eb20, "EenemyActionDataSet::v5"),
+            0x18: (0x29eb30, "EenemyActionDataSet::v6"),
+            0x1c: (0x29eb38, "EenemyActionDataSet::v7"),
+            0x20: (0x29eb40, "EenemyActionDataSet::v8"),
+            0x24: (0x29eb4a, "EenemyActionDataSet::init"),
+        }
+        for off, (target, name) in enemy_targets.items():
+            rows.append(slot_row(0x8f3950, "_ZTV19EenemyActionDataSet", 0x8f3958, off, target, name, "-"))
+
         write_gz(slots, header + "".join(rows))
 
         write_jsonl(runtime, [
@@ -78,7 +119,7 @@ def main() -> int:
         ], check=True)
 
         catalog = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line.strip()]
-        assert len(catalog) == 5
+        assert len(catalog) == 20
         by_key = {(x["class_name"], x["dispatch_slot_offset"]): x for x in catalog}
 
         expected = {
@@ -93,10 +134,11 @@ def main() -> int:
             assert row["runtime_validation_status"] == "runtime_match"
             assert row["runtime_verified"] is True
             assert row["static_status"] == "single_function_memory_pointer"
-            assert row["source_kind"] == "ghidra_program_memory_pointer"
+            assert row["source_kind"] == "ghidra_primary_vtable_contiguous_memory_pointer"
             assert row["static_candidate_affects_routing"] is False
             assert row["cross_vtable_transfer_allowed"] is False
             assert row["cross_class_transfer_allowed"] is False
+            assert row["primary_prefix_slot_count"] == 10
 
         static_only = by_key[("ActionData", "0xc")]
         assert static_only["candidate_target_ids"] == ["libcocos2dcpp.so:00290000"]
@@ -104,6 +146,8 @@ def main() -> int:
         assert static_only["runtime_verified"] is False
         assert static_only["target_functions"][0]["thumb_observed_in_pointer"] is True
         assert static_only["target_functions"][0]["resolution_modes"] == ["image_base_plus_module_offset"]
+
+        assert ("ActionData", "0x2c") not in by_key
 
     print("static vtable slot export smoke: ok")
     return 0
