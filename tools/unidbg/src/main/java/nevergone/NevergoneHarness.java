@@ -38,6 +38,7 @@ public final class NevergoneHarness {
         boolean probeEnemyActionsCcString = false;
         boolean probeHpDataMemory = false;
         String probePlan = null;
+        String dispatchTracePlan = null;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             if ("--smoke".equals(arg)) smoke = true;
@@ -50,6 +51,7 @@ public final class NevergoneHarness {
             else if ("--probe-enemy-actions-cstring".equals(arg)) probeEnemyActionsCcString = true;
             else if ("--probe-hpdata-memory".equals(arg)) probeHpDataMemory = true;
             else if ("--probe-plan".equals(arg) && i + 1 < args.length) probePlan = args[++i];
+            else if ("--trace-dispatch-targets".equals(arg) && i + 1 < args.length) dispatchTracePlan = args[++i];
             else throw new IllegalArgumentException("Unknown option: " + arg);
         }
         final boolean useDeviceRuntime = deviceRuntime;
@@ -152,6 +154,12 @@ public final class NevergoneHarness {
                 }
             }
             System.out.printf("MODULES=%d UNRESOLVED_TOTAL=%d%n", moduleCount, totalUnresolved);
+
+            // Observation-only breakpoints. They do not invoke any call site themselves;
+            // they record targets only if the selected workload naturally reaches one.
+            if (dispatchTracePlan != null)
+                DispatchTargetRuntimeTrace.install(emulator, module, new File(dispatchTracePlan));
+
             if (probeEgl) {
                 Number result = emulator.getMemory().findModule("libEGL.so").callFunction(emulator, "eglGetError");
                 System.out.printf("EGL_GET_ERROR=0x%x%n", result.intValue());
