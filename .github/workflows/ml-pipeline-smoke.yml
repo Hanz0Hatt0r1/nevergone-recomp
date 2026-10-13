@@ -42,10 +42,12 @@ jobs:
             tools/ml/train_nevergone_production_classifier_v3.py \
             tools/ml/train_nevergone_production_classifier_v4.py \
             tools/ml/classify_nevergone_pcode.py \
+            tools/ml/audit_nevergone_classifications.py \
             tools/ml/nevergone_ml_pipeline_smoke.py \
             tools/ml/nevergone_family_miner_smoke.py \
             tools/ml/nevergone_tiny_encoder_smoke.py \
-            tools/ml/nevergone_production_classifier_smoke.py
+            tools/ml/nevergone_production_classifier_smoke.py \
+            tools/ml/nevergone_classification_audit_smoke.py
       - name: Run synthetic pipeline smoke
         run: python tools/ml/nevergone_ml_pipeline_smoke.py
       - name: Run function family miner smoke
@@ -54,3 +56,5 @@ jobs:
         run: python tools/ml/nevergone_tiny_encoder_smoke.py
       - name: Run production classifier helper smoke
         run: python tools/ml/nevergone_production_classifier_smoke.py
+      - name: Run classification audit smoke
+        run: python tools/ml/nevergone_classification_audit_smoke.py
