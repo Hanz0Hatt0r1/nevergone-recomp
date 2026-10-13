@@ -37,7 +37,9 @@ jobs:
             tools/ml/nevergone_tiny_encoder_features.py \
             tools/ml/nevergone_tiny_encoder_cv.py \
             tools/ml/nevergone_hybrid_residual_cv.py \
+            tools/ml/nevergone_ood_similarity.py \
             tools/ml/train_nevergone_production_classifier.py \
+            tools/ml/train_nevergone_production_classifier_v3.py \
             tools/ml/classify_nevergone_pcode.py \
             tools/ml/nevergone_ml_pipeline_smoke.py \
             tools/ml/nevergone_family_miner_smoke.py \
