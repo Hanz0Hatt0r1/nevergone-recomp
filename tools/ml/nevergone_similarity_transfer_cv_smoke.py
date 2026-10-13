@@ -54,10 +54,14 @@ def main() -> int:
                 "--folds",
                 "2",
             ],
-            check=True,
+            check=False,
             text=True,
             capture_output=True,
         )
+        if result.returncode:
+            print(result.stdout)
+            print(result.stderr, file=sys.stderr)
+            raise SystemExit(result.returncode)
         assert "model: NevergoneSimilarityTransferCV/1" in result.stdout
         assert "family-held-out transfer accuracy:" in result.stdout
         assert "PRECISION/COVERAGE GRID" in result.stdout
