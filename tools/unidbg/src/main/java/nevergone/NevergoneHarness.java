@@ -39,6 +39,7 @@ public final class NevergoneHarness {
         boolean probeHpDataMemory = false;
         String probePlan = null;
         String dispatchTracePlan = null;
+        String actionDataCreateProbe = null;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             if ("--smoke".equals(arg)) smoke = true;
@@ -52,6 +53,7 @@ public final class NevergoneHarness {
             else if ("--probe-hpdata-memory".equals(arg)) probeHpDataMemory = true;
             else if ("--probe-plan".equals(arg) && i + 1 < args.length) probePlan = args[++i];
             else if ("--trace-dispatch-targets".equals(arg) && i + 1 < args.length) dispatchTracePlan = args[++i];
+            else if ("--probe-action-data-create".equals(arg) && i + 1 < args.length) actionDataCreateProbe = args[++i];
             else throw new IllegalArgumentException("Unknown option: " + arg);
         }
         final boolean useDeviceRuntime = deviceRuntime;
@@ -167,6 +169,7 @@ public final class NevergoneHarness {
                     throw new IllegalStateException("Fresh EGL probe did not return EGL_SUCCESS; inspect emulator faults");
                 return;
             }
+            if (actionDataCreateProbe != null) { ActionDataCreateProbe.run(emulator, module, actionDataCreateProbe); return; }
             if (probe) { EvidenceProbe.run(emulator, module); return; }
             if (probePlan != null) { ProbeRunner.run(emulator, module, new File(probePlan)); return; }
             if (probeEnemyActionsCtor) { EnemyActionsConstructorProbe.run(emulator, module); return; }
