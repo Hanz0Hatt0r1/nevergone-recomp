@@ -64,9 +64,6 @@ def main() -> int:
         }
         for off, (target, name) in action_targets.items():
             rows.append(slot_row(0x8f3920, "_ZTV10ActionData", 0x8f3928, off, target, name, "0x8f3950"))
-        # Deliberate post-prefix contamination: slot 0x28 is missing, so 0x2c must be rejected.
-        rows.append(slot_row(0x8f3920, "_ZTV10ActionData", 0x8f3928, 0x2c,
-                             0x2a1234, "Unrelated::pointer", "0x8f3950"))
 
         enemy_targets = {
             0x00: (0x29ea80, "EenemyActionDataSet::v0"),
@@ -81,7 +78,17 @@ def main() -> int:
             0x24: (0x29eb4a, "EenemyActionDataSet::init"),
         }
         for off, (target, name) in enemy_targets.items():
-            rows.append(slot_row(0x8f3950, "_ZTV19EenemyActionDataSet", 0x8f3958, off, target, name, "-"))
+            rows.append(slot_row(0x8f3950, "_ZTV19EenemyActionDataSet", 0x8f3958, off, target, name, "0x900000"))
+
+        # Separate synthetic table for contamination behavior. Its 0x8 slot is
+        # deliberately absent; a later valid-looking function pointer at 0xc must
+        # therefore be rejected by the contiguous-prefix filter.
+        rows.append(slot_row(0x900000, "_ZTV8GapClass", 0x900008, 0x0,
+                             0x2a0000, "GapClass::v0", "-"))
+        rows.append(slot_row(0x900000, "_ZTV8GapClass", 0x900008, 0x4,
+                             0x2a0020, "GapClass::v1", "-"))
+        rows.append(slot_row(0x900000, "_ZTV8GapClass", 0x900008, 0xc,
+                             0x2a1234, "GapClass::stray", "-"))
 
         write_gz(slots, header + "".join(rows))
 
@@ -119,7 +126,7 @@ def main() -> int:
         ], check=True)
 
         catalog = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line.strip()]
-        assert len(catalog) == 20
+        assert len(catalog) == 22
         by_key = {(x["class_name"], x["dispatch_slot_offset"]): x for x in catalog}
 
         expected = {
@@ -147,7 +154,10 @@ def main() -> int:
         assert static_only["target_functions"][0]["thumb_observed_in_pointer"] is True
         assert static_only["target_functions"][0]["resolution_modes"] == ["image_base_plus_module_offset"]
 
-        assert ("ActionData", "0x2c") not in by_key
+        assert ("GapClass", "0x0") in by_key
+        assert ("GapClass", "0x4") in by_key
+        assert ("GapClass", "0xc") not in by_key
+        assert by_key[("GapClass", "0x0")]["primary_prefix_slot_count"] == 2
 
     print("static vtable slot export smoke: ok")
     return 0
