@@ -1,0 +1,18 @@
+name: Nevergone ML class dispatch catalog smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/build_nevergone_class_dispatch_catalog.py'
+      - 'tools/ml/nevergone_class_dispatch_catalog_smoke.py'
+      - '.github/workflows/ml-class-dispatch-catalog-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate class-aware dispatch catalog
+        run: python3 tools/ml/nevergone_class_dispatch_catalog_smoke.py
