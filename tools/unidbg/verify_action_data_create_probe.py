@@ -25,6 +25,16 @@ def main() -> int:
         '"ghidra_address"',
         '"runtime_offset"',
         '"action_data_create_entry"',
+        '"action_data_create_preflight_disassembly"',
+        '"expected_dispatch_sites"',
+        '"instruction_boundary"',
+        '"is_blx"',
+        "0x29ec26L",
+        "0x29ec3cL",
+        "0x29ed22L",
+        "0x29ed38L",
+        "PREFLIGHT_BYTES = 0x80",
+        "PREFLIGHT_MAX_INSTRUCTIONS = 64",
     ):
         require(probe, token, str(PROBE))
 
