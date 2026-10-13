@@ -16,6 +16,8 @@ TARGETS = (
     "GameSceneObject::isContainsRect(CCRect)",
     "GameSceneObject::isContainsRect(CCRect,const char*)",
     "GameSceneObject::getObjectRect()",
+    "GameLevels::LoadGL_Scene()",
+    "GameSceneObject::initWithData(GameSceneLayerObjectData*)",
     "SceneActionsSystem::waUpdate(float)",
     "TrapActionsData::loadWBGFile(...)",
 )
@@ -58,11 +60,19 @@ def make_slice(unresolved: str | None = None) -> str:
             parts.extend(["00353210\tldr r3,[r4,#0xbc]", "00353214\tcmp r5,r3", "00353218\tbgt 0x00353240"])
         elif "loadWBGFile" in target:
             parts.extend(["00390010\tstr r2,[r4,#188]", "00390014\tcmp r2,#0"])
+        elif target == "GameLevels::LoadGL_Scene()":
+            parts.extend(["002d2c00\tstr r6,[r5,#0x48]", "002d2c04\tldr r7,[r5,#0x48]"])
+        elif target == "GameSceneObject::initWithData(GameSceneLayerObjectData*)":
+            parts.extend(["00350120\tldr r3,[r1,#0x48]", "00350124\tstr r3,[r4,#0x108]"])
         else:
             parts.append("0034b100\tbl GameSceneObject::isContainsRect")
         parts.extend(["", "-- DECOMPILE --"])
         if target == "GameSceneClassLayer::showEventObjTip(...)":
             parts.append("if (obj->isContainsRect(rect)) obj->triggerSceneAction();")
+        elif target == "GameLevels::LoadGL_Scene()":
+            parts.append("GameSceneLayerObjectData *objectData = GameSceneLayerObjectData::create();")
+        elif target == "GameSceneObject::initWithData(GameSceneLayerObjectData*)":
+            parts.append("*(int *)(this + 0x108) = *(int *)(objectData + 0x48);")
         elif "loadWBGFile" in target:
             parts.append("*(uint *)(this + 0xbc) = count;")
         else:
@@ -88,6 +98,7 @@ class SceneActionsSliceReportTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         report = json.loads(result.stdout)
         self.assertTrue(report["complete"])
+        self.assertEqual(report["format"], "nevergone-scene-actions-slice-report-v2")
         self.assertEqual(len(report["targets"]), len(TARGETS))
         wa_update = report["frame_count_candidates"]["SceneActionsSystem::waUpdate(float)"]
         self.assertTrue(any("0xbc" in line for line in wa_update["offset_bc"]))
@@ -96,6 +107,13 @@ class SceneActionsSliceReportTest(unittest.TestCase):
         self.assertTrue(any("0xbc" in line or "188" in line for line in loader["offset_bc"]))
         spatial = report["spatial_trigger_candidates"]["GameSceneClassLayer::showEventObjTip(...)"]
         self.assertTrue(any("isContainsRect" in line for line in spatial))
+        event_field = report["event_field_candidates"][
+            "GameSceneObject::initWithData(GameSceneLayerObjectData*)"
+        ]
+        self.assertTrue(any("0x108" in line for line in event_field["offset_108"]))
+        self.assertTrue(any("str" in line.lower() for line in event_field["memory_ops"]))
+        load_scene = report["event_field_candidates"]["GameLevels::LoadGL_Scene()"]
+        self.assertTrue(any("GameSceneLayerObjectData" in line for line in load_scene["offset_108"]))
 
     def test_unresolved_target_fails_closed(self) -> None:
         unresolved = "TrapActionsData::loadWBGFile(...)"
