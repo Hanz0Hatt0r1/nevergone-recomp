@@ -58,3 +58,49 @@ For `subsystem`, use the same command with `--task subsystem --classes scene com
 On every fold the TF-IDF vocabulary is fit only on training families. Query functions are compared only with training-family centroids, and mixed-label reference families are omitted for the evaluated task. The evaluator reports overall transfer accuracy, confusion, per-predicted-class precision, and a descriptive precision/coverage grid over `top_similarity` and `top_gap`.
 
 The threshold grid is exploratory. Selecting a threshold from the same held-out results and then quoting its precision as an independent production guarantee would be optimistic. Any chosen transfer policy should be validated again with a nested or separate holdout before it is allowed to influence production routing.
+
+## Nested policy validation
+
+`nevergone_nested_similarity_transfer_cv.py` selects per-predicted-class similarity/gap thresholds on inner family-grouped OOF results and evaluates them on untouched outer families. For the current Nevergone `code_domain` corpus, only `media_library` and `runtime_library` are approved for trusted production evidence. `engine` and `game` remain disabled even when a full-data OOF policy could be learned for them.
+
+## Production transfer artifact
+
+Train the production artifact with the validated class allow-list:
+
+```bash
+python3 tools/ml/train_nevergone_similarity_transfer.py \
+  /tmp/nevergone-ml-v2/dataset-4class-internal \
+  /tmp/nevergone-ml-v2/families-internal.jsonl \
+  /tmp/nevergone-ml-v2/code-domain-similarity-transfer \
+  --task code_domain \
+  --classes game engine runtime_library media_library \
+  --allow-trusted-class media_library \
+  --allow-trusted-class runtime_library \
+  --folds 5 \
+  --target-precision 0.95 \
+  --min-policy-examples 10
+```
+
+The final TF-IDF vocabulary is fit on the full selected labelled corpus. The production prototype set contains only families unanimous for the selected task, matching the validation protocol. Family-grouped OOF predictions on the full corpus choose the final class-specific threshold pairs.
+
+Query unseen functions:
+
+```bash
+python3 tools/ml/query_nevergone_similarity_transfer.py \
+  /tmp/nevergone-ml-v2/code-domain-similarity-transfer \
+  /tmp/nevergone-internal-unseen-500.jsonl \
+  --output /tmp/nevergone-internal-unseen-500.transfer.jsonl
+```
+
+A result can set `trusted=true` only when the predicted class is on the explicit validated allow-list and the learned class-specific similarity/gap policy passes. `engine` and `game` therefore cannot become trusted transfer labels.
+
+Attach the evidence to the existing hierarchy output:
+
+```bash
+python3 tools/ml/attach_nevergone_similarity_transfer.py \
+  /tmp/nevergone-internal-unseen-500.hierarchy-role.jsonl \
+  /tmp/nevergone-internal-unseen-500.transfer.jsonl \
+  --output /tmp/nevergone-internal-unseen-500.analysis.jsonl
+```
+
+The joiner adds `similarity_transfer` but asserts that the existing `final_action` is unchanged. Similarity transfer is an independent evidence channel, not a routing override.
