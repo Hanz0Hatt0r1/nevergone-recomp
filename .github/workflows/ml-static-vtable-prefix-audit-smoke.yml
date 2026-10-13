@@ -1,0 +1,28 @@
+name: Nevergone ML static vtable prefix audit smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_static_vtable_prefixes.py'
+      - 'tools/ml/nevergone_static_vtable_prefix_audit_smoke.py'
+      - '.github/workflows/ml-static-vtable-prefix-audit-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile audit tools
+        run: |
+          python -m py_compile \
+            tools/ml/audit_nevergone_static_vtable_prefixes.py \
+            tools/ml/nevergone_static_vtable_prefix_audit_smoke.py
+      - name: Run prefix audit smoke
+        run: python tools/ml/nevergone_static_vtable_prefix_audit_smoke.py
