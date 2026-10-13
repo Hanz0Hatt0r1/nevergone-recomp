@@ -21,6 +21,7 @@ def main() -> int:
         "GHIDRA_BIAS = 0x10000L",
         "GHIDRA_CREATE_A = 0x29ec10L",
         "GHIDRA_CREATE_B = 0x29ed0cL",
+        "GHIDRA_CREATE_C = 0x2ace4cL",
         "runtimeOffset = ghidraAddress - GHIDRA_BIAS",
         "module.callFunction(emulator, runtimeOffset | 1L)",
         '"guest_argument_count", 0',
@@ -35,20 +36,27 @@ def main() -> int:
         "0x29ec3cL",
         "0x29ed22L",
         "0x29ed38L",
+        "0x2ace64L",
+        "0x2ace7aL",
         "PREFLIGHT_BYTES = 0x80",
         "PREFLIGHT_MAX_INSTRUCTIONS = 64",
         'FALLBACK_SUFFIX = ":fallback"',
         "ActionDataFallbackPathControl.install",
         '"fallback_path_requested"',
         '"post_first_virtual_call_r0_zero_only"',
+        '"expected_receiver_class_from_static_inference"',
+        '"WeaponsItemData"',
+        '"create_void_plus_static_receiver_vtable_exact_slot_candidates"',
     ):
         require(probe, token, str(PROBE))
 
     for token in (
         "GHIDRA_CREATE_A = 0x29ec10L",
         "GHIDRA_CREATE_B = 0x29ed0cL",
+        "GHIDRA_CREATE_C = 0x2ace4cL",
         "GHIDRA_FIRST_CALL_A = 0x29ec26L",
         "GHIDRA_FIRST_CALL_B = 0x29ed22L",
+        "GHIDRA_FIRST_CALL_C = 0x2ace64L",
         "postCallGhidra = firstCallGhidra + 2L",
         "debugger.addBreakPoint((module.base + postCallOffset) | 1L",
         "reg_read(ArmConst.UC_ARM_REG_R0)",
@@ -73,8 +81,6 @@ def main() -> int:
 
     if "module.callFunction(emulator, runtimeOffset | 1L," in probe:
         raise AssertionError("create(void) probe must not pass guest arguments")
-    if "0x2ace4c" in probe.lower() or "0x2ace4c" in fallback.lower():
-        raise AssertionError("higher-risk 0x2ace4c must not be in direct-entry/fallback allowlist")
 
     require(harness, '"--probe-action-data-create"', str(HARNESS))
     require(harness, "ActionDataCreateProbe.run", str(HARNESS))
