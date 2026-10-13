@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Build conservative class/vtable@slot candidates from ExportVtableSlots.java output.
 
-Unlike the legacy xref-based catalog, this tool consumes slot pointers read directly
-from analyzed Ghidra program memory. Every exported row already passed an exact
-FunctionManager.getFunctionAt() check in Ghidra. Runtime evidence is validation-only:
-static candidates never change routing or cross vtable/class boundaries.
+Only the contiguous primary function-pointer prefix beginning at the Itanium
+address point is retained. A missing slot terminates that vtable for catalog
+purposes. This prevents later code pointers in adjacent rodata from being
+mistaken for virtual methods. Runtime evidence is validation-only: static
+candidates never change routing or cross vtable/class boundaries.
 """
 from __future__ import annotations
 
@@ -22,7 +23,7 @@ from analyze_nevergone_vtable_static_provenance import (
     symbol_class_name,
 )
 
-FORMAT = "NEVERGONE.StaticVtableSlotCatalog/2"
+FORMAT = "NEVERGONE.StaticVtableSlotCatalog/3"
 MODULE = "libcocos2dcpp.so"
 POINTER_SIZE = 4
 
@@ -137,8 +138,36 @@ def main() -> int:
                 "next_vtable_symbol_start": next_start,
             })
 
+    # Keep only the contiguous function-pointer prefix starting exactly at the
+    # address point. The raw exporter historically skipped unresolved words, so
+    # any gap is evidence that the primary table ended (or became unresolved).
+    # In either case, everything after the first gap is too weak for static use.
+    offsets_by_vtable: dict[tuple[int, str], set[int]] = defaultdict(set)
+    for address_point, class_name, slot_offset in grouped:
+        offsets_by_vtable[(address_point, class_name)].add(slot_offset)
+
+    allowed_keys: set[tuple[int, str, int]] = set()
+    prefix_slots_by_vtable: dict[tuple[int, str], int] = {}
+    for vtable_key, offsets in offsets_by_vtable.items():
+        slot = 0
+        kept = 0
+        while slot in offsets:
+            allowed_keys.add((vtable_key[0], vtable_key[1], slot))
+            kept += 1
+            slot += POINTER_SIZE
+        prefix_slots_by_vtable[vtable_key] = kept
+
+    nonprefix_rows = sum(
+        len(rows)
+        for key, rows in grouped.items()
+        if key not in allowed_keys
+    )
+
     out: list[dict[str, Any]] = []
     for (address_point, class_name, slot_offset), rows in sorted(grouped.items()):
+        if (address_point, class_name, slot_offset) not in allowed_keys:
+            continue
+
         vtable_id = f"{MODULE}:{address_point:08x}"
         slot_hex = f"0x{slot_offset:x}"
         target_entries = sorted({int(row["target_entry"]) for row in rows})
@@ -203,7 +232,8 @@ def main() -> int:
             "cross_vtable_transfer_allowed": False,
             "cross_class_transfer_allowed": False,
             "static_candidate_affects_routing": False,
-            "source_kind": "ghidra_program_memory_pointer",
+            "source_kind": "ghidra_primary_vtable_contiguous_memory_pointer",
+            "primary_prefix_slot_count": prefix_slots_by_vtable[(address_point, class_name)],
         })
 
     out.sort(key=lambda row: (row["receiver_vtable_id"], int(row["dispatch_slot_offset"], 0)))
@@ -214,8 +244,10 @@ def main() -> int:
 
     print("format:", FORMAT)
     print("input memory-pointer rows:", input_rows)
-    print("decoded vtables with resolved slots:", len(decoded_vtables))
-    print("static function-slot candidates:", len(out))
+    print("decoded vtables with resolved rows:", len(decoded_vtables))
+    print("vtables with nonempty contiguous primary prefix:", sum(v > 0 for v in prefix_slots_by_vtable.values()))
+    print("static primary-prefix candidates:", len(out))
+    print("nonprefix memory-pointer rows rejected:", nonprefix_rows)
     print("single-function memory pointers:", sum(x["static_status"] == "single_function_memory_pointer" for x in out))
     print("ambiguous memory pointers:", sum(x["static_status"] == "ambiguous_function_memory_pointers" for x in out))
     print("runtime matches:", sum(x["runtime_validation_status"] == "runtime_match" for x in out))
