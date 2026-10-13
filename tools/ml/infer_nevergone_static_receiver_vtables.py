@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Infer exact receiver vtables from conservative Ghidra receiver type evidence.
 
-This layer never infers a class from the virtual target. It accepts only a one-level
-pointer receiver whose pointee type maps exactly, or by a unique terminal class
-name, to a class present in the static vtable catalog. A class must have exactly
-one catalog vtable address point. Runtime observations, when supplied, are used
-only to validate or block the inference. Routing is never modified.
+This layer never infers a class from the virtual target. It accepts direct one-level
+pointer receiver types and, for receiver evidence format /2, bounded transparent
+COPY/CAST/INDIRECT/MULTIEQUAL type-flow candidates exported by Ghidra. All usable
+class candidates must converge to one catalog class, and that class must have exactly
+one catalog vtable address point. Runtime observations, when supplied, only validate
+or block the inference. Routing is never modified.
 """
 from __future__ import annotations
 
@@ -20,7 +21,10 @@ from typing import Any
 CATALOG_FORMAT = "NEVERGONE.StaticVtableSlotCatalog/3"
 OUTPUT_FORMAT = "NEVERGONE.StaticReceiverVtableInference/1"
 QUERY_FORMAT = "NEVERGONE.StaticReceiverVtableQuery/1"
-RECEIVER_FORMAT = "NEVERGONE.GhidraIndirectReceiverType/1"
+RECEIVER_FORMATS = {
+    "NEVERGONE.GhidraIndirectReceiverType/1",
+    "NEVERGONE.GhidraIndirectReceiverType/2",
+}
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -79,6 +83,37 @@ def source_entry(source_id: str) -> str:
     return source_id.split(":", 1)[1] if ":" in source_id else source_id
 
 
+def parse_json_string_list(value: Any, *, where: str) -> list[str]:
+    if value in (None, "", "-"):
+        return []
+    if not isinstance(value, str):
+        raise ValueError(f"{where}: expected JSON string list cell")
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{where}: invalid JSON string list") from error
+    if not isinstance(parsed, list) or not all(isinstance(x, str) for x in parsed):
+        raise ValueError(f"{where}: expected JSON array of strings")
+    return parsed
+
+
+def resolve_type_to_catalog_classes(
+    raw: Any,
+    class_vtables: dict[str, set[str]],
+    terminal_to_classes: dict[str, set[str]],
+) -> list[tuple[str, str]]:
+    cleaned = clean_type_name(raw)
+    if cleaned is None:
+        return []
+    if cleaned in class_vtables:
+        return [(cleaned, "exact_catalog_class_name")]
+    terminal = terminal_class_name(cleaned)
+    terminal_classes = terminal_to_classes.get(terminal, set())
+    if len(terminal_classes) == 1:
+        return [(next(iter(terminal_classes)), "unique_terminal_class_name")]
+    return []
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("analysis", type=Path)
@@ -108,8 +143,10 @@ def main() -> int:
 
     receivers: dict[tuple[str, int], dict[str, str]] = {}
     for line_no, row in enumerate(receiver_rows, 2):
-        if row.get("format") != RECEIVER_FORMAT:
-            raise ValueError(f"{args.receiver_types_tsv}:{line_no}: expected {RECEIVER_FORMAT}")
+        if row.get("format") not in RECEIVER_FORMATS:
+            raise ValueError(
+                f"{args.receiver_types_tsv}:{line_no}: expected one of {sorted(RECEIVER_FORMATS)}"
+            )
         source_id = row.get("source_id")
         try:
             call_index = int(row.get("call_index", "-1"))
@@ -120,6 +157,7 @@ def main() -> int:
         key = (source_id, call_index)
         if key in receivers:
             raise ValueError(f"duplicate receiver type row: {source_id}#{call_index}")
+        row["_line_no"] = str(line_no)
         receivers[key] = row
 
     runtime: dict[tuple[str, int], dict[str, Any]] = {}
@@ -152,6 +190,20 @@ def main() -> int:
             slot = normalize_slot(call.get("primary_slot_offset_candidate"))
             receiver = receivers.get((source_id, call_index))
 
+            pointer_depth = int(receiver.get("receiver_pointer_depth", "0")) if receiver else 0
+            flow_names: list[str] = []
+            flow_displays: list[str] = []
+            if receiver and receiver.get("format") == "NEVERGONE.GhidraIndirectReceiverType/2":
+                line_no = receiver.get("_line_no", "?")
+                flow_names = parse_json_string_list(
+                    receiver.get("flow_single_pointer_pointee_names_json"),
+                    where=f"{args.receiver_types_tsv}:{line_no}:flow names",
+                )
+                flow_displays = parse_json_string_list(
+                    receiver.get("flow_single_pointer_pointee_displays_json"),
+                    where=f"{args.receiver_types_tsv}:{line_no}:flow displays",
+                )
+
             base: dict[str, Any] = {
                 "format": OUTPUT_FORMAT,
                 "source_id": source_id,
@@ -160,14 +212,20 @@ def main() -> int:
                 "call_address": call.get("call_address"),
                 "dispatch_slot_offset": slot,
                 "receiver_type_evidence_present": receiver is not None,
+                "receiver_type_format": receiver.get("format") if receiver else None,
                 "receiver_type_name": receiver.get("receiver_type_name") if receiver else None,
                 "receiver_type_display": receiver.get("receiver_type_display") if receiver else None,
-                "receiver_pointer_depth": int(receiver.get("receiver_pointer_depth", "0")) if receiver else 0,
+                "receiver_pointer_depth": pointer_depth,
                 "pointee_type_name": receiver.get("pointee_type_name") if receiver else None,
                 "pointee_type_display": receiver.get("pointee_type_display") if receiver else None,
                 "receiver_storage_kind": receiver.get("receiver_storage_kind") if receiver else None,
+                "flow_type_node_count": int(receiver.get("flow_type_node_count", "0")) if receiver else 0,
+                "flow_single_pointer_pointee_names": flow_names,
+                "flow_single_pointer_pointee_displays": flow_displays,
                 "class_name": None,
                 "class_match_kind": None,
+                "class_evidence_source": None,
+                "candidate_receiver_class_names": [],
                 "candidate_receiver_vtable_ids": [],
                 "receiver_vtable_id": None,
                 "runtime_validation_status": "runtime_unobserved",
@@ -181,37 +239,48 @@ def main() -> int:
                 status = "missing_receiver_type_evidence"
             elif slot is None:
                 status = "missing_slot_offset"
-            elif int(receiver.get("receiver_pointer_depth", "0")) != 1:
-                status = "receiver_not_single_pointer"
             else:
-                candidates: list[tuple[str, str]] = []
-                seen_names: set[str] = set()
-                for raw in (receiver.get("pointee_type_display"), receiver.get("pointee_type_name")):
-                    cleaned = clean_type_name(raw)
-                    if cleaned is None or cleaned in seen_names:
-                        continue
-                    seen_names.add(cleaned)
-                    if cleaned in class_vtables:
-                        candidates.append((cleaned, "exact_catalog_class_name"))
-                        continue
-                    terminal = terminal_class_name(cleaned)
-                    terminal_classes = terminal_to_classes.get(terminal, set())
-                    if len(terminal_classes) == 1:
-                        candidates.append((next(iter(terminal_classes)), "unique_terminal_class_name"))
+                typed_sources: list[tuple[Any, str]] = []
+                if pointer_depth == 1:
+                    typed_sources.extend([
+                        (receiver.get("pointee_type_display"), "direct_receiver_type"),
+                        (receiver.get("pointee_type_name"), "direct_receiver_type"),
+                    ])
+                typed_sources.extend((value, "transparent_type_flow") for value in flow_displays)
+                typed_sources.extend((value, "transparent_type_flow") for value in flow_names)
 
-                class_names = sorted({name for name, _kind in candidates})
+                candidates: list[tuple[str, str, str]] = []
+                seen_raw: set[tuple[str, str]] = set()
+                for raw, source_kind in typed_sources:
+                    cleaned = clean_type_name(raw)
+                    if cleaned is None or (cleaned, source_kind) in seen_raw:
+                        continue
+                    seen_raw.add((cleaned, source_kind))
+                    for class_name, match_kind in resolve_type_to_catalog_classes(
+                        cleaned, class_vtables, terminal_to_classes
+                    ):
+                        candidates.append((class_name, match_kind, source_kind))
+
+                class_names = sorted({name for name, _kind, _source in candidates})
+                base["candidate_receiver_class_names"] = class_names
                 if not class_names:
-                    status = "unresolved_receiver_class"
+                    if pointer_depth != 1 and not flow_names and not flow_displays:
+                        status = "receiver_not_single_pointer"
+                    else:
+                        status = "unresolved_receiver_class"
                 elif len(class_names) > 1:
                     status = "ambiguous_receiver_class"
                 else:
                     class_name = class_names[0]
-                    exact_kind = "exact_catalog_class_name" if any(
-                        name == class_name and kind == "exact_catalog_class_name" for name, kind in candidates
-                    ) else "unique_terminal_class_name"
+                    exact = [x for x in candidates if x[0] == class_name and x[1] == "exact_catalog_class_name"]
+                    chosen = exact[0] if exact else next(x for x in candidates if x[0] == class_name)
+                    _name, match_kind, source_kind = chosen
+                    if source_kind == "transparent_type_flow":
+                        match_kind = "transparent_flow_" + match_kind
                     vtables = sorted(class_vtables[class_name])
                     base["class_name"] = class_name
-                    base["class_match_kind"] = exact_kind
+                    base["class_match_kind"] = match_kind
+                    base["class_evidence_source"] = source_kind
                     base["candidate_receiver_vtable_ids"] = vtables
                     if len(vtables) != 1:
                         status = "ambiguous_class_vtable"
@@ -232,6 +301,8 @@ def main() -> int:
                                 base["runtime_validation_status"] = "runtime_match"
                         else:
                             status = "resolved_unique_vtable"
+                        if source_kind == "transparent_type_flow":
+                            counts["resolved_via_transparent_type_flow"] += 1
 
             base["status"] = status
             counts[status] += 1
@@ -247,6 +318,7 @@ def main() -> int:
                     "dispatch_slot_offset": slot,
                     "receiver_class_name": base["class_name"],
                     "receiver_class_match_kind": base["class_match_kind"],
+                    "receiver_class_evidence_source": base["class_evidence_source"],
                     "receiver_type_name": base["receiver_type_name"],
                     "receiver_type_display": base["receiver_type_display"],
                     "runtime_validation_status": base["runtime_validation_status"],
@@ -263,6 +335,7 @@ def main() -> int:
     print("calls considered:", len(output))
     print("resolved unique vtable:", counts["resolved_unique_vtable"])
     print("resolved unique vtable runtime match:", counts["resolved_unique_vtable_runtime_match"])
+    print("resolved via transparent type flow:", counts["resolved_via_transparent_type_flow"])
     print("runtime mismatch blocked:", counts["runtime_mismatch_blocked"])
     print("ambiguous class vtable:", counts["ambiguous_class_vtable"])
     print("ambiguous receiver class:", counts["ambiguous_receiver_class"])
