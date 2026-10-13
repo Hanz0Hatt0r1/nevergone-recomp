@@ -11,8 +11,11 @@ import csv
 import gzip
 import json
 import re
+from collections import Counter
 from pathlib import Path
 from typing import Any
+
+from nevergone_function_origin import classify_function_origin
 
 FORMAT = "NEVERGONE.MlSeedLabels/1"
 
@@ -49,6 +52,7 @@ def generate(functions_path: Path, program: str, rules_path: Path, output_path: 
     matched_functions = 0
     label_rows = 0
     per_task: dict[str, dict[str, int]] = {}
+    excluded_origins: Counter[str] = Counter()
 
     with gzip.open(functions_path, "rt", encoding="utf-8", newline="") as source, \
          output_path.open("w", encoding="utf-8") as out:
@@ -62,8 +66,13 @@ def generate(functions_path: Path, program: str, rules_path: Path, output_path: 
         for row in reader:
             functions += 1
             if row["is_external"].lower() == "true":
+                excluded_origins["ghidra_external"] += 1
                 continue
             name = row["name"]
+            origin = classify_function_origin(name)
+            if origin != "internal":
+                excluded_origins[origin] += 1
+                continue
             entry = row["entry"]
             selected: dict[str, tuple[str, str, str]] = {}
 
@@ -113,6 +122,7 @@ def generate(functions_path: Path, program: str, rules_path: Path, output_path: 
         "functions_seen": functions,
         "matched_functions": matched_functions,
         "label_rows": label_rows,
+        "excluded_function_origins": dict(sorted(excluded_origins.items())),
         "task_distribution": per_task,
         "output": str(output_path),
     }
