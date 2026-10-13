@@ -8,7 +8,14 @@ import sys
 from pathlib import Path
 from typing import Any, Iterable, TextIO
 
-from train_nevergone_production_classifier import ARTIFACT_FORMAT, normalize_portable, route_action
+from train_nevergone_production_classifier import (
+    ARTIFACT_FORMAT,
+    LEGACY_ARTIFACT_FORMAT,
+    calibrate_confidence,
+    normalize_portable,
+    route_action,
+    route_action_for_class,
+)
 
 
 def _require_joblib():
@@ -82,14 +89,12 @@ def main() -> int:
     joblib = _require_joblib()
     artifact_path = args.model_dir / "classifier.joblib"
     artifact = joblib.load(artifact_path)
-    if not isinstance(artifact, dict) or artifact.get("format") != ARTIFACT_FORMAT:
+    artifact_format = artifact.get("format") if isinstance(artifact, dict) else None
+    if artifact_format not in {ARTIFACT_FORMAT, LEGACY_ARTIFACT_FORMAT}:
         raise SystemExit(f"unsupported classifier artifact: {artifact_path}")
 
     model = artifact["model"]
-    calibrator = artifact["confidence_calibrator"]
     classes = list(artifact["classes"])
-    accept_threshold = artifact.get("accept_threshold")
-    review_threshold = artifact.get("review_threshold")
 
     input_handle, source_name, close_input = _open_input(args.input)
     output_handle, close_output = _open_output(args.output)
@@ -115,20 +120,48 @@ def main() -> int:
             }
             prediction = max(probability_map, key=probability_map.get)
             raw_confidence = float(probability_map[prediction])
-            confidence = float(calibrator.predict([raw_confidence])[0])
-            action = route_action(
-                confidence,
-                accept_threshold=accept_threshold,
-                review_threshold=review_threshold,
-            )
+
+            if artifact_format == ARTIFACT_FORMAT:
+                confidence, confidence_source = calibrate_confidence(
+                    prediction,
+                    raw_confidence,
+                    global_calibrator=artifact["confidence_calibrator"],
+                    class_calibrators=artifact.get(
+                        "class_confidence_calibrators", {}
+                    ),
+                )
+                class_policies = artifact.get("class_policies", {})
+                action = route_action_for_class(
+                    prediction,
+                    confidence,
+                    class_policies,
+                )
+                policy = class_policies.get(prediction, {})
+                accept_threshold = policy.get("accept_threshold")
+                review_threshold = policy.get("review_threshold")
+            else:
+                calibrator = artifact["confidence_calibrator"]
+                confidence = float(calibrator.predict([raw_confidence])[0])
+                confidence_source = "legacy_global"
+                accept_threshold = artifact.get("accept_threshold")
+                review_threshold = artifact.get("review_threshold")
+                action = route_action(
+                    confidence,
+                    accept_threshold=accept_threshold,
+                    review_threshold=review_threshold,
+                )
+
             result = {
-                "format": ARTIFACT_FORMAT,
+                "format": artifact_format,
                 "id": record_id,
                 "task": artifact["task"],
                 "prediction": prediction,
                 "confidence": confidence,
+                "confidence_source": confidence_source,
                 "raw_confidence": raw_confidence,
                 "action": action,
+                "accept_threshold": accept_threshold,
+                "review_threshold": review_threshold,
             }
             if not args.no_probabilities:
                 result["probabilities"] = probability_map

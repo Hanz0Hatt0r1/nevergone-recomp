@@ -16,15 +16,45 @@ code_domain + calibrated confidence + action
 
 On the four-class, family-grouped experiment the sparse baseline reached about
 `0.818` balanced accuracy and outperformed both the standalone tiny encoder and
-the hybrid neural-residual experiment. This document turns that baseline into a
-reusable local artifact instead of continuing architecture search.
+the hybrid neural-residual experiment.
 
-The production path still excludes source function names, source addresses,
-raw Ghidra headers and project-relative goals from model input.
+The production path excludes source function names, source addresses, raw Ghidra
+headers and project-relative goals from model input.
+
+## Why routing is class-conditional
+
+The first production artifact used one global correctness calibrator and one set
+of confidence thresholds. A held-out 500-function `libcocos2dcpp.so` export was
+100% unseen by training identity, but its automatic decisions were strongly
+skewed:
+
+```text
+accept:   143 / 500
+review:   349 / 500
+escalate:   8 / 500
+
+accepted classes:
+engine         140
+media_library    3
+game             0
+```
+
+A global threshold can therefore be dominated by easier classes. Production
+Classifier v2 instead conditions both confidence calibration and routing policy
+on the **predicted class**.
+
+For each predicted class, family-grouped OOF predictions are used to:
+
+1. fit an isotonic correctness calibrator when enough varied evidence exists;
+2. find the widest `accept` region reaching the target empirical precision;
+3. find the widest `review` region reaching the lower target precision.
+
+If a class has insufficient evidence for a threshold, that tier is disabled for
+that class. The router escalates rather than borrowing an unsafe global cutoff.
+A global OOF isotonic calibrator is retained only as a confidence-calibration
+fallback when a class cannot fit its own mapping.
 
 ## Train and package
-
-Use the already-built four-class dataset and Function Family Miner map:
 
 ```bash
 cd ~/nevergone-recomp
@@ -49,45 +79,28 @@ manifest.json
 oof_predictions.jsonl
 ```
 
-`classifier.joblib` contains the final TF-IDF/logistic model trained on all
-selected labelled functions plus the confidence calibrator and routing
-thresholds. It is local derived analysis data and should not be committed.
+`classifier.joblib` contains the final model, global fallback calibrator,
+class-specific calibrators and class-specific routing policies.
 
-`manifest.json` records the dataset fingerprint, classes, OOF metrics,
-calibration policy and selected thresholds.
+`manifest.json` records the dataset fingerprint, OOF metrics, calibrator sources,
+per-class policies and selective-risk statistics.
 
-`oof_predictions.jsonl` is the audit trail used to understand routing quality.
-Each row contains truth, prediction, raw score, calibrated confidence and
-routing action for a function that was held out together with its function
-family.
+`oof_predictions.jsonl` is the family-held-out audit trail. Each row includes the
+predicted class, correctness, raw score, calibrated confidence,
+`confidence_source`, selected thresholds and routing action.
 
-## Confidence calibration
+## Default safety targets
 
-The final classifier is trained on every selected labelled function, but its
-routing thresholds are **not** estimated from training-set predictions.
-
-The trainer first generates family-grouped out-of-fold predictions. The maximum
-logistic probability is then calibrated against the binary event
-`prediction == truth` with isotonic regression.
-
-The resulting `confidence` means:
-
-> estimated probability that the predicted class is correct, calibrated from
-> family-held-out Nevergone functions.
-
-The default routing policy searches for the maximum OOF coverage that satisfies:
+The defaults are:
 
 ```text
-accept:   empirical precision >= 0.95
-review:   empirical precision >= 0.85
-escalate: everything below the review threshold
+accept: empirical OOF precision >= 0.95 within predicted class
+review: empirical OOF precision >= 0.85 within predicted class
 ```
 
-At least 25 OOF examples must pass a threshold before it is accepted. If no
-threshold has sufficient evidence, that action tier is disabled rather than
-inventing a cutoff.
-
-Targets can be changed explicitly:
+At least 10 predicted-class OOF examples must pass a class threshold. At least 25
+predicted-class examples with both correct and incorrect outcomes are required
+to fit a class-specific isotonic calibrator. These can be changed explicitly:
 
 ```bash
 python3 tools/ml/train_nevergone_production_classifier.py \
@@ -96,69 +109,76 @@ python3 tools/ml/train_nevergone_production_classifier.py \
   /tmp/nevergone-ml-v2/production-code-domain \
   --classes game engine runtime_library media_library \
   --accept-precision 0.97 \
-  --review-precision 0.90
+  --review-precision 0.90 \
+  --min-class-threshold-examples 15
 ```
+
+Training prints entries such as:
+
+```text
+class policies:
+  game: predicted=... precision=... calibrator=classwise accept=... review=...
+  engine: predicted=... precision=... calibrator=classwise accept=... review=...
+...
+OOF actions: ...
+selective OOF: ...
+```
+
+`selective OOF` reports the actual held-out precision and coverage of the
+`accept`, `review` and `escalate` buckets after combining all class policies.
 
 ## Classify a new Ghidra export
 
-The inference CLI accepts JSONL written directly by `ExportMlPcodeCorpus.java`:
-
 ```bash
 python3 tools/ml/classify_nevergone_pcode.py \
   /tmp/nevergone-ml-v2/production-code-domain \
-  /tmp/new-functions.jsonl \
-  --output /tmp/new-functions.classified.jsonl
+  /tmp/nevergone-new-functions.jsonl \
+  --output /tmp/nevergone-new-functions.classified.jsonl
 ```
 
-It also accepts dataset-style rows containing `text` instead of `model_text`.
-Use `-` as input/output for streaming:
-
-```bash
-cat /tmp/new-functions.jsonl | \
-python3 tools/ml/classify_nevergone_pcode.py \
-  /tmp/nevergone-ml-v2/production-code-domain \
-  -
-```
-
-Typical output:
+Typical v2 result:
 
 ```json
-{"action":"accept","confidence":0.972,"id":"libcocos2dcpp.so:00123456","prediction":"game","probabilities":{"engine":0.021,"game":0.961,"media_library":0.006,"runtime_library":0.012},"raw_confidence":0.961,"task":"code_domain"}
+{"action":"accept","accept_threshold":0.91,"confidence":0.97,"confidence_source":"classwise","id":"libcocos2dcpp.so:00123456","prediction":"engine","raw_confidence":0.94,"review_threshold":0.77,"task":"code_domain"}
 ```
 
-Ambiguous functions are explicitly surfaced instead of forced into automation:
+The output exposes the policy actually used for that predicted class. This is
+particularly useful when auditing surprising `media_library` or `game`
+predictions in a new binary.
 
-```json
-{"action":"escalate","confidence":0.58,"id":"libcocos2dcpp.so:00124567","prediction":"engine","raw_confidence":0.54,"task":"code_domain"}
-```
+The inference CLI remains backward compatible with
+`NEVERGONE.ProductionClassifier/1` artifacts, but v1 keeps its legacy global
+routing. Retrain to obtain v2 behavior.
 
 For a compact stream, omit the full probability map:
 
 ```bash
 python3 tools/ml/classify_nevergone_pcode.py \
   /tmp/nevergone-ml-v2/production-code-domain \
-  /tmp/new-functions.jsonl \
+  /tmp/nevergone-new-functions.jsonl \
   --no-probabilities
 ```
 
 ## Intended automation
-
-The classifier is a cheap first-stage router, not a source-code reconstructor:
 
 ```text
 new binary/function
       ↓
 Ghidra export
       ↓
-production classifier
+portable production classifier
+      ↓
+ predicted class
+      ↓
+class-specific calibration + threshold
       ↓
  ┌─────────────┬─────────────┬─────────────┐
  │ accept      │ review      │ escalate    │
- │ high conf   │ medium conf │ ambiguous   │
+ │ high safety │ medium      │ ambiguous   │
  ↓             ↓             ↓
 automation   evidence UI   deeper analysis / LLM
 ```
 
-The next useful model heads are `subsystem` and later `function_role`. They
-should reuse this confidence-routing machinery rather than adding larger neural
-models before there are substantially more independent function families.
+After this routing layer is stable, the next useful model head is `subsystem`,
+followed by `function_role`. Both should reuse the same family-grouped,
+class-conditional confidence machinery.
