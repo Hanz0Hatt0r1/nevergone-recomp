@@ -1,0 +1,24 @@
+name: Nevergone ML dispatch target propagation smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/propagate_nevergone_dispatch_target_evidence.py'
+      - 'tools/ml/nevergone_dispatch_target_propagation_smoke.py'
+      - '.github/workflows/ml-dispatch-target-propagation-smoke.yml'
+
+jobs:
+  dispatch-target-propagation-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile tools
+        run: |
+          python -m py_compile \
+            tools/ml/propagate_nevergone_dispatch_target_evidence.py \
+            tools/ml/nevergone_dispatch_target_propagation_smoke.py
+      - name: Run smoke
+        run: python tools/ml/nevergone_dispatch_target_propagation_smoke.py
