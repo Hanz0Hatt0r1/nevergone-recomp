@@ -1,5 +1,6 @@
 import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
+import ghidra.program.model.address.AddressSpace;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.FunctionManager;
 import ghidra.program.model.mem.Memory;
@@ -26,6 +27,7 @@ public class ExportVtableSlots extends GhidraScript {
     private static final int ADDRESS_POINT_DELTA = 8;
     private static final int POINTER_SIZE = 4;
     private static final long DEFAULT_MAX_SLOT_OFFSET = 0x400L;
+    private static final long UINT32_MASK = 0xffffffffL;
 
     private static final class VtableSymbol {
         final Address start;
@@ -56,27 +58,57 @@ public class ExportVtableSlots extends GhidraScript {
         return low.contains("vtable for ") || low.contains("construction vtable for ");
     }
 
-    private Function resolveFunction(FunctionManager functions, long rawValue, long imageBase) {
-        long canonical = rawValue & ~1L;
+    private Address checkedAddress(long offset) {
+        AddressSpace space = currentProgram.getAddressFactory().getDefaultAddressSpace();
+        long maxOffset = space.getMaxAddress().getOffset();
+        if (Long.compareUnsigned(offset, maxOffset) > 0) return null;
+        try {
+            return space.getAddress(offset);
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
 
-        Function direct = functions.getFunctionAt(toAddr(canonical));
-        if (direct != null) return direct;
+    private Long checkedBiasedOffset(long canonical, long imageBase) {
+        AddressSpace space = currentProgram.getAddressFactory().getDefaultAddressSpace();
+        long maxOffset = space.getMaxAddress().getOffset();
+        if (Long.compareUnsigned(imageBase, maxOffset) > 0) return null;
+        long remaining = maxOffset - imageBase;
+        if (Long.compareUnsigned(canonical, remaining) > 0) return null;
+        return imageBase + canonical;
+    }
+
+    private Function resolveFunction(FunctionManager functions, long rawValue, long imageBase) {
+        long canonical = (rawValue & UINT32_MASK) & ~1L;
+
+        Address directAddress = checkedAddress(canonical);
+        if (directAddress != null) {
+            Function direct = functions.getFunctionAt(directAddress);
+            if (direct != null) return direct;
+        }
 
         // Shared-object vtable entries commonly store module-relative offsets while
-        // this Ghidra project is loaded at image base +0x10000.
-        long biased = imageBase + canonical;
-        if (Long.compareUnsigned(biased, imageBase) >= 0) {
-            Function viaImageBase = functions.getFunctionAt(toAddr(biased));
-            if (viaImageBase != null) return viaImageBase;
+        // this Ghidra project is loaded at image base +0x10000. Reject any addition
+        // that would leave the program's address space instead of wrapping it.
+        Long biased = checkedBiasedOffset(canonical, imageBase);
+        if (biased != null) {
+            Address biasedAddress = checkedAddress(biased.longValue());
+            if (biasedAddress != null) {
+                Function viaImageBase = functions.getFunctionAt(biasedAddress);
+                if (viaImageBase != null) return viaImageBase;
+            }
         }
         return null;
     }
 
     private String resolutionMode(Function target, long rawValue, long imageBase) {
-        long canonical = rawValue & ~1L;
+        long canonical = (rawValue & UINT32_MASK) & ~1L;
         long targetOffset = target.getEntryPoint().getOffset();
         if (targetOffset == canonical) return "direct_ghidra_address";
-        if (targetOffset == imageBase + canonical) return "image_base_plus_module_offset";
+        Long biased = checkedBiasedOffset(canonical, imageBase);
+        if (biased != null && targetOffset == biased.longValue()) {
+            return "image_base_plus_module_offset";
+        }
         return "unexpected";
     }
 
@@ -139,8 +171,8 @@ public class ExportVtableSlots extends GhidraScript {
                 for (long slotOffset = 0; slotOffset <= maxSlotOffset; slotOffset += POINTER_SIZE) {
                     long slotLong = addressPoint.getOffset() + slotOffset;
                     if (Long.compareUnsigned(slotLong, nextStart) >= 0) break;
-                    Address slotAddress = toAddr(slotLong);
-                    if (!memory.contains(slotAddress)) break;
+                    Address slotAddress = checkedAddress(slotLong);
+                    if (slotAddress == null || !memory.contains(slotAddress)) break;
 
                     final long rawValue;
                     try {
