@@ -17,6 +17,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from build_nevergone_similarity_index import require_dependencies as _require_similarity_dependencies
 from nevergone_nested_routing_cv import collect_predictions, learn_policy
 from nevergone_nested_similarity_transfer_cv import (
     _fit_reference as fit_transfer_reference,
@@ -34,6 +35,15 @@ from train_nevergone_production_classifier import (
 from train_nevergone_production_classifier_v4 import route_action_with_contrastive_ood
 
 FORMAT = "NevergoneNestedEvidenceFusionCV/1"
+
+
+def merge_dependency_contracts(
+    classifier_deps: dict[str, Any], similarity_deps: dict[str, Any]
+) -> dict[str, Any]:
+    """Combine classifier and retrieval dependency contracts for fusion helpers."""
+    merged = dict(classifier_deps)
+    merged.update(similarity_deps)
+    return merged
 
 
 def summarize_rows(rows: list[dict[str, Any]], selector, *, label_source: str) -> dict[str, Any]:
@@ -109,7 +119,10 @@ def main() -> int:
     if unknown:
         raise SystemExit(f"trusted transfer classes not in --classes: {sorted(unknown)}")
 
-    deps = _require_dependencies()
+    deps = merge_dependency_contracts(
+        _require_dependencies(),
+        _require_similarity_dependencies(),
+    )
     np = deps["np"]
     rows = _load_dataset(
         args.dataset_dir, args.families, task=args.task, classes=args.classes
