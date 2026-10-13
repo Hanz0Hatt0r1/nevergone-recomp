@@ -1,0 +1,20 @@
+name: SceneActions spatial trigger
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build SceneActions spatial trigger smoke
+        run: >-
+          c++ -std=c++17 -Wall -Wextra -Werror
+          -Iandroid/app/src/main/cpp
+          tools/scene_actions_spatial_trigger_smoke.cpp
+          -o /tmp/scene_actions_spatial_trigger_smoke
+      - name: Run SceneActions spatial trigger smoke
+        run: /tmp/scene_actions_spatial_trigger_smoke
