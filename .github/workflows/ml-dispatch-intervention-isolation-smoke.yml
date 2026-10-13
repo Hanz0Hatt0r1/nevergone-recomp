@@ -1,0 +1,32 @@
+name: Nevergone ML dispatch intervention isolation smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/convert_nevergone_dispatch_runtime_trace_to_seeds.py'
+      - 'tools/ml/nevergone_dispatch_intervention_isolation_smoke.py'
+      - 'tools/unidbg/src/main/java/nevergone/DispatchEvidenceContext.java'
+      - 'tools/unidbg/src/main/java/nevergone/DispatchTargetRuntimeTrace.java'
+      - 'tools/unidbg/src/main/java/nevergone/ActionDataFallbackPathControl.java'
+      - 'tools/unidbg/src/main/java/nevergone/ActionDataCreateProbe.java'
+      - '.github/workflows/ml-dispatch-intervention-isolation-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile converter and smoke
+        run: |
+          python -m py_compile \
+            tools/ml/convert_nevergone_dispatch_runtime_trace_to_seeds.py \
+            tools/ml/nevergone_dispatch_intervention_isolation_smoke.py
+      - name: Run dispatch intervention isolation smoke
+        run: python tools/ml/nevergone_dispatch_intervention_isolation_smoke.py
