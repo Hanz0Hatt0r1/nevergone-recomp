@@ -45,6 +45,7 @@ jobs:
             tools/ml/search_nevergone_function_families.py \
             tools/ml/nevergone_similarity_transfer_cv.py \
             tools/ml/nevergone_nested_similarity_transfer_cv.py \
+            tools/ml/nevergone_nested_evidence_fusion_cv.py \
             tools/ml/train_nevergone_similarity_transfer.py \
             tools/ml/query_nevergone_similarity_transfer.py \
             tools/ml/attach_nevergone_similarity_transfer.py \
@@ -76,6 +77,7 @@ jobs:
             tools/ml/nevergone_similarity_transfer_cv_smoke.py \
             tools/ml/nevergone_nested_similarity_transfer_cv_smoke.py \
             tools/ml/nevergone_similarity_transfer_production_smoke.py \
+            tools/ml/nevergone_evidence_fusion_smoke.py \
             tools/ml/nevergone_nested_selective_metrics_smoke.py
       - name: Run synthetic pipeline smoke
         run: python tools/ml/nevergone_ml_pipeline_smoke.py
@@ -107,5 +109,7 @@ jobs:
         run: python tools/ml/nevergone_nested_similarity_transfer_cv_smoke.py
       - name: Run similarity transfer production smoke
         run: python tools/ml/nevergone_similarity_transfer_production_smoke.py
+      - name: Run evidence fusion smoke
+        run: python tools/ml/nevergone_evidence_fusion_smoke.py
       - name: Run nested selective metrics smoke
         run: python tools/ml/nevergone_nested_selective_metrics_smoke.py
