@@ -7,6 +7,7 @@ on:
       - 'tools/ghidra/ExportIndirectCallReceiverParameterProvenance.java'
       - 'tools/ghidra/ExportIndirectCallTargetReceiverProvenance.java'
       - 'tools/ghidra/ExportIndirectCallStructuralReceiverParameterProvenance.java'
+      - 'tools/ghidra/ExportAddressClassification.java'
       - 'tools/ml/build_nevergone_receiver_type_plan.py'
       - 'tools/ml/rebuild_nevergone_receiver_analysis_from_inference.py'
       - 'tools/ml/infer_nevergone_static_receiver_vtables.py'
