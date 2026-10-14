@@ -74,9 +74,47 @@ python3 tools/ml/audit_nevergone_controls_alias_native_crosscheck.py \
   --details-output /tmp/nevergone-controls-alias-native-crosscheck.jsonl
 ```
 
-The analysis leaves **37** register-rooted STORE sites from the
-original 38-method Controls scan to investigate, along with
-interprocedural aliases. A bounded structural result is not a
+## All 37 register-rooted STOREs: exact original Thumb witnesses
+
+A second offline auditor,
+`tools/ml/audit_nevergone_controls_register_store_native.py`,
+consumes the original triage JSONL from the same archive and pins
+**all 37** previously register-rooted unknown STORE sites to original
+Thumb `STR.W` or `STRB.W` immediate instructions. All five relevant
+`Controls` method prefixes are SHA-256-pinned; original Thumb
+`MOV r4,r0` assignments and the absence of intervening `r4`
+redefinitions before the checked STOREs were independently inspected.
+`r0`-based stores are limited to instruction windows before the
+entry `this` register is reused.
+
+| Native Controls field STORE witness | Count |
+| --- | ---: |
+| `STR.W` (4-byte) | **24** |
+| `STRB.W` (1-byte) | **13** |
+| Base register `r4` (saved `Controls* this`) | 28 |
+| Base register `r0` (entry `Controls* this`) | 9 |
+| Writes to `Controls+0x124/0x12c/0x130/0x134` | **0** |
+
+These 37 writes are to direct `Controls` fields, not to child
+objects. Together with the nine LOAD-based child-object STOREs above,
+all **46/46** originally unknown local STORE sites in the 38-method
+scan are classified by original native instructions.
+
+Run the second auditor:
+
+```bash
+python3 tools/ml/audit_nevergone_controls_register_store_native.py \
+  ~/nevergone-controls-alias-operand-roots.tar.gz \
+  /path/to/com.hippiegame.nevergone.apk \
+  --details-output /tmp/nevergone-controls-register-store-native-audit.jsonl
+```
+
+**Interprocedural aliases remain open.** In particular, the three
+`ControlsButton::create` calls receive `Controls* this` as callback
+object, and the joystick back-reference points into the owner.
+Neither local STORE inventory excludes writes from other functions.
+
+A bounded structural result is not a
 whole-program write exclusivity proof. All output retains
 `all_alias_writers_excluded=false`,
 `dynamic_receiver_class_proven=false`, `affects_routing=false`.
