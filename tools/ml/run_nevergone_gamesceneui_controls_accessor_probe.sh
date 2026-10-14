@@ -8,7 +8,10 @@ set -euo pipefail
 : "${REPO_ROOT:=$PWD}"
 : "${WORK_ROOT:=$HOME/.cache/nevergone-recomp/receiver-provenance}"
 
-ACCESSOR_ENTRY="${ACCESSOR_ENTRY:-003d6eee}"
+# game.tsv records the ELF symbol at 0x003d6eee. The analyzed Ghidra project
+# uses the +0x10000 image-base view for this binary, so GetControlsObj is at
+# 0x003e6eee. The audit independently checks the resolved function name.
+ACCESSOR_ENTRY="${ACCESSOR_ENTRY:-003e6eee}"
 CALLER_SUBTREES="$WORK_ROOT/caller-argument-subtrees.tsv"
 CATALOG="$WORK_ROOT/static-vtable-slot-catalog.jsonl"
 ACCESSOR_TSV="$WORK_ROOT/gamesceneui-controls-accessor.tsv"
