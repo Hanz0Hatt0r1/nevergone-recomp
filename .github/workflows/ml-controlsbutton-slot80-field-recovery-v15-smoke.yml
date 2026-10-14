@@ -1,0 +1,30 @@
+name: Nevergone ControlsButton slot80 field recovery v15 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/finalize_nevergone_controlsbutton_slot80_field_recovery_v15.py'
+      - 'tools/ml/nevergone_controlsbutton_slot80_field_recovery_v15_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_slot80_field_recovery_v15.sh'
+      - '.github/workflows/ml-controlsbutton-slot80-field-recovery-v15-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/finalize_nevergone_controlsbutton_slot80_field_recovery_v15.py'
+      - 'tools/ml/nevergone_controlsbutton_slot80_field_recovery_v15_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_slot80_field_recovery_v15.sh'
+      - '.github/workflows/ml-controlsbutton-slot80-field-recovery-v15-smoke.yml'
+
+jobs:
+  controlsbutton-slot80-v15:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate fail-closed eleven-call v15 recovery
+        run: |
+          python3 -m py_compile tools/ml/finalize_nevergone_controlsbutton_slot80_field_recovery_v15.py
+          python3 tools/ml/nevergone_controlsbutton_slot80_field_recovery_v15_smoke.py
+          bash -n tools/ml/run_nevergone_controlsbutton_slot80_field_recovery_v15.sh
