@@ -2,7 +2,7 @@
 
 ## Scope
 
-This evidence slice targets the three still-unresolved indirect calls in `libcocos2dcpp.so:002a7594` at call indices 3, 4 and 7. The retained caller-subtree evidence shows a mixed receiver shape: some branches are the direct result of `GameSceneUI::sharedGameSceneUI()`, while others load the object field at `sharedGameSceneUI() + 0x134`. All three indirect calls use dispatch slot `0x80`.
+This evidence slice targets the three still-unresolved indirect calls in `libcocos2dcpp.so:002a7594` at call indices 3, 4 and 7. The retained **caller-argument** subtree shows branches involving `GameSceneUI::sharedGameSceneUI()` and `sharedGameSceneUI() + 0x134`. It does **not** establish the object used by the nested `CALLIND` receiver. All three indirect calls use dispatch slot `0x80`.
 
 The goal is deliberately narrower than recovering one receiver class. The probe asks whether every class independently proven for those mixed branches has the same exact vtable-slot target.
 
@@ -40,15 +40,59 @@ Missing singleton constructor provenance, a non-unique singleton store, incomple
 
 This probe is evidence-only. It does not alter receiver inference, query emission or production routing. A later finalizer may consume the retained convergence result only after real Ghidra data confirms the complete chain.
 
-## v11 recovery provenance gate
+## Correction: quarantine legacy v11 recovery (2026-10-14)
 
-The older `GameSceneUIControlsSlotConvergenceAudit/1` establishes that the two catalog vtable slots share a target, but it does **not** independently prove that `sharedGameSceneUI()` returns a `GameSceneUI` object. The v11 post-finalizer must therefore consume **both** that slot audit and all three `MixedReceiverSlotTargetConvergenceAudit/1` per-call rows. Every strict row must be accepted, have the exact source/call/slot, preserve both proven classes and their vtables, and agree on the same target. Missing or failed singleton provenance blocks v11 recovery even if the catalog targets match.
+**Previous v11 target recovery was unsound as a receiver-class proof.**
+The `GameSceneUI` singleton and `Controls` accessor checks validate
+classes of a *caller argument* to `Controls::showControlsAttackKey()`.
+The nested virtual calls at `002a7594` indices 3, 4, 7 dispatch on
+a separate receiver value. Equal slot-`0x80` targets for the two caller
+argument classes do not establish the target of that receiver.
 
-After running the mixed receiver probe with the corrected singleton exporter, run:
+The old audit is retained for diagnostic context, but its status is now
+`mixed_receiver_target_not_proven`. It exposes only
+`caller_argument_candidate_class_names`,
+`caller_argument_candidate_target_ids` and
+`catalog_convergent_target_candidate`; the virtual receiver's proven
+classes and targets are empty. The legacy finalizer blocks these three
+calls **even when given previously generated, stale audit JSONL claiming
+success**. It emits no recovery queries for them. This does not modify
+production routing.
+
+After regenerating v11, these three calls return to
+`receiver_not_single_pointer` (30 unresolved virtual calls rather than
+the prior 27). The independent 17-call field-LOAD probe remains unchanged:
+its planner excludes the three quarantined calls, which are investigated
+by a separate receiver-value probe.
+
+### Run direct receiver-value Ghidra probe (Manjaro)
 
 ```bash
+cd ~/nevergone-recomp
+git switch main
+git pull --ff-only
+
 bash tools/ml/run_nevergone_gamesceneui_controls_slot_convergence_audit.sh
 bash tools/ml/run_nevergone_mixed_slot_target_recovery_v11.sh
+bash tools/ml/run_nevergone_mixed_receiver_value_probe.sh
+
+WORK="$HOME/.cache/nevergone-recomp/receiver-provenance"
+tar -C "$WORK" -czf "$HOME/nevergone-mixed-callind-receivers.tar.gz" \
+  static-receiver-vtable-inference-v11.jsonl \
+  evidence/mixed-callind-receiver-002a7594.tsv \
+  mixed-callind-receiver-value-audit.jsonl \
+  mixed-callind-receiver-value-audit.txt
 ```
 
-The v11 output may then mark calls 3/4/7 `resolved_converged_target`, retaining both possible receiver classes and both vtables. This remains evidence-only and does not change production routing.
+The new probe uses the existing read-only
+`ExportIndirectCallStructuralReceiverSlice.java` exporter on the
+actual `CALLIND` receiver values for source `002a7594`, then
+requires exact source/callsite/slot matches, complete bounded slices
+and valid root identities for indices 3, 4, 7. It **does not**
+automatically infer a receiver class or restore v11 routing.
+
+The next recovery step is to trace each receiver field's complete write
+provenance (including aliases), then join the proven class to the exact
+vtable slot. Only that new receiver-value-specific evidence can justify
+recovery. The prior caller-argument convergence cannot be re-enabled
+by a status flag.
