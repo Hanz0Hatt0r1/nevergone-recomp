@@ -4,6 +4,7 @@ set -euo pipefail
 : "${REPO_ROOT:=$PWD}"
 : "${RECEIVER_TYPES:=/tmp/nevergone-indirect-receiver-types.tsv}"
 : "${PARAMETER_PROVENANCE:=/tmp/nevergone-receiver-parameter-provenance.tsv}"
+: "${BASELINE_INFERENCE:=/tmp/nevergone-static-receiver-vtable-inference-v2.jsonl}"
 : "${OUTPUT:=/tmp/nevergone-static-receiver-vtable-inference-v3.jsonl}"
 : "${QUERIES_OUTPUT:=/tmp/nevergone-static-receiver-vtable-queries-v3.jsonl}"
 : "${FAILURE_DETAILS:=/tmp/nevergone-receiver-type-failures-v3.jsonl}"
@@ -74,6 +75,17 @@ fi
 
 "${cmd[@]}"
 
+if [[ -f "$BASELINE_INFERENCE" ]]; then
+  echo
+  echo "baseline failure audit:"
+  python3 "$REPO_ROOT/tools/ml/audit_nevergone_receiver_type_failures.py" \
+    "$RECEIVER_TYPES" \
+    "$BASELINE_INFERENCE" \
+    --samples 0
+fi
+
+echo
+echo "caller-aware failure audit:"
 python3 "$REPO_ROOT/tools/ml/audit_nevergone_receiver_type_failures.py" \
   "$RECEIVER_TYPES" \
   "$OUTPUT" \
