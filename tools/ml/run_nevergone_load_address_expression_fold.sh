@@ -81,12 +81,16 @@ with open(sys.argv[1], newline='', encoding='utf-8') as f:
             seen.add(text); print(text)
 PY
 )
-[[ ${#RAW_VALUES[@]} -gt 0 ]] || { echo "no raw values recovered from folded effective addresses" >&2; exit 4; }
 
-"$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
-  -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-  -scriptPath "$REPO_ROOT/tools/ghidra" \
-  -postScript ExportAddressClassification.java "$VALUE_CLASSIFICATION" "${RAW_VALUES[@]}"
+if [[ ${#RAW_VALUES[@]} -gt 0 ]]; then
+  "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
+    -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
+    -scriptPath "$REPO_ROOT/tools/ghidra" \
+    -postScript ExportAddressClassification.java "$VALUE_CLASSIFICATION" "${RAW_VALUES[@]}"
+else
+  echo "no raw values recovered from folded effective addresses; continuing owner/xref audit"
+  printf '%s\n' 'format\taddress\tblock\tblock_start\tblock_end\tread\twrite\texecute\tprimary_symbol\tfunction_at_entry\tfunction_at_name\tfunction_at_body\tfunction_at_is_thunk\tfunction_at_thunk_target\tfunction_containing_entry\tfunction_containing_name\tfunction_containing_body\tinstruction_mnemonic\tdata_type\traw_u32' > "$VALUE_CLASSIFICATION"
+fi
 
 echo
 echo "== LOAD effective address owner audit =="
