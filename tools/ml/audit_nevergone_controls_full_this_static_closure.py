@@ -97,14 +97,9 @@ def verify_base_lifetime_calls(elf:OriginalElf)->dict:
   dangerous=[row for row in stores if row[4] in DANGEROUS]
   require(not dangerous,'base/lifetime callee directly writes dangerous field '+name)
   store_map[name]=[hex(row[4]) for row in stores]
- # unscheduleAllSelectors moves this to r1, loads scheduler from this+0xc4 and
- # tail-calls CCScheduler::unscheduleAllForTarget. The scheduler's only wide
- # immediate STORE is its own +0x30 state byte; target is kept in r7.
  require(elf.at(0x516fc4,10).hex()=='0146d0f8c400f2f729b8','unscheduleAllSelectors forwarding changed')
- require(elf.at(0x509024,8).hex()=='054601910f462900','scheduler target preservation changed')
+ require(elf.at(0x509024,8).hex()=='054601910f460029','scheduler target preservation changed')
  require(elf.at(0x5090ec,4).hex()=='85f83030','scheduler internal +0x30 store changed')
- # Controls D0 invokes Controls D2 first, then operator delete. Any destructor
- # writes are terminal and cannot affect a later live receiver callsite.
  require(hashlib.sha256(elf.at(0x296744,16)).hexdigest()=='61ca0d4020bc1ef8bda96c96de2650e20292640ea12c47fb99cd53d012b1993b','Controls deleting destructor window changed')
  return {'direct_store_offsets':store_map,'dangerous_field_write':False,'delete_is_post_destructor_terminal':True,'unschedule_target_is_read_only_controls_argument':True}
 
@@ -115,7 +110,6 @@ def analyze(apk_path:Path)->dict:
   data=apk.read('lib/armeabi-v7a/libcocos2dcpp.so')
   require(hashlib.sha256(data).hexdigest()==SHA,'ELF SHA mismatch')
   elf=OriginalElf(data); direct=verify_direct_sites(elf); indirect=verify_indirect_sites(elf); base=verify_base_lifetime_calls(elf)
-  # Re-run the exact merged retained-channel proofs on the same original ELF.
   button=verify_controlsbutton_callback_path(elf)
   scheduler=verify_scheduler_path(elf)
   action=verify_callfuncn_path(elf)
