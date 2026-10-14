@@ -4,6 +4,11 @@
 Evidence-only. This consumes bounded structural receiver slices plus address
 classification memory words. It evaluates only the address subtree of canonical
 receiver LOADs. No receiver class is inferred and no routing query is emitted.
+
+Important P-code semantic: an ``address:...`` token is a RAM/storage Varnode,
+not an integer address literal. Its value is therefore read from the exact
+classified memory word at that storage address. Only ``const:...`` nodes are
+used as immediate numeric constants.
 """
 from __future__ import annotations
 
@@ -115,7 +120,14 @@ def fold_node(
     if const is not None:
         value = const & MASK32
     elif opcode == "-" and token_address is not None:
-        value = token_address & MASK32
+        # A RAM/address-space Varnode denotes the value stored at that address.
+        # It is not an integer address literal. Fail closed if that exact word
+        # was not independently classified/exported.
+        if token_address in memory_u32:
+            resolved_reads.add(token_address)
+            value = memory_u32[token_address] & MASK32
+        else:
+            unresolved_reads.add(token_address)
     elif opcode in {"COPY", "CAST", "INDIRECT"} and child_ids:
         value = child(0)
     elif opcode == "INT_ADD" and len(child_ids) >= 2:
@@ -144,7 +156,7 @@ def fold_node(
                 unresolved_reads.add(address)
     elif opcode == "MULTIEQUAL" and child_ids:
         values = [child(i) for i in range(len(child_ids))]
-        if values and all(value is not None for value in values) and len(set(values)) == 1:
+        if values and all(item is not None for item in values) and len(set(values)) == 1:
             value = values[0]
 
     active.remove(node_id)
