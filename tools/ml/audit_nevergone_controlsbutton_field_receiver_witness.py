@@ -83,17 +83,11 @@ class OriginalElf:
 
     def at(self, addr: int, length: int) -> bytes:
         for e in self.sections.values():
-            if e[3] != 8 and e[3] != 1:  # only NOBITS/PROGBITS
+            # ELF32 sh_type=1 is PROGBITS. sh_addr=entry[3],
+            # sh_offset=entry[4], sh_size=entry[5].
+            if e[1] != 1:
                 continue
-            if e[3] == 1 and e[3] != 8 and e[3] != 1:
-                continue
-            if e[3] == 8:
-                continue
-            if e[3] == 1 and e[3] != 1:
-                continue
-            start, size, file_offset = e[3], e[5], e[4]
-            # section tuple: name, type, flags, addr, offset, size...
-            start = e[3]
+            start, file_offset, size = e[3], e[4], e[5]
             if start <= addr and addr + length <= start + size:
                 offset = file_offset + addr - start
                 return self.data[offset:offset + length]
