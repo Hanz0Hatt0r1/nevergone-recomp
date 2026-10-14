@@ -1,0 +1,30 @@
+name: Nevergone ML non-LOAD structural root audit smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_nonload_structural_roots.py'
+      - 'tools/ml/run_nevergone_nonload_structural_root_audit.sh'
+      - '.github/workflows/ml-nonload-structural-root-audit-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile audit
+        run: python -m py_compile tools/ml/audit_nevergone_nonload_structural_roots.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_nonload_structural_root_audit.sh
+      - name: Check evidence-only contract
+        run: |
+          grep -q 'structural_receiver_not_load' tools/ml/audit_nevergone_nonload_structural_roots.py
+          grep -q 'unique_caller_catalog_candidate' tools/ml/audit_nevergone_nonload_structural_roots.py
+          grep -q 'affects routing: no' tools/ml/audit_nevergone_nonload_structural_roots.py
