@@ -1,0 +1,23 @@
+name: Nevergone ML caller argument subtree recovery smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/finalize_nevergone_caller_argument_subtree_recovery.py'
+      - 'tools/ml/nevergone_caller_argument_subtree_recovery_smoke.py'
+      - 'tools/ml/run_nevergone_caller_argument_subtree_recovery.sh'
+      - '.github/workflows/ml-caller-argument-subtree-recovery-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile tools/ml/finalize_nevergone_caller_argument_subtree_recovery.py
+          python3 -m py_compile tools/ml/nevergone_caller_argument_subtree_recovery_smoke.py
+          bash -n tools/ml/run_nevergone_caller_argument_subtree_recovery.sh
+      - name: Run synthetic recovery smoke
+        run: python3 tools/ml/nevergone_caller_argument_subtree_recovery_smoke.py
