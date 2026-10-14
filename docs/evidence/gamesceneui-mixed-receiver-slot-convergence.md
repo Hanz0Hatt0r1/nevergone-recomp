@@ -72,7 +72,8 @@ cd ~/nevergone-recomp
 git switch main
 git pull --ff-only
 
-bash tools/ml/run_nevergone_gamesceneui_controls_slot_convergence_audit.sh
+# If the strict mixed-target audit is missing, first run:
+# bash tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
 bash tools/ml/run_nevergone_mixed_slot_target_recovery_v11.sh
 bash tools/ml/run_nevergone_mixed_receiver_value_probe.sh
 
