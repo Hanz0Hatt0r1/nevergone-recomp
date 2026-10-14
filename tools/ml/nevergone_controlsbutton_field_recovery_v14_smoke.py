@@ -41,6 +41,9 @@ def fixtures():
         "packaged_controlsbutton_field_stability_proven":True,
         "packaged_receiver_class_proven":True,
         "caller_argument_quarantine_preserved":True,
+        "external_full_this_static_frontier_closed":True,
+        "external_full_this_sites_closed":14,
+        "known_external_frontier_writes_receiver_fields":False,
         "whole_program_alias_writes_excluded":False,
         "external_injected_code_excluded":False,"affects_routing":False,
     }]
@@ -54,6 +57,7 @@ def fixtures():
             "actual_nested_receiver_provenance":True,
             "packaged_field_stability_proven":True,
             "packaged_receiver_class_proven":True,
+            "external_full_this_static_frontier_closed":True,
             "caller_argument_provenance_used":False,"affects_routing":False,
         })
     catalog=[{
@@ -85,6 +89,7 @@ def run_case(inference, queries, stability, catalog, expect_ok: bool):
                        r["class_name"]=="ControlsButton" and
                        r["receiver_vtable_id"]==VTABLE for r in rows)
             assert all(d["accepted"] is True and
+                       d["external_full_this_static_frontier_closed"] is True and
                        d["caller_argument_provenance_used"] is False for d in ds)
         else:
             assert p.returncode!=0,(p.stdout,p.stderr)
@@ -108,6 +113,10 @@ def main():
     run_case(inference,queries,stability,catalog,True)
 
     bad=copy.deepcopy(stability); bad[0]["packaged_controlsbutton_field_stability_proven"]=False
+    run_case(inference,queries,bad,catalog,False)
+    bad=copy.deepcopy(stability); bad[0]["external_full_this_static_frontier_closed"]=False
+    run_case(inference,queries,bad,catalog,False)
+    bad=copy.deepcopy(stability); bad[1]["external_full_this_static_frontier_closed"]=False
     run_case(inference,queries,bad,catalog,False)
     bad=copy.deepcopy(inference); bad[0]["mixed_slot_target_recovery"]["reasons"]=["stale_caller_type"]
     run_case(bad,queries,stability,catalog,False)
