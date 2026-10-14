@@ -1,0 +1,32 @@
+name: Nevergone Controls alias operand-root smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportControlsAliasOperandRoots.java'
+      - 'tools/ml/audit_nevergone_controls_alias_operand_roots.py'
+      - 'tools/ml/nevergone_controls_alias_operand_roots_smoke.py'
+      - 'tools/ml/run_nevergone_controls_alias_operand_probe.sh'
+      - '.github/workflows/ml-controls-alias-operand-roots-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ghidra/ExportControlsAliasOperandRoots.java'
+      - 'tools/ml/audit_nevergone_controls_alias_operand_roots.py'
+      - 'tools/ml/nevergone_controls_alias_operand_roots_smoke.py'
+      - 'tools/ml/run_nevergone_controls_alias_operand_probe.sh'
+      - '.github/workflows/ml-controls-alias-operand-roots-smoke.yml'
+
+jobs:
+  controls-alias-operand-roots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate audit, runner and regression cases
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_controls_alias_operand_roots.py
+          python3 tools/ml/nevergone_controls_alias_operand_roots_smoke.py
+          bash -n tools/ml/run_nevergone_controls_alias_operand_probe.sh
