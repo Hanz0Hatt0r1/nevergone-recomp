@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Resolve only audited mixed-receiver rows whose vtable slots converge to one target.
+"""Quarantine legacy mixed caller-argument recovery until receiver values are proven.
 
-This post-finalizer deliberately does not invent a unique receiver class or vtable.
-It consumes NEVERGONE.GameSceneUIControlsSlotConvergenceAudit/1 and accepts only
-its exact source/call/slot set when the audit proves two concrete receiver vtables
-converge to one exact target. The emitted query keeps receiver_vtable_id null and
-carries both candidate vtables plus the converged target for catalog re-validation
-by the downstream resolver.
+The original convergence checks traced the caller's parameter, not the object
+used by nested CALLIND dispatch. This finalizer preserves the evidence for
+diagnostics, but blocks all three legacy recoveries (including stale "successful"
+strict audit JSONL). No query is emitted for these calls.
 """
 from __future__ import annotations
 
@@ -94,7 +92,11 @@ def main() -> int:
     class_slots = audit.get("class_slots")
     target = audit.get("converged_target_id")
 
-    contract_reasons: list[str] = []
+    # Fail closed even on stale, previously "successful" strict audit JSONL.
+    # The old branch proof followed the CALLER ARGUMENT to
+    # Controls::showControlsAttackKey, not the nested CALLIND receiver.
+    # These exact calls require a new receiver-value-specific recovery path.
+    contract_reasons: list[str] = ["caller_argument_not_virtual_receiver_provenance"]
     if audit.get("status") != "mixed_receiver_slot_target_converges":
         contract_reasons.append("audit_status_not_converged")
     if audit.get("controls_field_class_proven") is not True:
