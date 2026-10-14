@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -47,7 +48,8 @@ public:
             float parent_x,
             float parent_y,
             int child_z_order) {
-        if (variant < 1 || variant > 4) return false;
+        if (!valid_slot(slot) || variant < 1 || variant > 4 ||
+                !std::isfinite(parent_x) || !std::isfinite(parent_y)) return false;
         const std::uint8_t mode = slot == scene_action_pair_document_store::Slot::kBorn ? 0u : 1u;
         const auto state = scene_actions_play_state::build(document, mode);
         if (!state.has_value()) return false;
@@ -69,6 +71,7 @@ public:
             const trap_actions_document::Document& document,
             float dt_seconds) {
         TickResult out;
+        if (!valid_slot(slot)) return out;
         SlotState& state = slots_[index(slot)];
         if (!state.active) return out;
 
@@ -120,12 +123,14 @@ public:
     }
 
     std::optional<SlotState> snapshot(scene_action_pair_document_store::Slot slot) const {
+        if (!valid_slot(slot)) return std::nullopt;
         const SlotState& state = slots_[index(slot)];
         if (!state.active) return std::nullopt;
         return state;
     }
 
     void stop(scene_action_pair_document_store::Slot slot) {
+        if (!valid_slot(slot)) return;
         slots_[index(slot)] = SlotState{};
     }
 
@@ -134,6 +139,11 @@ public:
     }
 
 private:
+    static bool valid_slot(scene_action_pair_document_store::Slot slot) {
+        return slot == scene_action_pair_document_store::Slot::kBorn ||
+                slot == scene_action_pair_document_store::Slot::kIdle;
+    }
+
     static std::size_t index(scene_action_pair_document_store::Slot slot) {
         return slot == scene_action_pair_document_store::Slot::kBorn ? 0u : 1u;
     }
