@@ -1,0 +1,82 @@
+# P1A: 15 Controls alias operand roots cross-checked against original ARM ELF
+
+## Source and boundary
+
+The user-returned `nevergone-controls-alias-operand-roots.tar.gz` passed
+its original Ghidra auditor: **15/15 sites**, no errors. The follow-up
+`tools/ml/audit_nevergone_controls_alias_native_crosscheck.py` pins the
+original `libcocos2dcpp.so` SHA-256
+`94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`,
+checks the archive's plan/roots/audit identities and compares original
+Thumb instructions, ELF dynamic symbols, Controls vtable bytes and
+`R_ARM_RELATIVE` relocations. No original binary is committed.
+
+## Nine indirect STORE bases
+
+All nine Ghidra `STORE` destination expressions use
+`LOAD(Controls + field) + child_offset`; their original ARM instructions
+agree with the Ghidra site addresses. The original ELF witnesses are
+eight `strb.w` (one-byte) stores and one `str.w` (four-byte) store.
+
+| Controls pointer field | Child object offset | Count | Original instruction |
+| --- | --- | ---: | --- |
+| `+0x124` | `+0x150` | 5 | `strb.w` |
+| `+0x12c/+0x130/+0x134` | `+0x11d` | 3 | `strb.w` |
+| `+0x124` | `+0x14c` | 1 | `str.w` |
+
+The one pointer-width store at Ghidra `002a808c` is
+`STR.W (Controls + 0x104) -> *( *(Controls + 0x124) + 0x14c )`,
+independently confirmed by original Thumb `add.w r2,r4,#0x104` and
+`str.w r2,[r3,#0x14c]`. This is a back-reference into the Controls
+object, **not** an assignment to `Controls+0x124` itself. The
+construction-linked candidate for `Controls+0x124` is `CCJoyStick`;
+the `+0x12c/+0x130/+0x134` factory candidates are `ControlsButton`.
+These are not unique runtime class proofs.
+
+## Three CALLIND targets on Controls this
+
+The Ghidra receiver root and call argument are both parameter zero;
+the nested vtable load is `LOAD(Controls+0x0)`. The original
+`_ZTV8Controls` ELF object (virtual address `0x8e4490`, 592 bytes,
+vptr address point `+8`) has `R_ARM_RELATIVE` entries for both
+slots. Exact Thumb `BLX` instructions and ELF dynamic function
+symbols agree:
+
+| Ghidra call | Vtable slot | Original ELF target | Ghidra target | Symbol |
+| --- | --- | --- | --- | --- |
+| `002a79e6` | `0xb8` | `00515dbc` | `00525dbc` | `cocos2d::CCNode::addChild` |
+| `002a7e74` | `0x1ac` | `00524da8` | `00534da8` | `cocos2d::CCLayer::setTouchEnabled` |
+| `002a7ef2` | `0xb8` | `00515dbc` | `00525dbc` | `cocos2d::CCNode::addChild` |
+
+These are **Controls-vtable target candidates**. A subclass or
+runtime vptr mutation could change the actual target. No dispatch
+routing was modified.
+
+## Three ControlsButton factory callbacks
+
+The three `Controls::init` calls at `002a8118`, `002a816a` and
+`002a81bc` call the exact ELF
+`ControlsButton::create(char const*,char const*,cocos2d::CCObject*,...)`
+symbol. In each, `call_arg_2` is the unadjusted
+`Controls*` parameter zero. This proves the pointer is **passed as
+a callback object argument**; whether and how the factory retains
+or writes through that pointer is not proven.
+
+## Reproduce locally
+
+```bash
+cd `/nevergone-recomp
+git switch main
+git pull --ff-only
+python3 tools/ml/audit_nevergone_controls_alias_native_crosscheck.py \
+  `/nevergone-controls-alias-operand-roots.tar.gz \
+  /path/to/com.hippiegame.nevergone.apk \
+  --details-output /tmp/nevergone-controls-alias-native-crosscheck.jsonl
+```
+
+The analysis leaves **37** register-rooted STORE sites from the
+original 38-method Controls scan to investigate, along with
+interprocedural aliases. A bounded structural result is not a
+whole-program write exclusivity proof. All output retains
+`all_alias_writers_excluded=false`,
+`dynamic_receiver_class_proven=false`, `affects_routing=false`.
