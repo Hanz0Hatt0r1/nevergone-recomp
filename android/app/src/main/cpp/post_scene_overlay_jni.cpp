@@ -18,6 +18,8 @@
 #include "single_select_hero_confirm_compositor.h"
 #include "startup_contract.h"
 #include "tutorial_loading_compositor.h"
+#include "tutorial_scene_bootstrap.h"
+#include "tutorial_session_state.h"
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeDrawSplashLayers(JNIEnv*, jclass);
@@ -109,6 +111,12 @@ void maybe_stage_action_assets(JNIEnv* env) {
     (void)invoke_files_dir_loader(env, "org/nevergone/recomp/GameSceneActionAssetLoader");
 }
 
+bool gameplay_controls_allowed() {
+    return nevergone::offline_startup_flow::snapshot().route ==
+               nevergone::offline_startup_flow::Route::kGameLevels &&
+           !nevergone::tutorial_session_state::modal_input_blocked();
+}
+
 void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::game_scene_direct_renderer::on_surface_created();
     nevergone::server_selection_compositor::on_surface_created();
@@ -126,6 +134,14 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
 }
 
 void wrapped_server_draw(JNIEnv* env, jclass) {
+    // nativeOnDrawFrame() has already advanced the fixed game clock for this
+    // frame. Reproduce the shipped LoadingLayer action boundary: after the
+    // recovered 0.5 second delay, make switchNextScene eligible. cp_lesson was
+    // already resolved and parsed before tutorial-loading was entered, matching
+    // ManagementLayer::GoToGameLayer -> LoadGameLevelsWithFile -> switchScene.
+    nevergone::tutorial_scene_bootstrap::tick();
+
+    bool game_scene_drawn = false;
     GLint viewport[4] = {0, 0, 0, 0};
     glGetIntegerv(GL_VIEWPORT, viewport);
     if (viewport[2] > 0 && viewport[3] > 0) {
@@ -135,7 +151,7 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
         nevergone::tutorial_loading_compositor::on_surface_changed(viewport[2], viewport[3]);
         nevergone::scene_actions_gles_compositor::on_surface_changed(viewport[2], viewport[3]);
         nevergone::game_scene_action_compositor::on_surface_changed(viewport[2], viewport[3]);
-        (void)nevergone::game_scene_direct_renderer::draw();
+        game_scene_drawn = nevergone::game_scene_direct_renderer::draw();
     }
 
     nevergone::server_selection_compositor::draw();
@@ -146,24 +162,42 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     }
 
     maybe_stage_action_assets(env);
-    const auto startup = nevergone::offline_startup_flow::snapshot();
-    if (startup.route == nevergone::offline_startup_flow::Route::kGameLevels) {
+
+    // LessonLayer::showKeyboardPic() in the shipped tutorial immediately calls
+    // Controls::hideControls() and GameSceneUI::hideToolsUI(). Preserve that
+    // modal boundary: Loading, LessonOverlay and the post-lesson Dialogue must
+    // not tick/draw the ordinary gameplay controls. Interactive is the first
+    // phase that unlocks them.
+    const bool controls_allowed = gameplay_controls_allowed();
+    if (controls_allowed) {
         (void)nevergone::controls_function_state_runtime::tick();
     } else {
         nevergone::controls_function_state_runtime::reset();
+        nevergone::game_scene_action_surface_input::cancel_all_captures();
     }
 
-    // SceneActions are scene children in the original. Draw them after the
-    // project-owned base scene but before Controls/UI. With no explicit runtime
-    // submission this compositor is a no-op.
+    // SceneActions are world/scene children and remain visible behind tutorial
+    // overlays. The A/B/C/S gameplay controls are separate and stay hidden
+    // while the tutorial session is modal.
     (void)nevergone::scene_actions_gles_compositor::draw();
-    (void)nevergone::game_scene_action_compositor::draw();
+    if (controls_allowed) {
+        (void)nevergone::game_scene_action_compositor::draw();
+    }
 
-    // This is intentionally last: the original loading layer owns the whole
-    // surface while cp_lesson is being prepared, so no already-built gameplay
-    // or Controls geometry may leak through behind it.
+    // Once the recovered 0.5 s callback is due, a successful frame from the
+    // exact retained cp_lesson queue is the clean-room readiness gate for the
+    // original switchNextScene/initGameScene -> tick -> showLesson transition.
+    // The rest of this frame still used the old tutorial-loading route, so
+    // Controls cannot leak through behind LoadingLayer.
+    nevergone::tutorial_scene_bootstrap::observe_scene_draw(game_scene_drawn);
+
+    // LoadingLayer owns the complete surface until the handoff above succeeds.
     maybe_stage_tutorial_loading_assets(env);
+    const auto loading_route = nevergone::offline_startup_flow::snapshot();
     nevergone::tutorial_loading_compositor::draw();
+    if (loading_route.route == nevergone::offline_startup_flow::Route::kTutorialLoading) {
+        nevergone::tutorial_scene_bootstrap::on_loading_frame_presented();
+    }
 }
 
 void wrapped_native_touch(
@@ -173,8 +207,17 @@ void wrapped_native_touch(
         jint pointer_id,
         jfloat x,
         jfloat y) {
-    const auto startup = nevergone::offline_startup_flow::snapshot();
-    if (startup.route == nevergone::offline_startup_flow::Route::kGameLevels) {
+    // The original LessonLayer/Dialogue phases are modal and hide gameplay
+    // controls. Until their own reconstructed overlay input is installed, do
+    // not leak touches through to joystick/action gameplay behind the modal UI.
+    if (nevergone::offline_startup_flow::snapshot().route ==
+            nevergone::offline_startup_flow::Route::kGameLevels &&
+            nevergone::tutorial_session_state::modal_input_blocked()) {
+        nevergone::game_scene_action_surface_input::cancel_all_captures();
+        return;
+    }
+
+    if (gameplay_controls_allowed()) {
         const int width = g_surface_width.load(std::memory_order_relaxed);
         const int height = g_surface_height.load(std::memory_order_relaxed);
         if (nevergone::game_scene_action_surface_input::on_touch(

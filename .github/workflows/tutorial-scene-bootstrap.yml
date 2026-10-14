@@ -1,0 +1,80 @@
+name: Tutorial scene bootstrap
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/tutorial_scene_bootstrap.*'
+      - 'android/app/src/main/cpp/tutorial_session_state.*'
+      - 'android/app/src/main/cpp/offline_startup_flow.*'
+      - 'android/app/src/main/cpp/game_clock.*'
+      - 'android/app/src/main/cpp/filesystem_bindings.*'
+      - 'android/app/src/main/cpp/game_levels_**'
+      - 'android/app/src/main/cpp/game_scene_construction_plan.*'
+      - 'android/app/src/main/cpp/hp_data_reader.*'
+      - 'android/app/src/main/cpp/startup_contract.*'
+      - 'android/app/src/main/cpp/character_name_action_runtime.cpp'
+      - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
+      - 'android/app/src/main/cpp/native_bootstrap.cpp'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/tutorial_scene_bootstrap_smoke.cpp'
+      - 'docs/tutorial-loading-route.md'
+      - '.github/workflows/tutorial-scene-bootstrap.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/tutorial_scene_bootstrap.*'
+      - 'android/app/src/main/cpp/tutorial_session_state.*'
+      - 'android/app/src/main/cpp/offline_startup_flow.*'
+      - 'android/app/src/main/cpp/game_clock.*'
+      - 'android/app/src/main/cpp/filesystem_bindings.*'
+      - 'android/app/src/main/cpp/game_levels_**'
+      - 'android/app/src/main/cpp/game_scene_construction_plan.*'
+      - 'android/app/src/main/cpp/hp_data_reader.*'
+      - 'android/app/src/main/cpp/startup_contract.*'
+      - 'android/app/src/main/cpp/character_name_action_runtime.cpp'
+      - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
+      - 'android/app/src/main/cpp/native_bootstrap.cpp'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/tutorial_scene_bootstrap_smoke.cpp'
+      - 'docs/tutorial-loading-route.md'
+      - '.github/workflows/tutorial-scene-bootstrap.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run tutorial scene bootstrap smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            android/app/src/main/cpp/tutorial_scene_bootstrap.cpp \
+            android/app/src/main/cpp/tutorial_session_state.cpp \
+            android/app/src/main/cpp/tutorial_gameplay_state.cpp \
+            android/app/src/main/cpp/offline_startup_flow.cpp \
+            android/app/src/main/cpp/game_clock.cpp \
+            android/app/src/main/cpp/filesystem_bindings.cpp \
+            android/app/src/main/cpp/startup_contract.cpp \
+            android/app/src/main/cpp/game_levels_enter_transition.cpp \
+            android/app/src/main/cpp/game_levels_asset_probe.cpp \
+            android/app/src/main/cpp/game_levels_runtime_state.cpp \
+            android/app/src/main/cpp/game_levels_model.cpp \
+            android/app/src/main/cpp/game_levels_actions_section.cpp \
+            android/app/src/main/cpp/game_levels_global_section.cpp \
+            android/app/src/main/cpp/game_levels_layer_tail.cpp \
+            android/app/src/main/cpp/game_levels_scene_prefix.cpp \
+            android/app/src/main/cpp/game_levels_port_node_section.cpp \
+            android/app/src/main/cpp/game_levels_port_node_graph.cpp \
+            android/app/src/main/cpp/game_levels_port_navigation.cpp \
+            android/app/src/main/cpp/game_levels_start_scene.cpp \
+            android/app/src/main/cpp/game_levels_scene_navigation.cpp \
+            android/app/src/main/cpp/game_levels_scene_instance.cpp \
+            android/app/src/main/cpp/game_scene_construction_plan.cpp \
+            android/app/src/main/cpp/hp_data_reader.cpp \
+            tools/tutorial_scene_bootstrap_smoke.cpp \
+            -pthread \
+            -o /tmp/tutorial_scene_bootstrap_smoke
+          /tmp/tutorial_scene_bootstrap_smoke
