@@ -71,15 +71,15 @@ without a corrected field-level proof.
 The user's 2026-10-14 archive confirms all 17 planned calls have complete
 structural receiver slices, with no truncation, cycles or callsite mismatches.
 Each root is LOAD(CAST(INT_ADD/PTRADD(this, constant_field_offset))).
-For \`ControlsButton::touchMoved\`, Ghidra explicitly types the base
-\`ControlsButton *\`; for other functions the exact source function symbols
-identify the owner \`Controls\`. The 17 field offsets match the table above.
+For `ControlsButton::touchMoved`, Ghidra explicitly types the base
+`ControlsButton *`; for other functions the exact source function symbols
+identify the owner `Controls`. The 17 field offsets match the table above.
 
 The exact-APK Thumb factory witness auditor combines those **receiver LOAD**
 offsets with **factory return STORE** instruction windows from the original
 ARM library. It verifies the original library SHA-256, ELF32 symbol names,
 direct Thumb BL targets, STR.W r0 -> [r4 + offset], and 10 independent
-instruction-window SHA-256 digests. It then joins the unique slot-\`0x80\`
+instruction-window SHA-256 digests. It then joins the unique slot-`0x80`
 rows of the local Ghidra vtable catalog. Nothing from the APK is committed.
 
 ~~~bash
@@ -95,18 +95,18 @@ python3 tools/ml/audit_nevergone_slot80_factory_fields.py \
 
 Verified on the supplied archive and original APK:
 
-| Construction-linked receiver candidate | Calls | Slot-\`0x80\` target |
+| Construction-linked receiver candidate | Calls | Slot-`0x80` target |
 | --- | ---: | --- |
-| \`ControlsButton\` | 11 | \`libcocos2dcpp.so:00525d2e\` |
-| \`CCJoyStick\` | 2 | \`libcocos2dcpp.so:00525d2e\` |
-| \`cocos2d::CCSprite\` | 4 | \`libcocos2dcpp.so:00549f1e\` |
+| `ControlsButton` | 11 | `libcocos2dcpp.so:00525d2e` |
+| `CCJoyStick` | 2 | `libcocos2dcpp.so:00525d2e` |
+| `cocos2d::CCSprite` | 4 | `libcocos2dcpp.so:00549f1e` |
 
 **This is not a runtime receiver-class proof**: factory STORE evidence is
 positive but the analysis does not establish that all possible writes to each
 field have been exhaustively classified. Output status is
-\`construction_linked_target_candidate\`, with
-\`field_writes_exhaustive=false\`, \`receiver_class_proven=false\`, and
-\`affects_routing=false\`. It must not be fed to production routing as a
+`construction_linked_target_candidate`, with
+`field_writes_exhaustive=false`, `receiver_class_proven=false`, and
+`affects_routing=false`. It must not be fed to production routing as a
 unique class/target resolution. Existing v11 GameSceneUI/Controls caller-type
 proof for calls 3/4/7 remains separately suspect.
 
