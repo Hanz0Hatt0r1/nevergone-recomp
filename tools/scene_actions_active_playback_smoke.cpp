@@ -1,4 +1,5 @@
 #include <cassert>
+#include <limits>
 
 #include "scene_actions_active_playback.h"
 
@@ -74,5 +75,20 @@ int main() {
     assert(!runtime.start(docs::Slot::kBorn, 0, document, 0.0f, 0.0f, 0));
     nevergone::trap_actions_document::Document invalid;
     assert(!runtime.start(docs::Slot::kBorn, 1, invalid, 0.0f, 0.0f, 0));
+    // Invalid enum values must not alias idle state, including stop/tick.
+    const auto invalid_slot = static_cast<docs::Slot>(255);
+    assert(!runtime.start(invalid_slot, 2, document, 0.0f, 0.0f, 7));
+    assert(!runtime.snapshot(invalid_slot).has_value());
+    assert(runtime.tick(invalid_slot, document, 0.1f).status == active::TickStatus::kRejected);
+    runtime.stop(invalid_slot);
+    assert(runtime.snapshot(docs::Slot::kIdle).has_value());
+
+    // Reject nonfinite placement before mutating a live slot.
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float inf = std::numeric_limits<float>::infinity();
+    assert(!runtime.start(docs::Slot::kIdle, 2, document, nan, 0.0f, 7));
+    assert(!runtime.start(docs::Slot::kIdle, 2, document, 0.0f, inf, 7));
+    const auto retained = runtime.snapshot(docs::Slot::kIdle);
+    assert(retained.has_value() && retained->parent_y == -45.0f);
     return 0;
 }
