@@ -1,0 +1,30 @@
+name: Nevergone ML parameter-relative receiver field smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_parameter_relative_receiver_field.py'
+      - 'tools/ml/run_nevergone_parameter_relative_receiver_field_probe.sh'
+      - 'tools/ml/nevergone_parameter_relative_receiver_field_smoke.py'
+      - '.github/workflows/ml-parameter-relative-receiver-field-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_parameter_relative_receiver_field.py \
+            tools/ml/nevergone_parameter_relative_receiver_field_smoke.py
+          bash -n tools/ml/run_nevergone_parameter_relative_receiver_field_probe.sh
+      - name: Synthetic parameter-relative receiver field smoke
+        run: python3 tools/ml/nevergone_parameter_relative_receiver_field_smoke.py
+      - name: Check evidence-only contracts
+        run: |
+          grep -q 'parameter_relative_field_with_virtual_owner_evidence' tools/ml/audit_nevergone_parameter_relative_receiver_field.py
+          grep -q 'parameter_no_direct_caller_calls' tools/ml/audit_nevergone_parameter_relative_receiver_field.py
+          grep -q 'affects routing: no' tools/ml/audit_nevergone_parameter_relative_receiver_field.py
+          grep -q 'affects routing: no' tools/ml/run_nevergone_parameter_relative_receiver_field_probe.sh
