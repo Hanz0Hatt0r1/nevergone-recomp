@@ -1,1 +1,0 @@
-This note is part of the follow-up that fixes LOAD address-expression folding: RAM/address-space `address:...` Varnodes are storage values and must be read from classified memory rather than treated as integer address literals.
