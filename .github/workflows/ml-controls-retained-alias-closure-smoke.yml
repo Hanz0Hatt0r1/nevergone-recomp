@@ -1,0 +1,30 @@
+name: Nevergone Controls retained alias closure smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controls_retained_alias_closure.py'
+      - 'tools/ml/nevergone_controls_retained_alias_closure_smoke.py'
+      - 'tools/ml/run_nevergone_controls_retained_alias_closure.sh'
+      - '.github/workflows/ml-controls-retained-alias-closure-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controls_retained_alias_closure.py'
+      - 'tools/ml/nevergone_controls_retained_alias_closure_smoke.py'
+      - 'tools/ml/run_nevergone_controls_retained_alias_closure.sh'
+      - '.github/workflows/ml-controls-retained-alias-closure-smoke.yml'
+
+jobs:
+  controls-retained-alias:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate exact-ELF retained alias checker
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_controls_retained_alias_closure.py
+          python3 tools/ml/nevergone_controls_retained_alias_closure_smoke.py
+          bash -n tools/ml/run_nevergone_controls_retained_alias_closure.sh
