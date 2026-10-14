@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -68,6 +69,24 @@ def target_name_matches(value: Any, suffix: str) -> bool:
     return isinstance(value, str) and value != "-" and value.split("(", 1)[0].endswith(suffix)
 
 
+def defining_site(value: Any) -> str | None:
+    """Normalize tokens emitted by two independent Ghidra exporters.
+
+    ExportFieldStoreCandidates uses def:<addr>:<time>:<size>, while
+    ExportFunctionReturnObjectProvenance includes the opcode as
+    def:<opcode>@<addr>:<time>:<size>.  The producer identity is the common
+    address/time/size tuple; opcode spelling must not make a real join fail.
+    """
+    if not isinstance(value, str) or not value.startswith("def:"):
+        return None
+    text = value[4:]
+    if "@" in text:
+        _, text = text.split("@", 1)
+    if not re.fullmatch(r"[^:]+:[0-9]+:[0-9]+", text):
+        return None
+    return text
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Prove a unique virtual target across the mixed GameSceneUI/Controls receiver paths"
@@ -120,17 +139,20 @@ def main() -> int:
         and row.get("row_type") == "call"
         and target_name_matches(row.get("call_target_name"), "Controls::initControls")
     ]
-    control_outputs = {
-        row.get("call_output_root_token") for row in init_calls
-        if row.get("call_output_root_token") not in (None, "", "-")
+    control_output_sites = {
+        site for row in init_calls
+        if (site := defining_site(row.get("call_output_root_token"))) is not None
     }
     target_stores = [
         row for row in stores
         if norm_slot(row.get("field_offset_hex")) == "0x134"
         and "GameSceneUI::initGameSceneUI" in (row.get("function_name") or "")
     ]
-    matching_stores = [row for row in target_stores if row.get("value_token") in control_outputs]
-    if len(init_calls) != 1:
+    matching_stores = [
+        row for row in target_stores
+        if defining_site(row.get("value_token")) in control_output_sites
+    ]
+    if len(init_calls) != 1 or len(control_output_sites) != 1:
         reasons.append("initgamesceneui_controls_factory_call_not_unique")
     if len(target_stores) != 1 or len(matching_stores) != 1:
         reasons.append("gamesceneui_0x134_store_not_unique_controls_factory_output")
@@ -247,6 +269,7 @@ def main() -> int:
             "class_target_ids": class_to_targets,
             "convergent_target_id": convergent_target if not row_reasons else None,
             "controls_field_offset": "0x134",
+            "controls_factory_output_site": next(iter(control_output_sites), None),
             "reasons": row_reasons,
             "status": status,
             "affects_routing": False,
