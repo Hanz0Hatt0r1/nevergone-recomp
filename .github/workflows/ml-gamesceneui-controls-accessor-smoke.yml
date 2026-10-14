@@ -1,0 +1,45 @@
+name: Nevergone ML GameSceneUI controls accessor smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportAccessorReturnField.java'
+      - 'tools/ml/audit_nevergone_gamesceneui_controls_accessor.py'
+      - 'tools/ml/run_nevergone_gamesceneui_controls_accessor_probe.sh'
+      - '.github/workflows/ml-gamesceneui-controls-accessor-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and contract checks
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_gamesceneui_controls_accessor.py
+          bash -n tools/ml/run_nevergone_gamesceneui_controls_accessor_probe.sh
+          grep -q 'NEVERGONE.GhidraAccessorReturnField/1' tools/ghidra/ExportAccessorReturnField.java
+          grep -q 'return_load_from_parameter_constant_offset' tools/ghidra/ExportAccessorReturnField.java
+          grep -q 'mixed_direct_singleton_value_present' tools/ml/audit_nevergone_gamesceneui_controls_accessor.py
+      - name: Synthetic accessor audit
+        run: |
+          tmp="$(mktemp -d)"
+          cat > "$tmp/accessor.tsv" <<'EOF'
+          format	function_entry	function_name	declared_return_type	return_index	return_address	return_value_type	return_pointer_depth	return_pointee_type	root_opcode	load_address_pattern	load_base_parameter_index	load_base_parameter_type	load_offset	status
+          NEVERGONE.GhidraAccessorReturnField/1	003d6eee	GetControlsObj	Controls *	0	003d6ef2	Controls *	1	Controls	LOAD	PTRSUB	0	GameSceneUI *	0x134	return_load_from_parameter_constant_offset
+          EOF
+          cat > "$tmp/subtrees.tsv" <<'EOF'
+          format	row_type	source_id	source_call_index	source_entry	parameter_index	dispatch_slot_offset	expected_direct_caller_functions	expected_matched_caller_calls	direct_caller_functions	caller_functions_decompiled	caller_functions_failed	callers_with_matched_calls	matched_caller_calls	caller_entry	caller_name	caller_call_site	node_id	parent_node_id	input_index	depth	edge_kind	node_token	type_display	pointer_depth	pointee_type_display	constant_value	defining_opcode	defining_address	defining_time	call_target_entry	call_target_name	truncation	status
+          NEVERGONE.GhidraCallerArgumentSubtree/1	node	lib.so:002a7594	3	002a7594	0	0x80	1	3	-	-	-	-	-	003f12a8	caller	003f1872	1	0	0	1	value	def:CALL	int	0	-	-	CALL	003f1866	1	003d95e0	sharedGameSceneUI	-	-
+          NEVERGONE.GhidraCallerArgumentSubtree/1	node	lib.so:002a7594	3	002a7594	0	0x80	1	3	-	-	-	-	-	003f12a8	caller	003f1872	2	0	1	1	base	def:CALL	int	0	-	-	CALL	003f188a	2	003d95e0	sharedGameSceneUI	-	-
+          NEVERGONE.GhidraCallerArgumentSubtree/1	node	lib.so:002a7594	3	002a7594	0	0x80	1	3	-	-	-	-	-	003f12a8	caller	003f1872	3	0	2	1	offset	const:0x134:4	int	0	-	0x134	-	-	-	-	-	-	-
+          NEVERGONE.GhidraCallerArgumentSubtree/1	summary	lib.so:002a7594	3	002a7594	0	0x80	1	3	1	1	0	1	3	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	complete_caller_argument_subtrees
+          EOF
+          cat > "$tmp/catalog.jsonl" <<'EOF'
+          {"format":"NEVERGONE.StaticVtableSlotCatalog/3","class_name":"Controls","receiver_vtable_id":"lib.so:00900000"}
+          EOF
+          out="$(python3 tools/ml/audit_nevergone_gamesceneui_controls_accessor.py "$tmp/accessor.tsv" "$tmp/subtrees.tsv" "$tmp/catalog.jsonl")"
+          grep -q 'accessor offsets:.*0x134' <<<"$out"
+          grep -q "accessor classes: \['Controls'\]" <<<"$out"
+          grep -q 'mixed direct singleton value present: True' <<<"$out"
+          grep -q 'status: accessor_0x134_unique_catalog_class' <<<"$out"
