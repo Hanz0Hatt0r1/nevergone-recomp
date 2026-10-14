@@ -224,8 +224,12 @@ def main() -> int:
             "source_id": key[0],
             "call_index": key[1],
             "accepted": False,
-            "branch_classes": branch_classes,
-            "candidate_receiver_vtable_ids": candidate_vtables,
+            # Historical branches are caller-argument candidates, not
+            # independently proven CALLIND receiver candidates.
+            "branch_classes": [],
+            "candidate_receiver_vtable_ids": [],
+            "caller_argument_branch_classes": branch_classes,
+            "caller_argument_candidate_vtable_ids": candidate_vtables,
             "dispatch_slot_offset": slot,
             "converged_target_id": target,
             "resolution_mode": MODE,
