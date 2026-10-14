@@ -85,7 +85,7 @@ echo "missing-slot address classification:"
   -noanalysis \
   -scriptPath "$REPO_ROOT/tools/ghidra" \
   -postScript ExportAddressClassification.java "$ADDRESS_CLASSIFICATION" \
-    0029902c 0029be3e 0067aab0 0067aab4 0067aab8
+    0029902c 0029be3e 0067aab0 0067aab4 0067aab8 00288204
 cat "$ADDRESS_CLASSIFICATION"
 
 printf 'target provenance output: %s\n' "$OUT"
