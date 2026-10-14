@@ -13,7 +13,6 @@ import hashlib
 import json
 import struct
 import zipfile
-from collections import Counter
 from pathlib import Path
 
 from audit_nevergone_controls_cocos_backrefs import Elf, SHA, req
@@ -35,15 +34,11 @@ HASHES = {
     '_ZN10lua_system9uninitLuaEv': (0x4ca268, 24, '6572959d9ab477bee5f0f3c2b038fd46204cf562589bc3e8564ff323a5a60985'),
 }
 
-# Parent-consuming virtual slots when the parent object is Controls.
 PARENT_SLOTS = {
     0x0cc: ('_ZN7cocos2d6CCNode9getParentEv', 0x515d46),
     0x0dc: ('_ZN7cocos2d6CCNode11removeChildEPS0_b', 0x516c1e),
     0x0f0: ('_ZN7cocos2d6CCNode12reorderChildEPS0_i', 0x515e20),
     0x160: ('_ZN7cocos2d6CCNode21nodeToParentTransformEv', 0x516200),
-    # CCSprite's recursive dirty propagation can hit this offset on a non-sprite
-    # parent. For Controls it resolves to inherited CCLayer multi-touch ended,
-    # which collapses into the separately bounded script-engine channel.
     0x210: ('_ZThn224_N7cocos2d7CCLayer14ccTouchesEndedEPNS_5CCSetEPNS_7CCEventE', 0x525390),
 }
 
@@ -96,7 +91,6 @@ def verify_parent_targets(elf: Elf) -> dict:
             for pc, offset, width in actual
         ]
 
-    # transformAncestors directly tails to CCNode::transform on each parent.
     req(elf.at(0x516e10, 22).hex() ==
         'd0f8a80038b1fff7f9ffd4f8a800bde81040fff751bf',
         'transformAncestors parent path changed')
@@ -109,8 +103,6 @@ def verify_parent_targets(elf: Elf) -> dict:
 
 
 def decode_thumb_branch_target(pc: int, first: int, second: int) -> int | None:
-    # Thumb-2 BL or unconditional B.W T4. This is sufficient for a target that
-    # is itself Thumb code; literal/register targets are checked separately.
     if (first & 0xf800) != 0xf000:
         return None
     pattern = second & 0xd000
@@ -168,7 +160,8 @@ def verify_script_static_reachability(elf: Elf, apk: zipfile.ZipFile) -> dict:
     req(refs_even == [] and refs_thumb == [],
         'packaged PROGBITS retains setScriptEngine function pointer')
 
-    dex_names = sorted(name for name in apk.namelist() if name.startswith('classes') and name.endswith('.dex'))
+    dex_names = sorted(name for name in apk.namelist()
+                       if name.startswith('classes') and name.endswith('.dex'))
     req(dex_names, 'APK has no classes*.dex')
     dex_needles = [b'setScriptEngine', b'CCScriptEngineManager', SETTER.encode()]
     dex_hits = []
@@ -179,23 +172,22 @@ def verify_script_static_reachability(elf: Elf, apk: zipfile.ZipFile) -> dict:
                 dex_hits.append({'dex': name, 'needle': needle.decode('ascii')})
     req(dex_hits == [], 'DEX refers to Cocos script engine setter/manager')
 
-    native_libs = sorted(name for name in apk.namelist() if name.startswith('lib/') and name.endswith('.so'))
-    req(native_libs == ['lib/armeabi-v7a/libcocos2dcpp.so', 'lib/armeabi-v7a/libffmpeg.so'],
+    native_libs = sorted(name for name in apk.namelist()
+                         if name.startswith('lib/') and name.endswith('.so'))
+    req(native_libs == ['lib/armeabi-v7a/libcocos2dcpp.so',
+                        'lib/armeabi-v7a/libffmpeg.so'],
         'APK native library inventory changed')
 
-    concrete = sorted(name for name in elf.symbols if
-                      ('CCLuaEngine' in name or 'CCScriptEngineProtocol' in name) and
-                      name != SETTER)
-    # Protocol method references may legitimately occur in mangled signatures;
-    # there must be no linked concrete CCLuaEngine implementation.
+    concrete = sorted(name for name in elf.symbols
+                      if ('CCLuaEngine' in name or 'CCScriptEngineProtocol' in name)
+                      and name != SETTER)
     req(not [name for name in concrete if 'CCLuaEngine' in name],
         'linked CCLuaEngine implementation appeared')
 
-    # The manager singleton starts its sole engine field at zero when allocated.
-    req(elf.at(0x536ce6, 10).hex() == '0420c7f122fb05600060',
+    req(elf.at(0x536ce6, 10).hex() == '0420c7f122fb05602060',
         'CCScriptEngineManager zero initialization changed')
-    # CCNode construction stores manager->engine (or zero) at node +0xdc.
-    req(elf.at(0x516a48, 18).hex() == '20f048f9006810b103689b689847c4f8dc00',
+    req(elf.at(0x516a48, 18).hex() ==
+        '20f048f9006810b103689b689847c4f8dc00',
         'CCNode script engine capture changed')
 
     return {
@@ -206,14 +198,13 @@ def verify_script_static_reachability(elf: Elf, apk: zipfile.ZipFile) -> dict:
         'linked_ccluaengine_symbols': [],
         'manager_engine_initial_value': 'null',
         'packaged_static_script_engine_assignment_found': False,
-        # dlopen/dlsym, injected code, native hooks, or external runtime mutation
-        # are deliberately outside this static APK proof.
         'dynamic_symbol_lookup_or_runtime_injection_excluded': False,
     }
 
 
 def analyze(apk_path: Path) -> dict:
-    req(zipfile.is_zipfile(apk_path), 'exact APK is required for DEX/native inventory checks')
+    req(zipfile.is_zipfile(apk_path),
+        'exact APK is required for DEX/native inventory checks')
     with zipfile.ZipFile(apk_path) as apk:
         data = apk.read('lib/armeabi-v7a/libcocos2dcpp.so')
         elf = Elf(data)
@@ -241,7 +232,8 @@ def main() -> int:
     args = parser.parse_args()
     report = analyze(args.original_apk)
     args.details_output.parent.mkdir(parents=True, exist_ok=True)
-    args.details_output.write_text(json.dumps(report, sort_keys=True) + '\n', encoding='utf-8')
+    args.details_output.write_text(json.dumps(report, sort_keys=True) + '\n',
+                                   encoding='utf-8')
     print('format:', FORMAT)
     print('parent native dangerous write-through excluded: yes')
     print('packaged static script-engine setter reachable: no')
