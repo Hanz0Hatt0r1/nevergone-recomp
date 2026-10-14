@@ -4,8 +4,6 @@ on:
   pull_request:
     paths:
       - 'tools/ghidra/ExportSingletonStoreReturnProvenance.java'
-      - 'tools/ghidra/ExportFieldStoreCandidates.java'
-      - 'tools/ghidra/ExportFunctionReturnObjectProvenance.java'
       - 'tools/ml/audit_nevergone_singleton_store_return.py'
       - 'tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py'
       - 'tools/ml/nevergone_singleton_store_return_smoke.py'
@@ -27,13 +25,12 @@ jobs:
           python3 -m py_compile tools/ml/nevergone_gamesceneui_mixed_receiver_target_smoke.py
           bash -n tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
           grep -q 'NEVERGONE.GhidraSingletonStoreReturnProvenance/1' tools/ghidra/ExportSingletonStoreReturnProvenance.java
-          grep -q 'value_root_token' tools/ghidra/ExportFieldStoreCandidates.java
           grep -q 'NEVERGONE.SingletonConstructorStoreReturnAudit/1' tools/ml/audit_nevergone_singleton_store_return.py
+          grep -q 'NEVERGONE.GameSceneUIControlsReturnConsumerAudit/1' tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py
           grep -q 'NEVERGONE.MixedReceiverSlotTargetConvergenceAudit/1' tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py
           grep -q 'unique_target_across_proven_receiver_classes' tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py
           grep -q '003e95e0' tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
-          grep -q '002a6a10' tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
-          grep -q '003e8fa8' tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
+          grep -q 'run_nevergone_gamesceneui_controls_return_consumer_probe.sh' tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
       - name: Run synthetic singleton provenance smoke
         run: python3 tools/ml/nevergone_singleton_store_return_smoke.py
       - name: Run synthetic mixed receiver convergence smoke
