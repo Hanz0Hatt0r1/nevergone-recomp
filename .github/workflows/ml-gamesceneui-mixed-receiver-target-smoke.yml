@@ -30,7 +30,7 @@ jobs:
           grep -q 'NEVERGONE.MixedReceiverSlotTargetConvergenceAudit/1' tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py
           grep -q 'unique_target_across_proven_receiver_classes' tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py
           grep -q '003e95e0' tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
-          grep -q 'run_nevergone_gamesceneui_controls_return_consumer_probe.sh' tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
+          grep -Fq '[[ -f "$REPO_ROOT/tools/ml/run_nevergone_gamesceneui_controls_return_consumer_probe.sh" ]]' tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
       - name: Run synthetic singleton provenance smoke
         run: python3 tools/ml/nevergone_singleton_store_return_smoke.py
       - name: Run synthetic mixed receiver convergence smoke
