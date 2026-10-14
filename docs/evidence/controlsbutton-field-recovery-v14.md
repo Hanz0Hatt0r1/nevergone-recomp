@@ -57,17 +57,28 @@ all current exact evidence against the same original ARMv7 ELF SHA-256
 8. **Dynamic symbol surface** — every packaged `dlsym` path and the second
    native library are pinned; no packaged lookup of
    `CCScriptEngineManager::setScriptEngine` exists.
-9. **Remaining direct Cocos full-this calls** — exact original bodies for
-   `CCLayer` construction/destruction and `CCNode::unscheduleAllSelectors`
-   are hash-pinned and have no STORE to the target offsets. The three
-   scheduling calls are covered by the scheduler callback closure.
-10. **Controls live primary vptr** — the 38-method Ghidra STORE inventory has
-    exactly two `this+0` vptr stores: constructor `002a698a` and destructor
-    `002a6706`. Exact constructor/destructor bodies are pinned. The three
-    relevant live-object indirect calls therefore cannot silently route
-    through an unobserved packaged `Controls` vptr replacement.
+9. **Controls live primary vptr** — the 38-method Ghidra STORE inventory has
+   exactly two `this+0` vptr stores: constructor `002a698a` and destructor
+   `002a6706`; exact constructor/destructor bodies are pinned.
 
-Only after all gates succeed does the stability report emit
+The preliminary stability report is **not sufficient by itself**. The runner
+then executes `audit_nevergone_controls_full_this_static_closure.py`
+(`NEVERGONE.ControlsFullThisStaticClosure/1`) from PR #590. That independent
+exact-native audit requires all **14/14 external full-Controls-this first-hop
+sites** to be classified: 11 direct calls and three CALLINDs. It includes the
+full `unscheduleAllSelectors -> CCScheduler::unscheduleAllForTarget` path,
+terminal delete semantics, base constructor/destructor, retained callbacks,
+parent/touch targets and script-engine reachability.
+
+`gate_nevergone_controlsbutton_packaged_field_stability.py` joins the two
+proofs and refuses to emit the final stability artifact unless:
+
+- `external_full_this_static_frontier_closed=true`;
+- `external_full_this_sites=14` with 11 direct + 3 indirect sites;
+- `known_frontier_sites_write_controls_pointer_fields=false`;
+- the preliminary packaged stability proof remains valid.
+
+Only after that join does the final stability report carry
 `packaged_controlsbutton_field_stability_proven=true` and three
 `packaged_receiver_class_proven=true` detail rows. It simultaneously retains:
 
@@ -84,6 +95,7 @@ current v13 baseline. It accepts **only** calls 3, 4 and 7 and requires:
 - exact call address and slot `0x80`;
 - the old caller-argument recovery is still explicitly quarantined;
 - exact receiver field identity from the packaged stability proof;
+- the **14/14 external full-this frontier gate** on both summary and receiver rows;
 - class `ControlsButton` and vtable `libcocos2dcpp.so:008f46f8`;
 - exactly one `StaticVtableSlotCatalog/3` row for that class/vtable/slot;
 - single catalog target `libcocos2dcpp.so:00525d2e`;
@@ -111,8 +123,9 @@ bash tools/ml/run_nevergone_controlsbutton_field_recovery_v14.sh \
 ```
 
 The runner regenerates v13, regenerates the actual mixed receiver slice with
-read-only Ghidra, recomputes the packaged stability proof, finalizes v14,
-resolves the resulting queries and reruns the receiver failure audit.
+read-only Ghidra, recomputes the preliminary packaged stability proof, reruns
+the 14-site full-this closure, joins both proofs, finalizes v14, resolves the
+queries and reruns the receiver failure audit.
 
 Output archive:
 
