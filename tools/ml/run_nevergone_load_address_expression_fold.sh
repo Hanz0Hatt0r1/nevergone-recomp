@@ -89,7 +89,7 @@ if [[ ${#RAW_VALUES[@]} -gt 0 ]]; then
     -postScript ExportAddressClassification.java "$VALUE_CLASSIFICATION" "${RAW_VALUES[@]}"
 else
   echo "no raw values recovered from folded effective addresses; continuing owner/xref audit"
-  printf '%s\n' 'format\taddress\tblock\tblock_start\tblock_end\tread\twrite\texecute\tprimary_symbol\tfunction_at_entry\tfunction_at_name\tfunction_at_body\tfunction_at_is_thunk\tfunction_at_thunk_target\tfunction_containing_entry\tfunction_containing_name\tfunction_containing_body\tinstruction_mnemonic\tdata_type\traw_u32' > "$VALUE_CLASSIFICATION"
+  printf 'format\taddress\tblock\tblock_start\tblock_end\tread\twrite\texecute\tprimary_symbol\tfunction_at_entry\tfunction_at_name\tfunction_at_body\tfunction_at_is_thunk\tfunction_at_thunk_target\tfunction_containing_entry\tfunction_containing_name\tfunction_containing_body\tinstruction_mnemonic\tdata_type\traw_u32\n' > "$VALUE_CLASSIFICATION"
 fi
 
 echo
