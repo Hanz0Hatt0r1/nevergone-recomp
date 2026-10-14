@@ -18,6 +18,7 @@
 #include "single_select_hero_confirm_compositor.h"
 #include "startup_contract.h"
 #include "tutorial_loading_compositor.h"
+#include "tutorial_scene_bootstrap.h"
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeDrawSplashLayers(JNIEnv*, jclass);
@@ -126,6 +127,14 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
 }
 
 void wrapped_server_draw(JNIEnv* env, jclass) {
+    // Do not infer loading completion from elapsed time. Once the loading layer
+    // has actually owned a frame, this coordinator resolves cp_lesson.glData
+    // and swaps the retained GameLevels runtime while the loading presentation
+    // still hides the work.
+    nevergone::tutorial_scene_bootstrap::tick(
+        nevergone::startup::config().files_dir);
+
+    bool game_scene_drawn = false;
     GLint viewport[4] = {0, 0, 0, 0};
     glGetIntegerv(GL_VIEWPORT, viewport);
     if (viewport[2] > 0 && viewport[3] > 0) {
@@ -135,7 +144,7 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
         nevergone::tutorial_loading_compositor::on_surface_changed(viewport[2], viewport[3]);
         nevergone::scene_actions_gles_compositor::on_surface_changed(viewport[2], viewport[3]);
         nevergone::game_scene_action_compositor::on_surface_changed(viewport[2], viewport[3]);
-        (void)nevergone::game_scene_direct_renderer::draw();
+        game_scene_drawn = nevergone::game_scene_direct_renderer::draw();
     }
 
     nevergone::server_selection_compositor::draw();
@@ -159,11 +168,21 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     (void)nevergone::scene_actions_gles_compositor::draw();
     (void)nevergone::game_scene_action_compositor::draw();
 
+    // A successful frame from the newly retained cp_lesson queue is the
+    // evidence-backed completion edge. Do this only after the rest of this
+    // frame used the old tutorial-loading route, so Controls cannot leak into
+    // the first exposed LessonLayer frame.
+    nevergone::tutorial_scene_bootstrap::observe_scene_draw(game_scene_drawn);
+
     // This is intentionally last: the original loading layer owns the whole
     // surface while cp_lesson is being prepared, so no already-built gameplay
     // or Controls geometry may leak through behind it.
     maybe_stage_tutorial_loading_assets(env);
+    const auto loading_route = nevergone::offline_startup_flow::snapshot();
     nevergone::tutorial_loading_compositor::draw();
+    if (loading_route.route == nevergone::offline_startup_flow::Route::kTutorialLoading) {
+        nevergone::tutorial_scene_bootstrap::on_loading_frame_presented();
+    }
 }
 
 void wrapped_native_touch(
