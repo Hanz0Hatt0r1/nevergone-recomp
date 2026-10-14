@@ -1,0 +1,31 @@
+name: Nevergone ML exact singleton cell provenance smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportExactSingletonCellProvenance.java'
+      - 'tools/ml/audit_nevergone_exact_singleton_cell_provenance.py'
+      - 'tools/ml/run_nevergone_exact_singleton_cell_provenance_probe.sh'
+      - 'tools/ml/nevergone_exact_singleton_cell_provenance_smoke.py'
+      - '.github/workflows/ml-exact-singleton-cell-provenance-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_exact_singleton_cell_provenance.py \
+            tools/ml/nevergone_exact_singleton_cell_provenance_smoke.py
+          bash -n tools/ml/run_nevergone_exact_singleton_cell_provenance_probe.sh
+      - name: Synthetic provenance smoke
+        run: python3 tools/ml/nevergone_exact_singleton_cell_provenance_smoke.py
+      - name: Check exact-cell and evidence-only contracts
+        run: |
+          grep -q 'instructionReferencesCell' tools/ghidra/ExportExactSingletonCellProvenance.java
+          grep -q 'exact_cell_reference' tools/ml/audit_nevergone_exact_singleton_cell_provenance.py
+          grep -q 'affects routing: no' tools/ml/audit_nevergone_exact_singleton_cell_provenance.py
+          grep -q 'affects routing: no' tools/ml/run_nevergone_exact_singleton_cell_provenance_probe.sh
