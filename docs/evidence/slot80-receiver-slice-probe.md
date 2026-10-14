@@ -14,10 +14,13 @@ functions:
 | `libcocos2dcpp.so:002a78cc` | 0, 1, 2 | unresolved receiver class |
 | `libcocos2dcpp.so:002a87d2` | 3, 4, 5 | ambiguous receiver class |
 
-Three other calls in `002a7594` (3, 4, 7) were already independently
-resolved by strict GameSceneUI/Controls target convergence; this probe must
-**not** reuse their target across the remaining five calls without new
-receiver-value evidence.
+Three other calls in `002a7594` (3, 4, 7) were formerly marked
+resolved by GameSceneUI/Controls *caller-argument* convergence. That
+attribution is now quarantined: it did not prove the actual nested
+`CALLIND` receiver. Regenerated v11 therefore has 30 unresolved virtual
+calls (20 at slot `0x80`). This **17-call** probe deliberately excludes
+those three; use `run_nevergone_mixed_receiver_value_probe.sh` for them.
+Neither probe may reuse a caller-argument class as the receiver.
 
 For the three ambiguous calls, v11 caller-type evidence lists both
 `ControlsButton` and `cocos2d::CCTouch`. The catalog's `CCTouch` primary
@@ -58,13 +61,12 @@ is `libcocos2dcpp.so:00525d2e`, but for `cocos2d::CCSprite` it is
 `libcocos2dcpp.so:00549f1e`. If field provenance holds for all callsites,
 13 of the 17 calls would have the former target and four the latter.
 
-**v11 provenance warning:** calls 3, 4, 7 of `002a7594` were previously
-recovered by an audit of the `Controls::showControlsAttackKey()` *caller*
-argument. That argument is not automatically the receiver of a nested virtual
-call on `Controls +0x12c/+0x130/+0x134`. Their existing target happens to
-match the `ControlsButton` slot-`0x80` target, but the reported
-`GameSceneUI/Controls` receiver-class evidence should not be promoted
-without a corrected field-level proof.
+**v11 provenance correction:** calls 3, 4, 7 of `002a7594` were
+previously recovered from a `Controls::showControlsAttackKey()` caller
+argument rather than the nested `CALLIND` receiver. This recovery is
+now **blocked**, including when stale audit files claim success. The
+previous target agrees with the construction-linked `ControlsButton`
+slot-`0x80` target, but that agreement is not receiver-class proof.
 
 ## Ghidra result and original-APK factory STORE cross-check
 
@@ -110,8 +112,9 @@ field have been exhaustively classified. Output status is
 `construction_linked_target_candidate`, with
 `field_writes_exhaustive=false`, `receiver_class_proven=false`, and
 `affects_routing=false`. It must not be fed to production routing as a
-unique class/target resolution. Existing v11 GameSceneUI/Controls caller-type
-proof for calls 3/4/7 remains separately suspect.
+unique class/target resolution. The previous v11 GameSceneUI/Controls caller-type
+attribution for calls 3/4/7 is quarantined; investigate actual receiver
+values with the dedicated mixed-receiver probe.
 
 ## Run (Manjaro, local Ghidra)
 
