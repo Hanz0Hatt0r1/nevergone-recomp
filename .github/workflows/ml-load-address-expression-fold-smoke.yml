@@ -1,0 +1,31 @@
+name: Nevergone ML LOAD address expression fold smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_load_address_expression_fold.py'
+      - 'tools/ml/audit_nevergone_load_effective_address_owners.py'
+      - 'tools/ml/run_nevergone_load_address_expression_fold.sh'
+      - 'tools/ml/nevergone_load_address_expression_fold_smoke.py'
+      - '.github/workflows/ml-load-address-expression-fold-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_load_address_expression_fold.py \
+            tools/ml/audit_nevergone_load_effective_address_owners.py \
+            tools/ml/nevergone_load_address_expression_fold_smoke.py
+          bash -n tools/ml/run_nevergone_load_address_expression_fold.sh
+      - name: Synthetic fold smoke
+        run: python3 tools/ml/nevergone_load_address_expression_fold_smoke.py
+      - name: Check evidence-only contract
+        run: |
+          grep -q 'affects routing: no' tools/ml/audit_nevergone_load_address_expression_fold.py
+          grep -q 'affects routing: no' tools/ml/audit_nevergone_load_effective_address_owners.py
+          grep -q 'affects routing: no' tools/ml/run_nevergone_load_address_expression_fold.sh
