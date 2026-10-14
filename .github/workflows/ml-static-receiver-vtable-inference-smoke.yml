@@ -14,6 +14,7 @@ on:
       - 'tools/ml/rebuild_nevergone_receiver_analysis_from_inference.py'
       - 'tools/ml/infer_nevergone_static_receiver_vtables.py'
       - 'tools/ml/classify_nevergone_non_virtual_indirect_calls.py'
+      - 'tools/ml/enforce_nevergone_caller_recovery_safety.py'
       - 'tools/ml/audit_nevergone_receiver_type_failures.py'
       - 'tools/ml/audit_nevergone_receiver_parameter_provenance.py'
       - 'tools/ml/audit_nevergone_target_receiver_provenance.py'
@@ -32,9 +33,11 @@ on:
       - 'tools/ml/run_nevergone_structural_slot_recovery.sh'
       - 'tools/ml/run_nevergone_non_virtual_call_classification.sh'
       - 'tools/ml/run_nevergone_resolved_caller_safety_audit.sh'
+      - 'tools/ml/run_nevergone_caller_recovery_safety_finalization.sh'
       - 'tools/ml/nevergone_static_receiver_vtable_inference_smoke.py'
       - 'tools/ml/nevergone_static_receiver_structural_provenance_smoke.py'
       - 'tools/ml/nevergone_non_virtual_call_classification_smoke.py'
+      - 'tools/ml/nevergone_caller_recovery_safety_finalization_smoke.py'
       - '.github/workflows/ml-static-receiver-vtable-inference-smoke.yml'
 
 permissions:
@@ -57,6 +60,7 @@ jobs:
             tools/ml/rebuild_nevergone_receiver_analysis_from_inference.py \
             tools/ml/infer_nevergone_static_receiver_vtables.py \
             tools/ml/classify_nevergone_non_virtual_indirect_calls.py \
+            tools/ml/enforce_nevergone_caller_recovery_safety.py \
             tools/ml/audit_nevergone_receiver_type_failures.py \
             tools/ml/audit_nevergone_receiver_parameter_provenance.py \
             tools/ml/audit_nevergone_target_receiver_provenance.py \
@@ -66,7 +70,8 @@ jobs:
             tools/ml/audit_nevergone_resolved_caller_safety.py \
             tools/ml/nevergone_static_receiver_vtable_inference_smoke.py \
             tools/ml/nevergone_static_receiver_structural_provenance_smoke.py \
-            tools/ml/nevergone_non_virtual_call_classification_smoke.py
+            tools/ml/nevergone_non_virtual_call_classification_smoke.py \
+            tools/ml/nevergone_caller_recovery_safety_finalization_smoke.py
       - name: Validate persistent seed plan
         run: |
           python - <<'PY'
@@ -104,6 +109,7 @@ jobs:
           bash -n tools/ml/run_nevergone_structural_slot_recovery.sh
           bash -n tools/ml/run_nevergone_non_virtual_call_classification.sh
           bash -n tools/ml/run_nevergone_resolved_caller_safety_audit.sh
+          bash -n tools/ml/run_nevergone_caller_recovery_safety_finalization.sh
       - name: Check caller verifier contract
         run: |
           grep -q 'complete_typed_callers' tools/ghidra/ExportResolvedCallerTypeCompleteness.java
@@ -115,3 +121,5 @@ jobs:
         run: python tools/ml/nevergone_static_receiver_structural_provenance_smoke.py
       - name: Run non-virtual CALLIND classification smoke
         run: python tools/ml/nevergone_non_virtual_call_classification_smoke.py
+      - name: Run caller safety finalization smoke
+        run: python tools/ml/nevergone_caller_recovery_safety_finalization_smoke.py
