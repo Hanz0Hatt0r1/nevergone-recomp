@@ -1,0 +1,35 @@
+name: Nevergone ML CCJoyStick field factory provenance smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportExactParameterFieldFactoryStore.java'
+      - 'tools/ml/plan_nevergone_ccjoystick_field_factory_return.py'
+      - 'tools/ml/audit_nevergone_ccjoystick_field_factory_provenance.py'
+      - 'tools/ml/run_nevergone_ccjoystick_field_factory_provenance.sh'
+      - 'tools/ml/nevergone_ccjoystick_field_factory_provenance_smoke.py'
+      - '.github/workflows/ml-ccjoystick-field-factory-provenance-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile \
+            tools/ml/plan_nevergone_ccjoystick_field_factory_return.py \
+            tools/ml/audit_nevergone_ccjoystick_field_factory_provenance.py \
+            tools/ml/nevergone_ccjoystick_field_factory_provenance_smoke.py
+          bash -n tools/ml/run_nevergone_ccjoystick_field_factory_provenance.sh
+      - name: Synthetic provenance smoke
+        run: python3 tools/ml/nevergone_ccjoystick_field_factory_provenance_smoke.py
+      - name: Check evidence-only contracts
+        run: |
+          grep -q 'GhidraExactParameterFieldFactoryStore/1' tools/ghidra/ExportExactParameterFieldFactoryStore.java
+          grep -q 'parameter_relative_field_with_function_owner_evidence' tools/ml/plan_nevergone_ccjoystick_field_factory_return.py
+          grep -q 'unique_factory_return_class' tools/ml/audit_nevergone_ccjoystick_field_factory_provenance.py
+          grep -q 'factory_class_slot_catalog_row_not_unique' tools/ml/audit_nevergone_ccjoystick_field_factory_provenance.py
+          grep -q 'ExportFunctionReturnObjectProvenance.java' tools/ml/run_nevergone_ccjoystick_field_factory_provenance.sh
+          grep -q 'affects routing: no' tools/ml/run_nevergone_ccjoystick_field_factory_provenance.sh
