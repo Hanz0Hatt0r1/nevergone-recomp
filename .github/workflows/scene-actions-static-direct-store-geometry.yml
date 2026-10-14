@@ -1,0 +1,21 @@
+name: SceneActions static direct store geometry
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build static direct store-geometry smoke
+        run: >-
+          c++ -std=c++17 -Wall -Wextra -Werror -pthread
+          -Iandroid/app/src/main/cpp
+          tools/scene_actions_static_direct_store_geometry_smoke.cpp
+          android/app/src/main/cpp/game_scene_direct_asset_store.cpp
+          -o /tmp/scene_actions_static_direct_store_geometry_smoke
+      - name: Run static direct store-geometry smoke
+        run: /tmp/scene_actions_static_direct_store_geometry_smoke
