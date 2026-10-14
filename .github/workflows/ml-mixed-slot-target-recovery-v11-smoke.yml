@@ -29,6 +29,8 @@ jobs:
       - name: Contract checks
         run: |
           grep -q 'resolved_converged_target' tools/ml/finalize_nevergone_mixed_slot_target_recovery.py
+          grep -q 'strict_mixed_receiver_call_set_incomplete' tools/ml/finalize_nevergone_mixed_slot_target_recovery.py
+          grep -q 'strict-mixed-audit-jsonl' tools/ml/run_nevergone_mixed_slot_target_recovery_v11.sh
           grep -q 'audited_multi_vtable_target_convergence' tools/ml/resolve_nevergone_receiver_queries_v11.py
           grep -q 'receiver_vtable_id.*None' tools/ml/finalize_nevergone_mixed_slot_target_recovery.py
           grep -q 'affects routing: no' tools/ml/run_nevergone_mixed_slot_target_recovery_v11.sh

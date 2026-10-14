@@ -39,3 +39,16 @@ A successful row uses `NEVERGONE.MixedReceiverSlotTargetConvergenceAudit/1` with
 Missing singleton constructor provenance, a non-unique singleton store, incomplete accessor/consumer evidence, mixed or unmapped consumer classes, incomplete caller coverage, class/vtable ambiguity, an exact-slot runtime mismatch, or divergent slot targets all produce `mixed_receiver_target_not_proven` with explicit reasons.
 
 This probe is evidence-only. It does not alter receiver inference, query emission or production routing. A later finalizer may consume the retained convergence result only after real Ghidra data confirms the complete chain.
+
+## v11 recovery provenance gate
+
+The older `GameSceneUIControlsSlotConvergenceAudit/1` establishes that the two catalog vtable slots share a target, but it does **not** independently prove that `sharedGameSceneUI()` returns a `GameSceneUI` object. The v11 post-finalizer must therefore consume **both** that slot audit and all three `MixedReceiverSlotTargetConvergenceAudit/1` per-call rows. Every strict row must be accepted, have the exact source/call/slot, preserve both proven classes and their vtables, and agree on the same target. Missing or failed singleton provenance blocks v11 recovery even if the catalog targets match.
+
+After running the mixed receiver probe with the corrected singleton exporter, run:
+
+```bash
+bash tools/ml/run_nevergone_gamesceneui_controls_slot_convergence_audit.sh
+bash tools/ml/run_nevergone_mixed_slot_target_recovery_v11.sh
+```
+
+The v11 output may then mark calls 3/4/7 `resolved_converged_target`, retaining both possible receiver classes and both vtables. This remains evidence-only and does not change production routing.
