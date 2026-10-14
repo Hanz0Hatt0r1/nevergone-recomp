@@ -1,0 +1,27 @@
+name: Nevergone Controls register STORE native smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controls_register_store_native.py'
+      - 'tools/ml/nevergone_controls_register_store_native_smoke.py'
+      - '.github/workflows/ml-controls-register-store-native-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controls_register_store_native.py'
+      - 'tools/ml/nevergone_controls_register_store_native_smoke.py'
+      - '.github/workflows/ml-controls-register-store-native-smoke.yml'
+
+jobs:
+  controls-register-stores:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check pinned Controls native STORE decoding
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_controls_register_store_native.py
+          python3 tools/ml/nevergone_controls_register_store_native_smoke.py
