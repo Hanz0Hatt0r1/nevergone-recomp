@@ -1,0 +1,30 @@
+name: Nevergone Controls parent script static closure smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controls_parent_script_static_closure.py'
+      - 'tools/ml/nevergone_controls_parent_script_static_closure_smoke.py'
+      - 'tools/ml/run_nevergone_controls_parent_script_static_closure.sh'
+      - '.github/workflows/ml-controls-parent-script-static-closure-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controls_parent_script_static_closure.py'
+      - 'tools/ml/nevergone_controls_parent_script_static_closure_smoke.py'
+      - 'tools/ml/run_nevergone_controls_parent_script_static_closure.sh'
+      - '.github/workflows/ml-controls-parent-script-static-closure-smoke.yml'
+
+jobs:
+  controls-parent-script-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate parent/script closure audit
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_controls_parent_script_static_closure.py
+          PYTHONPATH=tools/ml python3 tools/ml/nevergone_controls_parent_script_static_closure_smoke.py
+          bash -n tools/ml/run_nevergone_controls_parent_script_static_closure.sh
