@@ -1,0 +1,34 @@
+name: Nevergone ML structural receiver slice audit smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportIndirectCallStructuralReceiverSlice.java'
+      - 'tools/ml/audit_nevergone_structural_receiver_slices.py'
+      - 'tools/ml/run_nevergone_structural_receiver_slice_audit.sh'
+      - '.github/workflows/ml-structural-receiver-slice-audit-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile audit
+        run: python -m py_compile tools/ml/audit_nevergone_structural_receiver_slices.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_structural_receiver_slice_audit.sh
+      - name: Check evidence-only exporter contract
+        run: |
+          grep -q 'NEVERGONE.GhidraStructuralReceiverSlice/1' tools/ghidra/ExportIndirectCallStructuralReceiverSlice.java
+          grep -q 'canonical_receiver' tools/ghidra/ExportIndirectCallStructuralReceiverSlice.java
+          grep -q 'MULTIEQUAL' tools/ml/audit_nevergone_structural_receiver_slices.py
+          grep -q 'getReturnType' tools/ghidra/ExportIndirectCallStructuralReceiverSlice.java
+          grep -q 'STRUCTURAL_RECEIVER_SLICE_AFFECTS_ROUTING=no' tools/ghidra/ExportIndirectCallStructuralReceiverSlice.java
+          grep -q 'affects routing: no' tools/ml/audit_nevergone_structural_receiver_slices.py
