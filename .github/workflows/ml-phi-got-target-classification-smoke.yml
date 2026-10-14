@@ -1,0 +1,25 @@
+name: Nevergone ML PHI GOT target classification smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/run_nevergone_phi_got_target_classification.sh'
+      - '.github/workflows/ml-phi-got-target-classification-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_phi_got_target_classification.sh
+      - name: Check evidence-only contract
+        run: |
+          grep -q 'PTR_default_instance__' tools/ml/run_nevergone_phi_got_target_classification.sh
+          grep -q 'expected exactly 2 default-instance GOT targets' tools/ml/run_nevergone_phi_got_target_classification.sh
+          grep -q 'ExportAddressClassification.java' tools/ml/run_nevergone_phi_got_target_classification.sh
+          grep -q 'affects routing: no' tools/ml/run_nevergone_phi_got_target_classification.sh
