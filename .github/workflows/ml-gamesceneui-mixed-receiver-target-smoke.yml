@@ -1,0 +1,37 @@
+name: Nevergone ML GameSceneUI mixed receiver target smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportSingletonStoreReturnProvenance.java'
+      - 'tools/ml/audit_nevergone_singleton_store_return.py'
+      - 'tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py'
+      - 'tools/ml/nevergone_singleton_store_return_smoke.py'
+      - 'tools/ml/nevergone_gamesceneui_mixed_receiver_target_smoke.py'
+      - 'tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh'
+      - '.github/workflows/ml-gamesceneui-mixed-receiver-target-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and contract checks
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_singleton_store_return.py
+          python3 -m py_compile tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py
+          python3 -m py_compile tools/ml/nevergone_singleton_store_return_smoke.py
+          python3 -m py_compile tools/ml/nevergone_gamesceneui_mixed_receiver_target_smoke.py
+          bash -n tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
+          grep -q 'NEVERGONE.GhidraSingletonStoreReturnProvenance/1' tools/ghidra/ExportSingletonStoreReturnProvenance.java
+          grep -q 'NEVERGONE.SingletonConstructorStoreReturnAudit/1' tools/ml/audit_nevergone_singleton_store_return.py
+          grep -q 'NEVERGONE.GameSceneUIControlsReturnConsumerAudit/1' tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py
+          grep -q 'NEVERGONE.MixedReceiverSlotTargetConvergenceAudit/1' tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py
+          grep -q 'unique_target_across_proven_receiver_classes' tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py
+          grep -q '003e95e0' tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
+          grep -q 'run_nevergone_gamesceneui_controls_return_consumer_probe.sh' tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
+      - name: Run synthetic singleton provenance smoke
+        run: python3 tools/ml/nevergone_singleton_store_return_smoke.py
+      - name: Run synthetic mixed receiver convergence smoke
+        run: python3 tools/ml/nevergone_gamesceneui_mixed_receiver_target_smoke.py
