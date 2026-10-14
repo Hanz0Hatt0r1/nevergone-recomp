@@ -1,0 +1,32 @@
+name: Nevergone ML exact singleton cell recovery v12 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/finalize_nevergone_exact_singleton_cell_recovery.py'
+      - 'tools/ml/run_nevergone_exact_singleton_cell_recovery_v12.sh'
+      - 'tools/ml/nevergone_exact_singleton_cell_recovery_v12_smoke.py'
+      - '.github/workflows/ml-exact-singleton-cell-recovery-v12-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile \
+            tools/ml/finalize_nevergone_exact_singleton_cell_recovery.py \
+            tools/ml/nevergone_exact_singleton_cell_recovery_v12_smoke.py
+          bash -n tools/ml/run_nevergone_exact_singleton_cell_recovery_v12.sh
+      - name: Synthetic exact-singleton recovery smoke
+        run: python3 tools/ml/nevergone_exact_singleton_cell_recovery_v12_smoke.py
+      - name: Check fail-closed and quarantine contracts
+        run: |
+          grep -q 'singleton_cell_constructor_store_return_unique_class' tools/ml/finalize_nevergone_exact_singleton_cell_recovery.py
+          grep -q 'catalog_target_mismatch' tools/ml/finalize_nevergone_exact_singleton_cell_recovery.py
+          grep -q 'run_nevergone_mixed_slot_target_recovery_v11.sh' tools/ml/run_nevergone_exact_singleton_cell_recovery_v12.sh
+          grep -q 'v12 revived quarantined receiver' tools/ml/run_nevergone_exact_singleton_cell_recovery_v12.sh
+          grep -q 'affects routing: no' tools/ml/finalize_nevergone_exact_singleton_cell_recovery.py
+          grep -q 'affects routing: no' tools/ml/run_nevergone_exact_singleton_cell_recovery_v12.sh
