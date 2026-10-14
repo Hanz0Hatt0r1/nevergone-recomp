@@ -62,7 +62,7 @@ def run_case(root: Path, diverge: bool) -> list[dict]:
         "pointee_type_display": "-", "constant_value": "-", "defining_opcode": "CALL",
         "defining_address": "003e90da", "defining_time": "7", "call_target_entry": "002a6a10",
         "call_target_name": "Controls::initControls()", "call_arg0_root_token": "-",
-        "call_output_root_token": "def:003e90da:7:4", "truncation": "-",
+        "call_output_root_token": "def:CALL@003e90da:7:4", "truncation": "-",
     }])
 
     write_jsonl(factory, [
@@ -148,6 +148,7 @@ def main() -> int:
         ok = run_case(root, False)
         assert all(row["status"] == "unique_target_across_proven_receiver_classes" for row in ok), ok
         assert {row["convergent_target_id"] for row in ok} == {"lib.so:00515d2f"}, ok
+        assert {row["controls_factory_output_site"] for row in ok} == {"003e90da:7:4"}, ok
         bad = run_case(root, True)
         assert all(row["status"] == "mixed_receiver_target_not_proven" for row in bad), bad
         assert all("proven_receiver_classes_do_not_converge_one_target" in row["reasons"] for row in bad), bad
