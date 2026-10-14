@@ -54,6 +54,23 @@ def main() -> int:
         write_jsonl(catalog, cat)
         run(str(PLAN), str(failures), str(inference), "--output", str(plan),
             "--expected-calls", "1", "--expected-sources", "1")
+        # Quarantined calls are probed separately, not folded into this 17-call plan.
+        quarantine = [
+            {"source_id": "libcocos2dcpp.so:002a7594", "call_index": call,
+             "call_address": f"002a75{call:02x}", "dispatch_slot_offset": "0x80",
+             "status": "receiver_not_single_pointer", "candidate_receiver_class_names": []}
+            for call in (3, 4, 7)
+        ]
+        write_jsonl(failures, [f, *quarantine])
+        write_jsonl(inference, [dict(f, format=INF_FMT), *[dict(x, format=INF_FMT) for x in quarantine]])
+        run(str(PLAN), str(failures), str(inference), "--output", str(plan),
+            "--expected-calls", "1", "--expected-sources", "1")
+        tampered = [dict(x, format=INF_FMT) for x in quarantine]
+        tampered[0]["call_address"] = "002a75ff"
+        write_jsonl(inference, [dict(f, format=INF_FMT), *tampered])
+        run(str(PLAN), str(failures), str(inference), "--output", str(plan), good=False)
+        write_jsonl(failures, [f])
+        write_jsonl(inference, [dict(f, format=INF_FMT)])
         run(str(PLAN), str(failures), str(inference), "--output", str(plan),
             "--expected-calls", "17", good=False)
         run(str(AUDIT), str(plan), str(failures), str(inference), str(catalog), str(slices),
