@@ -162,6 +162,11 @@ def main() -> int:
             local.append("caller_missing_direct_gamesceneui_branch")
         if not field_base or not offset:
             local.append("caller_missing_gamesceneui_0x134_branch")
+        # Caller argument provenance is not CALLIND receiver provenance. These
+        # branches describe the argument passed to Controls::showControlsAttackKey,
+        # not the object loaded for the nested virtual dispatch. Even exact
+        # singleton/Controls class proofs cannot close that semantic gap.
+        local.append("caller_argument_not_virtual_receiver_provenance")
         per_call_reasons[call] = local
 
     class_vtables: dict[str, set[str]] = defaultdict(set)
@@ -223,11 +228,20 @@ def main() -> int:
             "source_id": TARGET_SOURCE,
             "call_index": call,
             "dispatch_slot_offset": TARGET_SLOT,
-            "proven_receiver_class_names": proven_classes,
-            "proven_receiver_vtable_ids": [class_to_vtable.get(cls) for cls in proven_classes if cls in class_to_vtable],
-            "class_target_ids": class_to_targets,
-            "convergent_target_id": convergent_target if not row_reasons else None,
-            "controls_field_offset": "0x134",
+            # Do not label caller-argument classes as virtual receiver classes.
+            "proven_receiver_class_names": [],
+            "proven_receiver_vtable_ids": [],
+            "class_target_ids": {},
+            "caller_argument_candidate_class_names": proven_classes,
+            "caller_argument_candidate_vtable_ids": [
+                class_to_vtable.get(cls) for cls in proven_classes if cls in class_to_vtable
+            ],
+            "caller_argument_candidate_target_ids": class_to_targets,
+            "catalog_convergent_target_candidate": convergent_target,
+            "convergent_target_id": None,
+            "receiver_value_proven": False,
+            "controls_field_offset": None,
+            "caller_argument_field_offset": "0x134",
             "reasons": row_reasons,
             "status": status,
             "affects_routing": False,

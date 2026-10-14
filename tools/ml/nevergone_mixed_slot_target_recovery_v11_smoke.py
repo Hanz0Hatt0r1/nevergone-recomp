@@ -169,14 +169,17 @@ def main() -> int:
     out, queries, resolved = run(target)
     recovered = [r for r in out if r.get("source_id") == "libcocos2dcpp.so:002a7594"]
     assert len(recovered) == 3
-    assert all(r.get("status") == "resolved_converged_target" for r in recovered)
-    assert all(r.get("receiver_vtable_id") is None for r in recovered)
-    assert all(len(r.get("candidate_receiver_vtable_ids") or []) == 2 for r in recovered)
-    assert len(queries) == 4
-    conv = [r for r in resolved if r.get("resolution_mode") == "audited_multi_vtable_target_convergence"]
-    assert len(conv) == 3
-    assert all(r.get("status") == "audited_multi_vtable_target_convergence" for r in conv)
-    assert all(r.get("exact_candidate_target_id") == target for r in conv)
+    # Even the stale old strict audit that *claims* success must not emit
+    # receiver queries: it only traced a caller argument, not the CALLIND receiver.
+    assert all(r.get("status") == "receiver_not_single_pointer" for r in recovered)
+    assert all(r.get("mixed_slot_target_recovery", {}).get("accepted") is False for r in recovered)
+    assert all(r["mixed_slot_target_recovery"]["candidate_receiver_vtable_ids"] == [] for r in recovered)
+    assert all(r["mixed_slot_target_recovery"]["caller_argument_branch_classes"] == ["GameSceneUI", "Controls"]
+               for r in recovered)
+    assert all("caller_argument_not_virtual_receiver_provenance" in
+               r["mixed_slot_target_recovery"]["reasons"] for r in recovered)
+    assert len(queries) == 1
+    assert not [r for r in resolved if r.get("resolution_mode") == "audited_multi_vtable_target_convergence"]
 
     unproven, unproven_queries, unproven_resolved = run(target, strict_proven=False)
     unproven_rows = [r for r in unproven if r.get("source_id") == "libcocos2dcpp.so:002a7594"]
@@ -185,10 +188,13 @@ def main() -> int:
     assert len(unproven_queries) == 1
     assert not [r for r in unproven_resolved if r.get("resolution_mode") == "audited_multi_vtable_target_convergence"]
 
-    _, _, blocked = run("libcocos2dcpp.so:00525d30")
-    blocked_conv = [r for r in blocked if r.get("resolution_mode") == "audited_multi_vtable_target_convergence"]
-    assert len(blocked_conv) == 3
-    assert all(r.get("status") == "blocked_audited_multi_vtable_target_convergence" for r in blocked_conv)
+    # A divergent catalog cannot revive a quarantined caller-argument recovery.
+    divergent, divergent_queries, divergent_resolved = run("libcocos2dcpp.so:00525d30")
+    assert all(r.get("status") == "receiver_not_single_pointer"
+               for r in divergent if r.get("source_id") == "libcocos2dcpp.so:002a7594")
+    assert len(divergent_queries) == 1
+    assert not [r for r in divergent_resolved
+                if r.get("resolution_mode") == "audited_multi_vtable_target_convergence"]
     print("v11 mixed-slot target recovery smoke: ok")
     return 0
 
