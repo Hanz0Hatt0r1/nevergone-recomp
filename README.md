@@ -9,13 +9,13 @@ The goal is to reconstruct the original game runtime as maintainable source code
 
 ## Readiness review — 2026-10-14
 
-Assessment baseline: `main` through `1385a747` (`1385a7479c67dfca1f5f2a94643474bc77cc4348`). This README update is documentation-only and follows that code baseline. Percentages are engineering planning estimates, not measured code coverage.
+Assessment baseline: `main` through `b9fd09cc` (`b9fd09cc5456329248d1a59532713cb448f6a748`). This README update is documentation-only and follows that code baseline. Percentages are engineering planning estimates, not measured code coverage.
 
 - **Strict technical-alpha gate:** **7/10 checkpoints (70%)**. P0-P6 are accepted; P7-P9 still require one contiguous retained real-device proof.
-- **Engineering readiness toward technical alpha:** approximately **93%**. The scene, player/input/action and P10 persistence implementations are largely present; the remaining risk is now dominated by real-device integration/evidence rather than missing infrastructure.
-- **Early playable-alpha readiness:** approximately **66%**. The technical-alpha proof is still open, and a genuine enemy interaction plus damage/death loop are not yet accepted.
-- **Modern release readiness:** approximately **52%**. Runtime/tooling/resource recovery are mature, but gameplay breadth, physical arm64 evidence, release-device coverage and final hardening remain incomplete.
-- **Reverse-engineering/tooling maturity:** approximately **99%** for the current workflow. Ghidra, unidbg, device capture, structural evidence, static dispatch/vtable analysis and ML-assisted prioritization are now broad and highly reproducible.
+- **Engineering readiness toward technical alpha:** approximately **94%**. The scene, player/input/action and P10 persistence implementations are largely present; the remaining risk is dominated by real-device integration/evidence rather than missing core infrastructure.
+- **Early playable-alpha readiness:** approximately **67%**. The technical-alpha proof is still open, and a genuine enemy interaction plus damage/death loop are not yet accepted.
+- **Modern release readiness:** approximately **53%**. Runtime/tooling/resource recovery are mature, but gameplay breadth, physical arm64 evidence, release-device coverage and final hardening remain incomplete.
+- **Reverse-engineering/tooling maturity:** approximately **99%** for the current workflow. Ghidra, unidbg, device capture, structural evidence, exact native cross-checks, static dispatch/vtable analysis and ML-assisted prioritization are broad and highly reproducible.
 
 The authoritative delivery metric is [`docs/playable-path.md`](docs/playable-path.md). The milestone tracker is [#151 — M4 -> First Offline Scene / Technical Alpha path](https://github.com/Hanz0Hatt0r1/nevergone-recomp/issues/151).
 
@@ -30,28 +30,28 @@ The next project-wide proof is one retained Android run with user-owned imported
 
 Implementation beyond P6 does not move the strict completion marker until the preceding checkpoints are accepted in the same runtime path.
 
-## What changed since the 2026-10-13 review
+## What changed since the previous 2026-10-14 review
 
-The previous readiness snapshot was anchored at `cd5f4c3`. The assessed `main` is **291 commits ahead** of that point. Most of the increase is evidence/reconstruction infrastructure rather than a new playable-path checkpoint, so the strict gate remains unchanged.
+The previous readiness snapshot was anchored at `1385a747`. The assessed `main` is **127 commits ahead** of that point. Most of the increase is evidence/reconstruction infrastructure rather than a new playable-path checkpoint, so the strict technical-alpha gate remains unchanged.
 
 Material additions include:
 
-- Cocos2d-x-compatible TexturePacker handling for sprite-frame plist formats **0, 1, 2 and 3**;
-- corrected rotated-frame staging and texture-rectangle semantics;
-- recovered root-first `AddAllSearchPath()` resource lookup behavior for atlas textures and direct type-0 scene sprites;
-- recovered ordinary null-frame -> `empty.png` -> hidden behavior while malformed/player-body frame failures remain fail-closed;
-- P7 evidence validation that distinguishes staged requests, rendered sprites and intentional hidden slots;
-- recovered type-0 post-init animation loops, including `gkdeng01..07` opacity behavior and `gkshu01..08` **skewX** geometry;
-- additional SceneActions sprite/fallback bounds and parent-X reconstruction helpers;
-- a project-local normalized high-P-code ML corpus/testbed with deterministic datasets, OOD gates, structural metrics, similarity transfer, family grouping, tiny-encoder experiments and production classifier tooling;
-- Ghidra exporters for indirect calls, receiver types, receiver slices, P-code corpora and vtable slots;
-- conservative static vtable catalogs, exact receiver-vtable slot resolution and receiver-vtable inference;
-- runtime dispatch tracing and consistency/equivalence checks;
-- explicit separation of **natural** versus **interventional** runtime dispatch evidence;
-- receiver-type failure auditing and transparent type-flow recovery;
-- broad smoke/CI coverage for the new analysis pipeline.
+- direct SceneActions spatial-hit evaluation for the current pair, plus timed pair-only triggering;
+- static direct SceneActions geometry collection and binding to the live asset store;
+- composed SceneActions bound-object maps and additional recovered `klhuo`/direct geometry paths;
+- stricter fail-closed SceneActions playback-slot and placement validation;
+- substantially deeper indirect-call receiver recovery, including load roots, parameter-relative fields, singleton-cell provenance, PHI/default-instance recovery and mixed-receiver quarantine;
+- exact `GameSceneUI`/`Controls` accessor, consumer and slot-convergence analysis;
+- exact native cross-checking of Controls field stores, aliases, callback objects and register-rooted writes;
+- recovery of all **78** Controls-relative call-argument offsets from exact Thumb witnesses;
+- closure of retained ControlsButton/joystick aliases, scheduler callbacks and `CCCallFuncN` callback paths;
+- bounded Cocos parent/touch-dispatch back-reference analysis for Controls;
+- static closure of known parent-mediated Controls writes and packaged script-engine setter reachability;
+- packaged `dlsym` surface closure excluding a hidden Controls script-setter route;
+- exact-native reconciliation of all **14** external full-Controls-this first-hop call sites;
+- broad new CI smoke coverage for the SceneActions, receiver-provenance and Controls closure work.
 
-An open follow-up PR, [#517 — Integrate conservative CALLIND receiver provenance](https://github.com/Hanz0Hatt0r1/nevergone-recomp/pull/517), is intentionally **not** included in the readiness numbers above until merged.
+These additions materially reduce uncertainty around the P7-P9 runtime and the original Controls object layout/call surface, but they do **not** replace the required contiguous real-device acceptance run.
 
 ## Delivery readiness
 
@@ -68,7 +68,7 @@ A checkpoint counts only when every earlier checkpoint works in the same project
 | P6 | GameLevels first scene-construction boundary | **Done** — issue #146 closed |
 | P7 | First offline scene instantiated and visibly rendered | **In progress** — implementation and fail-closed capture tooling exist; fresh contiguous real-device proof remains |
 | P8 | Player spawned | **In progress** — spawn/frame/action/render implementation exists; contiguous real-device proof remains |
-| P9 | Input visibly changes player state | **In progress** — joystick/motion/facing/action implementation exists; contiguous real-device proof remains |
+| P9 | Input visibly changes player state | **In progress** — joystick/motion/facing/action implementation plus substantially stronger Controls reconstruction exist; contiguous real-device proof remains |
 | P10 | Minimal save -> restart -> restore | **Implemented, proof pending** — bounded sidecar/autosave/restore runtime and host regression exist; real-device restart proof remains |
 
 By the strict technical-alpha definition (P0-P9), the highest contiguous accepted checkpoint remains **P6: 7/10 = 70%**.
@@ -81,20 +81,20 @@ By the strict technical-alpha definition (P0-P9), the highest contiguous accepte
 | Original-data import/resource recovery | **96%** | APK/OBB import and core transformed-resource paths are established |
 | Startup/login/server/ChooseHero route | **92%** | P3-P5 accepted for the tracked route; fresh-role callback continuation remains a separate boundary |
 | GameLevels/scene model | **91%** | P6 accepted; retained scene/camera/render models are substantial |
-| First-scene rendering | **93%** | Direct + atlas + GLES2 paths, all supported plist formats, recovered lookup semantics and capture tooling exist; P7 device acceptance remains |
-| Player spawn/input/action | **92%** | Spawn, motion, joystick, facing, live action playback and action-state transitions are implemented; P8/P9 proof remains |
-| SceneActions runtime | **82%** | Pair loading/playback, timed/spatial triggering, event-ID mapping and additional geometry bounds exist; some dynamic/global PRNG semantics remain bounded gaps |
+| First-scene rendering | **94%** | Direct + atlas + GLES2 paths, supported plist formats, recovered lookup/geometry semantics and capture tooling exist; P7 device acceptance remains |
+| Player spawn/input/action | **94%** | Spawn, motion, joystick, facing, live action playback and action-state transitions are implemented; Controls layout/callback/call-site uncertainty is substantially reduced; P8/P9 proof remains |
+| SceneActions runtime | **88%** | Pair loading/playback, timed/spatial triggering, bound-object maps and direct/static geometry paths exist; some dynamic/global PRNG semantics remain bounded gaps |
 | Persistence | **85%** | Minimal bounded P10 sidecar/autosave/restore is implemented; real process-restart proof remains |
 | Offline combat/gameplay | **35%** | Player/action/tutorial and structural enemy/trap foundations exist, but no accepted first enemy interaction or damage/death loop |
 | Modern Android runtime validation | **72%** | API 35/36 x86_64 and Android 15 16 KiB runtime coverage exist; API 35/36 arm64 physical-device proof remains |
-| Static/native evidence and reproducibility | **99%** | Extensive Ghidra/unidbg/device-capture and fail-closed reconstruction tooling |
-| ML/dispatch analysis pipeline | **86%** | Strong bounded corpus/routing/vtable/receiver tooling exists; it improves prioritization/evidence discovery but does not itself advance playable-path checkpoints |
+| Static/native evidence and reproducibility | **99%** | Extensive Ghidra/unidbg/device-capture, exact Thumb/native cross-checks and fail-closed reconstruction tooling |
+| ML/dispatch analysis pipeline | **92%** | Receiver provenance, structural recovery, vtable/slot inference and mixed-receiver safety gates are substantially deeper; this work improves evidence discovery but does not itself advance playable-path checkpoints |
 
 ## Immediate critical path
 
 1. Retain one fresh contiguous real-device P7 capture from user-owned imported data showing the first offline scene actually rendered.
 2. In that same path, prove the reconstructed player spawn/frame/action state and close P8.
-3. Record one actual Android gesture that visibly changes player/control state and close P9.
+3. Record one actual Android gesture that visibly changes player/control state and close P9; use the now-bounded Controls reconstruction only to diagnose any mismatch rather than as a substitute for device proof.
 4. Perform a real process restart and retain evidence that the implemented P10 sidecar restores the expected player motion state.
 5. Validate the current Android build on API 35/36 arm64 hardware and record the release-gate matrix.
 6. Validate EnemyActions/TrapActions structural parsers against genuine user-owned payloads.
@@ -133,19 +133,20 @@ By the strict technical-alpha definition (P0-P9), the highest contiguous accepte
 - an independent bounded P10 minimal save/autosave/restart-restore runtime;
 - transactional `EnemyActionsData` structural parsing and expanded `TrapActionsData` reconstruction;
 - a live SceneActions current-scene pair runtime with document/pixel staging and GLES submission;
-- recovered SceneActions timed/spatial trigger contracts, event-ID mapping and parsed spatial-object construction;
+- recovered SceneActions timed/spatial trigger contracts, event-ID mapping, bound-object maps, pair-level hit evaluation and direct/static geometry paths;
 - recovered type-0 GameScene animation behavior for opacity and skewX loops;
 - a repaired unidbg harness completing explicit `JNI_OnLoad` for the recorded dependency set;
 - original-device derived player/enemy runtime evidence;
 - a normalized P-code ML/analysis testbed with conservative labels and leakage-resistant splits;
 - static and runtime indirect-dispatch analysis, receiver/vtable inference and evidence provenance controls;
+- exact native Controls store/call/callback closure work covering direct stores, aliases, 78 this-derived call arguments, retained callbacks, parent/touch backrefs and external full-this first-hop sites;
 - API 35/36 x86_64 lifecycle CI and Android 15 16 KiB runtime CI;
 - an arm64 real-device evidence harness awaiting physical-device acceptance.
 
 ### Important current limitations
 
 - P7 remains open because a complete accepted real-device imported-data first-scene capture has not yet been retained after the latest renderer/resource fixes.
-- P8/P9 implementations are deep, but the required contiguous device proof of visible player + real touch-driven state change is still missing.
+- P8/P9 implementations are deep, but the required contiguous device proof of visible player + real touch-driven state change is still missing; the new Controls closure narrows diagnosis but does not satisfy that proof.
 - P10 is implemented but has not yet been promoted because the real process restart/restore proof is still missing.
 - One previously tested user-owned archive lacked a referenced `p01_i01.actData`; acceptance must use a data path that can provide the required player action asset.
 - The fresh-role CharacterName route dispatches `CreateCharacter`, but its tested offline callback continuation remains separate from the already accepted existing-role P4/P5 path.
@@ -191,9 +192,12 @@ Current capabilities include:
 - static vtable prefix/catalog recovery;
 - exact receiver-vtable slot resolution;
 - static receiver-type/vtable inference;
+- parameter-relative, singleton, PHI/default-instance and structural receiver provenance recovery;
+- mixed-receiver quarantine and safety finalization;
 - dispatch runtime trace ingestion, equivalence and consistency analysis;
 - explicit natural/interventional evidence isolation;
-- receiver-type failure auditing.
+- receiver-type failure auditing;
+- exact native cross-checks for selected Controls call/store/callback surfaces.
 
 This tooling is useful for prioritizing the remaining native surface and resolving indirect dispatch, but **does not increase the playable-path completion marker by itself**.
 
@@ -220,7 +224,8 @@ The reconstruction has established, among other things, that:
 - `MeActionsSystem` initial state, frame advancement, completion behavior and a substantial live playback path are reconstructed;
 - horizontal controls, joystick geometry and player motion/facing state are reconstructed for the supported path;
 - `GameSaveData::Encode/Decode` byte transform is recovered, while P10 intentionally uses a bounded independent project-owned sidecar;
-- the SceneActions timed trigger schedule, spatial dispatch contract, current-pair binding and event-ID source are recovered for the supported path;
+- the SceneActions timed trigger schedule, spatial dispatch contract, current-pair binding, event-ID source and several direct/static geometry paths are recovered for the supported path;
+- the Controls object now has substantially stronger exact-native evidence for field writes, aliases, callbacks, parent/touch backrefs and external full-this first-hop calls;
 - API 35/36 x86_64 lifecycle tests and an Android 15 16 KiB runtime test pass in CI.
 
 ## Repository layout
@@ -298,7 +303,8 @@ The first-scene stack separates binary evidence, project-owned state and renderi
 - player spawn/motion state is project-owned and generation-bound;
 - live action playback consumes loaded action documents and the recovered frame cursor;
 - Android motion events feed recovered joystick geometry and movement/facing state;
-- tutorial/action-button foundations can drive supported player action-state changes.
+- tutorial/action-button foundations can drive supported player action-state changes;
+- Controls static/native closure work now bounds many original object-layout, callback and first-hop call paths used to diagnose input mismatches.
 
 **Remaining acceptance boundary:** retain one real-device run proving scene + player + real input in the same imported-data path.
 
@@ -310,12 +316,15 @@ The current SceneActions path includes:
 - initial/current frame pixel staging and GLES submission;
 - recovered born/idle playback transitions;
 - one current-scene pair binding with fail-closed preflight;
-- recovered timed trigger schedule;
-- recovered spatial trigger predicate/order;
+- recovered timed trigger schedule and pair-only timed evaluation;
+- recovered spatial trigger predicate/order and direct pair hit evaluation;
 - `GameSceneObject` event-ID recovery from parsed object data;
 - composition of timed + spatial gating into the live runtime start path;
 - typed spatial-object construction from parsed scene records;
-- additional sprite/fallback bounds and parent-position reconstruction helpers.
+- bound-object maps linking reconstructed scene records to SceneActions geometry;
+- static direct geometry extraction and asset-store binding;
+- additional sprite/fallback bounds, `klhuo` bounds and parent-position reconstruction helpers;
+- fail-closed slot and nonfinite-placement validation.
 
 **Remaining boundary:** complete only the dynamic geometry/current-parent inputs and original PRNG semantics actually required by the first playable scene.
 
@@ -404,10 +413,11 @@ Coverage includes:
 - tutorial action/gameplay state foundations;
 - P10 minimal save/autosave/restart-restore regression;
 - EnemyActions/TrapActions structural parsing;
-- SceneActions document/frame/render/playback/timed/spatial trigger contracts;
+- SceneActions document/frame/render/playback/timed/spatial trigger, bound-object and direct-geometry contracts;
 - Ghidra/unidbg evidence tooling;
 - ML corpus/classification/OOD/family/similarity smoke tests;
-- indirect-dispatch/vtable/receiver analysis smoke tests;
+- indirect-dispatch/vtable/receiver-provenance analysis smoke tests;
+- exact Controls store/alias/callback/call-argument/parent/dlsym/full-this closure smoke tests;
 - API 35/36 lifecycle runtime CI;
 - Android 15 16 KiB runtime CI;
 - arm64 real-device evidence tooling.
@@ -456,6 +466,7 @@ Device gameplay acceptance still requires user-owned original data and is intent
 - [x] Cocos-compatible direct-file and atlas asset pipelines
 - [x] player spawn/motion/action runtime foundations
 - [x] recovered Android joystick/facing/dock state
+- [x] substantial exact-native Controls layout/callback/call-surface closure
 - [x] P10 bounded minimal persistence implementation
 - [ ] P7 retained real-device first-scene proof
 - [ ] P8 retained real-device player proof
@@ -469,7 +480,7 @@ Device gameplay acceptance still requires user-owned original data and is intent
 - [x] tutorial/action-state foundations
 - [x] EnemyActions structural reconstruction
 - [x] substantial TrapActions structural reconstruction
-- [x] substantial bounded SceneActions runtime/trigger reconstruction
+- [x] substantial bounded SceneActions runtime/trigger/geometry reconstruction
 - [ ] validate action parsers against genuine user-owned files
 - [ ] first enemy interaction
 - [ ] damage/death loop
