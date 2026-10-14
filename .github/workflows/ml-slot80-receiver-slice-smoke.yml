@@ -1,0 +1,32 @@
+name: ML slot80 receiver slice smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/plan_nevergone_slot80_receiver_slices.py'
+      - 'tools/ml/audit_nevergone_slot80_receiver_slices.py'
+      - 'tools/ml/nevergone_slot80_receiver_slice_smoke.py'
+      - 'tools/ml/run_nevergone_slot80_receiver_slice_probe.sh'
+      - '.github/workflows/ml-slot80-receiver-slice-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/plan_nevergone_slot80_receiver_slices.py'
+      - 'tools/ml/audit_nevergone_slot80_receiver_slices.py'
+      - 'tools/ml/nevergone_slot80_receiver_slice_smoke.py'
+      - 'tools/ml/run_nevergone_slot80_receiver_slice_probe.sh'
+      - '.github/workflows/ml-slot80-receiver-slice-smoke.yml'
+
+jobs:
+  evidence-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run fail-closed synthetic checks
+        run: |
+          python3 tools/ml/nevergone_slot80_receiver_slice_smoke.py
+          python3 -m py_compile tools/ml/plan_nevergone_slot80_receiver_slices.py tools/ml/audit_nevergone_slot80_receiver_slices.py
+          bash -n tools/ml/run_nevergone_slot80_receiver_slice_probe.sh
