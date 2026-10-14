@@ -24,7 +24,7 @@ for required in "$CATALOG" "$CALLER_SUBTREES" "$ACCESSOR_AUDIT"; do
 done
 [[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }
 [[ -f "$REPO_ROOT/tools/ghidra/ExportSingletonStoreReturnProvenance.java" ]] || { echo "missing singleton exporter" >&2; exit 2; }
-[[ -x "$REPO_ROOT/tools/ml/run_nevergone_gamesceneui_controls_return_consumer_probe.sh" ]] || { echo "missing controls consumer probe runner" >&2; exit 2; }
+[[ -f "$REPO_ROOT/tools/ml/run_nevergone_gamesceneui_controls_return_consumer_probe.sh" ]] || { echo "missing controls consumer probe runner" >&2; exit 2; }
 
 # Refresh the already-merged evidence that GetControlsObj() returns the +0x134
 # field and that the exact returned value has one catalog member-consumer class.
