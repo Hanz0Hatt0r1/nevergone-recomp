@@ -1,0 +1,35 @@
+name: Nevergone ControlsButton owner field probe smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/plan_nevergone_controlsbutton_owner_field_probe.py'
+      - 'tools/ghidra/ExportControlsButtonOwnerFieldAliasInventory.java'
+      - 'tools/ml/audit_nevergone_controlsbutton_owner_field_probe.py'
+      - 'tools/ml/nevergone_controlsbutton_owner_field_probe_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_owner_field_probe.sh'
+      - '.github/workflows/ml-controlsbutton-owner-field-probe-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/plan_nevergone_controlsbutton_owner_field_probe.py'
+      - 'tools/ml/audit_nevergone_controlsbutton_owner_field_probe.py'
+      - 'tools/ml/nevergone_controlsbutton_owner_field_probe_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_owner_field_probe.sh'
+      - '.github/workflows/ml-controlsbutton-owner-field-probe-smoke.yml'
+
+jobs:
+  controlsbutton-owner-field:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate probe planner, audit and runner
+        run: |
+          python3 -m py_compile \
+            tools/ml/plan_nevergone_controlsbutton_owner_field_probe.py \
+            tools/ml/audit_nevergone_controlsbutton_owner_field_probe.py
+          python3 tools/ml/nevergone_controlsbutton_owner_field_probe_smoke.py
+          bash -n tools/ml/run_nevergone_controlsbutton_owner_field_probe.sh
