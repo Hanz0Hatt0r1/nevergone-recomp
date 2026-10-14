@@ -8,7 +8,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -68,8 +67,8 @@ def audit(native: list[dict], manifest: list[dict], ghidra: list[dict]) -> dict:
         raise ValueError("native Controls store operands mismatch")
 
     entries = [r.get("function_entry") for r in manifest]
-    if len(entries) != 38 or len(set(entries)) != 38 or
-       any(not isinstance(e, str) or len(e) != 8 for e in entries):
+    if (len(entries) != 38 or len(set(entries)) != 38 or
+            any(not isinstance(e, str) or len(e) != 8 for e in entries)):
         raise ValueError("Controls method manifest mismatch")
     if any(row.get("format") != GHIDRA_FORMAT or row.get("function_entry") not in entries or
            row.get("row_type") not in {"summary", "store", "call"} for row in ghidra):
