@@ -125,6 +125,7 @@ def main() -> int:
         and len(returns) == 1
         and len(constructor_calls) == 1
         and len(stores_from_constructor) == 1
+        and len(stores) == 1
         and len(all_stores_to_cell) == 1
     )
     if not returns:
