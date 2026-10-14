@@ -65,18 +65,18 @@ def main() -> int:
         details = d / "details.jsonl"
 
         write_jsonl(inf, [
-            inference("lib:test.so:00100000", "00100004", "receiver_not_single_pointer"),
-            inference("lib:test.so:00100010", "00100014", "receiver_not_single_pointer"),
-            inference("lib:test.so:00100020", "00100024", "resolved_unique_vtable", cls="Test::Existing", vt="vt_existing", source="direct_receiver_type"),
+            inference("test.so:00100000", "00100004", "receiver_not_single_pointer"),
+            inference("test.so:00100010", "00100014", "receiver_not_single_pointer"),
+            inference("test.so:00100020", "00100024", "resolved_unique_vtable", cls="Test::Existing", vt="vt_existing", source="direct_receiver_type"),
         ])
         write_jsonl(q, [{
             "format": "NEVERGONE.StaticReceiverVtableQuery/1",
-            "source_id": "lib:test.so:00100020", "call_index": 0, "call_address": "00100024",
+            "source_id": "test.so:00100020", "call_index": 0, "call_address": "00100024",
             "receiver_vtable_id": "vt_existing", "dispatch_slot_offset": "0x14",
             "receiver_class_name": "Test::Existing", "receiver_class_match_kind": "exact_catalog_class_name",
             "receiver_class_evidence_source": "direct_receiver_type", "receiver_type_name": None,
             "receiver_type_display": None, "runtime_validation_status": "runtime_unobserved",
-            "evidence_ref": "lib:test.so:00100020#call=0", "affects_routing": False,
+            "evidence_ref": "test.so:00100020#call=0", "affects_routing": False,
         }])
         write_jsonl(catalog, [
             {"format": "NEVERGONE.StaticVtableSlotCatalog/3", "class_name": "Test::A", "receiver_vtable_id": "vt_a"},
@@ -116,8 +116,8 @@ def main() -> int:
 
         prov_fields = ["format","source_id","call_index","structural_status","target_slot_offset"]
         write_tsv(target_prov, prov_fields, [
-            {"format":"NEVERGONE.GhidraTargetReceiverProvenance/1","source_id":"lib:test.so:00100000","call_index":"0","structural_status":"canonical_receiver","target_slot_offset":"0x14"},
-            {"format":"NEVERGONE.GhidraTargetReceiverProvenance/1","source_id":"lib:test.so:00100010","call_index":"0","structural_status":"canonical_receiver","target_slot_offset":"0x14"},
+            {"format":"NEVERGONE.GhidraTargetReceiverProvenance/1","source_id":"test.so:00100000","call_index":"0","structural_status":"canonical_receiver","target_slot_offset":"0x14"},
+            {"format":"NEVERGONE.GhidraTargetReceiverProvenance/1","source_id":"test.so:00100010","call_index":"0","structural_status":"canonical_receiver","target_slot_offset":"0x14"},
         ])
 
         cmd = [sys.executable, str(FINALIZER), str(inf), str(q), str(slice_dir), str(phi), str(got), str(targets), str(owners), str(target_prov), str(catalog), "--output", str(out), "--queries-output", str(outq), "--details-output", str(details)]
@@ -125,9 +125,9 @@ def main() -> int:
 
         rows = [json.loads(x) for x in out.read_text().splitlines() if x.strip()]
         by_id = {r["source_id"]: r for r in rows}
-        accepted = by_id["lib:test.so:00100000"]
-        blocked = by_id["lib:test.so:00100010"]
-        existing = by_id["lib:test.so:00100020"]
+        accepted = by_id["test.so:00100000"]
+        blocked = by_id["test.so:00100010"]
+        existing = by_id["test.so:00100020"]
         assert accepted["status"] == "resolved_unique_vtable"
         assert accepted["class_name"] == "Test::A"
         assert accepted["receiver_vtable_id"] == "vt_a"
@@ -138,7 +138,7 @@ def main() -> int:
 
         out_queries = [json.loads(x) for x in outq.read_text().splitlines() if x.strip()]
         assert {(r["source_id"], r["call_index"]) for r in out_queries} == {
-            ("lib:test.so:00100000", 0), ("lib:test.so:00100020", 0)
+            ("test.so:00100000", 0), ("test.so:00100020", 0)
         }
 
         detail_rows = [json.loads(x) for x in details.read_text().splitlines() if x.strip()]
