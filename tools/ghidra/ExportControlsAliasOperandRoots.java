@@ -265,6 +265,19 @@ public class ExportControlsAliasOperandRoots extends GhidraScript {
                     missing++;
                     continue;
                 }
+                // Check that the plan still points to the same LOAD root / CALL
+                // target and, for STORE, the same constant destination offset.
+                Expr destination = expected == PcodeOp.STORE && found.getNumInputs() >= 3 ?
+                    trace(found.getInput(1), 0, new HashSet<Varnode>()) : null;
+                String observed = destination != null ? token(destination.root) :
+                    found.getNumInputs() >= 1 ? token(found.getInput(0)) : "-";
+                if (!site.target.equals(observed) ||
+                    (destination != null && !site.offset.equals(hex(destination.offset)))) {
+                    writeRow(out, site, "summary", "plan_operand_identity_mismatch",
+                        -1, "-", null, high, 0);
+                    missing++;
+                    continue;
+                }
                 List<Integer> operands = new ArrayList<Integer>();
                 if (expected == PcodeOp.STORE) {
                     if (found.getNumInputs() >= 3) {
