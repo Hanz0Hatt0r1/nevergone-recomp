@@ -1,0 +1,27 @@
+name: Nevergone Controls field alias triage smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/triage_nevergone_controls_field_alias_evidence.py'
+      - 'tools/ml/nevergone_controls_field_alias_triage_smoke.py'
+      - '.github/workflows/ml-controls-field-alias-triage-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/triage_nevergone_controls_field_alias_evidence.py'
+      - 'tools/ml/nevergone_controls_field_alias_triage_smoke.py'
+      - '.github/workflows/ml-controls-field-alias-triage-smoke.yml'
+
+jobs:
+  controls-alias-triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate bounded triage and fail-closed smoke
+        run: |
+          python3 -m py_compile tools/ml/triage_nevergone_controls_field_alias_evidence.py
+          python3 tools/ml/nevergone_controls_field_alias_triage_smoke.py
