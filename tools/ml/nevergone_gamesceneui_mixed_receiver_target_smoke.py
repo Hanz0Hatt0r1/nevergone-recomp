@@ -29,6 +29,7 @@ def run_case(root: Path, diverge: bool) -> list[dict]:
     stores = root / "stores.tsv"
     prov = root / "prov.tsv"
     factory = root / "factory.jsonl"
+    singleton = root / "singleton.jsonl"
     accessor = root / "accessor.jsonl"
     subtrees = root / "subtrees.tsv"
     catalog = root / "catalog.jsonl"
@@ -65,20 +66,22 @@ def run_case(root: Path, diverge: bool) -> list[dict]:
         "call_output_root_token": "def:CALL@003e90da:7:4", "truncation": "-",
     }])
 
-    write_jsonl(factory, [
-        {
-            "format": "NEVERGONE.CallRootFactoryReturnAudit/1", "source_id": "probe:sharedGameSceneUI",
-            "call_index": 0, "candidate_receiver_class_names": ["GameSceneUI"],
-            "candidate_receiver_vtable_ids": ["lib.so:vt_gamesceneui"], "status": "unique_factory_return_class",
-            "affects_routing": False,
-        },
-        {
-            "format": "NEVERGONE.CallRootFactoryReturnAudit/1", "source_id": "probe:initControls",
-            "call_index": 0, "candidate_receiver_class_names": ["Controls"],
-            "candidate_receiver_vtable_ids": ["lib.so:vt_controls"], "status": "unique_factory_return_class",
-            "affects_routing": False,
-        },
-    ])
+    write_jsonl(factory, [{
+        "format": "NEVERGONE.CallRootFactoryReturnAudit/1", "source_id": "probe:initControls",
+        "call_index": 0, "candidate_receiver_class_names": ["Controls"],
+        "candidate_receiver_vtable_ids": ["lib.so:vt_controls"], "status": "unique_factory_return_class",
+        "affects_routing": False,
+    }])
+    write_jsonl(singleton, [{
+        "format": "NEVERGONE.SingletonConstructorStoreReturnAudit/1",
+        "function_entries": ["003e95e0"], "function_names": ["GameSceneUI::sharedGameSceneUI()"],
+        "expected_function": "sharedGameSceneUI", "expected_class": "GameSceneUI",
+        "constructor_calls": 1, "constructor_object_roots": ["def:CALL@003e9612:1:4"],
+        "constructor_stores": 1, "singleton_storage_key": "0x009755c4", "returns": 1,
+        "candidate_receiver_class_names": ["GameSceneUI"],
+        "candidate_receiver_vtable_ids": ["lib.so:vt_gamesceneui"],
+        "status": "singleton_constructor_store_return_class", "reasons": [], "affects_routing": False,
+    }])
 
     write_jsonl(accessor, [{
         "format": "NEVERGONE.GameSceneUIControlsAccessorAudit/1",
@@ -134,8 +137,8 @@ def run_case(root: Path, diverge: bool) -> list[dict]:
     ])
 
     result = subprocess.run([
-        sys.executable, str(AUDIT), str(stores), str(prov), str(factory), str(accessor), str(subtrees), str(catalog),
-        "--details-output", str(details),
+        sys.executable, str(AUDIT), str(stores), str(prov), str(factory), str(singleton), str(accessor),
+        str(subtrees), str(catalog), "--details-output", str(details),
     ], check=True, capture_output=True, text=True)
     rows = [json.loads(line) for line in details.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(rows) == 3, result.stdout
