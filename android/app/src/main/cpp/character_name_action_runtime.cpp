@@ -2,10 +2,10 @@
 
 #include "character_name_state.h"
 #include "character_random_name.h"
-#include "game_levels_enter_transition.h"
 #include "login_lua_session.h"
 #include "offline_startup_flow.h"
 #include "startup_contract.h"
+#include "tutorial_scene_bootstrap.h"
 
 namespace nevergone::character_name_action_executor {
 namespace {
@@ -24,26 +24,36 @@ void try_offline_fresh_role_handoff(std::string* error) {
         return;
     }
 
-    // The original fresh-role path waits for cpp_OnCreateTheRole and then
-    // enters the returned CharacterID. The preservation route has no live
-    // service callback, but the real-device path proves that the recovered
-    // CreateCharacter Lua dispatch itself succeeds. Do not invent a synthetic
-    // CharacterID. Instead, allow the already verified imported GameLevels
-    // model to become the local continuation, and only retire CharacterName
-    // after the live render queue is actually ready. The local entry API keeps
-    // diagnostics distinct from a real cpp_OnEnterGame callback.
-    game_levels_enter_transition::on_local_enter_game(startup::config().files_dir);
-    const auto enter = game_levels_enter_transition::snapshot();
-    if (enter.boundary != game_levels_enter_transition::Boundary::kRuntimeRenderQueueReady) {
+    // Original ManagementLayer::GoToGameLayer's fresh-role branch passes the
+    // bare "cp_lesson.glData" to GameScene::LoadGameLevelsWithFile(), then
+    // calls switchScene(). Load the same tutorial GameLevels model before
+    // exposing LoadingLayer; do not use the pvp_scene preservation preload for
+    // this evidence-backed path.
+    if (!tutorial_scene_bootstrap::prepare(startup::config().files_dir)) {
         if (error != nullptr) {
-            *error = std::string("offline GameLevels handoff stopped at ") +
-                game_levels_enter_transition::boundary_name(enter.boundary);
+            const auto state = tutorial_scene_bootstrap::snapshot();
+            *error = std::string("offline tutorial scene bootstrap stopped at ") +
+                tutorial_scene_bootstrap::stage_name(state.stage);
         }
         return;
     }
 
     if (!offline_startup_flow::on_fresh_role_local_enter()) {
-        if (error != nullptr) *error = "offline fresh-role route changed before GameLevels handoff";
+        if (error != nullptr) {
+            *error = "offline fresh-role route changed before tutorial LoadingLayer";
+        }
+        return;
+    }
+
+    // GameScene::switchSceneFadeOut() creates LoadingLayer and its recovered
+    // 0.5 second callback to switchNextScene(). Arm the clean-room equivalent
+    // only after the route itself is tutorial-loading.
+    if (!tutorial_scene_bootstrap::begin_loading()) {
+        if (error != nullptr) {
+            const auto state = tutorial_scene_bootstrap::snapshot();
+            *error = std::string("offline tutorial loading arm stopped at ") +
+                tutorial_scene_bootstrap::stage_name(state.stage);
+        }
         return;
     }
 
