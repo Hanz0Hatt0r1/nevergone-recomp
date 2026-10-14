@@ -1,0 +1,36 @@
+name: Nevergone Controls this-call argument offsets smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/plan_nevergone_controls_this_call_arguments.py'
+      - 'tools/ghidra/ExportControlsThisCallArgumentOffsets.java'
+      - 'tools/ml/audit_nevergone_controls_this_call_argument_offsets.py'
+      - 'tools/ml/nevergone_controls_this_call_argument_offsets_smoke.py'
+      - 'tools/ml/run_nevergone_controls_this_call_argument_probe.sh'
+      - '.github/workflows/ml-controls-this-call-argument-offsets-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/plan_nevergone_controls_this_call_arguments.py'
+      - 'tools/ghidra/ExportControlsThisCallArgumentOffsets.java'
+      - 'tools/ml/audit_nevergone_controls_this_call_argument_offsets.py'
+      - 'tools/ml/nevergone_controls_this_call_argument_offsets_smoke.py'
+      - 'tools/ml/run_nevergone_controls_this_call_argument_probe.sh'
+      - '.github/workflows/ml-controls-this-call-argument-offsets-smoke.yml'
+
+jobs:
+  controls-this-call-arguments:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate planner, auditor and runner
+        run: |
+          python3 -m py_compile \
+            tools/ml/plan_nevergone_controls_this_call_arguments.py \
+            tools/ml/audit_nevergone_controls_this_call_argument_offsets.py
+          python3 tools/ml/nevergone_controls_this_call_argument_offsets_smoke.py
+          bash -n tools/ml/run_nevergone_controls_this_call_argument_probe.sh
