@@ -1,0 +1,21 @@
+name: SceneActions current geometry map
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build current geometry-map smoke
+        run: >-
+          c++ -std=c++17 -Wall -Wextra -Werror -pthread
+          -Iandroid/app/src/main/cpp
+          tools/scene_actions_current_geometry_map_smoke.cpp
+          android/app/src/main/cpp/game_scene_direct_asset_store.cpp
+          -o /tmp/scene_actions_current_geometry_map_smoke
+      - name: Run current geometry-map smoke
+        run: /tmp/scene_actions_current_geometry_map_smoke
