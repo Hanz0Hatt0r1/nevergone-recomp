@@ -1,0 +1,34 @@
+name: Nevergone ML mixed-slot target recovery v11 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/finalize_nevergone_mixed_slot_target_recovery.py'
+      - 'tools/ml/resolve_nevergone_receiver_queries_v11.py'
+      - 'tools/ml/audit_nevergone_receiver_type_failures_v11.py'
+      - 'tools/ml/run_nevergone_mixed_slot_target_recovery_v11.sh'
+      - 'tools/ml/nevergone_mixed_slot_target_recovery_v11_smoke.py'
+      - '.github/workflows/ml-mixed-slot-target-recovery-v11-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile \
+            tools/ml/finalize_nevergone_mixed_slot_target_recovery.py \
+            tools/ml/resolve_nevergone_receiver_queries_v11.py \
+            tools/ml/audit_nevergone_receiver_type_failures_v11.py \
+            tools/ml/nevergone_mixed_slot_target_recovery_v11_smoke.py
+          bash -n tools/ml/run_nevergone_mixed_slot_target_recovery_v11.sh
+      - name: Synthetic recovery and resolver checks
+        run: python3 tools/ml/nevergone_mixed_slot_target_recovery_v11_smoke.py
+      - name: Contract checks
+        run: |
+          grep -q 'resolved_converged_target' tools/ml/finalize_nevergone_mixed_slot_target_recovery.py
+          grep -q 'audited_multi_vtable_target_convergence' tools/ml/resolve_nevergone_receiver_queries_v11.py
+          grep -q 'receiver_vtable_id.*None' tools/ml/finalize_nevergone_mixed_slot_target_recovery.py
+          grep -q 'affects routing: no' tools/ml/run_nevergone_mixed_slot_target_recovery_v11.sh
