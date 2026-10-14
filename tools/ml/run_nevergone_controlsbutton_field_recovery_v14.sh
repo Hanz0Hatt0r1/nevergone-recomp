@@ -18,6 +18,8 @@ INFERENCE_V13="$WORK_ROOT/static-receiver-vtable-inference-v13.jsonl"
 QUERIES_V13="$WORK_ROOT/static-receiver-vtable-queries-v13.jsonl"
 CATALOG="$WORK_ROOT/static-vtable-slot-catalog.jsonl"
 RECEIVER_TYPES="$WORK_ROOT/indirect-receiver-types.tsv"
+PRELIM_STABILITY="$WORK_ROOT/controlsbutton-packaged-field-stability-preliminary.jsonl"
+FULL_THIS="$WORK_ROOT/controls-full-this-static-closure-v14.jsonl"
 STABILITY="$WORK_ROOT/controlsbutton-packaged-field-stability.jsonl"
 OUT="$WORK_ROOT/static-receiver-vtable-inference-v14.jsonl"
 OUTQ="$WORK_ROOT/static-receiver-vtable-queries-v14.jsonl"
@@ -31,6 +33,8 @@ for required in "$APK" "$FIELD_ALIAS_ARCHIVE" "$OPERAND_ARCHIVE" \
   "$REPO_ROOT/tools/ml/run_nevergone_ccjoystick_field_recovery_v13.sh" \
   "$REPO_ROOT/tools/ml/run_nevergone_mixed_receiver_value_probe.sh" \
   "$REPO_ROOT/tools/ml/audit_nevergone_controlsbutton_packaged_field_stability.py" \
+  "$REPO_ROOT/tools/ml/audit_nevergone_controls_full_this_static_closure.py" \
+  "$REPO_ROOT/tools/ml/gate_nevergone_controlsbutton_packaged_field_stability.py" \
   "$REPO_ROOT/tools/ml/finalize_nevergone_controlsbutton_field_recovery_v14.py"; do
   [[ -f "$required" ]] || { echo "missing required input: $required" >&2; exit 2; }
 done
@@ -51,14 +55,23 @@ for required in "$INFERENCE_V11" "$SLICES" "$INFERENCE_V13" "$QUERIES_V13" \
   [[ -f "$required" ]] || { echo "missing generated prerequisite: $required" >&2; exit 2; }
 done
 
-# One exact-APK packaged-program closure. It re-runs native local STORE,
-# retained callback/delegate, scheduler/action, parent/touch, script-engine,
-# dlsym, live-vptr and external-base-call checks internally.
+# First prove local fields, all former unknown STOREs, retained aliases,
+# call-argument offsets, live vptr, parent/touch/script and packaged dlsym.
 echo
-echo "== prove packaged ControlsButton field stability =="
+echo "== prove preliminary packaged ControlsButton field stability =="
 python3 "$REPO_ROOT/tools/ml/audit_nevergone_controlsbutton_packaged_field_stability.py" \
   "$APK" "$FIELD_ALIAS_ARCHIVE" "$OPERAND_ARCHIVE" \
-  "$INFERENCE_V11" "$SLICES" --details-output "$STABILITY"
+  "$INFERENCE_V11" "$SLICES" --details-output "$PRELIM_STABILITY"
+
+# Independently close the complete 14-site external unadjusted-Controls* first
+# hop frontier, including unscheduleAllForTarget and terminal delete semantics.
+echo
+echo "== close full external Controls-this frontier =="
+python3 "$REPO_ROOT/tools/ml/audit_nevergone_controls_full_this_static_closure.py" \
+  "$APK" --details-output "$FULL_THIS"
+
+python3 "$REPO_ROOT/tools/ml/gate_nevergone_controlsbutton_packaged_field_stability.py" \
+  "$PRELIM_STABILITY" "$FULL_THIS" --output "$STABILITY"
 
 before_queries=$(grep -c '"format": "NEVERGONE.StaticReceiverVtableQuery/1"' "$QUERIES_V13" || true)
 
@@ -109,6 +122,8 @@ for call in want:
 st=[json.loads(x) for x in open(sys.argv[3],encoding="utf-8") if x.strip()]
 s=st[0]
 if s.get("packaged_controlsbutton_field_stability_proven") is not True \
+   or s.get("external_full_this_static_frontier_closed") is not True \
+   or s.get("external_full_this_sites_closed") != 14 \
    or s.get("whole_program_alias_writes_excluded") is not False \
    or s.get("external_injected_code_excluded") is not False:
     raise SystemExit(f"v14 packaged-scope contract mismatch: {s}")
@@ -116,6 +131,8 @@ print("v14 three-call recovery gate: pass")
 PY
 
 tar -C "$WORK_ROOT" -czf "$ARCHIVE" \
+  controlsbutton-packaged-field-stability-preliminary.jsonl \
+  controls-full-this-static-closure-v14.jsonl \
   controlsbutton-packaged-field-stability.jsonl \
   controlsbutton-field-recovery-v14.jsonl \
   static-receiver-vtable-inference-v14.jsonl \
@@ -132,4 +149,5 @@ printf 'v14 resolution: %s\n' "$RESOLUTION"
 printf 'v14 failure audit: %s\n' "$FAILURE_AUDIT"
 printf 'archive: %s\n' "$ARCHIVE"
 printf 'production query delta: +3\n'
+printf 'external full-this frontier closed: 14/14\n'
 printf 'caller-argument quarantine reused: no\n'

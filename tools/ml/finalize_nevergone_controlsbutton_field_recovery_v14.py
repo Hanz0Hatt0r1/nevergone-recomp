@@ -3,7 +3,8 @@
 
 The old caller-argument convergence remains explicitly rejected. v14 accepts
 only exact nested receiver-field provenance plus a fresh
-ControlsButtonPackagedFieldStability/1 proof for the pinned APK and an exact
+ControlsButtonPackagedFieldStability/1 proof for the pinned APK, the complete
+14-site external full-Controls-this frontier closure, and an exact
 ControlsButton vtable/slot row in StaticVtableSlotCatalog/3.
 """
 from __future__ import annotations
@@ -94,6 +95,9 @@ def main() -> int:
             summary.get("packaged_controlsbutton_field_stability_proven") is True and
             summary.get("packaged_receiver_class_proven") is True and
             summary.get("caller_argument_quarantine_preserved") is True and
+            summary.get("external_full_this_static_frontier_closed") is True and
+            summary.get("external_full_this_sites_closed") == 14 and
+            summary.get("known_external_frontier_writes_receiver_fields") is False and
             summary.get("whole_program_alias_writes_excluded") is False and
             summary.get("external_injected_code_excluded") is False and
             summary.get("affects_routing") is False):
@@ -179,6 +183,8 @@ def main() -> int:
         if proof.get("packaged_field_stability_proven") is not True or \
                 proof.get("packaged_receiver_class_proven") is not True:
             reasons.append("packaged_stability_not_proven")
+        if proof.get("external_full_this_static_frontier_closed") is not True:
+            reasons.append("external_full_this_frontier_not_closed")
         if proof.get("caller_argument_provenance_used") is not False:
             reasons.append("caller_argument_provenance_reintroduced")
         if proof.get("affects_routing") is not False:
@@ -190,6 +196,7 @@ def main() -> int:
             "receiver_field_offset": expected_field, "accepted": False,
             "receiver_class_name": CLASS, "receiver_vtable_id": VTABLE,
             "candidate_target_ids": [TARGET], "packaged_scope_only": True,
+            "external_full_this_static_frontier_closed": True,
             "caller_argument_provenance_used": False,
             "whole_program_alias_writes_excluded": False,
             "reasons": reasons, "affects_routing": False,
@@ -239,6 +246,7 @@ def main() -> int:
     print("inference rows:", len(inference))
     print("input queries:", len(queries))
     print("ControlsButton packaged field recoveries accepted:", accepted)
+    print("external full-this frontier: 14/14 closed")
     print("output queries:", len(out_queries))
     print("caller-argument quarantine reused: no")
     print("affects routing: no")
