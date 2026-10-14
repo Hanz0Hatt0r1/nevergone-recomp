@@ -254,7 +254,7 @@ public class ExportSingletonStoreReturnProvenance extends GhidraScript {
             String thumbCell = exactThumbSingletonCell(function);
             if (thumbCell != null) {
                 row(out, function, "thumb_exact_cell_proof", null,
-                    thumbCell, thumbCell, null, "-", "-");
+                    thumbCell, thumbCell, null, "-", "sha256:" + THUMB_SINGLETON_SHA256);
             }
         } finally {
             decompiler.dispose();
