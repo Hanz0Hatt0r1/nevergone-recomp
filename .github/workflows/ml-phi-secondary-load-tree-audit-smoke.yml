@@ -4,7 +4,10 @@ on:
   pull_request:
     paths:
       - 'tools/ml/audit_nevergone_phi_secondary_load_trees.py'
+      - 'tools/ml/nevergone_phi_literal_pool_fold_smoke.py'
       - 'tools/ml/run_nevergone_phi_secondary_load_tree_audit.sh'
+      - 'tools/ml/run_nevergone_phi_secondary_resolved_address_classification.sh'
+      - 'tools/ml/run_nevergone_phi_secondary_literal_resolution.sh'
       - '.github/workflows/ml-phi-secondary-load-tree-audit-smoke.yml'
 
 permissions:
@@ -19,14 +22,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile audit
-        run: python -m py_compile tools/ml/audit_nevergone_phi_secondary_load_trees.py
+      - name: Compile audit and smoke
+        run: |
+          python -m py_compile tools/ml/audit_nevergone_phi_secondary_load_trees.py
+          python -m py_compile tools/ml/nevergone_phi_literal_pool_fold_smoke.py
+      - name: Run literal-pool folding smoke
+        run: python tools/ml/nevergone_phi_literal_pool_fold_smoke.py
       - name: Check runner syntax
-        run: bash -n tools/ml/run_nevergone_phi_secondary_load_tree_audit.sh
+        run: |
+          bash -n tools/ml/run_nevergone_phi_secondary_load_tree_audit.sh
+          bash -n tools/ml/run_nevergone_phi_secondary_resolved_address_classification.sh
+          bash -n tools/ml/run_nevergone_phi_secondary_literal_resolution.sh
       - name: Check evidence-only contract
         run: |
-          grep -q 'NEVERGONE.PhiSecondaryLoadTreeAudit/1' tools/ml/audit_nevergone_phi_secondary_load_trees.py
+          grep -q 'NEVERGONE.PhiSecondaryLoadTreeAudit/2' tools/ml/audit_nevergone_phi_secondary_load_trees.py
+          grep -q 'literal_pool_u32' tools/ml/audit_nevergone_phi_secondary_load_trees.py
+          grep -q 'DAT_' tools/ml/audit_nevergone_phi_secondary_load_trees.py
           grep -q 'MULTIEQUAL' tools/ml/audit_nevergone_phi_secondary_load_trees.py
           grep -q 'PTRADD' tools/ml/audit_nevergone_phi_secondary_load_trees.py
           grep -q 'unresolved LOAD addresses' tools/ml/audit_nevergone_phi_secondary_load_trees.py
           grep -q 'affects routing: no' tools/ml/audit_nevergone_phi_secondary_load_trees.py
+          grep -q 'ExportAddressClassification.java' tools/ml/run_nevergone_phi_secondary_resolved_address_classification.sh
