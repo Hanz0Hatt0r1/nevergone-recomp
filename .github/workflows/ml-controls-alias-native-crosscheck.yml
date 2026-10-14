@@ -1,0 +1,27 @@
+name: Nevergone Controls alias original-ELF cross-check
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controls_alias_native_crosscheck.py'
+      - 'tools/ml/nevergone_controls_alias_native_crosscheck_smoke.py'
+      - '.github/workflows/ml-controls-alias-native-crosscheck.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controls_alias_native_crosscheck.py'
+      - 'tools/ml/nevergone_controls_alias_native_crosscheck_smoke.py'
+      - '.github/workflows/ml-controls-alias-native-crosscheck.yml'
+
+jobs:
+  controls-alias-native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check original-ELF evidence cross-check safety
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_controls_alias_native_crosscheck.py
+          python3 tools/ml/nevergone_controls_alias_native_crosscheck_smoke.py

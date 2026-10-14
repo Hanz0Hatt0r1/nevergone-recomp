@@ -30,12 +30,12 @@ the same original APK are required. Ghidra must have the existing
 `libcocos2dcpp.so` project imported.
 
 ```bash
-cd `/nevergone-recomp
+cd ~/nevergone-recomp
 git switch main
 git pull --ff-only
 
 bash tools/ml/run_nevergone_controls_alias_operand_probe.sh \
-  `/nevergone-controls-field-alias-evidence.tar.gz \
+  ~/nevergone-controls-field-alias-evidence.tar.gz \
   /path/to/com.hippiegame.nevergone.apk
 ```
 
