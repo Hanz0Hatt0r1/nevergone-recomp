@@ -11,6 +11,8 @@ final class GameSceneAssetStagingDiagnostics {
     private static int failedRequestKind = -1;
     private static String state = "idle";
 
+    private static native String nativeTutorialBootstrapStatusReport();
+
     private GameSceneAssetStagingDiagnostics() {}
 
     static synchronized void reset() {
@@ -91,6 +93,18 @@ final class GameSceneAssetStagingDiagnostics {
             out.append("failed request kind: ")
                     .append(kindName(failedRequestKind))
                     .append('\n');
+        }
+
+        // Host-only Java smokes do not load the Android native library. Keep
+        // the existing diagnostics independently testable there, while a real
+        // Android process appends the native tutorial bootstrap/session state.
+        try {
+            String tutorial = nativeTutorialBootstrapStatusReport();
+            if (tutorial != null && !tutorial.isEmpty()) {
+                out.append(tutorial);
+            }
+        } catch (UnsatisfiedLinkError ignored) {
+            // Expected outside the Android runtime.
         }
         return out.toString();
     }
