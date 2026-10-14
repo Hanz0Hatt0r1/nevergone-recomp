@@ -2,8 +2,10 @@
 """Audit unresolved static receiver-vtable inference failures.
 
 This diagnostic tool joins Ghidra receiver-type TSV rows to
-NEVERGONE.StaticReceiverVtableInference/1 output and summarizes why calls remain
-unresolved. It is evidence-only and never changes routing.
+NEVERGONE.StaticReceiverVtableInference/1 output and summarizes why virtual-call
+receiver inference remains unresolved. Proven non-virtual indirect calls are reported
+separately and excluded from the failure bucket. It is evidence-only and never
+changes routing.
 """
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ from typing import Any
 
 INFERENCE_FORMAT = "NEVERGONE.StaticReceiverVtableInference/1"
 RESOLVED = {"resolved_unique_vtable", "resolved_unique_vtable_runtime_match"}
+NON_FAILURE = RESOLVED | {"non_virtual_indirect_call"}
 
 
 def read_tsv(path: Path) -> list[dict[str, str]]:
@@ -90,12 +93,15 @@ def main() -> int:
     pointee_types = Counter()
     flow_nodes = Counter()
     storage_kinds = Counter()
+    non_virtual_rows = 0
 
     for inf in inference_rows:
         if inf.get("format") != INFERENCE_FORMAT:
             raise ValueError(f"expected {INFERENCE_FORMAT}")
         status = inf.get("status")
-        if status in RESOLVED:
+        if status == "non_virtual_indirect_call":
+            non_virtual_rows += 1
+        if status in NON_FAILURE:
             continue
         source_id = inf.get("source_id")
         call_index = inf.get("call_index")
@@ -139,7 +145,8 @@ def main() -> int:
     print("format: NEVERGONE.StaticReceiverTypeFailureAudit/1")
     print("receiver rows:", len(receiver_rows))
     print("inference rows:", len(inference_rows))
-    print("unresolved rows:", len(joined))
+    print("proven non-virtual rows excluded:", non_virtual_rows)
+    print("unresolved virtual rows:", len(joined))
     print("status counts:", dict(statuses.most_common()))
     print("receiver def mnemonics:", dict(mnemonics.most_common()))
     print("receiver storage kinds:", dict(storage_kinds.most_common()))
