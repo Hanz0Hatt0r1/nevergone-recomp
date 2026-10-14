@@ -257,6 +257,32 @@ def verify_factory(site: dict, operands: dict, symbols: dict) -> dict:
             'affects_routing': False}
 
 
+def verify_factory_callback_retention(elf: bytes, sections: list, symbols: dict) -> bool:
+    """Thumb chain: Controls* factory arg r2 -> r6 -> r3 -> Button+0x110."""
+    required_symbols = {
+        '_ZN14ControlsButton6createEPKcS1_PN7cocos2d8CCObjectEMS3_FvvE': 0x2985fc,
+        '_ZN14ControlsButton19initWithNormalImageEPKcS1_PN7cocos2d8CCObjectEMS3_FvvE': 0x298588,
+        '_ZN14ControlsButton8touchEndEN7cocos2d7CCPointE': 0x2988e2,
+    }
+    for name, address in required_symbols.items():
+        require(name in symbols and (symbols[name][0] & ~1) == address,
+                'ControlsButton callback function symbol mismatch')
+    witnesses = {
+        0x29860a: '1646',      # MOV r6,r2 (callback object at factory entry)
+        0x29861e: '3346',      # MOV r3,r6 (callback argument to init)
+        0x29862c: 'fff7acff',  # BL ControlsButton::initWithNormalImage
+        0x29858e: 'c0f81031',  # STR.W r3,[r0,#0x110]
+        0x298994: 'd4f81031',  # LDR.W r3,[r4,#0x110] in touchEnd
+        0x2989b0: '9047',      # BLX r2 (member-function callback)
+    }
+    for address, expected in witnesses.items():
+        size = len(expected) // 2
+        offset = virtual_to_file(address, size, sections)
+        require(elf[offset:offset + size].hex() == expected,
+                'ControlsButton callback Thumb witness mismatch: ' + hex(address))
+    return True
+
+
 def analyze(archive: dict[str, str], elf: bytes) -> list[dict]:
     triage = read_jsonl(archive['triage'])
     require(triage and triage[0].get('format') == TRIAGE_FORMAT and
@@ -286,6 +312,7 @@ def analyze(archive: dict[str, str], elf: bytes) -> list[dict]:
     index = index_roots(plan, roots)
     symbols, functions, sections, relocations = elf_inventory(elf)
     vtable = verify_vtable(elf, symbols, functions, sections, relocations)
+    callback_retention = verify_factory_callback_retention(elf, sections, symbols)
     rows = []
     for site in plan:
         k = (site['kind'], site['function_entry'], site['op_address'], site['op_time'])
@@ -295,13 +322,17 @@ def analyze(archive: dict[str, str], elf: bytes) -> list[dict]:
         elif site['kind'] == 'indirect_unresolved':
             rows.append(verify_indirect(site, operands, elf, sections, vtable))
         else:
-            rows.append(verify_factory(site, operands, symbols))
+            factory = verify_factory(site, operands, symbols)
+            factory['factory_stores_callback_pointer_proven'] = callback_retention
+            factory['callback_object_storage_field'] = 'ControlsButton+0x110'
+            rows.append(factory)
     counts = collections.Counter(r['kind'] for r in rows)
     width_counts = collections.Counter(r['native_store_width_bytes'] for r in rows if r['kind'] == 'store')
     summary = {'format': FORMAT, 'record_type': 'summary', 'elf_sha256': SHA,
                'site_count': len(rows), 'site_kinds': dict(sorted(counts.items())),
                'store_width_bytes': {str(k): v for k, v in sorted(width_counts.items())},
                'controls_vtable_slots': vtable,
+               'controls_callback_pointer_retained_in_button_field_0x110': callback_retention,
                'remaining_register_based_unknown_stores': 37,
                'all_alias_writers_excluded': False,
                'dynamic_receiver_class_proven': False,
