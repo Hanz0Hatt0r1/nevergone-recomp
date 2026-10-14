@@ -58,9 +58,18 @@ The three `Controls::init` calls at `002a8118`, `002a816a` and
 `002a81bc` call the exact ELF
 `ControlsButton::create(char const*,char const*,cocos2d::CCObject*,...)`
 symbol. In each, `call_arg_2` is the unadjusted
-`Controls*` parameter zero. This proves the pointer is **passed as
-a callback object argument**; whether and how the factory retains
-or writes through that pointer is not proven.
+`Controls*` parameter zero. Original Thumb verifies the full
+interprocedural retention path: `ControlsButton::create` copies the
+callback object from `r2` to `r6` (ELF `0x29860a`), forwards it
+as `r3` to `initWithNormalImage` (`0x29861e/0x29862c`),
+and that method writes it to **`ControlsButton+0x110`**
+(`0x29858e`). `ControlsButton::touchEnd` subsequently reads
+`+0x110` (`0x298994`) and executes a member-function
+`BLX` (`0x2989b0`).
+
+This proves **callback pointer retention and later callback
+dispatch**, not that the callback writes the Controls button-pointer
+fields. It is a concrete interprocedural alias path to audit.
 
 ## Reproduce locally
 
@@ -110,9 +119,10 @@ python3 tools/ml/audit_nevergone_controls_register_store_native.py \
 ```
 
 **Interprocedural aliases remain open.** In particular, the three
-`ControlsButton::create` calls receive `Controls* this` as callback
-object, and the joystick back-reference points into the owner.
-Neither local STORE inventory excludes writes from other functions.
+`ControlsButton::create` calls retain `Controls* this` in
+`ControlsButton+0x110` for callback dispatch, and the joystick
+back-reference points into the owner. Neither local STORE inventory
+excludes writes from other functions.
 
 A bounded structural result is not a
 whole-program write exclusivity proof. All output retains
