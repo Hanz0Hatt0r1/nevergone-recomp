@@ -1,0 +1,40 @@
+name: Nevergone Controls full-this callee frontier smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/plan_nevergone_controls_full_this_callee_frontier.py'
+      - 'tools/ghidra/ExportControlsFullThisCalleeParameterUses.java'
+      - 'tools/ml/audit_nevergone_controls_full_this_callee_frontier.py'
+      - 'tools/ml/nevergone_controls_full_this_callee_frontier_smoke.py'
+      - 'tools/ml/run_nevergone_controls_full_this_callee_frontier_probe.sh'
+      - '.github/workflows/ml-controls-full-this-callee-frontier-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/plan_nevergone_controls_full_this_callee_frontier.py'
+      - 'tools/ghidra/ExportControlsFullThisCalleeParameterUses.java'
+      - 'tools/ml/audit_nevergone_controls_full_this_callee_frontier.py'
+      - 'tools/ml/nevergone_controls_full_this_callee_frontier_smoke.py'
+      - 'tools/ml/run_nevergone_controls_full_this_callee_frontier_probe.sh'
+      - '.github/workflows/ml-controls-full-this-callee-frontier-smoke.yml'
+
+jobs:
+  controls-full-this-callee-frontier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate full-this callee frontier contracts
+        run: |
+          python3 -m py_compile \
+            tools/ml/plan_nevergone_controls_full_this_callee_frontier.py \
+            tools/ml/audit_nevergone_controls_full_this_callee_frontier.py \
+            tools/ml/nevergone_controls_full_this_callee_frontier_smoke.py
+          python3 tools/ml/nevergone_controls_full_this_callee_frontier_smoke.py
+          bash -n tools/ml/run_nevergone_controls_full_this_callee_frontier_probe.sh
+          grep -q 'NEVERGONE.GhidraControlsFullThisCalleeParameterUses/1' \
+            tools/ghidra/ExportControlsFullThisCalleeParameterUses.java
+          grep -q 'getInstances()' tools/ghidra/ExportControlsFullThisCalleeParameterUses.java
