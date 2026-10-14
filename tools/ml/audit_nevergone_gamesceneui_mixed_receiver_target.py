@@ -71,7 +71,7 @@ def target_name_matches(value: Any, suffix: str) -> bool:
 
 
 def defining_site(value: Any) -> str | None:
-    """Normalize defining-site tokens emitted by two independent exporters."""
+    """Normalize defining-site tokens emitted by independent exporters."""
     if not isinstance(value, str) or not value.startswith("def:"):
         return None
     text = value[4:]
@@ -158,7 +158,7 @@ def main() -> int:
     ]
     matching_stores = [
         row for row in target_stores
-        if defining_site(row.get("value_token")) in control_output_sites
+        if defining_site(row.get("value_root_token") or row.get("value_token")) in control_output_sites
     ]
     if len(init_calls) != 1 or len(control_output_sites) != 1:
         reasons.append("initgamesceneui_controls_factory_call_not_unique")
