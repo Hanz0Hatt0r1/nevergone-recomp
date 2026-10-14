@@ -1,0 +1,29 @@
+name: Nevergone ControlsButton field receiver witness smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controlsbutton_field_receiver_witness.py'
+      - 'tools/ml/nevergone_controlsbutton_field_receiver_witness_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_field_receiver_witness.sh'
+      - '.github/workflows/ml-controlsbutton-field-receiver-witness-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controlsbutton_field_receiver_witness.py'
+      - 'tools/ml/nevergone_controlsbutton_field_receiver_witness_smoke.py'
+      - '.github/workflows/ml-controlsbutton-field-receiver-witness-smoke.yml'
+
+jobs:
+  witness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify field receiver witness synthetic gates
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_controlsbutton_field_receiver_witness.py
+          python3 tools/ml/nevergone_controlsbutton_field_receiver_witness_smoke.py
+          bash -n tools/ml/run_nevergone_controlsbutton_field_receiver_witness.sh
