@@ -19,6 +19,9 @@ from typing import Any
 INFERENCE_FORMAT = "NEVERGONE.StaticReceiverVtableInference/1"
 QUERY_FORMAT = "NEVERGONE.StaticReceiverVtableQuery/1"
 AUDIT_FORMAT = "NEVERGONE.GameSceneUIControlsSlotConvergenceAudit/1"
+STRICT_AUDIT_FORMAT = "NEVERGONE.MixedReceiverSlotTargetConvergenceAudit/1"
+TARGET_SOURCE = "libcocos2dcpp.so:002a7594"
+TARGET_CALLS = {3, 4, 7}
 RECOVERY_FORMAT = "NEVERGONE.MixedReceiverSlotTargetRecovery/1"
 RESOLVED = {"resolved_unique_vtable", "resolved_unique_vtable_runtime_match", "resolved_converged_target"}
 MODE = "audited_multi_vtable_target_convergence"
@@ -69,6 +72,8 @@ def main() -> int:
     p.add_argument("v9_inference_jsonl", type=Path)
     p.add_argument("v9_queries_jsonl", type=Path)
     p.add_argument("slot_convergence_audit_jsonl", type=Path)
+    p.add_argument("--strict-mixed-audit-jsonl", type=Path, required=True,
+                   help="Per-call audit proving both receiver branches, including singleton provenance")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--queries-output", type=Path, required=True)
     p.add_argument("--details-output", type=Path)
@@ -77,6 +82,7 @@ def main() -> int:
     inference = read_jsonl(a.v9_inference_jsonl)
     queries = read_jsonl(a.v9_queries_jsonl)
     audit_rows = read_jsonl(a.slot_convergence_audit_jsonl)
+    strict_rows = read_jsonl(a.strict_mixed_audit_jsonl)
     if len(audit_rows) != 1 or audit_rows[0].get("format") != AUDIT_FORMAT:
         raise ValueError(f"{a.slot_convergence_audit_jsonl}: expected exactly one {AUDIT_FORMAT} row")
     audit = audit_rows[0]
@@ -95,7 +101,7 @@ def main() -> int:
         contract_reasons.append("controls_field_class_not_proven")
     if audit.get("target_rows_stable") is not True:
         contract_reasons.append("target_rows_not_stable")
-    if not isinstance(source_id, str) or not source_id:
+    if source_id != TARGET_SOURCE:
         contract_reasons.append("audit_source_invalid")
     if not isinstance(call_indices, list) or len(call_indices) != 3 or sorted(call_indices) != [3, 4, 7]:
         contract_reasons.append("audit_call_set_invalid")
@@ -137,6 +143,45 @@ def main() -> int:
     candidate_vtables = sorted(set(candidate_vtables))
     if len(candidate_vtables) != 2:
         contract_reasons.append("audit_candidate_vtable_set_invalid")
+
+    # The older slot-only audit proves equal catalog targets but does not
+    # prove the GameSceneUI singleton branch. Require the independent strict
+    # per-call mixed-receiver audit before allowing any v11 recovery.
+    strict_by_call: dict[int, dict[str, Any]] = {}
+    if len(strict_rows) != 3:
+        contract_reasons.append("strict_mixed_receiver_row_count_invalid")
+    for item in strict_rows:
+        if item.get("format") != STRICT_AUDIT_FORMAT:
+            contract_reasons.append("strict_mixed_receiver_format_invalid")
+            continue
+        call = item.get("call_index")
+        if item.get("source_id") != TARGET_SOURCE or not isinstance(call, int) or call not in TARGET_CALLS:
+            contract_reasons.append("strict_mixed_receiver_key_invalid")
+            continue
+        if call in strict_by_call:
+            contract_reasons.append("strict_mixed_receiver_duplicate_call")
+            continue
+        strict_by_call[call] = item
+        if (
+            item.get("status") != "unique_target_across_proven_receiver_classes"
+            or item.get("reasons") != []
+            or item.get("affects_routing") is not False
+        ):
+            contract_reasons.append(f"strict_mixed_receiver_call_{call}_not_proven")
+        if normalize_slot(item.get("dispatch_slot_offset")) != slot:
+            contract_reasons.append(f"strict_mixed_receiver_call_{call}_slot_mismatch")
+        classes = item.get("proven_receiver_class_names")
+        if not isinstance(classes, list) or sorted(classes) != ["Controls", "GameSceneUI"]:
+            contract_reasons.append(f"strict_mixed_receiver_call_{call}_classes_mismatch")
+        vtables = item.get("proven_receiver_vtable_ids")
+        if not isinstance(vtables, list) or len(vtables) != 2 or not all(isinstance(vt, str) for vt in vtables) or sorted(vtables) != candidate_vtables:
+            contract_reasons.append(f"strict_mixed_receiver_call_{call}_vtables_mismatch")
+        if item.get("class_target_ids") != {"Controls": [target], "GameSceneUI": [target]}:
+            contract_reasons.append(f"strict_mixed_receiver_call_{call}_targets_mismatch")
+        if item.get("convergent_target_id") != target or item.get("controls_field_offset") != "0x134":
+            contract_reasons.append(f"strict_mixed_receiver_call_{call}_field_or_target_mismatch")
+    if set(strict_by_call) != TARGET_CALLS:
+        contract_reasons.append("strict_mixed_receiver_call_set_incomplete")
 
     query_by_key: dict[tuple[str, int], dict[str, Any]] = {}
     for line_no, q in enumerate(queries, 1):
