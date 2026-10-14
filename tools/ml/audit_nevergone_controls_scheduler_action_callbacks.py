@@ -21,6 +21,10 @@ from audit_nevergone_controls_retained_alias_closure import (
 
 FORMAT = "NEVERGONE.ControlsSchedulerActionCallbackClosure/1"
 DANGEROUS = {0x124, 0x12C, 0x130, 0x134, 0x174}
+REMOVE_CHILD = "_ZN7cocos2d6CCNode11removeChildEPS0_"
+REMOVE_CHILD_CLEANUP = "_ZN7cocos2d6CCNode11removeChildEPS0_b"
+DETACH_CHILD = "_ZN7cocos2d6CCNode11detachChildEPS0_b"
+SHOW_KILL_TIPS_CALLBACK_BYTES = bytes.fromhex("08b50368d3f8d830984708bd")
 CALLBACKS = {
     "_ZN8Controls8comboEndEf": (
         0x296790,
@@ -54,7 +58,7 @@ WINDOWS = {
     "CCCallFunc_initWithTarget": (0x50EA1C, 0x50EA38, "5fe49dae178eb364b43c0fb3f33f9a22eb908565be0f9b09a630426a278b3162"),
     "CCCallFuncN_initWithTarget": (0x50EA38, 0x50EA58, "793b607996e1c297342cd312807d1e5524774cb5925dd1a6b4e498c372e5f1d3"),
     "CCCallFuncN_execute": (0x50ED12, 0x50ED4E, "57e78355b3beb65c90812adebdb52b16d08054596ff11665935b293231c64129"),
-    "CCNode_getScheduler": (0x515E70, 0x515E76, "62206c2419f20dfac3c7f099806f895df2cd78ca1d47546043ab79585304da32"),
+    "CCNode_removeChild_cleanup": (0x516C1E, 0x516C42, "23274966faa32352b2b3b5792e65cc0182b38084c80c7981319f6705908471fa"),
 }
 
 
@@ -110,9 +114,64 @@ def verify_scheduler_path(elf: OriginalElf) -> dict:
     }
 
 
+def verify_show_kill_tips_dispatch_identity(elf: OriginalElf) -> tuple[int, int]:
+    # Exact callback body:
+    #   push {r3,lr}; ldr r3,[r0]; ldr.w r3,[r3,#0xd8]; blx r3; pop {r3,pc}
+    # r0 is therefore the retained Controls* target and slot 0xd8 is the
+    # dispatch slot.  The previous audit incorrectly labeled this slot as
+    # CCNode::getScheduler; exact Cocos 2.1.2 layout and the ELF vtable map it
+    # to the one-argument CCNode::removeChild wrapper.
+    require(elf.at(0x2966D4, 12) == SHOW_KILL_TIPS_CALLBACK_BYTES,
+            "showKillTips callback receiver/slot body changed")
+    vtable, size = elf.symbol("_ZTV8Controls", 0x8E4490, 592)
+    entry = vtable + 8 + 0xD8
+    require(entry + 4 <= vtable + size, "Controls slot 0xd8 outside vtable")
+    require(elf.relative_relocations.get(entry) == 23,
+            "Controls slot 0xd8 relocation mismatch")
+    target = elf.u32(entry)
+    remove_value, remove_size = elf.symbol(REMOVE_CHILD)
+    require(target == remove_value,
+            "showKillTips slot 0xd8 is not CCNode::removeChild(CCNode*)")
+    return remove_value, remove_size
+
+
+def verify_show_kill_tips_remove_child_path(elf: OriginalElf) -> dict:
+    remove_value, remove_size = verify_show_kill_tips_dispatch_identity(elf)
+    remove_start = remove_value & ~1
+    remove_stores = immediate_stores(elf, remove_start, remove_size)
+    require(not ({row[4] for row in remove_stores} & DANGEROUS),
+            "CCNode::removeChild(CCNode*) directly writes a Controls pointer field")
+
+    verify_window(elf, "CCNode_removeChild_cleanup")
+    cleanup_value, cleanup_size = elf.symbol(REMOVE_CHILD_CLEANUP, 0x516C1E, 36)
+    cleanup_stores = immediate_stores(elf, cleanup_value & ~1, cleanup_size)
+    require(not ({row[4] for row in cleanup_stores} & DANGEROUS),
+            "CCNode::removeChild(CCNode*,bool) directly writes a Controls pointer field")
+
+    # Exact upstream semantics for this pinned Cocos build route the bool
+    # overload through detachChild when the child is present.  Inspect the
+    # exact packaged detachChild body as an additional direct-STORE guard.
+    detach_value, detach_size = elf.symbol(DETACH_CHILD)
+    detach_stores = immediate_stores(elf, detach_value & ~1, detach_size)
+    require(not ({row[4] for row in detach_stores} & DANGEROUS),
+            "CCNode::detachChild directly writes a Controls pointer field")
+
+    return {
+        "slot": "0xd8",
+        "target": "cocos2d::CCNode::removeChild(CCNode*)",
+        "target_symbol": REMOVE_CHILD,
+        "target_direct_store_offsets": [hex(row[4]) for row in remove_stores],
+        "cleanup_overload_symbol": REMOVE_CHILD_CLEANUP,
+        "cleanup_direct_store_offsets": [hex(row[4]) for row in cleanup_stores],
+        "detach_symbol": DETACH_CHILD,
+        "detach_direct_store_offsets": [hex(row[4]) for row in detach_stores],
+        "directly_writes_controls_pointer_fields": False,
+    }
+
+
 def verify_callfuncn_path(elf: OriginalElf) -> dict:
     for name in ("showAToJTip_CCCallFuncN", "CCCallFunc_initWithTarget",
-                 "CCCallFuncN_initWithTarget", "CCCallFuncN_execute", "CCNode_getScheduler"):
+                 "CCCallFuncN_initWithTarget", "CCCallFuncN_execute"):
         verify_window(elf, name)
 
     # showAToJTip passes r6 (saved Controls this) as target. CCCallFunc retains
@@ -123,16 +182,7 @@ def verify_callfuncn_path(elf: OriginalElf) -> dict:
     require(elf.at(0x50EA4A, 8).hex() == "05f12c0383e80300", "CCCallFuncN member pointer storage changed")
     require(elf.at(0x50ED20, 24).hex().endswith("a1699847"), "CCCallFuncN member dispatch changed")
 
-    # showKillTipsCallback contains no STORE and its sole virtual dispatch is
-    # Controls vtable slot 0xd8. The exact vtable entry resolves to inherited
-    # CCNode::getScheduler(), whose six-byte body is a load + return.
-    vtable, size = elf.symbol("_ZTV8Controls", 0x8E4490, 592)
-    entry = vtable + 8 + 0xD8
-    require(entry + 4 <= vtable + size, "Controls slot 0xd8 outside vtable")
-    require(elf.relative_relocations.get(entry) == 23, "Controls slot 0xd8 relocation mismatch")
-    target = elf.u32(entry)
-    scheduler_value, _ = elf.symbol("_ZN7cocos2d6CCNode12getSchedulerEv", 0x515E70, 6)
-    require(target == scheduler_value, "showKillTips callback virtual target changed")
+    remove_path = verify_show_kill_tips_remove_child_path(elf)
 
     return {
         "factory": "cocos2d::CCCallFuncN::create",
@@ -140,7 +190,8 @@ def verify_callfuncn_path(elf: OriginalElf) -> dict:
         "member_pointer_fields": ["CCCallFuncN+0x2c", "CCCallFuncN+0x30"],
         "callback": "Controls::showKillTipsCallback(CCNode*)",
         "callback_virtual_slot": "0xd8",
-        "callback_virtual_target": "cocos2d::CCNode::getScheduler()",
+        "callback_virtual_target": "cocos2d::CCNode::removeChild(CCNode*)",
+        "callback_remove_child_path": remove_path,
         "callback_directly_writes_pointer_fields": False,
     }
 
@@ -180,7 +231,7 @@ def main() -> int:
 
     print("format:", FORMAT)
     print("scheduler callbacks: comboEnd x2, tick x1")
-    print("action callback: showKillTipsCallback -> CCNode::getScheduler")
+    print("action callback: showKillTipsCallback -> CCNode::removeChild(CCNode*)")
     print("callbacks directly write retained pointer fields: no")
     print("whole-program alias exclusion: no; affects routing: no")
     print("output:", args.details_output)
