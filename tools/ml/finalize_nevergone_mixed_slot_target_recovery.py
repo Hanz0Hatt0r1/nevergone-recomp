@@ -171,7 +171,7 @@ def main() -> int:
         if normalize_slot(item.get("dispatch_slot_offset")) != slot:
             contract_reasons.append(f"strict_mixed_receiver_call_{call}_slot_mismatch")
         classes = item.get("proven_receiver_class_names")
-        if not isinstance(classes, list) or sorted(classes) != ["Controls", "GameSceneUI"]:
+        if not isinstance(classes, list) or not all(isinstance(cls, str) for cls in classes) or sorted(classes) != ["Controls", "GameSceneUI"]:
             contract_reasons.append(f"strict_mixed_receiver_call_{call}_classes_mismatch")
         vtables = item.get("proven_receiver_vtable_ids")
         if not isinstance(vtables, list) or len(vtables) != 2 or not all(isinstance(vt, str) for vt in vtables) or sorted(vtables) != candidate_vtables:
