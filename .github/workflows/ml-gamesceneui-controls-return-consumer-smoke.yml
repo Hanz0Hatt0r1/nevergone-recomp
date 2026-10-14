@@ -1,0 +1,50 @@
+name: Nevergone ML GameSceneUI controls return consumer smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportAccessorReturnConsumers.java'
+      - 'tools/ml/audit_nevergone_gamesceneui_controls_return_consumers.py'
+      - 'tools/ml/run_nevergone_gamesceneui_controls_return_consumer_probe.sh'
+      - '.github/workflows/ml-gamesceneui-controls-return-consumer-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and contract checks
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_gamesceneui_controls_return_consumers.py
+          bash -n tools/ml/run_nevergone_gamesceneui_controls_return_consumer_probe.sh
+          grep -q 'NEVERGONE.GhidraAccessorReturnConsumers/1' tools/ghidra/ExportAccessorReturnConsumers.java
+          grep -q 'direct_this_call' tools/ghidra/ExportAccessorReturnConsumers.java
+          grep -q 'GameSceneUI::GetControlsObj' tools/ml/run_nevergone_gamesceneui_controls_return_consumer_probe.sh
+      - name: Synthetic positive and conflict audits
+        run: |
+          tmp="$(mktemp -d)"
+          cat > "$tmp/accessor.jsonl" <<'EOF'
+          {"format":"NEVERGONE.GameSceneUIControlsAccessorAudit/1","field_return_rows":1,"accessor_offsets":["0x134"],"mixed_direct_singleton_value_present":true,"status":"accessor_0x134_type_unresolved","affects_routing":false}
+          EOF
+          cat > "$tmp/catalog.jsonl" <<'EOF'
+          {"format":"NEVERGONE.StaticVtableSlotCatalog/3","class_name":"Controls","receiver_vtable_id":"lib.so:00900000"}
+          {"format":"NEVERGONE.StaticVtableSlotCatalog/3","class_name":"GameSceneUI","receiver_vtable_id":"lib.so:00901000"}
+          EOF
+          cat > "$tmp/positive.tsv" <<'EOF'
+          format	row_type	accessor_entry	accessor_name	direct_caller_functions	caller_functions_decompiled	caller_functions_failed	accessor_call_sites	accessor_calls_with_output	direct_member_uses	unsupported_uses	caller_entry	caller_name	accessor_call_site	use_depth	use_opcode	use_address	use_input_index	direct_target_entry	direct_target_name	status
+          NEVERGONE.GhidraAccessorReturnConsumers/1	use	003e6eee	GameSceneUI::GetControlsObj	-	-	-	-	-	-	-	00400000	GameScene::tick	00400020	0	CALL	00400024	1	002973dc	Controls::onCCJoyStickUpdate	direct_this_call
+          NEVERGONE.GhidraAccessorReturnConsumers/1	summary	003e6eee	GameSceneUI::GetControlsObj	1	1	0	1	1	1	0	-	-	-	-	-	-	-	-	-	complete_return_use_export
+          EOF
+          out="$(python3 tools/ml/audit_nevergone_gamesceneui_controls_return_consumers.py "$tmp/positive.tsv" "$tmp/accessor.jsonl" "$tmp/catalog.jsonl")"
+          grep -q "mapped classes: \['Controls'\]" <<<"$out"
+          grep -q 'status: unique_catalog_member_consumer_class' <<<"$out"
+
+          cat > "$tmp/conflict.tsv" <<'EOF'
+          format	row_type	accessor_entry	accessor_name	direct_caller_functions	caller_functions_decompiled	caller_functions_failed	accessor_call_sites	accessor_calls_with_output	direct_member_uses	unsupported_uses	caller_entry	caller_name	accessor_call_site	use_depth	use_opcode	use_address	use_input_index	direct_target_entry	direct_target_name	status
+          NEVERGONE.GhidraAccessorReturnConsumers/1	use	003e6eee	GameSceneUI::GetControlsObj	-	-	-	-	-	-	-	00400000	GameScene::tick	00400020	0	CALL	00400024	1	002973dc	Controls::tick	direct_this_call
+          NEVERGONE.GhidraAccessorReturnConsumers/1	use	003e6eee	GameSceneUI::GetControlsObj	-	-	-	-	-	-	-	00400000	GameScene::tick	00400020	0	CALL	00400030	1	003d7000	GameSceneUI::tick	direct_this_call
+          NEVERGONE.GhidraAccessorReturnConsumers/1	summary	003e6eee	GameSceneUI::GetControlsObj	1	1	0	1	1	2	0	-	-	-	-	-	-	-	-	-	complete_return_use_export
+          EOF
+          out="$(python3 tools/ml/audit_nevergone_gamesceneui_controls_return_consumers.py "$tmp/conflict.tsv" "$tmp/accessor.jsonl" "$tmp/catalog.jsonl")"
+          grep -q 'status: multiple_catalog_member_consumer_classes' <<<"$out"
