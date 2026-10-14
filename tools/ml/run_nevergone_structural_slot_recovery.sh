@@ -15,6 +15,7 @@ set -euo pipefail
 : "${SLICE_DIR:=$WORK_ROOT/evidence/indirect-slices}"
 : "${SLICE_DETAILS:=$WORK_ROOT/missing-slot-target-slice-audit.jsonl}"
 : "${SLICE_AUDIT_TXT:=$WORK_ROOT/missing-slot-target-slice-audit.txt}"
+: "${ADDRESS_CLASSIFICATION:=$WORK_ROOT/missing-slot-address-classification.tsv}"
 
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 [[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }
@@ -26,6 +27,10 @@ ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 }
 [[ -f "$REPO_ROOT/tools/ghidra/ExportIndirectCallTargetReceiverProvenance.java" ]] || {
   echo "missing target receiver provenance exporter" >&2
+  exit 2
+}
+[[ -f "$REPO_ROOT/tools/ghidra/ExportAddressClassification.java" ]] || {
+  echo "missing address classification exporter" >&2
   exit 2
 }
 [[ -f "$REPO_ROOT/tools/ml/audit_nevergone_structural_slot_recovery.py" ]] || {
@@ -71,9 +76,22 @@ python3 "$REPO_ROOT/tools/ml/audit_nevergone_missing_slot_target_slices.py" \
   --details-output "$SLICE_DETAILS" \
   | tee "$SLICE_AUDIT_TXT"
 
+echo
+echo "missing-slot address classification:"
+"$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
+  -process "$GHIDRA_PROGRAM" \
+  -recursive \
+  -readOnly \
+  -noanalysis \
+  -scriptPath "$REPO_ROOT/tools/ghidra" \
+  -postScript ExportAddressClassification.java "$ADDRESS_CLASSIFICATION" \
+    0029902c 0029be3e 0067aab0 0067aab4 0067aab8
+cat "$ADDRESS_CLASSIFICATION"
+
 printf 'target provenance output: %s\n' "$OUT"
 printf 'audit details: %s\n' "$DETAILS"
 printf 'audit text: %s\n' "$AUDIT_TXT"
 printf 'slice audit details: %s\n' "$SLICE_DETAILS"
 printf 'slice audit text: %s\n' "$SLICE_AUDIT_TXT"
+printf 'address classification: %s\n' "$ADDRESS_CLASSIFICATION"
 printf 'affects routing: no\n'
