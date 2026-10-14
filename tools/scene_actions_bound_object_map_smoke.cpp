@@ -1,4 +1,5 @@
 #include <cassert>
+#include <limits>
 #include <vector>
 
 #include "scene_actions_bound_object_map.h"
@@ -53,12 +54,12 @@ int main() {
     assert(result.objects.empty());
 
     geometry.sprite_bounds = spatial::Rect{0.0f, 0.0f, -1.0f, 2.0f};
-    // finite negative extents are structurally representable here; the recovered
+    // Finite negative extents are structurally representable here; the recovered
     // spatial predicate owns intersection semantics rather than this mapper.
     result = map::build(scene, {geometry});
     assert(result.status == map::Status::kReady);
 
-    geometry.object_position_x = 0.0f / 0.0f;
+    geometry.object_position_x = std::numeric_limits<float>::quiet_NaN();
     result = map::build(scene, {geometry});
     assert(result.status == map::Status::kInvalidGeometry);
     assert(result.objects.empty());
