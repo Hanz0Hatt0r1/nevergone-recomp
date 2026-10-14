@@ -17,7 +17,7 @@ def must_fail(fn):
 
 def fake_text():
     base = 0x297000
-    data = bytearray(0x1200)
+    data = bytearray(0x1a00)
     sections = [(0, 1, 0, base, 0, len(data), 0, 0, 4, 0)]
     for address, (_, _, hexbytes, _) in m.STORE_WITNESSES.items():
         pos = int(address, 16) - 0x10000 - base
@@ -25,6 +25,12 @@ def fake_text():
     for address, (_, hexbytes, _) in m.INDIRECT_WITNESSES.items():
         pos = int(address, 16) - 0x10000 - base
         data[pos:pos+2] = bytes.fromhex(hexbytes)
+    for address, raw in {
+        0x29860a: '1646', 0x29861e: '3346', 0x29862c: 'fff7acff',
+        0x29858e: 'c0f81031', 0x298994: 'd4f81031', 0x2989b0: '9047',
+    }.items():
+        pos = address - base
+        data[pos:pos+len(raw)//2] = bytes.fromhex(raw)
     return data, sections
 
 
@@ -92,6 +98,20 @@ def main():
         must_fail(lambda: m.verify_factory(site, bad,
                                           {m.FACTORY_SYMBOL: (0x2985fd, 86, 8)}))
 
+    callback_symbols = {
+        m.FACTORY_SYMBOL: (0x2985fd, 86, 8),
+        '_ZN14ControlsButton19initWithNormalImageEPKcS1_PN7cocos2d8CCObjectEMS3_FvvE':
+            (0x298589, 116, 8),
+        '_ZN14ControlsButton8touchEndEN7cocos2d7CCPointE':
+            (0x2988e3, 212, 8),
+    }
+    assert m.verify_factory_callback_retention(elf, sections, callback_symbols)
+    bad_elf = bytearray(elf)
+    bad_elf[0x29858e - 0x297000] ^= 1
+    must_fail(lambda: m.verify_factory_callback_retention(
+        bad_elf, sections, callback_symbols))
+    must_fail(lambda: m.verify_factory_callback_retention(
+        elf, sections, {m.FACTORY_SYMBOL: (0x2985fd, 86, 8)}))
     must_fail(lambda: m.virtual_to_file(0x300000, 4, sections))
     print('Controls alias native cross-check smoke: ok')
 
