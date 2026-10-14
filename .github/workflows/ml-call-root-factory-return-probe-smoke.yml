@@ -1,0 +1,47 @@
+name: Nevergone ML CALL-root factory return probe smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportFunctionReturnObjectProvenance.java'
+      - 'tools/ml/plan_nevergone_call_root_factory_returns.py'
+      - 'tools/ml/audit_nevergone_call_root_factory_returns.py'
+      - 'tools/ml/run_nevergone_call_root_factory_return_probe.sh'
+      - '.github/workflows/ml-call-root-factory-return-probe-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and evidence-only contract
+        run: |
+          python3 -m py_compile tools/ml/plan_nevergone_call_root_factory_returns.py
+          python3 -m py_compile tools/ml/audit_nevergone_call_root_factory_returns.py
+          bash -n tools/ml/run_nevergone_call_root_factory_return_probe.sh
+          grep -q 'NEVERGONE.GhidraFunctionReturnObjectProvenance/1' tools/ghidra/ExportFunctionReturnObjectProvenance.java
+          grep -q 'PcodeOp.RETURN' tools/ghidra/ExportFunctionReturnObjectProvenance.java
+          grep -q 'PcodeOp.MULTIEQUAL' tools/ghidra/ExportFunctionReturnObjectProvenance.java
+          grep -q 'FACTORY_RETURN_AFFECTS_ROUTING=no' tools/ghidra/ExportFunctionReturnObjectProvenance.java
+      - name: Synthetic constructor-return audit
+        run: |
+          tmp="$(mktemp -d)"
+          cat > "$tmp/catalog.jsonl" <<'EOF'
+          {"format":"NEVERGONE.StaticVtableSlotCatalog/3","class_name":"Test::A","receiver_vtable_id":"vt_a"}
+          EOF
+          cat > "$tmp/provenance.tsv" <<'EOF'
+          format	row_type	source_id	source_call_index	callee_entry	callee_name	callee_declared_return_type	return_index	node_id	parent_node_id	input_index	depth	token	type_display	pointer_depth	pointee_type_display	constant_value	defining_opcode	defining_address	defining_time	call_target_entry	call_target_name	call_arg0_root_token	call_output_root_token	truncation
+          NEVERGONE.GhidraFunctionReturnObjectProvenance/1	summary	test.so:00100000	0	00500000	Test::A::create	undefined	-1	-1	-1	-1	-1	-	-	0	-	-	-	-	-	-	-	-	-	-
+          NEVERGONE.GhidraFunctionReturnObjectProvenance/1	call	test.so:00100000	0	00500000	Test::A::create	undefined	-1	-1	-1	-1	-1	-	-	0	-	-	CALL	00500010	1	00500100	Test::A::A	def:CALL@00500008:1:4	-	-
+          NEVERGONE.GhidraFunctionReturnObjectProvenance/1	return_node	test.so:00100000	0	00500000	Test::A::create	undefined	0	0	-1	-1	0	def:MULTIEQUAL@00500020:1:4	int *	1	int	-	MULTIEQUAL	00500020	1	-	-	-	-	-
+          NEVERGONE.GhidraFunctionReturnObjectProvenance/1	return_node	test.so:00100000	0	00500000	Test::A::create	undefined	0	1	0	0	1	const:0x0:4	int *	1	int	0x0	-	-	-	-	-	-	-	-
+          NEVERGONE.GhidraFunctionReturnObjectProvenance/1	return_node	test.so:00100000	0	00500000	Test::A::create	undefined	0	2	0	1	1	def:CALL@00500008:1:4	undefined4 *	1	undefined4	-	CALL	00500008	1	00400000	operator.new	-	def:CALL@00500008:1:4	-
+          EOF
+          out="$(python3 tools/ml/audit_nevergone_call_root_factory_returns.py "$tmp/provenance.tsv" "$tmp/catalog.jsonl")"
+          grep -q 'factory candidates: 1' <<<"$out"
+          grep -q 'null return leaves: 1' <<<"$out"
+          grep -q 'non-null return leaves: 1' <<<"$out"
+          grep -q 'constructor-proven non-null leaves: 1' <<<"$out"
+          grep -q "unique_factory_return_class" <<<"$out"
+          grep -q "Test::A" <<<"$out"
