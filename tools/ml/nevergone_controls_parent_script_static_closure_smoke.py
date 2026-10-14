@@ -14,8 +14,8 @@ def main() -> None:
 
     # Known BL in the original ELF: 0x516a48 -> sharedManager 0x536cdc.
     assert m.decode_thumb_branch_target(0x516a48, 0xf020, 0xf948) == 0x536cdc
-    # Known B.W tail call: 0x524920 -> addStandardDelegate 0x5493f4.
-    assert m.decode_thumb_branch_target(0x524920, 0xf024, 0xbd66) == 0x5493f4
+    # Known B.W tail call: instruction starts at 0x524924 after POP at 0x524920.
+    assert m.decode_thumb_branch_target(0x524924, 0xf024, 0xbd66) == 0x5493f4
     assert m.decode_thumb_branch_target(0x1000, 0xbf00, 0xbf00) is None
 
     # Negative displacement stays signed.
