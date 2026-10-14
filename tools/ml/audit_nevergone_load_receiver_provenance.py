@@ -16,7 +16,10 @@ from pathlib import Path
 from typing import Any
 
 INFERENCE_FORMAT = "NEVERGONE.StaticReceiverVtableInference/1"
-LOAD_FORMAT = "NEVERGONE.GhidraLoadReceiverProvenance/1"
+LOAD_FORMATS = {
+    "NEVERGONE.GhidraLoadReceiverProvenance/1",
+    "NEVERGONE.GhidraLoadReceiverProvenance/2",
+}
 CATALOG_FORMAT = "NEVERGONE.StaticVtableSlotCatalog/3"
 RESOLVED = {"resolved_unique_vtable", "resolved_unique_vtable_runtime_match"}
 
@@ -66,6 +69,22 @@ def parse_json_strings(value: Any) -> list[str]:
     return [x for x in parsed if isinstance(x, str) and x]
 
 
+def map_candidates(raw_candidates: list[str], catalog_classes: set[str],
+                   terminal_to_classes: dict[str, set[str]]) -> set[str]:
+    mapped: set[str] = set()
+    for raw in raw_candidates:
+        cleaned = clean_type(raw)
+        if cleaned is None:
+            continue
+        if cleaned in catalog_classes:
+            mapped.add(cleaned)
+            continue
+        matches = terminal_to_classes.get(terminal(cleaned), set())
+        if len(matches) == 1:
+            mapped.update(matches)
+    return mapped
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("inference_jsonl", type=Path)
@@ -92,9 +111,12 @@ def main() -> int:
         terminal_to_classes[terminal(class_name)].add(class_name)
 
     load_by_key: dict[tuple[str, int], dict[str, str]] = {}
+    format_counts = Counter()
     for line_no, row in enumerate(load_rows, 2):
-        if row.get("format") != LOAD_FORMAT:
-            raise ValueError(f"{args.load_provenance_tsv}:{line_no}: expected {LOAD_FORMAT}")
+        fmt = row.get("format")
+        if fmt not in LOAD_FORMATS:
+            raise ValueError(f"{args.load_provenance_tsv}:{line_no}: expected one of {sorted(LOAD_FORMATS)}")
+        format_counts[str(fmt)] += 1
         source_id = row.get("source_id")
         try:
             call_index = int(row.get("call_index", "-1"))
@@ -108,6 +130,9 @@ def main() -> int:
     recovery_statuses = Counter()
     recovered_classes = Counter()
     original_statuses = Counter()
+    pattern_counts = Counter()
+    typed_field_rows = 0
+    traced_rows = 0
 
     for inf in inference_rows:
         if inf.get("format") != INFERENCE_FORMAT:
@@ -122,28 +147,34 @@ def main() -> int:
         original_statuses[str(original_status)] += 1
 
         load = load_by_key.get((source_id, call_index))
+        raw_candidates: list[str] = []
+        mapped: set[str] = set()
+        patterns: list[str] = []
+        trace: list[str] = []
+        typed_fields: list[str] = []
+
         if load is None:
             recovery_status = "missing_load_evidence"
             load_status = "<missing>"
-            raw_candidates: list[str] = []
         else:
             load_status = load.get("status") or "<missing>"
             load_statuses[load_status] += 1
-            raw_candidates = []
             raw_candidates.extend(parse_json_strings(load.get("candidate_single_pointer_pointee_displays_json")))
             raw_candidates.extend(parse_json_strings(load.get("candidate_single_pointer_pointee_names_json")))
+            mapped = map_candidates(raw_candidates, catalog_classes, terminal_to_classes)
 
-            mapped: set[str] = set()
-            for raw in raw_candidates:
-                cleaned = clean_type(raw)
-                if cleaned is None:
-                    continue
-                if cleaned in catalog_classes:
-                    mapped.add(cleaned)
-                    continue
-                matches = terminal_to_classes.get(terminal(cleaned), set())
-                if len(matches) == 1:
-                    mapped.update(matches)
+            patterns = parse_json_strings(load.get("address_patterns_json"))
+            if not patterns and load.get("address_pattern") not in (None, "", "-"):
+                patterns = [str(load.get("address_pattern"))]
+            for pattern in patterns:
+                pattern_counts[pattern] += 1
+
+            trace = parse_json_strings(load.get("provenance_trace_json"))
+            typed_fields = parse_json_strings(load.get("typed_structure_fields_json"))
+            if trace:
+                traced_rows += 1
+            if typed_fields:
+                typed_field_rows += 1
 
             if load_status == "not_load":
                 recovery_status = "receiver_not_load"
@@ -158,20 +189,7 @@ def main() -> int:
                 recovered_classes[next(iter(mapped))] += 1
 
         recovery_statuses[recovery_status] += 1
-        mapped_classes: list[str] = []
-        if load is not None and raw_candidates:
-            mapped: set[str] = set()
-            for raw in raw_candidates:
-                cleaned = clean_type(raw)
-                if cleaned is None:
-                    continue
-                if cleaned in catalog_classes:
-                    mapped.add(cleaned)
-                else:
-                    matches = terminal_to_classes.get(terminal(cleaned), set())
-                    if len(matches) == 1:
-                        mapped.update(matches)
-            mapped_classes = sorted(mapped)
+        mapped_classes = sorted(mapped)
 
         joined.append({
             "source_id": source_id,
@@ -179,9 +197,14 @@ def main() -> int:
             "call_address": inf.get("call_address"),
             "original_status": original_status,
             "dispatch_slot_offset": inf.get("dispatch_slot_offset"),
+            "load_format": load.get("format") if load else None,
             "load_status": load_status,
             "recovery_status": recovery_status,
             "address_pattern": load.get("address_pattern") if load else None,
+            "address_patterns": patterns,
+            "provenance_node_count": load.get("provenance_node_count") if load else None,
+            "provenance_trace": trace,
+            "typed_structure_fields": typed_fields,
             "load_address_type_display": load.get("load_address_type_display") if load else None,
             "load_address_loaded_type_display": load.get("load_address_loaded_type_display") if load else None,
             "base_type_display": load.get("base_type_display") if load else None,
@@ -193,15 +216,19 @@ def main() -> int:
             "affects_routing": False,
         })
 
-    print("format: NEVERGONE.LoadReceiverProvenanceAudit/1")
+    print("format: NEVERGONE.LoadReceiverProvenanceAudit/2")
     print("inference rows:", len(inference_rows))
     print("load provenance rows:", len(load_rows))
+    print("load provenance formats:", dict(format_counts.most_common()))
     print("unresolved rows:", len(joined))
     print("original status counts:", dict(original_statuses.most_common()))
     print("load status counts:", dict(load_statuses.most_common()))
     print("recovery status counts:", dict(recovery_statuses.most_common()))
     print("unique catalog recoveries:", recovery_statuses["unique_catalog_class"])
     print("top recovered classes:", dict(recovered_classes.most_common(20)))
+    print("rows with recursive trace:", traced_rows)
+    print("rows with typed structure fields:", typed_field_rows)
+    print("address provenance patterns:", dict(pattern_counts.most_common()))
 
     print("\nsamples:")
     for row in joined[: max(0, args.samples)]:
@@ -211,7 +238,8 @@ def main() -> int:
             "original=", row["original_status"],
             "load=", row["load_status"],
             "recovery=", row["recovery_status"],
-            "pattern=", row["address_pattern"],
+            "patterns=", row["address_patterns"],
+            "nodes=", row["provenance_node_count"],
             "offset=", row["byte_offset"],
             "component=", row["component_type_display"],
             "classes=", row["candidate_receiver_class_names"],
