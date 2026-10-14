@@ -10,14 +10,14 @@ The goal is deliberately narrower than recovering one receiver class. The probe 
 
 The singleton branch is not typed from the `sharedGameSceneUI` function name. `ExportSingletonStoreReturnProvenance.java` records the function's direct constructor call, the constructor-rooted object stored into the singleton cell and the return load from that same cell. `audit_nevergone_singleton_store_return.py` accepts the branch as `GameSceneUI` only when the constructor/store/return relation is unique and the static catalog maps that class to exactly one vtable.
 
-The field branch is also proven without naming inference. `GameSceneUI::initGameSceneUI` calls `Controls::initControls`; the existing factory-return auditor must prove that factory result as `Controls`, and `ExportFieldStoreCandidates.java` must show that the same call-produced value is stored at `GameSceneUI + 0x134`. The corrected `GetControlsObj` probe independently requires that its return is the same `+0x134` field.
+The `+0x134` branch reuses the independently merged accessor-consumer evidence. The corrected `GetControlsObj` probe must first prove that the accessor returns exactly `this + 0x134`. `ExportAccessorReturnConsumers.java` then follows only value-preserving uses of that exact return value and records class evidence only when the value is passed as `this` to a resolved direct member call. `audit_nevergone_gamesceneui_controls_return_consumers.py` must report `unique_catalog_member_consumer_class` with `mapped_classes == ["Controls"]` and exactly one Controls vtable. The accessor name itself is never treated as class evidence.
 
 ## Slot convergence
 
 After both branch classes are independently proven, `audit_nevergone_gamesceneui_mixed_receiver_target.py` looks up only the exact `(receiver_vtable_id, 0x80)` keys in the conservative static vtable catalog. It succeeds only when:
 
-- `GameSceneUI` has exactly one catalog vtable;
-- `Controls` has exactly one catalog vtable;
+- `GameSceneUI` has exactly one catalog vtable and it matches the singleton audit;
+- `Controls` has exactly one catalog vtable and it matches the return-consumer audit;
 - neither exact slot row is already marked `runtime_mismatch`;
 - each exact slot has exactly one static candidate target; and
 - the two candidate-target sets are identical singletons.
@@ -26,6 +26,6 @@ A successful row uses `NEVERGONE.MixedReceiverSlotTargetConvergenceAudit/1` with
 
 ## Fail-closed boundary
 
-Missing constructor provenance, a non-unique singleton store, an unmatched `+0x134` store, incomplete caller coverage, class/vtable ambiguity, an exact-slot runtime mismatch, or divergent slot targets all produce `mixed_receiver_target_not_proven` with explicit reasons.
+Missing singleton constructor provenance, a non-unique singleton store, incomplete accessor/consumer evidence, mixed or unmapped consumer classes, incomplete caller coverage, class/vtable ambiguity, an exact-slot runtime mismatch, or divergent slot targets all produce `mixed_receiver_target_not_proven` with explicit reasons.
 
 This probe is evidence-only. It does not alter receiver inference, query emission or production routing. A later finalizer may consume the retained convergence result only after real Ghidra data confirms the complete chain.
