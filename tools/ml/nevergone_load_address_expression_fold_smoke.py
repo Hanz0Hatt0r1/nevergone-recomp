@@ -109,12 +109,13 @@ def main() -> int:
         rows = [
             node(0, -1, -1, 0, "def:LOAD@00100008:1:4", "LOAD"),
             node(1, 0, 1, 1, "def:INT_ADD@00100006:2:4", "INT_ADD"),
-            node(2, 1, 0, 2, "def:LOAD@00100004:3:4", "LOAD"),
+            node(2, 1, 0, 2, "address:00100020:4", "-"),
             node(3, 1, 1, 2, "const:0x10:4", "-", "0x10"),
-            node(4, 2, 1, 3, "address:00100020:4", "-"),
         ]
         write_tsv(slices / "test.so_00100000.tsv", SLICE_FIELDS, rows)
-        write_tsv(memory, CLASS_FIELDS, [class_row("00100020", ".text", "1", "0", "1", "0x00009000", data_type="undefined4")])
+        write_tsv(memory, CLASS_FIELDS, [
+            class_row("00100020", ".text", "1", "0", "1", "0x00009000", data_type="undefined4")
+        ])
 
         fold_out = subprocess.check_output([
             "python3", str(FOLD), str(failures), str(slices), str(memory), "--details-output", str(fold_details)
