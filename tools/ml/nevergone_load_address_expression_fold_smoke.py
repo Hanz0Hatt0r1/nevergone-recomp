@@ -154,6 +154,20 @@ def main() -> int:
         assert owners[0]["raw_value_address"] == "0000a000"
         assert owners[0]["owner_functions"] == ["TestManager::end"]
 
+        # Real binaries may expose a mapped/xref'd effective cell without readable
+        # initial bytes (for example zero-fill/uninitialized storage). Owner evidence
+        # must remain usable while raw-target classification stays absent.
+        write_tsv(effective, CLASS_FIELDS, [class_row("00009010", ".bss", "1", "1", "0", "-", "PTR_current")])
+        write_tsv(values, CLASS_FIELDS, [])
+        owner_out = subprocess.check_output([
+            "python3", str(OWNER), str(fold_details), str(effective), str(values), str(refs), "--details-output", str(owner_details)
+        ], text=True)
+        assert "writable_effective_cell_with_refs" in owner_out, owner_out
+        owners = [json.loads(line) for line in owner_details.read_text().splitlines() if line]
+        assert owners[0]["raw_value_address"] is None
+        assert owners[0]["raw_value_block"] is None
+        assert owners[0]["owner_functions"] == ["TestManager::end"]
+
     print("LOAD address expression fold smoke: ok")
     return 0
 
