@@ -27,8 +27,56 @@ The loading route is deliberately separate from the already-prepared GameLevels 
 
 `TutorialLoadingAssetLoader` reads those files only from the user's imported asset tree and uploads decoded pixels to GLES. If the frames cannot be resolved, the black loading boundary remains visible instead of leaking already-prepared gameplay through it.
 
+## cp_lesson bootstrap
+
+`tutorial_scene_bootstrap` now connects the proven loading boundary to the existing project-owned GameLevels parser without inventing a duration.
+
+The bootstrap is armed only while the fresh-role route is `tutorial-loading`. It first requires at least one frame in which the loading compositor actually owned the surface. Only after that presentation has happened does it resolve the evidence-backed basename `cp_lesson.glData` from the user's imported asset tree.
+
+The exact original directory for `cp_lesson.glData` is not yet proven. The resolver therefore:
+
+1. checks the conventional imported GameLevels location `assets/gamescene/gs_list/cp_lesson.glData`;
+2. if absent, performs a bounded basename search below `assets/` with a maximum depth of 16 and at most 8192 inspected entries;
+3. fails closed if no match exists, if the fallback finds more than one match, or if the search bound is exhausted.
+
+A resolved file is first checked through the same complete Scene -> Actions -> Global -> PortNode probe used by other imported GameLevels evidence. It is then loaded through `game_levels_runtime_state::load_file()`, which replaces the previously prepared preservation scene with the tutorial GameLevels model and rebuilds the scene instance, construction plan and render queue.
+
+The loading compositor remains authoritative while Java/native texture staging catches up with the new queue. The bootstrap does not complete merely because parsing succeeded. It waits until `game_scene_direct_renderer::draw()` reports a successful frame while the retained runtime still matches the exact `cp_lesson` load attempt and selected scene. This is the concrete runtime completion event.
+
+Only then does the coordinator advance both retained state machines:
+
+```text
+tutorial_session_state: Loading -> LessonOverlay
+offline_startup_flow:   tutorial-loading -> game-levels
+```
+
+The transition is deliberately observed near the end of the frame, after base-scene/Controls decisions were made using the old loading route. Consequently the first exposed tutorial-scene frame cannot accidentally acquire Controls geometry that was hidden behind LoadingLayer in the same frame.
+
+## Failure diagnostics
+
+The real-device diagnostics now append a `Tutorial scene bootstrap` block to the existing GameScene asset-staging report. Relevant states include:
+
+```text
+waiting-loading-presentation
+scene-missing
+scene-ambiguous
+search-limit-reached
+scene-rejected
+runtime-load-failed
+runtime-queue-unready
+waiting-scene-frame
+runtime-changed
+complete
+```
+
+The block also records the resolver mode, resource-relative scene path, verified GameLevels byte count, retained runtime load attempt, selected scene GUID, render-sprite count, observed scene-frame attempts and completion count. Absolute app-private paths are not reported.
+
+The adjacent `Tutorial session` diagnostics identify whether the lifecycle is still `Loading` or has advanced to `LessonOverlay`.
+
 ## Completion boundary
 
-`offline_startup_flow::on_tutorial_loading_complete()` is explicit. It is **not** currently driven by a fabricated duration. The frozen evidence proves that a loading boundary exists, but does not prove a fixed loading time.
+`offline_startup_flow::on_tutorial_loading_complete()` remains explicit and is still **not** driven by a fabricated timer. The frozen evidence proves the ordering but no fixed loading duration.
 
-The next reconstruction step is to connect this completion event to the evidence-backed `cp_lesson` / `LessonLayer` bootstrap. Until that event is reconstructed, the preservation runtime intentionally stops on the loading presentation instead of skipping a proven original state.
+The current runtime completion rule is therefore: a real loading presentation must have been shown, the user-imported `cp_lesson.glData` must parse into a live GameLevels render queue, and that exact retained queue must produce a successful project-owned GameScene frame. If any of those gates fails, the runtime remains on LoadingLayer and reports the exact failed boundary instead of skipping forward.
+
+The next fidelity boundary after this handoff is the visible `LessonLayer` overlay/content itself and its explicit completion event into the already-modeled post-lesson Dialogue phase.
