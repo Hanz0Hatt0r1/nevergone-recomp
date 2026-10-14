@@ -1,0 +1,31 @@
+name: Nevergone ML PHI blocker summary smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/summarize_nevergone_phi_default_instance_recovery.py'
+      - 'tools/ml/run_nevergone_phi_default_instance_blocker_summary.sh'
+      - '.github/workflows/ml-phi-default-instance-blocker-summary-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile tools/ml/summarize_nevergone_phi_default_instance_recovery.py
+          bash -n tools/ml/run_nevergone_phi_default_instance_blocker_summary.sh
+      - name: Synthetic blocker summary
+        run: |
+          tmp="$(mktemp -d)"
+          cat > "$tmp/details.jsonl" <<'EOF'
+          {"format":"NEVERGONE.PhiDefaultInstanceRecovery/1","source_id":"lib:test.so:00100000","call_index":0,"accepted":false,"primary_branch_classes":["Test::A"],"secondary_got_address":"0x00009000","default_instance_address":"0x00009100","owner_classes":["Test::B"],"owner_direct_method_xrefs":1,"reasons":["phi_branch_class_mismatch"],"affects_routing":false}
+          {"format":"NEVERGONE.PhiDefaultInstanceRecovery/1","source_id":"lib:test.so:00100010","call_index":0,"accepted":true,"primary_branch_classes":["Test::A"],"secondary_got_address":"0x00009004","default_instance_address":"0x00009104","owner_classes":["Test::A"],"owner_direct_method_xrefs":2,"reasons":[],"affects_routing":false}
+          EOF
+          out="$(python3 tools/ml/summarize_nevergone_phi_default_instance_recovery.py "$tmp/details.jsonl")"
+          grep -q 'detail rows: 2' <<<"$out"
+          grep -q 'accepted: 1' <<<"$out"
+          grep -q 'blocked: 1' <<<"$out"
+          grep -q "phi_branch_class_mismatch" <<<"$out"
