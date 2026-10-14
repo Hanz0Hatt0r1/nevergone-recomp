@@ -1,0 +1,32 @@
+name: Nevergone ML PHI secondary LOAD tree audit smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_phi_secondary_load_trees.py'
+      - 'tools/ml/run_nevergone_phi_secondary_load_tree_audit.sh'
+      - '.github/workflows/ml-phi-secondary-load-tree-audit-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile audit
+        run: python -m py_compile tools/ml/audit_nevergone_phi_secondary_load_trees.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_phi_secondary_load_tree_audit.sh
+      - name: Check evidence-only contract
+        run: |
+          grep -q 'NEVERGONE.PhiSecondaryLoadTreeAudit/1' tools/ml/audit_nevergone_phi_secondary_load_trees.py
+          grep -q 'MULTIEQUAL' tools/ml/audit_nevergone_phi_secondary_load_trees.py
+          grep -q 'PTRADD' tools/ml/audit_nevergone_phi_secondary_load_trees.py
+          grep -q 'unresolved LOAD addresses' tools/ml/audit_nevergone_phi_secondary_load_trees.py
+          grep -q 'affects routing: no' tools/ml/audit_nevergone_phi_secondary_load_trees.py
