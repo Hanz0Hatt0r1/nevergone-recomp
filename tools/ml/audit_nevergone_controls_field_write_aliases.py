@@ -68,6 +68,7 @@ def audit(native: list[dict], manifest: list[dict], ghidra: list[dict]) -> dict:
 
     entries = [r.get("function_entry") for r in manifest]
     if (len(entries) != 38 or len(set(entries)) != 38 or
+            sorted(entries) != ns.get("controls_method_entries") or
             any(not isinstance(e, str) or len(e) != 8 for e in entries)):
         raise ValueError("Controls method manifest mismatch")
     if any(row.get("format") != GHIDRA_FORMAT or row.get("function_entry") not in entries or
