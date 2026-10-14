@@ -1,0 +1,28 @@
+name: Nevergone ML PHI default-instance owner audit smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportAddressReferenceOwners.java'
+      - 'tools/ml/run_nevergone_phi_default_instance_owner_audit.sh'
+      - '.github/workflows/ml-phi-default-instance-owner-audit-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_phi_default_instance_owner_audit.sh
+      - name: Check evidence-only contract
+        run: |
+          grep -q 'NEVERGONE.GhidraAddressReferenceOwners/1' tools/ghidra/ExportAddressReferenceOwners.java
+          grep -q 'getReferencesTo' tools/ghidra/ExportAddressReferenceOwners.java
+          grep -q 'nearby_class_evidence' tools/ghidra/ExportAddressReferenceOwners.java
+          grep -q 'default_instance_' tools/ml/run_nevergone_phi_default_instance_owner_audit.sh
+          grep -q 'expected exactly 2' tools/ml/run_nevergone_phi_default_instance_owner_audit.sh
+          grep -q 'affects routing: no' tools/ml/run_nevergone_phi_default_instance_owner_audit.sh
