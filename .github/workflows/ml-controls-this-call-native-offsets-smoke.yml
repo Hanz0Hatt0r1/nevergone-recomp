@@ -1,0 +1,27 @@
+name: Nevergone Controls this-call native offsets smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controls_this_call_native_offsets.py'
+      - 'tools/ml/nevergone_controls_this_call_native_offsets_smoke.py'
+      - '.github/workflows/ml-controls-this-call-native-offsets-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controls_this_call_native_offsets.py'
+      - 'tools/ml/nevergone_controls_this_call_native_offsets_smoke.py'
+      - '.github/workflows/ml-controls-this-call-native-offsets-smoke.yml'
+
+jobs:
+  controls-this-call-native-offsets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate native offset audit helpers
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_controls_this_call_native_offsets.py
+          python3 tools/ml/nevergone_controls_this_call_native_offsets_smoke.py
