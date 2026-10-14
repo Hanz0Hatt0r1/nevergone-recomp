@@ -1,0 +1,34 @@
+name: Nevergone Controls field alias inventory smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controls_field_native_store_inventory.py'
+      - 'tools/ml/audit_nevergone_controls_field_write_aliases.py'
+      - 'tools/ml/nevergone_controls_field_write_alias_smoke.py'
+      - 'tools/ml/run_nevergone_controls_field_alias_probe.sh'
+      - 'tools/ghidra/ExportControlsFieldWriteAliasInventory.java'
+      - '.github/workflows/ml-controls-field-alias-inventory-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controls_field_native_store_inventory.py'
+      - 'tools/ml/audit_nevergone_controls_field_write_aliases.py'
+      - 'tools/ml/nevergone_controls_field_write_alias_smoke.py'
+      - '.github/workflows/ml-controls-field-alias-inventory-smoke.yml'
+
+jobs:
+  alias-inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate native scanner, audit and runner
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_controls_field_native_store_inventory.py \
+            tools/ml/audit_nevergone_controls_field_write_aliases.py
+          python3 tools/ml/nevergone_controls_field_write_alias_smoke.py
+          bash -n tools/ml/run_nevergone_controls_field_alias_probe.sh

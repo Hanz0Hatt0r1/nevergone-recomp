@@ -96,7 +96,7 @@ caller-argument class attribution remains quarantined.
 After refreshing v11 and running the mixed receiver slice probe:
 
 ```bash
-cd `/nevergone-recomp
+cd ~/nevergone-recomp
 git switch main
 git pull --ff-only
 
