@@ -5,12 +5,15 @@ on:
     paths:
       - 'tools/ghidra/ExportIndirectCallReceiverTypes.java'
       - 'tools/ghidra/ExportIndirectCallReceiverParameterProvenance.java'
+      - 'tools/ghidra/ExportIndirectCallTargetReceiverProvenance.java'
       - 'tools/ml/build_nevergone_receiver_type_plan.py'
       - 'tools/ml/infer_nevergone_static_receiver_vtables.py'
       - 'tools/ml/audit_nevergone_receiver_type_failures.py'
       - 'tools/ml/audit_nevergone_receiver_parameter_provenance.py'
+      - 'tools/ml/audit_nevergone_target_receiver_provenance.py'
       - 'tools/ml/run_nevergone_receiver_parameter_provenance.sh'
       - 'tools/ml/run_nevergone_static_receiver_vtable_inference_with_parameter_provenance.sh'
+      - 'tools/ml/run_nevergone_target_receiver_provenance.sh'
       - 'tools/ml/nevergone_static_receiver_vtable_inference_smoke.py'
       - '.github/workflows/ml-static-receiver-vtable-inference-smoke.yml'
 
@@ -33,10 +36,12 @@ jobs:
             tools/ml/infer_nevergone_static_receiver_vtables.py \
             tools/ml/audit_nevergone_receiver_type_failures.py \
             tools/ml/audit_nevergone_receiver_parameter_provenance.py \
+            tools/ml/audit_nevergone_target_receiver_provenance.py \
             tools/ml/nevergone_static_receiver_vtable_inference_smoke.py
       - name: Check shell runners
         run: |
           bash -n tools/ml/run_nevergone_receiver_parameter_provenance.sh
           bash -n tools/ml/run_nevergone_static_receiver_vtable_inference_with_parameter_provenance.sh
+          bash -n tools/ml/run_nevergone_target_receiver_provenance.sh
       - name: Run static receiver-vtable inference smoke
         run: python tools/ml/nevergone_static_receiver_vtable_inference_smoke.py
