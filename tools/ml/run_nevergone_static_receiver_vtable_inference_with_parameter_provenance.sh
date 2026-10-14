@@ -5,6 +5,7 @@ set -euo pipefail
 : "${RECEIVER_TYPES:=/tmp/nevergone-indirect-receiver-types.tsv}"
 : "${PARAMETER_PROVENANCE:=/tmp/nevergone-receiver-parameter-provenance.tsv}"
 : "${BASELINE_INFERENCE:=/tmp/nevergone-static-receiver-vtable-inference-v2.jsonl}"
+: "${REBUILT_ANALYSIS:=/tmp/nevergone-receiver-analysis-from-v2.jsonl}"
 : "${OUTPUT:=/tmp/nevergone-static-receiver-vtable-inference-v3.jsonl}"
 : "${QUERIES_OUTPUT:=/tmp/nevergone-static-receiver-vtable-queries-v3.jsonl}"
 : "${FAILURE_DETAILS:=/tmp/nevergone-receiver-type-failures-v3.jsonl}"
@@ -28,12 +29,20 @@ find_jsonl_with_token() {
 if [[ -z "${ANALYSIS:-}" ]]; then
   ANALYSIS="$(find_jsonl_with_token '"indirect_call_slice_evidence"' || true)"
 fi
+if [[ -z "${ANALYSIS:-}" && -f "$BASELINE_INFERENCE" ]]; then
+  echo "original analysis JSONL not found; rebuilding minimal receiver analysis from v2 inference"
+  python3 "$REPO_ROOT/tools/ml/rebuild_nevergone_receiver_analysis_from_inference.py" \
+    "$BASELINE_INFERENCE" \
+    --output "$REBUILT_ANALYSIS"
+  ANALYSIS="$REBUILT_ANALYSIS"
+fi
 if [[ -z "${CATALOG:-}" ]]; then
   CATALOG="$(find_jsonl_with_token '"NEVERGONE.StaticVtableSlotCatalog/3"' || true)"
 fi
 
 [[ -n "${ANALYSIS:-}" && -f "$ANALYSIS" ]] || {
-  echo "missing analysis JSONL; set ANALYSIS=/path/to/analysis.jsonl" >&2
+  echo "missing analysis JSONL and unable to rebuild it; set ANALYSIS=/path/to/analysis.jsonl" >&2
+  echo "fallback also requires baseline inference: $BASELINE_INFERENCE" >&2
   exit 2
 }
 [[ -n "${CATALOG:-}" && -f "$CATALOG" ]] || {
