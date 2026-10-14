@@ -5,10 +5,12 @@ This layer never infers a class from the virtual target. It accepts direct one-l
 pointer receiver types and, for receiver evidence format /2, bounded transparent
 COPY/CAST/INDIRECT/MULTIEQUAL type-flow candidates exported by Ghidra. Optionally,
 when those local sources yield no catalog class, it can use bounded function-parameter
-and direct-caller type provenance as a fallback. All usable class candidates must
-converge to one catalog class, and that class must have exactly one catalog vtable
-address point. Runtime observations, when supplied, only validate or block the
-inference. Routing is never modified.
+and direct-caller type provenance as a fallback. For receiver rows with no usable
+single-pointer evidence, it may additionally use caller types reached through a
+validated canonical structural receiver and that receiver's LOAD-address parameter
+provenance. All usable class candidates must converge to one catalog class, and that
+class must have exactly one catalog vtable address point. Runtime observations, when
+supplied, only validate or block the inference. Routing is never modified.
 """
 from __future__ import annotations
 
@@ -24,6 +26,9 @@ CATALOG_FORMAT = "NEVERGONE.StaticVtableSlotCatalog/3"
 OUTPUT_FORMAT = "NEVERGONE.StaticReceiverVtableInference/1"
 QUERY_FORMAT = "NEVERGONE.StaticReceiverVtableQuery/1"
 PARAMETER_PROVENANCE_FORMAT = "NEVERGONE.GhidraReceiverParameterProvenance/1"
+STRUCTURAL_PARAMETER_PROVENANCE_FORMAT = (
+    "NEVERGONE.GhidraStructuralReceiverParameterProvenance/1"
+)
 RECEIVER_FORMATS = {
     "NEVERGONE.GhidraIndirectReceiverType/1",
     "NEVERGONE.GhidraIndirectReceiverType/2",
@@ -145,6 +150,32 @@ def append_candidates(
     return candidates
 
 
+def read_keyed_provenance(
+    path: Path | None,
+    expected_format: str,
+    label: str,
+) -> dict[tuple[str, int], dict[str, str]]:
+    result: dict[tuple[str, int], dict[str, str]] = {}
+    if path is None:
+        return result
+    for line_no, row in enumerate(read_tsv(path), 2):
+        if row.get("format") != expected_format:
+            raise ValueError(f"{path}:{line_no}: expected {expected_format}")
+        source_id = row.get("source_id")
+        try:
+            call_index = int(row.get("call_index", "-1"))
+        except ValueError as error:
+            raise ValueError(f"{path}:{line_no}: invalid call_index") from error
+        if not source_id or call_index < 0:
+            raise ValueError(f"{path}:{line_no}: invalid provenance key")
+        key = (source_id, call_index)
+        if key in result:
+            raise ValueError(f"duplicate {label} provenance row: {source_id}#{call_index}")
+        row["_line_no"] = str(line_no)
+        result[key] = row
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("analysis", type=Path)
@@ -152,6 +183,7 @@ def main() -> int:
     parser.add_argument("catalog", type=Path)
     parser.add_argument("--runtime-observations", type=Path)
     parser.add_argument("--parameter-provenance", type=Path)
+    parser.add_argument("--structural-parameter-provenance", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--queries-output", type=Path, required=True)
     args = parser.parse_args()
@@ -192,27 +224,16 @@ def main() -> int:
         row["_line_no"] = str(line_no)
         receivers[key] = row
 
-    parameter_provenance: dict[tuple[str, int], dict[str, str]] = {}
-    if args.parameter_provenance is not None:
-        for line_no, row in enumerate(read_tsv(args.parameter_provenance), 2):
-            if row.get("format") != PARAMETER_PROVENANCE_FORMAT:
-                raise ValueError(
-                    f"{args.parameter_provenance}:{line_no}: expected {PARAMETER_PROVENANCE_FORMAT}"
-                )
-            source_id = row.get("source_id")
-            try:
-                call_index = int(row.get("call_index", "-1"))
-            except ValueError as error:
-                raise ValueError(
-                    f"{args.parameter_provenance}:{line_no}: invalid call_index"
-                ) from error
-            if not source_id or call_index < 0:
-                raise ValueError(f"{args.parameter_provenance}:{line_no}: invalid provenance key")
-            key = (source_id, call_index)
-            if key in parameter_provenance:
-                raise ValueError(f"duplicate parameter provenance row: {source_id}#{call_index}")
-            row["_line_no"] = str(line_no)
-            parameter_provenance[key] = row
+    parameter_provenance = read_keyed_provenance(
+        args.parameter_provenance,
+        PARAMETER_PROVENANCE_FORMAT,
+        "parameter",
+    )
+    structural_parameter_provenance = read_keyed_provenance(
+        args.structural_parameter_provenance,
+        STRUCTURAL_PARAMETER_PROVENANCE_FORMAT,
+        "structural parameter",
+    )
 
     runtime: dict[tuple[str, int], dict[str, Any]] = {}
     if args.runtime_observations is not None:
@@ -245,6 +266,7 @@ def main() -> int:
             slot = normalize_slot(call.get("primary_slot_offset_candidate"))
             receiver = receivers.get(key)
             provenance = parameter_provenance.get(key)
+            structural_provenance = structural_parameter_provenance.get(key)
 
             pointer_depth = parse_int_cell(receiver.get("receiver_pointer_depth")) if receiver else 0
             flow_names: list[str] = []
@@ -280,6 +302,36 @@ def main() -> int:
                     where=f"{args.parameter_provenance}:{line_no}:caller displays",
                 )
 
+            structural_status = structural_provenance.get("status") if structural_provenance else None
+            structural_parameter_index = -1
+            structural_matched_caller_calls = 0
+            structural_direct_caller_count = 0
+            structural_caller_names: list[str] = []
+            structural_caller_displays: list[str] = []
+            if structural_provenance is not None:
+                line_no = structural_provenance.get("_line_no", "?")
+                structural_parameter_index = parse_int_cell(
+                    structural_provenance.get("parameter_index"), default=-1
+                )
+                structural_matched_caller_calls = parse_int_cell(
+                    structural_provenance.get("matched_caller_calls")
+                )
+                structural_direct_caller_count = parse_int_cell(
+                    structural_provenance.get("direct_caller_count")
+                )
+                structural_caller_names = parse_json_string_list(
+                    structural_provenance.get("caller_single_pointer_pointee_names_json"),
+                    where=(
+                        f"{args.structural_parameter_provenance}:{line_no}:caller names"
+                    ),
+                )
+                structural_caller_displays = parse_json_string_list(
+                    structural_provenance.get("caller_single_pointer_pointee_displays_json"),
+                    where=(
+                        f"{args.structural_parameter_provenance}:{line_no}:caller displays"
+                    ),
+                )
+
             base: dict[str, Any] = {
                 "format": OUTPUT_FORMAT,
                 "source_id": source_id,
@@ -305,6 +357,21 @@ def main() -> int:
                 "matched_caller_calls": matched_caller_calls,
                 "caller_single_pointer_pointee_names": caller_names,
                 "caller_single_pointer_pointee_displays": caller_displays,
+                "structural_parameter_provenance_present": structural_provenance is not None,
+                "structural_parameter_provenance_status": structural_status,
+                "structural_receiver_present": (
+                    structural_provenance.get("structural_receiver_present") == "1"
+                    if structural_provenance else False
+                ),
+                "structural_receiver_is_load": (
+                    structural_provenance.get("structural_receiver_is_load") == "1"
+                    if structural_provenance else False
+                ),
+                "structural_parameter_index": structural_parameter_index,
+                "structural_direct_caller_count": structural_direct_caller_count,
+                "structural_matched_caller_calls": structural_matched_caller_calls,
+                "structural_caller_single_pointer_pointee_names": structural_caller_names,
+                "structural_caller_single_pointer_pointee_displays": structural_caller_displays,
                 "class_name": None,
                 "class_match_kind": None,
                 "class_evidence_source": None,
@@ -335,8 +402,8 @@ def main() -> int:
                 candidates = append_candidates(local_sources, class_vtables, terminal_to_classes)
                 class_names = sorted({name for name, _kind, _source in candidates})
 
-                # Caller evidence is a strict fallback. Never combine it with a local class
-                # candidate: local ambiguity or a concrete local class remains authoritative.
+                # Direct-parameter caller evidence is a strict fallback. Never combine it
+                # with a local class candidate: local ambiguity/concrete evidence wins.
                 if not class_names and provenance is not None:
                     provenance_usable = (
                         provenance_status == "caller_type_candidate"
@@ -357,6 +424,43 @@ def main() -> int:
                         candidates.extend(caller_candidates)
                         class_names = sorted({name for name, _kind, _source in candidates})
 
+                # Structural caller evidence is narrower still. It is eligible only when
+                # the original receiver row has no usable one-level/transparent evidence,
+                # the decompiler omitted the explicit receiver, the independently validated
+                # canonical structural receiver exists and is a LOAD, and that LOAD address
+                # roots at a parameter whose direct callers expose typed arguments.
+                no_local_pointer_evidence = (
+                    pointer_depth != 1 and not flow_names and not flow_displays
+                )
+                if (
+                    not class_names
+                    and no_local_pointer_evidence
+                    and structural_provenance is not None
+                ):
+                    structural_usable = (
+                        structural_status == "caller_type_candidate"
+                        and structural_provenance.get("direct_receiver_present") == "0"
+                        and structural_provenance.get("structural_receiver_present") == "1"
+                        and structural_provenance.get("structural_receiver_is_load") == "1"
+                        and structural_parameter_index >= 0
+                        and structural_matched_caller_calls > 0
+                    )
+                    if structural_usable:
+                        structural_sources: list[tuple[Any, str]] = []
+                        structural_sources.extend(
+                            (value, "structural_parameter_caller_type")
+                            for value in structural_caller_displays
+                        )
+                        structural_sources.extend(
+                            (value, "structural_parameter_caller_type")
+                            for value in structural_caller_names
+                        )
+                        structural_candidates = append_candidates(
+                            structural_sources, class_vtables, terminal_to_classes
+                        )
+                        candidates.extend(structural_candidates)
+                        class_names = sorted({name for name, _kind, _source in candidates})
+
                 base["candidate_receiver_class_names"] = class_names
                 if not class_names:
                     if pointer_depth != 1 and not flow_names and not flow_displays:
@@ -367,13 +471,18 @@ def main() -> int:
                     status = "ambiguous_receiver_class"
                 else:
                     class_name = class_names[0]
-                    exact = [x for x in candidates if x[0] == class_name and x[1] == "exact_catalog_class_name"]
+                    exact = [
+                        x for x in candidates
+                        if x[0] == class_name and x[1] == "exact_catalog_class_name"
+                    ]
                     chosen = exact[0] if exact else next(x for x in candidates if x[0] == class_name)
                     _name, match_kind, source_kind = chosen
                     if source_kind == "transparent_type_flow":
                         match_kind = "transparent_flow_" + match_kind
                     elif source_kind == "parameter_caller_type":
                         match_kind = "parameter_caller_" + match_kind
+                    elif source_kind == "structural_parameter_caller_type":
+                        match_kind = "structural_parameter_caller_" + match_kind
                     vtables = sorted(class_vtables[class_name])
                     base["class_name"] = class_name
                     base["class_match_kind"] = match_kind
@@ -402,6 +511,8 @@ def main() -> int:
                             counts["resolved_via_transparent_type_flow"] += 1
                         elif source_kind == "parameter_caller_type":
                             counts["resolved_via_parameter_caller_type"] += 1
+                        elif source_kind == "structural_parameter_caller_type":
+                            counts["resolved_via_structural_parameter_caller_type"] += 1
 
             base["status"] = status
             counts[status] += 1
@@ -432,11 +543,16 @@ def main() -> int:
     print("analysis functions:", len(analysis_rows))
     print("receiver type rows:", len(receiver_rows))
     print("parameter provenance rows:", len(parameter_provenance))
+    print("structural parameter provenance rows:", len(structural_parameter_provenance))
     print("calls considered:", len(output))
     print("resolved unique vtable:", counts["resolved_unique_vtable"])
     print("resolved unique vtable runtime match:", counts["resolved_unique_vtable_runtime_match"])
     print("resolved via transparent type flow:", counts["resolved_via_transparent_type_flow"])
     print("resolved via parameter caller type:", counts["resolved_via_parameter_caller_type"])
+    print(
+        "resolved via structural parameter caller type:",
+        counts["resolved_via_structural_parameter_caller_type"],
+    )
     print("runtime mismatch blocked:", counts["runtime_mismatch_blocked"])
     print("ambiguous class vtable:", counts["ambiguous_class_vtable"])
     print("ambiguous receiver class:", counts["ambiguous_receiver_class"])
