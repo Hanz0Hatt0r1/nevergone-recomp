@@ -11,6 +11,9 @@ from typing import Any
 PROV_FMT = "NEVERGONE.GhidraSingletonStoreReturnProvenance/1"
 CATALOG_FMT = "NEVERGONE.StaticVtableSlotCatalog/3"
 OUT_FMT = "NEVERGONE.SingletonConstructorStoreReturnAudit/1"
+THUMB_SINGLETON_SHA256 = "ceb4bb6eb7801f478a82b5d83fa1932c28d9fb202951d3929ea1e041b2720907"
+THUMB_SINGLETON_ENTRY = "003e95e0"
+THUMB_SINGLETON_CELL = "0x94efd0"
 
 
 def read_tsv(path: Path) -> list[dict[str, str]]:
@@ -73,6 +76,19 @@ def main() -> int:
     calls = [row for row in provenance if row.get("row_type") == "call"]
     stores = [row for row in provenance if row.get("row_type") == "store"]
     returns = [row for row in provenance if row.get("row_type") == "return"]
+    thumb_rows = [row for row in provenance if row.get("row_type") == "thumb_exact_cell_proof"]
+    thumb_proof_ok = (
+        args.expected_function == "sharedGameSceneUI"
+        and args.expected_class == "GameSceneUI"
+        and function_entries == {THUMB_SINGLETON_ENTRY}
+        and len(thumb_rows) == 1
+        and thumb_rows[0].get("function_entry") == THUMB_SINGLETON_ENTRY
+        and thumb_rows[0].get("value_root_token") == THUMB_SINGLETON_CELL
+        and thumb_rows[0].get("address_root_token") == THUMB_SINGLETON_CELL
+        and thumb_rows[0].get("call_output_root_token") == "sha256:" + THUMB_SINGLETON_SHA256
+    )
+    if thumb_rows and not thumb_proof_ok:
+        reasons.append("thumb_singleton_cell_proof_invalid")
 
     constructor_calls = [
         row for row in calls
@@ -93,18 +109,33 @@ def main() -> int:
     if storage_key is not None and any(row.get("value_root_token") not in constructor_roots for row in all_stores_to_cell):
         reasons.append("singleton_cell_has_nonconstructor_store")
 
+    bad_returns = [
+        row for row in returns
+        if not (
+            (storage_key is not None and row.get("address_root_token") == storage_key)
+            or row.get("value_root_token") in constructor_roots
+        )
+    ]
+    # A different high-P-code alias root is not a negative machine-level
+    # observation. Only the exact retained Thumb signature can independently
+    # prove that the constructor-rooted STORE and final LOAD share one cell.
+    # All normal constructor/store uniqueness gates still apply.
+    thumb_fallback = (
+        thumb_proof_ok
+        and len(returns) == 1
+        and len(constructor_calls) == 1
+        and len(stores_from_constructor) == 1
+        and len(all_stores_to_cell) == 1
+    )
     if not returns:
         reasons.append("singleton_function_has_no_return")
-    else:
-        bad_returns = [
-            row for row in returns
-            if not (
-                (storage_key is not None and row.get("address_root_token") == storage_key)
-                or row.get("value_root_token") in constructor_roots
-            )
-        ]
-        if bad_returns:
-            reasons.append("return_not_from_constructor_singleton_cell")
+    elif bad_returns and not thumb_fallback:
+        reasons.append("return_not_from_constructor_singleton_cell")
+    return_provenance_method = (
+        "high_pcode_same_cell" if not bad_returns and returns
+        else "exact_thumb_singleton_cell" if bad_returns and thumb_fallback
+        else "unproven"
+    )
 
     vtables = sorted(class_vtables.get(args.expected_class, set()))
     if len(vtables) != 1:
@@ -122,6 +153,13 @@ def main() -> int:
         "constructor_stores": len(stores_from_constructor),
         "singleton_storage_key": storage_key,
         "returns": len(returns),
+        "return_roots": [
+            {"value": row.get("value_root_token"), "address": row.get("address_root_token")}
+            for row in returns
+        ],
+        "thumb_cell_proof_rows": len(thumb_rows),
+        "thumb_cell_proof_valid": thumb_proof_ok,
+        "return_provenance_method": return_provenance_method,
         "candidate_receiver_class_names": [args.expected_class] if not reasons else [],
         "candidate_receiver_vtable_ids": vtables if not reasons else [],
         "status": status,
@@ -141,6 +179,9 @@ def main() -> int:
     print("constructor stores:", len(stores_from_constructor))
     print("singleton storage key:", storage_key)
     print("returns:", len(returns))
+    print("return roots:", detail["return_roots"])
+    print("Thumb cell proof:", thumb_proof_ok)
+    print("return provenance method:", return_provenance_method)
     print("candidate vtables:", vtables)
     print("status:", status)
     print("reasons:", reasons)
