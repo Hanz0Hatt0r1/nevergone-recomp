@@ -95,13 +95,13 @@ def main() -> int:
         outdetails = root / "details8.jsonl"
 
         write_jsonl(inf, [
-            inference("lib:test.so:00100000", "00100004", "receiver_not_single_pointer"),
-            inference("lib:test.so:00100010", "00100014", "receiver_not_single_pointer"),
-            inference("lib:test.so:00100020", "00100024", "resolved_unique_vtable", cls="Test::Existing", vtable="vt_existing"),
+            inference("test.so:00100000", "00100004", "receiver_not_single_pointer"),
+            inference("test.so:00100010", "00100014", "receiver_not_single_pointer"),
+            inference("test.so:00100020", "00100024", "resolved_unique_vtable", cls="Test::Existing", vtable="vt_existing"),
         ])
         write_jsonl(queries, [{
             "format": "NEVERGONE.StaticReceiverVtableQuery/1",
-            "source_id": "lib:test.so:00100020",
+            "source_id": "test.so:00100020",
             "call_index": 0,
             "call_address": "00100024",
             "receiver_vtable_id": "vt_existing",
@@ -112,12 +112,12 @@ def main() -> int:
             "receiver_type_name": None,
             "receiver_type_display": None,
             "runtime_validation_status": "runtime_unobserved",
-            "evidence_ref": "lib:test.so:00100020#call=0",
+            "evidence_ref": "test.so:00100020#call=0",
             "affects_routing": False,
         }])
         write_jsonl(details, [
-            detail("lib:test.so:00100000", "Test::A"),
-            detail("lib:test.so:00100010", "Test::B"),
+            detail("test.so:00100000", "Test::A"),
+            detail("test.so:00100010", "Test::B"),
         ])
         write_jsonl(catalog, [
             {"format": "NEVERGONE.StaticVtableSlotCatalog/3", "class_name": "Test::A", "receiver_vtable_id": "vt_a"},
@@ -142,9 +142,9 @@ def main() -> int:
 
         rows = [json.loads(line) for line in out.read_text().splitlines() if line.strip()]
         by_id = {row["source_id"]: row for row in rows}
-        accepted = by_id["lib:test.so:00100000"]
-        blocked = by_id["lib:test.so:00100010"]
-        existing = by_id["lib:test.so:00100020"]
+        accepted = by_id["test.so:00100000"]
+        blocked = by_id["test.so:00100010"]
+        existing = by_id["test.so:00100020"]
 
         assert accepted["status"] == "resolved_unique_vtable"
         assert accepted["class_name"] == "Test::A"
@@ -159,8 +159,8 @@ def main() -> int:
 
         qrows = [json.loads(line) for line in outq.read_text().splitlines() if line.strip()]
         assert {(row["source_id"], row["call_index"]) for row in qrows} == {
-            ("lib:test.so:00100000", 0),
-            ("lib:test.so:00100020", 0),
+            ("test.so:00100000", 0),
+            ("test.so:00100020", 0),
         }
         print("Nevergone PHI primary-subtree recovery smoke: PASS")
     return 0
