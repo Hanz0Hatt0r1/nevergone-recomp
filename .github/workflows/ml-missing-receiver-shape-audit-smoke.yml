@@ -1,0 +1,32 @@
+name: Nevergone ML missing receiver shape audit smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_missing_receiver_shapes.py'
+      - 'tools/ml/run_nevergone_missing_receiver_shape_audit.sh'
+      - '.github/workflows/ml-missing-receiver-shape-audit-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile audit
+        run: python -m py_compile tools/ml/audit_nevergone_missing_receiver_shapes.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_missing_receiver_shape_audit.sh
+      - name: Check evidence-only contract
+        run: |
+          grep -q 'receiver_not_single_pointer' tools/ml/audit_nevergone_missing_receiver_shapes.py
+          grep -q 'affects routing: no' tools/ml/audit_nevergone_missing_receiver_shapes.py
+          grep -q 'no_canonical_structural_receiver' tools/ml/audit_nevergone_missing_receiver_shapes.py
+          grep -q 'unique_local_structural_type_candidate' tools/ml/audit_nevergone_missing_receiver_shapes.py
+          grep -q 'unique_caller_catalog_candidate' tools/ml/audit_nevergone_missing_receiver_shapes.py
