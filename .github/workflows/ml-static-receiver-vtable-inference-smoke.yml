@@ -15,9 +15,11 @@ on:
       - 'tools/ml/audit_nevergone_structural_receiver_parameter_provenance.py'
       - 'tools/ml/run_nevergone_receiver_parameter_provenance.sh'
       - 'tools/ml/run_nevergone_static_receiver_vtable_inference_with_parameter_provenance.sh'
+      - 'tools/ml/run_nevergone_static_receiver_vtable_inference_with_structural_provenance.sh'
       - 'tools/ml/run_nevergone_target_receiver_provenance.sh'
       - 'tools/ml/run_nevergone_structural_receiver_parameter_provenance.sh'
       - 'tools/ml/nevergone_static_receiver_vtable_inference_smoke.py'
+      - 'tools/ml/nevergone_static_receiver_structural_provenance_smoke.py'
       - '.github/workflows/ml-static-receiver-vtable-inference-smoke.yml'
 
 permissions:
@@ -41,12 +43,16 @@ jobs:
             tools/ml/audit_nevergone_receiver_parameter_provenance.py \
             tools/ml/audit_nevergone_target_receiver_provenance.py \
             tools/ml/audit_nevergone_structural_receiver_parameter_provenance.py \
-            tools/ml/nevergone_static_receiver_vtable_inference_smoke.py
+            tools/ml/nevergone_static_receiver_vtable_inference_smoke.py \
+            tools/ml/nevergone_static_receiver_structural_provenance_smoke.py
       - name: Check shell runners
         run: |
           bash -n tools/ml/run_nevergone_receiver_parameter_provenance.sh
           bash -n tools/ml/run_nevergone_static_receiver_vtable_inference_with_parameter_provenance.sh
+          bash -n tools/ml/run_nevergone_static_receiver_vtable_inference_with_structural_provenance.sh
           bash -n tools/ml/run_nevergone_target_receiver_provenance.sh
           bash -n tools/ml/run_nevergone_structural_receiver_parameter_provenance.sh
       - name: Run static receiver-vtable inference smoke
         run: python tools/ml/nevergone_static_receiver_vtable_inference_smoke.py
+      - name: Run structural receiver provenance smoke
+        run: python tools/ml/nevergone_static_receiver_structural_provenance_smoke.py
