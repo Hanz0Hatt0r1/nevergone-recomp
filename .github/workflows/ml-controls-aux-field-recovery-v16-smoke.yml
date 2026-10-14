@@ -1,0 +1,34 @@
+name: Nevergone Controls auxiliary field recovery v16 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controls_aux_field_stability.py'
+      - 'tools/ml/finalize_nevergone_controls_aux_field_recovery_v16.py'
+      - 'tools/ml/nevergone_controls_aux_field_recovery_v16_smoke.py'
+      - 'tools/ml/run_nevergone_controls_aux_field_recovery_v16.sh'
+      - '.github/workflows/ml-controls-aux-field-recovery-v16-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controls_aux_field_stability.py'
+      - 'tools/ml/finalize_nevergone_controls_aux_field_recovery_v16.py'
+      - 'tools/ml/nevergone_controls_aux_field_recovery_v16_smoke.py'
+      - 'tools/ml/run_nevergone_controls_aux_field_recovery_v16.sh'
+      - '.github/workflows/ml-controls-aux-field-recovery-v16-smoke.yml'
+
+jobs:
+  controls-aux-v16:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate fail-closed v16 recovery
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_controls_aux_field_stability.py \
+            tools/ml/finalize_nevergone_controls_aux_field_recovery_v16.py
+          python3 tools/ml/nevergone_controls_aux_field_recovery_v16_smoke.py
+          bash -n tools/ml/run_nevergone_controls_aux_field_recovery_v16.sh
