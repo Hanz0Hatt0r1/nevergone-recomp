@@ -106,6 +106,7 @@ def collect(elf: OriginalElf) -> tuple[list[dict], list[dict]]:
         "elf_sha256": hashlib.sha256(elf.data).hexdigest(),
         "controls_symbol_count": len(controls),
         "controls_unique_method_count": len(entries),
+        "controls_method_entries": [f"{addr + GHIDRA_SHIFT:08x}" for addr in entries],
         "whole_elf_store_encoding_candidates": len(stores),
         "unowned_encoding_candidates": sum(not s["function_symbols"] for s in stores),
         "controls_store_encoding_candidates": len(controls_stores),
