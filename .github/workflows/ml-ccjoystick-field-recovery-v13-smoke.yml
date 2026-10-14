@@ -1,0 +1,31 @@
+name: Nevergone ML CCJoyStick field recovery v13 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/finalize_nevergone_ccjoystick_field_recovery_v13.py'
+      - 'tools/ml/run_nevergone_ccjoystick_field_recovery_v13.sh'
+      - 'tools/ml/nevergone_ccjoystick_field_recovery_v13_smoke.py'
+      - '.github/workflows/ml-ccjoystick-field-recovery-v13-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile \
+            tools/ml/finalize_nevergone_ccjoystick_field_recovery_v13.py \
+            tools/ml/nevergone_ccjoystick_field_recovery_v13_smoke.py
+          bash -n tools/ml/run_nevergone_ccjoystick_field_recovery_v13.sh
+      - name: Synthetic CCJoyStick field recovery v13 smoke
+        run: python3 tools/ml/nevergone_ccjoystick_field_recovery_v13_smoke.py
+      - name: Check fail-closed contracts
+        run: |
+          grep -q 'ccjoystick_field_factory_receiver_unique_class' tools/ml/finalize_nevergone_ccjoystick_field_recovery_v13.py
+          grep -q 'catalog_target_mismatch' tools/ml/finalize_nevergone_ccjoystick_field_recovery_v13.py
+          grep -q '002a7594' tools/ml/run_nevergone_ccjoystick_field_recovery_v13.sh
+          grep -q 'affects routing: no' tools/ml/finalize_nevergone_ccjoystick_field_recovery_v13.py
+          grep -q 'affects routing: no' tools/ml/run_nevergone_ccjoystick_field_recovery_v13.sh
