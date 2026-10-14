@@ -8,7 +8,10 @@ set -euo pipefail
 : "${REPO_ROOT:=$PWD}"
 : "${WORK_ROOT:=$HOME/.cache/nevergone-recomp/receiver-provenance}"
 
-ACCESSOR_ENTRY="${ACCESSOR_ENTRY:-003d6eee}"
+# game.tsv records the ELF symbol at 0x003d6eee. The analyzed Ghidra project
+# uses the +0x10000 image-base view for this binary, so GetControlsObj is at
+# 0x003e6eee. The exported identity is checked independently below.
+ACCESSOR_ENTRY="${ACCESSOR_ENTRY:-003e6eee}"
 CALLER_SUBTREES="$WORK_ROOT/caller-argument-subtrees.tsv"
 CATALOG="$WORK_ROOT/static-vtable-slot-catalog.jsonl"
 ACCESSOR_TSV="$WORK_ROOT/gamesceneui-controls-accessor.tsv"
@@ -26,6 +29,26 @@ done
   -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
   -scriptPath "$REPO_ROOT/tools/ghidra" \
   -postScript ExportAccessorReturnField.java "$ACCESSOR_ENTRY" "$ACCESSOR_TSV"
+
+python3 - "$ACCESSOR_TSV" <<'PY'
+import csv
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+with path.open("r", encoding="utf-8", newline="") as handle:
+    rows = list(csv.DictReader(handle, delimiter="\t"))
+if not rows:
+    raise SystemExit(f"accessor identity gate: no rows in {path}")
+names = {row.get("function_name", "") for row in rows}
+entries = {row.get("function_entry", "") for row in rows}
+if names != {"GetControlsObj"}:
+    raise SystemExit(
+        "accessor identity gate: expected GetControlsObj, got "
+        + repr(sorted(names)) + " at " + repr(sorted(entries))
+    )
+print("accessor identity gate: pass", sorted(entries), sorted(names))
+PY
 
 echo
 printf '== GameSceneUI controls accessor audit ==\n'
