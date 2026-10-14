@@ -80,7 +80,12 @@ def main() -> int:
     summaries = [r for r in consumers if r.get("row_type") == "summary"]
     uses = [r for r in consumers if r.get("row_type") == "use"]
     direct_this = [r for r in uses if r.get("status") == "direct_this_call"]
-    target_names = sorted({r.get("direct_target_name") or "" for r in direct_this if r.get("direct_target_name") not in {None, "", "-"}})
+    target_counts = Counter(
+        r.get("direct_target_name") or ""
+        for r in direct_this
+        if r.get("direct_target_name") not in {None, "", "-"}
+    )
+    target_names = sorted(target_counts)
 
     mapped_rows: list[dict[str, Any]] = []
     mapped_classes: set[str] = set()
@@ -142,7 +147,7 @@ def main() -> int:
         "accessor_calls_with_output": parse_int(summary.get("accessor_calls_with_output")),
         "direct_member_uses": len(direct_this),
         "unsupported_uses": parse_int(summary.get("unsupported_uses")),
-        "target_names": target_names,
+        "target_counts": dict(sorted(target_counts.items())),
         "mapped_classes": sorted(mapped_classes),
         "mapped_vtables": vtables,
         "unmapped_targets": sorted(unmapped_targets),
@@ -171,9 +176,8 @@ def main() -> int:
     print("status:", status)
     print("reasons:", reasons)
     print("member targets:")
-    counts = Counter(target_names)
     for target in target_names:
-        print(" ", target, "class=", mapped_class(target, classes), "count=", counts[target])
+        print(" ", target, "class=", mapped_class(target, classes), "count=", target_counts[target])
     if args.details_output is not None:
         print("details output:", args.details_output)
     print("affects routing: no")
