@@ -31,7 +31,7 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
             handle.write(json.dumps(row) + "\n")
 
 
-def run_case(root: Path, wrong_return: bool) -> dict:
+def run_case(root: Path, wrong_return: bool, thumb_proof: str | None = None) -> dict:
     prov = root / ("bad.tsv" if wrong_return else "ok.tsv")
     catalog = root / "catalog.jsonl"
     details = root / ("bad.jsonl" if wrong_return else "ok.jsonl")
@@ -64,6 +64,19 @@ def run_case(root: Path, wrong_return: bool) -> dict:
             "call_output_root_token": "-",
         },
     ]
+    if thumb_proof is not None:
+        rows.append({
+            "format": "NEVERGONE.GhidraSingletonStoreReturnProvenance/1",
+            "function_entry": "003e95e0", "function_name": "GameSceneUI::sharedGameSceneUI()",
+            "row_type": "thumb_exact_cell_proof", "op_address": "-", "op_time": "-",
+            "value_root_token": "0x94efd4" if thumb_proof == "wrong_cell" else "0x94efd0",
+            "address_root_token": "0x94efd0", "call_target_entry": "-", "call_target_name": "-",
+            "call_arg0_root_token": "-",
+            "call_output_root_token": (
+                "sha256:incorrect" if thumb_proof == "wrong_digest"
+                else "sha256:ceb4bb6eb7801f478a82b5d83fa1932c28d9fb202951d3929ea1e041b2720907"
+            ),
+        })
     write_tsv(prov, rows)
     write_jsonl(catalog, [{
         "format": "NEVERGONE.StaticVtableSlotCatalog/3", "class_name": "GameSceneUI",
@@ -87,6 +100,14 @@ def main() -> int:
         bad = run_case(root, True)
         assert bad["status"] == "singleton_constructor_store_return_not_proven", bad
         assert "return_not_from_constructor_singleton_cell" in bad["reasons"], bad
+        rescued = run_case(root, True, "valid")
+        assert rescued["status"] == "singleton_constructor_store_return_class", rescued
+        assert rescued["return_provenance_method"] == "exact_thumb_singleton_cell", rescued
+        assert rescued["thumb_cell_proof_valid"] is True, rescued
+        for invalid in ("wrong_cell", "wrong_digest"):
+            rejected = run_case(root, True, invalid)
+            assert rejected["status"] == "singleton_constructor_store_return_not_proven", rejected
+            assert "thumb_singleton_cell_proof_invalid" in rejected["reasons"], rejected
     print("Nevergone singleton store-return smoke: PASS")
     return 0
 

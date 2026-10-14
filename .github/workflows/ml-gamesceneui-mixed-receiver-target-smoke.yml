@@ -25,6 +25,10 @@ jobs:
           python3 -m py_compile tools/ml/nevergone_gamesceneui_mixed_receiver_target_smoke.py
           bash -n tools/ml/run_nevergone_gamesceneui_mixed_receiver_target_probe.sh
           grep -q 'NEVERGONE.GhidraSingletonStoreReturnProvenance/1' tools/ghidra/ExportSingletonStoreReturnProvenance.java
+          grep -q 'thumb_exact_cell_proof' tools/ghidra/ExportSingletonStoreReturnProvenance.java
+          grep -q 'ceb4bb6eb7801f478a82b5d83fa1932c28d9fb202951d3929ea1e041b2720907' tools/ghidra/ExportSingletonStoreReturnProvenance.java
+          grep -q 'exact_thumb_singleton_cell' tools/ml/audit_nevergone_singleton_store_return.py
+          grep -q 'wrong_digest' tools/ml/nevergone_singleton_store_return_smoke.py
           grep -q 'NEVERGONE.SingletonConstructorStoreReturnAudit/1' tools/ml/audit_nevergone_singleton_store_return.py
           grep -q 'NEVERGONE.GameSceneUIControlsReturnConsumerAudit/1' tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py
           grep -q 'NEVERGONE.MixedReceiverSlotTargetConvergenceAudit/1' tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py

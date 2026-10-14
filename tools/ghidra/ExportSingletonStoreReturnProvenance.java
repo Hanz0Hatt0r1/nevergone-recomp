@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -26,6 +27,12 @@ public class ExportSingletonStoreReturnProvenance extends GhidraScript {
     private static final String FORMAT = "NEVERGONE.GhidraSingletonStoreReturnProvenance/1";
     private static final int MAX_TRANSPARENT_DEPTH = 8;
     private static final int MAX_ADDRESS_DEPTH = 12;
+    // SHA-256 of the 48-byte original ARM Thumb singleton function, not its bytes.
+    // This identity-gated proof is intentionally specific to the retained APK.
+    private static final String THUMB_SINGLETON_SHA256 =
+        "ceb4bb6eb7801f478a82b5d83fa1932c28d9fb202951d3929ea1e041b2720907";
+    private static final long THUMB_SINGLETON_ENTRY = 0x003e95e0L;
+    private static final long THUMB_SINGLETON_CELL = 0x0094efd0L;
 
     private String cell(Object value) {
         if (value == null) return "-";
@@ -146,6 +153,35 @@ public class ExportSingletonStoreReturnProvenance extends GhidraScript {
         return addressKey(def.getInput(1));
     }
 
+    private long le32(byte[] bytes, int at) {
+        long value = 0;
+        for (int i = 0; i < 4; i++) value |= ((long) bytes[at + i] & 0xffL) << (8 * i);
+        return value;
+    }
+
+    // Ghidra high-P-code can represent the return through a different alias
+    // root than the constructor STORE. As an independent, bounded fallback,
+    // verify the original Thumb function's full instruction/literal identity.
+    // Its store uses the PC-relative literal at +0x28 (r5), and its return
+    // LOAD uses the literal at +0x2c (r3). The SHA covers the intervening
+    // allocation, constructor call, STORE, branch and final LOAD instructions.
+    // Do not emit proof if any byte, address or cell differs.
+    private String exactThumbSingletonCell(Function function) throws Exception {
+        if (function.getEntryPoint().getOffset() != THUMB_SINGLETON_ENTRY) return null;
+        byte[] bytes = new byte[0x30];
+        if (currentProgram.getMemory().getBytes(function.getEntryPoint(), bytes) != bytes.length) return null;
+        byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+        StringBuilder hex = new StringBuilder();
+        for (byte value : digest) hex.append(String.format("%02x", value & 0xff));
+        if (!THUMB_SINGLETON_SHA256.equals(hex.toString())) return null;
+        long storeCell = function.getEntryPoint().getOffset() + 0x08L + le32(bytes, 0x28);
+        long returnCell = function.getEntryPoint().getOffset() + 0x26L + le32(bytes, 0x2c);
+        if (storeCell != THUMB_SINGLETON_CELL || returnCell != THUMB_SINGLETON_CELL) return null;
+        Address address = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(storeCell);
+        if (!currentProgram.getMemory().contains(address)) return null;
+        return "0x" + Long.toUnsignedString(storeCell, 16);
+    }
+
     private void header(BufferedWriter out) throws Exception {
         out.write("format\tfunction_entry\tfunction_name\trow_type\top_address\top_time\t" +
             "value_root_token\taddress_root_token\tcall_target_entry\tcall_target_name\t" +
@@ -212,6 +248,13 @@ public class ExportSingletonStoreReturnProvenance extends GhidraScript {
                     row(out, function, "return", op, rootToken(value), loadAddressKey(value), null, "-", "-");
                     returns++;
                 }
+            }
+            // A proof row is emitted only for the exact original Thumb
+            // function. The ordinary P-code evidence remains unchanged.
+            String thumbCell = exactThumbSingletonCell(function);
+            if (thumbCell != null) {
+                row(out, function, "thumb_exact_cell_proof", null,
+                    thumbCell, thumbCell, null, "-", "sha256:" + THUMB_SINGLETON_SHA256);
             }
         } finally {
             decompiler.dispose();
