@@ -173,6 +173,9 @@ def main() -> int:
     # receiver queries: it only traced a caller argument, not the CALLIND receiver.
     assert all(r.get("status") == "receiver_not_single_pointer" for r in recovered)
     assert all(r.get("mixed_slot_target_recovery", {}).get("accepted") is False for r in recovered)
+    assert all(r["mixed_slot_target_recovery"]["candidate_receiver_vtable_ids"] == [] for r in recovered)
+    assert all(r["mixed_slot_target_recovery"]["caller_argument_branch_classes"] == ["GameSceneUI", "Controls"]
+               for r in recovered)
     assert all("caller_argument_not_virtual_receiver_provenance" in
                r["mixed_slot_target_recovery"]["reasons"] for r in recovered)
     assert len(queries) == 1
