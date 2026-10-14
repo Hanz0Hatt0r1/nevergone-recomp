@@ -25,6 +25,7 @@ import java.util.Set;
 public class ExportSingletonStoreReturnProvenance extends GhidraScript {
     private static final String FORMAT = "NEVERGONE.GhidraSingletonStoreReturnProvenance/1";
     private static final int MAX_TRANSPARENT_DEPTH = 8;
+    private static final int MAX_ADDRESS_DEPTH = 12;
 
     private String cell(Object value) {
         if (value == null) return "-";
@@ -64,6 +65,51 @@ public class ExportSingletonStoreReturnProvenance extends GhidraScript {
         return token(stripTransparent(node));
     }
 
+    private Long staticAddressOffset(Varnode original, int depth, Set<Varnode> active) {
+        if (original == null || depth > MAX_ADDRESS_DEPTH || active.contains(original)) return null;
+        Varnode node = stripTransparent(original);
+        if (node == null) return null;
+        if (node.isAddress() || node.isConstant()) return node.getOffset();
+        PcodeOp def = node.getDef();
+        if (def == null) return null;
+        Set<Varnode> next = new HashSet<Varnode>(active);
+        next.add(original);
+        int code = def.getOpcode();
+        try {
+            if ((code == PcodeOp.PTRSUB || code == PcodeOp.INT_ADD) && def.getNumInputs() >= 2) {
+                Varnode a = def.getInput(0);
+                Varnode b = def.getInput(1);
+                if (b != null && b.isConstant()) {
+                    Long base = staticAddressOffset(a, depth + 1, next);
+                    return base == null ? null : Math.addExact(base, b.getOffset());
+                }
+                if (code == PcodeOp.INT_ADD && a != null && a.isConstant()) {
+                    Long base = staticAddressOffset(b, depth + 1, next);
+                    return base == null ? null : Math.addExact(base, a.getOffset());
+                }
+            }
+            if (code == PcodeOp.PTRADD && def.getNumInputs() >= 3 &&
+                    def.getInput(1).isConstant() && def.getInput(2).isConstant()) {
+                Long base = staticAddressOffset(def.getInput(0), depth + 1, next);
+                long delta = Math.multiplyExact(def.getInput(1).getOffset(), def.getInput(2).getOffset());
+                return base == null ? null : Math.addExact(base, delta);
+            }
+            if (code == PcodeOp.INT_SUB && def.getNumInputs() >= 2 && def.getInput(1).isConstant()) {
+                Long base = staticAddressOffset(def.getInput(0), depth + 1, next);
+                return base == null ? null : Math.subtractExact(base, def.getInput(1).getOffset());
+            }
+        } catch (ArithmeticException ignored) {
+            return null;
+        }
+        return null;
+    }
+
+    private String addressKey(Varnode node) {
+        Long offset = staticAddressOffset(node, 0, new HashSet<Varnode>());
+        if (offset != null) return "0x" + Long.toUnsignedString(offset, 16);
+        return rootToken(node);
+    }
+
     private Function directTarget(PcodeOp op) {
         if (op == null || op.getOpcode() != PcodeOp.CALL || op.getNumInputs() < 1) return null;
         Varnode target = stripTransparent(op.getInput(0));
@@ -93,11 +139,11 @@ public class ExportSingletonStoreReturnProvenance extends GhidraScript {
         return function;
     }
 
-    private String loadAddressRoot(Varnode value) {
+    private String loadAddressKey(Varnode value) {
         Varnode root = stripTransparent(value);
         PcodeOp def = root == null ? null : root.getDef();
         if (def == null || def.getOpcode() != PcodeOp.LOAD || def.getNumInputs() < 2) return "-";
-        return rootToken(def.getInput(1));
+        return addressKey(def.getInput(1));
     }
 
     private void header(BufferedWriter out) throws Exception {
@@ -159,11 +205,11 @@ public class ExportSingletonStoreReturnProvenance extends GhidraScript {
                     row(out, function, "call", op, "-", "-", target, arg0, outputRoot);
                     calls++;
                 } else if (code == PcodeOp.STORE && op.getNumInputs() >= 3) {
-                    row(out, function, "store", op, rootToken(op.getInput(2)), rootToken(op.getInput(1)), null, "-", "-");
+                    row(out, function, "store", op, rootToken(op.getInput(2)), addressKey(op.getInput(1)), null, "-", "-");
                     stores++;
                 } else if (code == PcodeOp.RETURN) {
                     Varnode value = op.getNumInputs() >= 2 ? op.getInput(op.getNumInputs() - 1) : null;
-                    row(out, function, "return", op, rootToken(value), loadAddressRoot(value), null, "-", "-");
+                    row(out, function, "return", op, rootToken(value), loadAddressKey(value), null, "-", "-");
                     returns++;
                 }
             }
