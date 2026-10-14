@@ -11,14 +11,10 @@ set -euo pipefail
 CATALOG="$WORK_ROOT/static-vtable-slot-catalog.jsonl"
 CALLER_SUBTREES="$WORK_ROOT/caller-argument-subtrees.tsv"
 ACCESSOR_AUDIT="$WORK_ROOT/gamesceneui-controls-accessor-audit.jsonl"
-PLAN="$WORK_ROOT/gamesceneui-mixed-target-plan.tsv"
-PROVENANCE="$WORK_ROOT/gamesceneui-mixed-target-provenance.tsv"
-FACTORY_AUDIT="$WORK_ROOT/gamesceneui-mixed-target-factory-audit.jsonl"
-FACTORY_AUDIT_TXT="$WORK_ROOT/gamesceneui-mixed-target-factory-audit.txt"
+CONSUMER_AUDIT="$WORK_ROOT/gamesceneui-controls-return-consumer-audit.jsonl"
 SINGLETON_PROVENANCE="$WORK_ROOT/gamesceneui-singleton-store-return.tsv"
 SINGLETON_AUDIT="$WORK_ROOT/gamesceneui-singleton-store-return-audit.jsonl"
 SINGLETON_AUDIT_TXT="$WORK_ROOT/gamesceneui-singleton-store-return-audit.txt"
-FIELD_STORES="$WORK_ROOT/gamesceneui-controls-field-stores.tsv"
 DETAILS="$WORK_ROOT/gamesceneui-mixed-target-audit.jsonl"
 AUDIT_TXT="$WORK_ROOT/gamesceneui-mixed-target-audit.txt"
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
@@ -27,37 +23,22 @@ for required in "$CATALOG" "$CALLER_SUBTREES" "$ACCESSOR_AUDIT"; do
   [[ -f "$required" ]] || { echo "missing required input: $required" >&2; exit 2; }
 done
 [[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }
-for script in ExportFunctionReturnObjectProvenance.java ExportFieldStoreCandidates.java ExportSingletonStoreReturnProvenance.java; do
-  [[ -f "$REPO_ROOT/tools/ghidra/$script" ]] || { echo "missing Ghidra exporter: $script" >&2; exit 2; }
-done
+[[ -f "$REPO_ROOT/tools/ghidra/ExportSingletonStoreReturnProvenance.java" ]] || { echo "missing singleton exporter" >&2; exit 2; }
+[[ -x "$REPO_ROOT/tools/ml/run_nevergone_gamesceneui_controls_return_consumer_probe.sh" ]] || { echo "missing controls consumer probe runner" >&2; exit 2; }
 
-# ELF symbol addresses are +0x10000 in the current Ghidra project view.
-cat > "$PLAN" <<'EOF'
-source_id	call_index	source_entry	call_address	dispatch_slot_offset	callee_entry	callee_name
-probe:initControls	0	00296a10	-	0x80	002a6a10	initControls
-probe:initGameSceneUI	0	003d8fa8	-	0x80	003e8fa8	initGameSceneUI
-EOF
+# Refresh the already-merged evidence that GetControlsObj() returns the +0x134
+# field and that the exact returned value has one catalog member-consumer class.
+REPO_ROOT="$REPO_ROOT" WORK_ROOT="$WORK_ROOT" GHIDRA_HOME="$GHIDRA_HOME" \
+GHIDRA_PROJECT_DIR="$GHIDRA_PROJECT_DIR" GHIDRA_PROJECT_NAME="$GHIDRA_PROJECT_NAME" GHIDRA_PROGRAM="$GHIDRA_PROGRAM" \
+  bash "$REPO_ROOT/tools/ml/run_nevergone_gamesceneui_controls_return_consumer_probe.sh"
+[[ -f "$CONSUMER_AUDIT" ]] || { echo "controls consumer audit was not produced: $CONSUMER_AUDIT" >&2; exit 2; }
 
-"$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
-  -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-  -scriptPath "$REPO_ROOT/tools/ghidra" \
-  -postScript ExportFunctionReturnObjectProvenance.java "$PLAN" "$PROVENANCE"
-
+# Ghidra uses the established +0x10000 image-base view for this ARMv7 binary.
 "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
   -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
   -scriptPath "$REPO_ROOT/tools/ghidra" \
   -postScript ExportSingletonStoreReturnProvenance.java 003e95e0 "$SINGLETON_PROVENANCE"
 
-"$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
-  -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-  -scriptPath "$REPO_ROOT/tools/ghidra" \
-  -postScript ExportFieldStoreCandidates.java "GameSceneUI::initGameSceneUI" 0x134 "$FIELD_STORES"
-
-python3 "$REPO_ROOT/tools/ml/audit_nevergone_call_root_factory_returns.py" \
-  "$PROVENANCE" "$CATALOG" --details-output "$FACTORY_AUDIT" \
-  | tee "$FACTORY_AUDIT_TXT"
-
-echo
 python3 "$REPO_ROOT/tools/ml/audit_nevergone_singleton_store_return.py" \
   "$SINGLETON_PROVENANCE" "$CATALOG" \
   --expected-function sharedGameSceneUI \
@@ -68,22 +49,16 @@ python3 "$REPO_ROOT/tools/ml/audit_nevergone_singleton_store_return.py" \
 echo
 printf '== GameSceneUI mixed receiver target convergence ==\n'
 python3 "$REPO_ROOT/tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py" \
-  "$FIELD_STORES" \
-  "$PROVENANCE" \
-  "$FACTORY_AUDIT" \
   "$SINGLETON_AUDIT" \
-  "$ACCESSOR_AUDIT" \
+  "$CONSUMER_AUDIT" \
   "$CALLER_SUBTREES" \
   "$CATALOG" \
   --details-output "$DETAILS" \
   | tee "$AUDIT_TXT"
 
-printf '\nplan: %s\n' "$PLAN"
-printf 'function provenance: %s\n' "$PROVENANCE"
-printf 'factory audit: %s\n' "$FACTORY_AUDIT"
-printf 'singleton provenance: %s\n' "$SINGLETON_PROVENANCE"
+printf '\nsingleton provenance: %s\n' "$SINGLETON_PROVENANCE"
 printf 'singleton audit: %s\n' "$SINGLETON_AUDIT"
-printf 'field stores: %s\n' "$FIELD_STORES"
+printf 'controls consumer audit: %s\n' "$CONSUMER_AUDIT"
 printf 'details: %s\n' "$DETAILS"
 printf 'audit text: %s\n' "$AUDIT_TXT"
 printf 'affects routing: no\n'
