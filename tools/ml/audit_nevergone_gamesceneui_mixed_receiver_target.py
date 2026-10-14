@@ -11,6 +11,7 @@ from typing import Any
 
 PROV_FMT = "NEVERGONE.GhidraFunctionReturnObjectProvenance/1"
 FACTORY_FMT = "NEVERGONE.CallRootFactoryReturnAudit/1"
+SINGLETON_FMT = "NEVERGONE.SingletonConstructorStoreReturnAudit/1"
 ACCESSOR_FMT = "NEVERGONE.GameSceneUIControlsAccessorAudit/1"
 SUBTREE_FMT = "NEVERGONE.GhidraCallerArgumentSubtree/1"
 CATALOG_FMT = "NEVERGONE.StaticVtableSlotCatalog/3"
@@ -70,13 +71,7 @@ def target_name_matches(value: Any, suffix: str) -> bool:
 
 
 def defining_site(value: Any) -> str | None:
-    """Normalize tokens emitted by two independent Ghidra exporters.
-
-    ExportFieldStoreCandidates uses def:<addr>:<time>:<size>, while
-    ExportFunctionReturnObjectProvenance includes the opcode as
-    def:<opcode>@<addr>:<time>:<size>.  The producer identity is the common
-    address/time/size tuple; opcode spelling must not make a real join fail.
-    """
+    """Normalize defining-site tokens emitted by two independent exporters."""
     if not isinstance(value, str) or not value.startswith("def:"):
         return None
     text = value[4:]
@@ -94,6 +89,7 @@ def main() -> int:
     parser.add_argument("field_stores_tsv", type=Path)
     parser.add_argument("function_provenance_tsv", type=Path)
     parser.add_argument("factory_audit_jsonl", type=Path)
+    parser.add_argument("singleton_audit_jsonl", type=Path)
     parser.add_argument("accessor_audit_jsonl", type=Path)
     parser.add_argument("caller_subtrees_tsv", type=Path)
     parser.add_argument("catalog_jsonl", type=Path)
@@ -103,6 +99,7 @@ def main() -> int:
     stores = read_tsv(args.field_stores_tsv)
     provenance = read_tsv(args.function_provenance_tsv)
     factory = read_jsonl(args.factory_audit_jsonl)
+    singleton_audit = read_jsonl(args.singleton_audit_jsonl)
     accessor = read_jsonl(args.accessor_audit_jsonl)
     subtrees = read_tsv(args.caller_subtrees_tsv)
     catalog = read_jsonl(args.catalog_jsonl)
@@ -113,6 +110,9 @@ def main() -> int:
     for line_no, row in enumerate(factory, 1):
         if row.get("format") != FACTORY_FMT:
             raise ValueError(f"{args.factory_audit_jsonl}:{line_no}: expected {FACTORY_FMT}")
+    for line_no, row in enumerate(singleton_audit, 1):
+        if row.get("format") != SINGLETON_FMT:
+            raise ValueError(f"{args.singleton_audit_jsonl}:{line_no}: expected {SINGLETON_FMT}")
     for line_no, row in enumerate(accessor, 1):
         if row.get("format") != ACCESSOR_FMT:
             raise ValueError(f"{args.accessor_audit_jsonl}:{line_no}: expected {ACCESSOR_FMT}")
@@ -125,11 +125,19 @@ def main() -> int:
 
     reasons: list[str] = []
 
+    if len(singleton_audit) != 1:
+        reasons.append("shared_gamesceneui_singleton_audit_not_unique")
+    else:
+        singleton = singleton_audit[0]
+        if (
+            singleton.get("status") != "singleton_constructor_store_return_class"
+            or singleton.get("expected_class") != "GameSceneUI"
+            or singleton.get("candidate_receiver_class_names") != ["GameSceneUI"]
+        ):
+            reasons.append("shared_gamesceneui_not_constructor_proven_gamesceneui")
+
     factory_by_source = {row.get("source_id"): row for row in factory}
-    singleton = factory_by_source.get("probe:sharedGameSceneUI")
     controls_factory = factory_by_source.get("probe:initControls")
-    if singleton is None or singleton.get("status") != "unique_factory_return_class" or singleton.get("candidate_receiver_class_names") != ["GameSceneUI"]:
-        reasons.append("shared_gamesceneui_not_constructor_proven_gamesceneui")
     if controls_factory is None or controls_factory.get("status") != "unique_factory_return_class" or controls_factory.get("candidate_receiver_class_names") != ["Controls"]:
         reasons.append("initcontrols_not_constructor_proven_controls")
 
