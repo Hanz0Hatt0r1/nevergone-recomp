@@ -4,15 +4,12 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-PROV_FMT = "NEVERGONE.GhidraFunctionReturnObjectProvenance/1"
-FACTORY_FMT = "NEVERGONE.CallRootFactoryReturnAudit/1"
 SINGLETON_FMT = "NEVERGONE.SingletonConstructorStoreReturnAudit/1"
-ACCESSOR_FMT = "NEVERGONE.GameSceneUIControlsAccessorAudit/1"
+CONSUMER_FMT = "NEVERGONE.GameSceneUIControlsReturnConsumerAudit/1"
 SUBTREE_FMT = "NEVERGONE.GhidraCallerArgumentSubtree/1"
 CATALOG_FMT = "NEVERGONE.StaticVtableSlotCatalog/3"
 OUT_FMT = "NEVERGONE.MixedReceiverSlotTargetConvergenceAudit/1"
@@ -66,56 +63,28 @@ def dec(value: Any, default: int = -1) -> int:
         return default
 
 
-def target_name_matches(value: Any, suffix: str) -> bool:
-    return isinstance(value, str) and value != "-" and value.split("(", 1)[0].endswith(suffix)
-
-
-def defining_site(value: Any) -> str | None:
-    """Normalize defining-site tokens emitted by independent exporters."""
-    if not isinstance(value, str) or not value.startswith("def:"):
-        return None
-    text = value[4:]
-    if "@" in text:
-        _, text = text.split("@", 1)
-    if not re.fullmatch(r"[^:]+:[0-9]+:[0-9]+", text):
-        return None
-    return text
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Prove a unique virtual target across the mixed GameSceneUI/Controls receiver paths"
+        description="Prove one virtual target across independently proven mixed GameSceneUI/Controls receiver classes"
     )
-    parser.add_argument("field_stores_tsv", type=Path)
-    parser.add_argument("function_provenance_tsv", type=Path)
-    parser.add_argument("factory_audit_jsonl", type=Path)
     parser.add_argument("singleton_audit_jsonl", type=Path)
-    parser.add_argument("accessor_audit_jsonl", type=Path)
+    parser.add_argument("controls_consumer_audit_jsonl", type=Path)
     parser.add_argument("caller_subtrees_tsv", type=Path)
     parser.add_argument("catalog_jsonl", type=Path)
     parser.add_argument("--details-output", type=Path)
     args = parser.parse_args()
 
-    stores = read_tsv(args.field_stores_tsv)
-    provenance = read_tsv(args.function_provenance_tsv)
-    factory = read_jsonl(args.factory_audit_jsonl)
     singleton_audit = read_jsonl(args.singleton_audit_jsonl)
-    accessor = read_jsonl(args.accessor_audit_jsonl)
+    consumer_audit = read_jsonl(args.controls_consumer_audit_jsonl)
     subtrees = read_tsv(args.caller_subtrees_tsv)
     catalog = read_jsonl(args.catalog_jsonl)
 
-    for line_no, row in enumerate(provenance, 2):
-        if row.get("format") != PROV_FMT:
-            raise ValueError(f"{args.function_provenance_tsv}:{line_no}: expected {PROV_FMT}")
-    for line_no, row in enumerate(factory, 1):
-        if row.get("format") != FACTORY_FMT:
-            raise ValueError(f"{args.factory_audit_jsonl}:{line_no}: expected {FACTORY_FMT}")
     for line_no, row in enumerate(singleton_audit, 1):
         if row.get("format") != SINGLETON_FMT:
             raise ValueError(f"{args.singleton_audit_jsonl}:{line_no}: expected {SINGLETON_FMT}")
-    for line_no, row in enumerate(accessor, 1):
-        if row.get("format") != ACCESSOR_FMT:
-            raise ValueError(f"{args.accessor_audit_jsonl}:{line_no}: expected {ACCESSOR_FMT}")
+    for line_no, row in enumerate(consumer_audit, 1):
+        if row.get("format") != CONSUMER_FMT:
+            raise ValueError(f"{args.controls_consumer_audit_jsonl}:{line_no}: expected {CONSUMER_FMT}")
     for line_no, row in enumerate(subtrees, 2):
         if row.get("format") != SUBTREE_FMT:
             raise ValueError(f"{args.caller_subtrees_tsv}:{line_no}: expected {SUBTREE_FMT}")
@@ -124,57 +93,36 @@ def main() -> int:
             raise ValueError(f"{args.catalog_jsonl}:{line_no}: expected {CATALOG_FMT}")
 
     reasons: list[str] = []
+    singleton_vtables: list[str] = []
+    controls_vtables: list[str] = []
 
     if len(singleton_audit) != 1:
         reasons.append("shared_gamesceneui_singleton_audit_not_unique")
     else:
         singleton = singleton_audit[0]
+        singleton_vtables = singleton.get("candidate_receiver_vtable_ids") or []
         if (
             singleton.get("status") != "singleton_constructor_store_return_class"
             or singleton.get("expected_class") != "GameSceneUI"
             or singleton.get("candidate_receiver_class_names") != ["GameSceneUI"]
+            or not isinstance(singleton_vtables, list)
+            or len(singleton_vtables) != 1
         ):
             reasons.append("shared_gamesceneui_not_constructor_proven_gamesceneui")
 
-    factory_by_source = {row.get("source_id"): row for row in factory}
-    controls_factory = factory_by_source.get("probe:initControls")
-    if controls_factory is None or controls_factory.get("status") != "unique_factory_return_class" or controls_factory.get("candidate_receiver_class_names") != ["Controls"]:
-        reasons.append("initcontrols_not_constructor_proven_controls")
-
-    init_calls = [
-        row for row in provenance
-        if row.get("source_id") == "probe:initGameSceneUI"
-        and row.get("row_type") == "call"
-        and target_name_matches(row.get("call_target_name"), "Controls::initControls")
-    ]
-    control_output_sites = {
-        site for row in init_calls
-        if (site := defining_site(row.get("call_output_root_token"))) is not None
-    }
-    target_stores = [
-        row for row in stores
-        if norm_slot(row.get("field_offset_hex")) == "0x134"
-        and "GameSceneUI::initGameSceneUI" in (row.get("function_name") or "")
-    ]
-    matching_stores = [
-        row for row in target_stores
-        if defining_site(row.get("value_root_token") or row.get("value_token")) in control_output_sites
-    ]
-    if len(init_calls) != 1 or len(control_output_sites) != 1:
-        reasons.append("initgamesceneui_controls_factory_call_not_unique")
-    if len(target_stores) != 1 or len(matching_stores) != 1:
-        reasons.append("gamesceneui_0x134_store_not_unique_controls_factory_output")
-
-    if len(accessor) != 1:
-        reasons.append("accessor_audit_not_unique")
+    if len(consumer_audit) != 1:
+        reasons.append("controls_consumer_audit_not_unique")
     else:
-        acc = accessor[0]
-        if acc.get("accessor_offsets") != ["0x134"] or acc.get("reasons") not in ([], None):
-            reasons.append("getcontrolsobj_not_exact_0x134_accessor")
-        if not acc.get("mixed_direct_singleton_value_present"):
-            reasons.append("caller_mix_missing_direct_singleton_value")
-        if dec(acc.get("caller_shared_ui_base_leaves"), 0) <= 0 or dec(acc.get("caller_offset_0x134_leaves"), 0) <= 0:
-            reasons.append("caller_mix_missing_singleton_0x134_field_path")
+        consumer = consumer_audit[0]
+        controls_vtables = consumer.get("mapped_vtables") or []
+        if (
+            consumer.get("status") != "unique_catalog_member_consumer_class"
+            or consumer.get("accessor_chain_ok") is not True
+            or consumer.get("mapped_classes") != ["Controls"]
+            or not isinstance(controls_vtables, list)
+            or len(controls_vtables) != 1
+        ):
+            reasons.append("getcontrolsobj_return_not_uniquely_proven_controls")
 
     grouped_subtrees: dict[tuple[str, int], list[dict[str, str]]] = defaultdict(list)
     for row in subtrees:
@@ -230,6 +178,7 @@ def main() -> int:
     proven_classes = ["Controls", "GameSceneUI"]
     class_to_vtable: dict[str, str] = {}
     class_to_targets: dict[str, list[str]] = {}
+    evidence_vtables = {"Controls": controls_vtables, "GameSceneUI": singleton_vtables}
     for cls in proven_classes:
         vtables = sorted(class_vtables.get(cls, set()))
         if len(vtables) != 1:
@@ -237,6 +186,8 @@ def main() -> int:
             continue
         vt = vtables[0]
         class_to_vtable[cls] = vt
+        if evidence_vtables.get(cls) != [vt]:
+            reasons.append(f"{cls}_evidence_catalog_vtable_mismatch")
         rows = exact_rows.get((vt, TARGET_SLOT), [])
         if not rows:
             reasons.append(f"{cls}_slot_0x80_missing")
@@ -277,7 +228,6 @@ def main() -> int:
             "class_target_ids": class_to_targets,
             "convergent_target_id": convergent_target if not row_reasons else None,
             "controls_field_offset": "0x134",
-            "controls_factory_output_site": next(iter(control_output_sites), None),
             "reasons": row_reasons,
             "status": status,
             "affects_routing": False,
