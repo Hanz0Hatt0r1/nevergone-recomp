@@ -8,11 +8,14 @@ on:
       - 'tools/ghidra/ExportIndirectCallTargetReceiverProvenance.java'
       - 'tools/ghidra/ExportIndirectCallStructuralReceiverParameterProvenance.java'
       - 'tools/ml/build_nevergone_receiver_type_plan.py'
+      - 'tools/ml/rebuild_nevergone_receiver_analysis_from_inference.py'
       - 'tools/ml/infer_nevergone_static_receiver_vtables.py'
       - 'tools/ml/audit_nevergone_receiver_type_failures.py'
       - 'tools/ml/audit_nevergone_receiver_parameter_provenance.py'
       - 'tools/ml/audit_nevergone_target_receiver_provenance.py'
       - 'tools/ml/audit_nevergone_structural_receiver_parameter_provenance.py'
+      - 'tools/ml/nevergone_receiver_provenance_seed_plan.tsv'
+      - 'tools/ml/run_nevergone_receiver_provenance_fresh.sh'
       - 'tools/ml/run_nevergone_receiver_parameter_provenance.sh'
       - 'tools/ml/run_nevergone_static_receiver_vtable_inference_with_parameter_provenance.sh'
       - 'tools/ml/run_nevergone_static_receiver_vtable_inference_with_structural_provenance.sh'
@@ -38,6 +41,7 @@ jobs:
         run: |
           python -m py_compile \
             tools/ml/build_nevergone_receiver_type_plan.py \
+            tools/ml/rebuild_nevergone_receiver_analysis_from_inference.py \
             tools/ml/infer_nevergone_static_receiver_vtables.py \
             tools/ml/audit_nevergone_receiver_type_failures.py \
             tools/ml/audit_nevergone_receiver_parameter_provenance.py \
@@ -45,8 +49,21 @@ jobs:
             tools/ml/audit_nevergone_structural_receiver_parameter_provenance.py \
             tools/ml/nevergone_static_receiver_vtable_inference_smoke.py \
             tools/ml/nevergone_static_receiver_structural_provenance_smoke.py
+      - name: Validate persistent seed plan
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          path = Path('tools/ml/nevergone_receiver_provenance_seed_plan.tsv')
+          rows = list(csv.DictReader(path.open(encoding='utf-8', newline=''), delimiter='\t'))
+          assert len(rows) == 19, len(rows)
+          assert sum(int(row['expected_calls']) for row in rows) == 62, rows
+          assert len({row['source_id'] for row in rows}) == 19, rows
+          print('seed plan: 19 functions / 62 calls')
+          PY
       - name: Check shell runners
         run: |
+          bash -n tools/ml/run_nevergone_receiver_provenance_fresh.sh
           bash -n tools/ml/run_nevergone_receiver_parameter_provenance.sh
           bash -n tools/ml/run_nevergone_static_receiver_vtable_inference_with_parameter_provenance.sh
           bash -n tools/ml/run_nevergone_static_receiver_vtable_inference_with_structural_provenance.sh
