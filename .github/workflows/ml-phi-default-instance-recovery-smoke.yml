@@ -1,0 +1,38 @@
+name: Nevergone ML PHI default-instance recovery smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/finalize_nevergone_phi_default_instance_recovery.py'
+      - 'tools/ml/nevergone_phi_default_instance_recovery_smoke.py'
+      - 'tools/ml/run_nevergone_phi_default_instance_recovery.sh'
+      - '.github/workflows/ml-phi-default-instance-recovery-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile finalizer and smoke
+        run: |
+          python -m py_compile tools/ml/finalize_nevergone_phi_default_instance_recovery.py
+          python -m py_compile tools/ml/nevergone_phi_default_instance_recovery_smoke.py
+      - name: Run recovery smoke
+        run: python tools/ml/nevergone_phi_default_instance_recovery_smoke.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_phi_default_instance_recovery.sh
+      - name: Check fail-closed contract
+        run: |
+          grep -q 'NEVERGONE.PhiDefaultInstanceRecoveryFinalization/1' tools/ml/finalize_nevergone_phi_default_instance_recovery.py
+          grep -q 'structural_phi_default_instance_owner' tools/ml/finalize_nevergone_phi_default_instance_recovery.py
+          grep -q 'canonical_receiver' tools/ml/finalize_nevergone_phi_default_instance_recovery.py
+          grep -q 'phi_branch_class_mismatch' tools/ml/finalize_nevergone_phi_default_instance_recovery.py
+          grep -q 'PTR_default_instance__' tools/ml/finalize_nevergone_phi_default_instance_recovery.py
+          grep -q 'affects routing: no' tools/ml/finalize_nevergone_phi_default_instance_recovery.py
