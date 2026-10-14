@@ -98,12 +98,38 @@ def audit(target: str) -> dict:
     }
 
 
-def run(catalog_controls_target: str) -> tuple[list[dict], list[dict], list[dict]]:
+def strict_audits(target: str, proven: bool = True) -> list[dict]:
+    return [
+        {
+            "format": "NEVERGONE.MixedReceiverSlotTargetConvergenceAudit/1",
+            "source_id": "libcocos2dcpp.so:002a7594",
+            "call_index": call,
+            "dispatch_slot_offset": "0x80",
+            "proven_receiver_class_names": ["Controls", "GameSceneUI"],
+            "proven_receiver_vtable_ids": [
+                "libcocos2dcpp.so:008f4498", "libcocos2dcpp.so:00910000",
+            ],
+            "class_target_ids": {"Controls": [target], "GameSceneUI": [target]},
+            "convergent_target_id": target if proven else None,
+            "controls_field_offset": "0x134",
+            "status": (
+                "unique_target_across_proven_receiver_classes"
+                if proven else "mixed_receiver_target_not_proven"
+            ),
+            "reasons": [] if proven else ["shared_gamesceneui_not_constructor_proven_gamesceneui"],
+            "affects_routing": False,
+        }
+        for call in (3, 4, 7)
+    ]
+
+
+def run(catalog_controls_target: str, strict_proven: bool = True) -> tuple[list[dict], list[dict], list[dict]]:
     with tempfile.TemporaryDirectory() as td:
         d = Path(td)
         inf = d / "inf.jsonl"
         q = d / "q.jsonl"
         a = d / "audit.jsonl"
+        strict = d / "strict.jsonl"
         cat = d / "cat.jsonl"
         out = d / "out.jsonl"
         outq = d / "outq.jsonl"
@@ -120,6 +146,7 @@ def run(catalog_controls_target: str) -> tuple[list[dict], list[dict], list[dict
         write_jsonl(inf, rows)
         write_jsonl(q, [query("libtest.so:00100000", 0, "libtest.so:00900000", "0x20")])
         write_jsonl(a, [audit(target)])
+        write_jsonl(strict, strict_audits(target, strict_proven))
         write_jsonl(cat, [
             catalog("GameSceneUI", "libcocos2dcpp.so:00910000", "0x80", target),
             catalog("Controls", "libcocos2dcpp.so:008f4498", "0x80", catalog_controls_target),
@@ -128,6 +155,7 @@ def run(catalog_controls_target: str) -> tuple[list[dict], list[dict], list[dict
 
         subprocess.run([
             sys.executable, str(FINALIZER), str(inf), str(q), str(a),
+            "--strict-mixed-audit-jsonl", str(strict),
             "--output", str(out), "--queries-output", str(outq), "--details-output", str(details),
         ], check=True, capture_output=True, text=True)
         subprocess.run([
@@ -149,6 +177,13 @@ def main() -> int:
     assert len(conv) == 3
     assert all(r.get("status") == "audited_multi_vtable_target_convergence" for r in conv)
     assert all(r.get("exact_candidate_target_id") == target for r in conv)
+
+    unproven, unproven_queries, unproven_resolved = run(target, strict_proven=False)
+    unproven_rows = [r for r in unproven if r.get("source_id") == "libcocos2dcpp.so:002a7594"]
+    assert len(unproven_rows) == 3
+    assert all(r.get("status") == "receiver_not_single_pointer" for r in unproven_rows)
+    assert len(unproven_queries) == 1
+    assert not [r for r in unproven_resolved if r.get("resolution_mode") == "audited_multi_vtable_target_convergence"]
 
     _, _, blocked = run("libcocos2dcpp.so:00525d30")
     blocked_conv = [r for r in blocked if r.get("resolution_mode") == "audited_multi_vtable_target_convergence"]
