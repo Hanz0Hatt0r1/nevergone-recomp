@@ -1,5 +1,6 @@
 #include "game_levels_enter_transition.h"
 
+#include <filesystem>
 #include <mutex>
 #include <sstream>
 
@@ -13,7 +14,9 @@ Snapshot g_state;
 Boundary classify(const game_levels_asset_probe::Snapshot& probe) {
     if (!probe.configured) return Boundary::kFilesDirUnconfigured;
     if (!probe.present) return Boundary::kAssetMissing;
-    if (!probe.regular_file || !probe.within_size_limit || !probe.loaded) return Boundary::kAssetRejected;
+    if (!probe.regular_file || !probe.within_size_limit || !probe.loaded) {
+        return Boundary::kAssetRejected;
+    }
     if (!probe.scene_section_readable) return Boundary::kVerifiedPrefixIncomplete;
     if (!probe.actions_section_readable) return Boundary::kSceneSectionVerified;
     if (!probe.global_section_readable) return Boundary::kActionsSectionVerified;
@@ -45,16 +48,7 @@ void record_probe(const game_levels_asset_probe::Snapshot& probe, bool callback_
     }
 }
 
-void load_game_levels(const std::string& files_dir, bool callback_source) {
-    const auto probe = game_levels_asset_probe::probe_pvp_scene(files_dir);
-    record_probe(probe, callback_source);
-
-    if (!probe.port_node_section_readable) {
-        game_levels_runtime_state::reset();
-        return;
-    }
-
-    if (!game_levels_runtime_state::load_pvp_scene(files_dir)) return;
+void publish_runtime_boundary() {
     const auto runtime = game_levels_runtime_state::snapshot();
     std::lock_guard<std::mutex> lock(g_mutex);
     if (runtime.current_scene_render_queue_ready) {
@@ -68,6 +62,26 @@ void load_game_levels(const std::string& files_dir, bool callback_source) {
     }
     if (runtime.model_end_offset != 0u) g_state.verified_bytes = runtime.model_end_offset;
 }
+
+void load_game_levels_path(const std::string& path, bool callback_source) {
+    const auto probe = game_levels_asset_probe::probe_file(path);
+    record_probe(probe, callback_source);
+
+    if (!probe.port_node_section_readable) {
+        game_levels_runtime_state::reset();
+        return;
+    }
+
+    if (!game_levels_runtime_state::load_file(path)) return;
+    publish_runtime_boundary();
+}
+
+std::string pvp_scene_path(const std::string& files_dir) {
+    if (files_dir.empty()) return {};
+    return (std::filesystem::path(files_dir) / "assets" / "gamescene" /
+            "gs_list" / "pvp_scene.glData").string();
+}
+
 }  // namespace
 
 void reset() {
@@ -79,11 +93,15 @@ void reset() {
 }
 
 void on_enter_game(const std::string& files_dir) {
-    load_game_levels(files_dir, true);
+    load_game_levels_path(pvp_scene_path(files_dir), true);
 }
 
 void on_local_enter_game(const std::string& files_dir) {
-    load_game_levels(files_dir, false);
+    load_game_levels_path(pvp_scene_path(files_dir), false);
+}
+
+void on_local_enter_game_file(const std::string& resolved_path) {
+    load_game_levels_path(resolved_path, false);
 }
 
 void on_enter_game_with_probe(const game_levels_asset_probe::Snapshot& probe) {
@@ -123,7 +141,9 @@ std::string status_report() {
     out << "local enters: " << state.local_enter_count << "\n";
     out << "probe attempts: " << state.probe_attempt_count << "\n";
     if (state.reader_size != 0) out << "scene bytes loaded: " << state.reader_size << "\n";
-    if (state.verified_bytes != 0) out << "verified GameLevels stream bytes: " << state.verified_bytes << "\n";
+    if (state.verified_bytes != 0) {
+        out << "verified GameLevels stream bytes: " << state.verified_bytes << "\n";
+    }
     const auto runtime = game_levels_runtime_state::snapshot();
     if (runtime.status != game_levels_runtime_state::LoadStatus::kIdle) {
         out << game_levels_runtime_state::status_report();
