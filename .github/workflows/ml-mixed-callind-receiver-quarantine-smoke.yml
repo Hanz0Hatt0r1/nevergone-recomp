@@ -1,0 +1,38 @@
+name: Nevergone mixed CALLIND receiver quarantine smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_gamesceneui_mixed_receiver_target.py'
+      - 'tools/ml/finalize_nevergone_mixed_slot_target_recovery.py'
+      - 'tools/ml/plan_nevergone_slot80_receiver_slices.py'
+      - 'tools/ml/audit_nevergone_mixed_receiver_value_probe.py'
+      - 'tools/ml/nevergone_mixed_receiver_value_probe_smoke.py'
+      - 'tools/ml/run_nevergone_mixed_receiver_value_probe.sh'
+      - 'tools/ml/nevergone_gamesceneui_mixed_receiver_target_smoke.py'
+      - 'tools/ml/nevergone_mixed_slot_target_recovery_v11_smoke.py'
+      - 'tools/ml/nevergone_slot80_receiver_slice_smoke.py'
+      - '.github/workflows/ml-mixed-callind-receiver-quarantine-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_mixed_receiver_value_probe.py'
+      - 'tools/ml/nevergone_mixed_receiver_value_probe_smoke.py'
+      - 'tools/ml/finalize_nevergone_mixed_slot_target_recovery.py'
+      - '.github/workflows/ml-mixed-callind-receiver-quarantine-smoke.yml'
+
+jobs:
+  quarantine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check stale v11 audits and actual CALLIND receiver slices
+        run: |
+          python3 tools/ml/nevergone_mixed_receiver_value_probe_smoke.py
+          python3 tools/ml/nevergone_mixed_slot_target_recovery_v11_smoke.py
+          python3 tools/ml/nevergone_gamesceneui_mixed_receiver_target_smoke.py
+          python3 tools/ml/nevergone_slot80_receiver_slice_smoke.py
+          python3 -m py_compile tools/ml/audit_nevergone_mixed_receiver_value_probe.py
