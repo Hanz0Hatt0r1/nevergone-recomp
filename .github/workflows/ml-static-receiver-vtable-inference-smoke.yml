@@ -7,6 +7,7 @@ on:
       - 'tools/ghidra/ExportIndirectCallReceiverParameterProvenance.java'
       - 'tools/ml/build_nevergone_receiver_type_plan.py'
       - 'tools/ml/infer_nevergone_static_receiver_vtables.py'
+      - 'tools/ml/audit_nevergone_receiver_type_failures.py'
       - 'tools/ml/audit_nevergone_receiver_parameter_provenance.py'
       - 'tools/ml/run_nevergone_receiver_parameter_provenance.sh'
       - 'tools/ml/run_nevergone_static_receiver_vtable_inference_with_parameter_provenance.sh'
@@ -30,6 +31,7 @@ jobs:
           python -m py_compile \
             tools/ml/build_nevergone_receiver_type_plan.py \
             tools/ml/infer_nevergone_static_receiver_vtables.py \
+            tools/ml/audit_nevergone_receiver_type_failures.py \
             tools/ml/audit_nevergone_receiver_parameter_provenance.py \
             tools/ml/nevergone_static_receiver_vtable_inference_smoke.py
       - name: Check shell runners
