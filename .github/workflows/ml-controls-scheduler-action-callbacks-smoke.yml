@@ -1,0 +1,30 @@
+name: Nevergone Controls scheduler/action callback closure smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controls_scheduler_action_callbacks.py'
+      - 'tools/ml/nevergone_controls_scheduler_action_callbacks_smoke.py'
+      - 'tools/ml/run_nevergone_controls_scheduler_action_callbacks.sh'
+      - '.github/workflows/ml-controls-scheduler-action-callbacks-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controls_scheduler_action_callbacks.py'
+      - 'tools/ml/nevergone_controls_scheduler_action_callbacks_smoke.py'
+      - 'tools/ml/run_nevergone_controls_scheduler_action_callbacks.sh'
+      - '.github/workflows/ml-controls-scheduler-action-callbacks-smoke.yml'
+
+jobs:
+  controls-scheduler-action-callbacks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate exact-ELF callback closure checker
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_controls_scheduler_action_callbacks.py
+          python3 tools/ml/nevergone_controls_scheduler_action_callbacks_smoke.py
+          bash -n tools/ml/run_nevergone_controls_scheduler_action_callbacks.sh
