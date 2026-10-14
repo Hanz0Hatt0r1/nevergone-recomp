@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - 'tools/ml/audit_nevergone_controlsbutton_packaged_field_stability.py'
+      - 'tools/ml/gate_nevergone_controlsbutton_packaged_field_stability.py'
       - 'tools/ml/finalize_nevergone_controlsbutton_field_recovery_v14.py'
+      - 'tools/ml/nevergone_controlsbutton_packaged_field_stability_gate_smoke.py'
       - 'tools/ml/nevergone_controlsbutton_field_recovery_v14_smoke.py'
       - 'tools/ml/run_nevergone_controlsbutton_field_recovery_v14.sh'
       - '.github/workflows/ml-controlsbutton-field-recovery-v14-smoke.yml'
@@ -12,7 +14,9 @@ on:
     branches: [main]
     paths:
       - 'tools/ml/audit_nevergone_controlsbutton_packaged_field_stability.py'
+      - 'tools/ml/gate_nevergone_controlsbutton_packaged_field_stability.py'
       - 'tools/ml/finalize_nevergone_controlsbutton_field_recovery_v14.py'
+      - 'tools/ml/nevergone_controlsbutton_packaged_field_stability_gate_smoke.py'
       - 'tools/ml/nevergone_controlsbutton_field_recovery_v14_smoke.py'
       - 'tools/ml/run_nevergone_controlsbutton_field_recovery_v14.sh'
       - '.github/workflows/ml-controlsbutton-field-recovery-v14-smoke.yml'
@@ -29,6 +33,8 @@ jobs:
         run: |
           python3 -m py_compile \
             tools/ml/audit_nevergone_controlsbutton_packaged_field_stability.py \
+            tools/ml/gate_nevergone_controlsbutton_packaged_field_stability.py \
             tools/ml/finalize_nevergone_controlsbutton_field_recovery_v14.py
+          python3 tools/ml/nevergone_controlsbutton_packaged_field_stability_gate_smoke.py
           python3 tools/ml/nevergone_controlsbutton_field_recovery_v14_smoke.py
           bash -n tools/ml/run_nevergone_controlsbutton_field_recovery_v14.sh
