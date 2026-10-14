@@ -39,9 +39,16 @@ void reset();
 // Callback-driven recovered online boundary.
 void on_enter_game(const std::string& files_dir);
 
-// Project-owned serverless preservation boundary. It loads the same verified
-// GameLevels model but does not increment/claim an original enter callback.
+// Project-owned serverless preservation boundary for the known pvp_scene path.
+// It loads the same verified GameLevels model but does not increment/claim an
+// original enter callback.
 void on_local_enter_game(const std::string& files_dir);
+
+// Project-owned local transition for an already resolved original GameLevels
+// filename. This is used by the recovered fresh-role tutorial path where the
+// shipped ManagementLayer passes the bare cp_lesson.glData through the normal
+// Cocos search-path resolver before GameScene::switchScene().
+void on_local_enter_game_file(const std::string& resolved_path);
 
 // Probe-injection helper used by callback-path host tests.
 void on_enter_game_with_probe(const game_levels_asset_probe::Snapshot& probe);
