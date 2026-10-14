@@ -112,8 +112,13 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         ok = run_case(root, False)
-        assert all(row["status"] == "unique_target_across_proven_receiver_classes" for row in ok), ok
-        assert {row["convergent_target_id"] for row in ok} == {"lib.so:00515d2f"}, ok
+        assert all(row["status"] == "mixed_receiver_target_not_proven" for row in ok), ok
+        assert all("caller_argument_not_virtual_receiver_provenance" in row["reasons"] for row in ok), ok
+        assert all(row["receiver_value_proven"] is False for row in ok), ok
+        assert all(row["proven_receiver_class_names"] == [] and row["class_target_ids"] == {} for row in ok), ok
+        assert all(row["caller_argument_candidate_class_names"] == ["Controls", "GameSceneUI"] for row in ok), ok
+        assert {row["catalog_convergent_target_candidate"] for row in ok} == {"lib.so:00515d2f"}, ok
+        assert {row["convergent_target_id"] for row in ok} == {None}, ok
         bad = run_case(root, True)
         assert all(row["status"] == "mixed_receiver_target_not_proven" for row in bad), bad
         assert all("proven_receiver_classes_do_not_converge_one_target" in row["reasons"] for row in bad), bad
