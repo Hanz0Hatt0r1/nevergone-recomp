@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -121,7 +120,7 @@ def main() -> int:
                 "class_name": cls,
             })
 
-        children: dict[tuple[int, int], int] = Counter()
+        children: Counter[tuple[int, int]] = Counter()
         for row in return_nodes:
             ret = dec(row.get("return_index"), -1)
             parent = dec(row.get("parent_node_id"), -1)
@@ -130,6 +129,9 @@ def main() -> int:
 
         leaves: list[dict[str, Any]] = []
         candidate_classes: set[str] = set()
+        row_null = 0
+        row_nonnull = 0
+        row_proven = 0
         blocked_nonnull = 0
         return_indices = sorted({dec(r.get("return_index"), -1) for r in return_nodes if dec(r.get("return_index"), -1) >= 0})
         total_returns += len(return_indices)
@@ -143,6 +145,7 @@ def main() -> int:
             constant = parse_hex(row.get("constant_value"))
             is_null = row.get("constant_value") not in (None, "", "-") and constant == 0
             if is_null:
+                row_null += 1
                 total_null += 1
                 leaves.append({
                     "return_index": ret,
@@ -153,9 +156,11 @@ def main() -> int:
                 })
                 continue
 
+            row_nonnull += 1
             total_nonnull += 1
             classes = sorted(constructor_by_arg.get(token, set()))
             if len(classes) == 1:
+                row_proven += 1
                 total_proven += 1
                 candidate_classes.add(classes[0])
                 kind = "constructor_proven"
@@ -176,7 +181,7 @@ def main() -> int:
             bucket = "missing_summary"
         elif not return_indices:
             bucket = "no_return_values"
-        elif total_nonnull == 0 and not any(x["kind"] != "null" for x in leaves):
+        elif row_nonnull == 0:
             bucket = "null_only_factory"
         elif blocked_nonnull:
             bucket = "nonnull_return_not_constructor_proven"
@@ -198,6 +203,9 @@ def main() -> int:
             "callee_name": summary.get("callee_name") if summary else None,
             "callee_declared_return_type": summary.get("callee_declared_return_type") if summary else None,
             "return_indices": return_indices,
+            "null_return_leaves": row_null,
+            "non_null_return_leaves": row_nonnull,
+            "constructor_proven_non_null_leaves": row_proven,
             "constructor_calls": constructor_rows,
             "return_leaves": leaves,
             "candidate_receiver_class_names": sorted(candidate_classes),
