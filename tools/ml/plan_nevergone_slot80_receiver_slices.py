@@ -15,6 +15,10 @@ PLAN_FORMAT = "NEVERGONE.Slot80ReceiverSlicePlan/1"
 ELIGIBLE = {"unresolved_receiver_class", "ambiguous_receiver_class", "receiver_not_single_pointer"}
 SOURCE = re.compile(r"libcocos2dcpp\.so:([0-9a-f]{8})\Z")
 FIELDS = ("format", "source_id", "source_entry", "call_indices", "call_addresses", "expected_calls")
+# These three calls were incorrectly classified from a caller ARGUMENT, not
+# the nested CALLIND receiver. Probe them separately with the dedicated
+# mixed-receiver-value runner; keep this exact legacy 17-call plan stable.
+QUARANTINED_CALLS = {("libcocos2dcpp.so:002a7594", i) for i in (3, 4, 7)}
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -46,6 +50,15 @@ def selected_calls(failures: Path, inference: Path) -> dict[str, list[dict[str, 
         if key in seen:
             raise ValueError(f"duplicate failure key: {key}")
         seen.add(key)
+        if key in QUARANTINED_CALLS:
+            matched = inf_by_key.get(key)
+            if (row.get("status") != "receiver_not_single_pointer"
+                    or row.get("dispatch_slot_offset") != "0x80"
+                    or matched is None
+                    or any(matched.get(k) != row.get(k) for k in (
+                        "status", "dispatch_slot_offset", "call_address"))):
+                raise ValueError(f"quarantined v11 receiver identity mismatch: {key}")
+            continue
         if row.get("dispatch_slot_offset") != "0x80" or row.get("status") not in ELIGIBLE:
             continue
         if SOURCE.fullmatch(source) is None:
