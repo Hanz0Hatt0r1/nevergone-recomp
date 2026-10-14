@@ -5,6 +5,7 @@ import argparse
 import csv
 import json
 import re
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -50,15 +51,20 @@ def main() -> int:
     args = parser.parse_args()
 
     out: list[dict[str, Any]] = []
+    skips = Counter()
+    candidates = 0
     for failure in read_jsonl(args.failure_jsonl):
         if failure.get("status") != "receiver_not_single_pointer":
             continue
+        candidates += 1
         source_id = failure.get("source_id")
         call_index = failure.get("call_index")
         if not isinstance(source_id, str) or not isinstance(call_index, int):
+            skips["invalid_failure_key"] += 1
             continue
         path = args.slice_dir / f"{safe_id(source_id)}.tsv"
         if not path.is_file():
+            skips["missing_slice_file"] += 1
             continue
         rows = read_tsv(path)
         for line_no, row in enumerate(rows, 2):
@@ -68,7 +74,14 @@ def main() -> int:
         summary = next((r for r in call_rows if r.get("row_type") == "summary"), None)
         nodes = [r for r in call_rows if r.get("row_type") == "node"]
         root = next((r for r in nodes if dec(r.get("node_id")) == 0), None)
-        if summary is None or root is None or root.get("defining_opcode") != "LOAD":
+        if summary is None:
+            skips["missing_call_summary"] += 1
+            continue
+        if root is None:
+            skips["missing_root_node"] += 1
+            continue
+        if root.get("defining_opcode") != "LOAD":
+            skips["root_not_load"] += 1
             continue
         children = [r for r in nodes if dec(r.get("parent_node_id")) == 0]
         address_children = []
@@ -76,7 +89,11 @@ def main() -> int:
             address = address_from_token(child.get("node_token"))
             if address is not None and child.get("defining_opcode") in {None, "", "-"}:
                 address_children.append((child, address))
+        if not address_children:
+            skips["no_direct_address_child"] += 1
+            continue
         if len(address_children) != 1:
+            skips["ambiguous_direct_address_children"] += 1
             continue
         child, root_address = address_children[0]
         out.append({
@@ -107,7 +124,9 @@ def main() -> int:
         writer.writerows(out)
 
     print("format:", PLAN_FORMAT)
+    print("candidate receiver_not_single_pointer rows:", candidates)
     print("planned LOAD address roots:", len(out))
+    print("skip counts:", dict(skips.most_common()))
     for row in out:
         print(row["source_id"], "call", row["call_index"], "slot=", row["dispatch_slot_offset"], "root_address=", row["root_address"])
     print("output:", args.output)
