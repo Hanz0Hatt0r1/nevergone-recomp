@@ -1,0 +1,28 @@
+name: Nevergone ML PHI secondary address classification smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/run_nevergone_phi_secondary_address_classification.sh'
+      - 'tools/ghidra/ExportAddressClassification.java'
+      - '.github/workflows/ml-phi-secondary-address-classification-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_phi_secondary_address_classification.sh
+      - name: Check evidence-only contract
+        run: |
+          grep -q '00295134' tools/ml/run_nevergone_phi_secondary_address_classification.sh
+          grep -q '00295138' tools/ml/run_nevergone_phi_secondary_address_classification.sh
+          grep -q '002951fc' tools/ml/run_nevergone_phi_secondary_address_classification.sh
+          grep -q '00295200' tools/ml/run_nevergone_phi_secondary_address_classification.sh
+          grep -q '00549614' tools/ml/run_nevergone_phi_secondary_address_classification.sh
+          grep -q 'affects routing: no' tools/ml/run_nevergone_phi_secondary_address_classification.sh
