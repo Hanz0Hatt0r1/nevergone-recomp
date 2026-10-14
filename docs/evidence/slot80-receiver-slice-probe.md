@@ -79,8 +79,11 @@ The exact-APK Thumb factory witness auditor combines those **receiver LOAD**
 offsets with **factory return STORE** instruction windows from the original
 ARM library. It verifies the original library SHA-256, ELF32 symbol names,
 direct Thumb BL targets, STR.W r0 -> [r4 + offset], and 10 independent
-instruction-window SHA-256 digests. It then joins the unique slot-`0x80`
-rows of the local Ghidra vtable catalog. Nothing from the APK is committed.
+instruction-window SHA-256 digests. It also inventories all direct
+Thumb STR.W immediate writes to the selected fields inside the ELF-symbolized
+`Controls` and `ControlsButton` methods: exactly 16 sites (10 factory returns
+and six zero initializations). It then joins the unique slot-`0x80` rows of
+the local Ghidra vtable catalog. Nothing from the APK is committed.
 
 ~~~bash
 WORK="$HOME/.cache/nevergone-recomp/receiver-provenance"

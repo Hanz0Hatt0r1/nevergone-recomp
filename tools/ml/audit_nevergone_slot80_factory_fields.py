@@ -72,17 +72,19 @@ class OriginalELF:
         shentsize, shnum = struct.unpack_from("<HH", data, 46)
         sections = [struct.unpack_from("<IIIIIIIIII", data, shoff + i * shentsize) for i in range(shnum)]
         self.symbols = {}
+        self.function_sizes = {}
         for sec in sections:
             if sec[1] not in (2, 11) or sec[9] != 16:
                 continue
             strings = sections[sec[6]]
             strtab = data[strings[4]:strings[4] + strings[5]]
             for at in range(sec[4], sec[4] + sec[5], 16):
-                name_off, value, _, info, _, _ = struct.unpack_from("<IIIBBH", data, at)
+                name_off, value, size, info, _, _ = struct.unpack_from("<IIIBBH", data, at)
                 if (info & 0xf) != 2 or name_off >= len(strtab):
                     continue
                 name = strtab[name_off:].split(b"\0", 1)[0].decode("utf-8", "replace")
                 self.symbols[value & ~1] = name
+                self.function_sizes[value & ~1] = size
 
     def at(self, va: int, n: int) -> bytes:
         for start, end, offset in self.loads:
@@ -135,6 +137,34 @@ def verify_witnesses(elf: OriginalELF) -> dict[tuple[str, int], dict]:
         })
     return result
 
+
+
+def verify_direct_owner_strw_inventory(elf: OriginalELF) -> int:
+    """Bounded direct STR.W inventory in named owner methods, not an alias-write proof."""
+    wanted = {"Controls": {0x124, 0x174, 0x12c, 0x130, 0x134},
+              "ControlsButton": {0x104, 0x108, 0x10c}}
+    expected = {(store, owner, field, 4, 0)
+                for owner, field, _, _, _, store, _ in WITNESSES}
+    expected.update({(addr, "ControlsButton", field, 0, 5) for addr, field in (
+        (0x298494, 0x104), (0x29849a, 0x108), (0x2984a8, 0x10c),
+        (0x298596, 0x104), (0x29859e, 0x108), (0x2985a4, 0x10c),
+    )})
+    observed = set()
+    for entry, name in elf.symbols.items():
+        owner = "ControlsButton" if name.startswith("_ZN14ControlsButton") else (
+            "Controls" if name.startswith("_ZN8Controls") else None)
+        if owner is None:
+            continue
+        for pc in range(entry, entry + elf.function_sizes[entry] - 3, 2):
+            first, = struct.unpack("<H", elf.at(pc, 2))
+            if first & 0xfff0 != 0xf8c0:
+                continue
+            rn, rt, field = decode_strw(elf, pc)
+            if field in wanted[owner]:
+                observed.add((pc, owner, field, rn, rt))
+    if observed != expected:
+        raise ValueError(f"unexpected owner direct STR.W writes: missing={expected-observed} extra={observed-expected}")
+    return len(observed)
 
 def field_offset(rows: list[dict[str, str]], call: int, address: str, entry: str) -> int:
     matched = [r for r in rows if r.get("call_index") == str(call)]
@@ -208,6 +238,7 @@ def main() -> int:
     with zipfile.ZipFile(a.apk) as z:
         elf = OriginalELF(z.read(SO_NAME))
     stores = verify_witnesses(elf)
+    direct_owner_writes = verify_direct_owner_strw_inventory(elf)
     catalog = catalog_slot(a.catalog_jsonl, {item["class_name"] for item in stores.values()})
     plan = read_tsv(a.plan_tsv)
     if len(plan) != len(SOURCES):
@@ -254,6 +285,7 @@ def main() -> int:
     a.details_output.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in details), encoding="utf-8")
     print("format:", FMT)
     print("identity-gated Thumb factory witnesses:", len(WITNESSES))
+    print("direct owner STR.W writes inventoried:", direct_owner_writes)
     print("construction-linked receiver calls:", len(details))
     print("candidate classes:", dict(Counter(r["factory_class_candidate"] for r in details)))
     print("candidate targets:", dict(Counter(r["candidate_target_id"] for r in details)))
