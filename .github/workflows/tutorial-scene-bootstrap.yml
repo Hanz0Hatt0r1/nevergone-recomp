@@ -6,9 +6,13 @@ on:
       - 'android/app/src/main/cpp/tutorial_scene_bootstrap.*'
       - 'android/app/src/main/cpp/tutorial_session_state.*'
       - 'android/app/src/main/cpp/offline_startup_flow.*'
+      - 'android/app/src/main/cpp/game_clock.*'
+      - 'android/app/src/main/cpp/filesystem_bindings.*'
       - 'android/app/src/main/cpp/game_levels_**'
       - 'android/app/src/main/cpp/game_scene_construction_plan.*'
       - 'android/app/src/main/cpp/hp_data_reader.*'
+      - 'android/app/src/main/cpp/startup_contract.*'
+      - 'android/app/src/main/cpp/character_name_action_runtime.cpp'
       - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
       - 'android/app/src/main/cpp/native_bootstrap.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
@@ -21,9 +25,13 @@ on:
       - 'android/app/src/main/cpp/tutorial_scene_bootstrap.*'
       - 'android/app/src/main/cpp/tutorial_session_state.*'
       - 'android/app/src/main/cpp/offline_startup_flow.*'
+      - 'android/app/src/main/cpp/game_clock.*'
+      - 'android/app/src/main/cpp/filesystem_bindings.*'
       - 'android/app/src/main/cpp/game_levels_**'
       - 'android/app/src/main/cpp/game_scene_construction_plan.*'
       - 'android/app/src/main/cpp/hp_data_reader.*'
+      - 'android/app/src/main/cpp/startup_contract.*'
+      - 'android/app/src/main/cpp/character_name_action_runtime.cpp'
       - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
       - 'android/app/src/main/cpp/native_bootstrap.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
@@ -47,6 +55,10 @@ jobs:
             android/app/src/main/cpp/tutorial_session_state.cpp \
             android/app/src/main/cpp/tutorial_gameplay_state.cpp \
             android/app/src/main/cpp/offline_startup_flow.cpp \
+            android/app/src/main/cpp/game_clock.cpp \
+            android/app/src/main/cpp/filesystem_bindings.cpp \
+            android/app/src/main/cpp/startup_contract.cpp \
+            android/app/src/main/cpp/game_levels_enter_transition.cpp \
             android/app/src/main/cpp/game_levels_asset_probe.cpp \
             android/app/src/main/cpp/game_levels_runtime_state.cpp \
             android/app/src/main/cpp/game_levels_model.cpp \
@@ -63,5 +75,6 @@ jobs:
             android/app/src/main/cpp/game_scene_construction_plan.cpp \
             android/app/src/main/cpp/hp_data_reader.cpp \
             tools/tutorial_scene_bootstrap_smoke.cpp \
+            -pthread \
             -o /tmp/tutorial_scene_bootstrap_smoke
           /tmp/tutorial_scene_bootstrap_smoke
