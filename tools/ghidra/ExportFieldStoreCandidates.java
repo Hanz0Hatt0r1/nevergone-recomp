@@ -22,6 +22,7 @@ import java.util.Set;
 // instruction bytes, disassembly text, decompiler C text, strings and assets.
 public class ExportFieldStoreCandidates extends GhidraScript {
     private static final int MAX_ADDRESS_DEPTH = 32;
+    private static final int MAX_VALUE_DEPTH = 8;
 
     private static final class FieldMatch {
         final PcodeOp operation;
@@ -58,6 +59,23 @@ public class ExportFieldStoreCandidates extends GhidraScript {
             kind = "input";
         }
         return kind + ":" + cell(node.getAddress()) + ":" + node.getSize();
+    }
+
+    private boolean transparent(PcodeOp operation) {
+        if (operation == null) return false;
+        int opcode = operation.getOpcode();
+        return opcode == PcodeOp.COPY || opcode == PcodeOp.CAST || opcode == PcodeOp.INDIRECT;
+    }
+
+    private Varnode valueRoot(Varnode original) {
+        Varnode cursor = original;
+        Set<Varnode> seen = new HashSet<>();
+        for (int depth = 0; cursor != null && depth < MAX_VALUE_DEPTH && seen.add(cursor); depth++) {
+            PcodeOp definition = cursor.getDef();
+            if (!transparent(definition) || definition.getNumInputs() < 1) break;
+            cursor = definition.getInput(0);
+        }
+        return cursor;
     }
 
     private FieldMatch findFieldAddress(
@@ -134,7 +152,7 @@ public class ExportFieldStoreCandidates extends GhidraScript {
         long rows = 0;
         try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(
                 new FileOutputStream(output), StandardCharsets.UTF_8))) {
-            out.write("function_entry\tfunction_name\tstore_address\tstore_time\tfield_offset_hex\taddress_opcode\taddress_op_address\taddress_op_time\tbase_token\tvalue_token\tvalue_is_constant\tvalue_constant_hex");
+            out.write("function_entry\tfunction_name\tstore_address\tstore_time\tfield_offset_hex\taddress_opcode\taddress_op_address\taddress_op_time\tbase_token\tvalue_token\tvalue_root_token\tvalue_is_constant\tvalue_constant_hex");
             out.newLine();
 
             FunctionIterator functions = currentProgram.getFunctionManager().getFunctions(true);
@@ -173,6 +191,7 @@ public class ExportFieldStoreCandidates extends GhidraScript {
                         cell(match.operation.getMnemonic()) + "\t" +
                         cell(addressSeq.getTarget()) + "\t" + addressSeq.getTime() + "\t" +
                         varnodeToken(match.base) + "\t" + varnodeToken(value) + "\t" +
+                        varnodeToken(valueRoot(value)) + "\t" +
                         (valueConstant ? "1" : "0") + "\t" + constantHex);
                     out.newLine();
                     rows++;
