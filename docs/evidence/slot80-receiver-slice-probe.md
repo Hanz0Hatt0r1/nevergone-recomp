@@ -20,12 +20,51 @@ resolved by strict GameSceneUI/Controls target convergence; this probe must
 receiver-value evidence.
 
 For the three ambiguous calls, v11 caller-type evidence lists both
-`ControlsButton` and `cocos2d::CCTouch`. The vtable catalog contains one
-`ControlsButton` slot `0x80` target (`libcocos2dcpp.so:00525d2e`), but
-`CCTouch` has only nine observed contiguous primary slots, ending at `0x20`.
-The missing `CCTouch` slot is a **feasibility clue, not proof** that the
-receiver is a `ControlsButton`; the candidate may originate from another
-caller argument.
+`ControlsButton` and `cocos2d::CCTouch`. The catalog's `CCTouch` primary
+prefix ends at `0x20`. **Neither caller argument class should be treated as
+the virtual receiver without receiver-value provenance.**
+
+## Independent exact-APK Thumb observations
+
+The original `libcocos2dcpp.so` has SHA-256
+`94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`.
+ARM Thumb disassembly at ELF addresses (Ghidra image base is +`0x10000`)
+shows the following field loads before the 17 unresolved slot-`0x80`
+`BLX` calls. This is an **evidence hypothesis for Ghidra cross-check**,
+not an accepted production receiver inference.
+
+| Function (Ghidra) | Calls | Owner field offsets | Factory-backed candidate |
+| --- | --- | --- | --- |
+| `002a74c0` | 0, 1, 2 | `Controls +0x12c/+0x130/+0x134` | `ControlsButton` |
+| `002a74c0` | 3 | `Controls +0x124` | `CCJoyStick` |
+| `002a7594` | 0, 1, 2, 5, 6 | `Controls +0x12c/+0x130/+0x134` | `ControlsButton` |
+| `002a7696` | 0 | `Controls +0x124` | `CCJoyStick` |
+| `002a7696` | 1 | `Controls +0x174` | `cocos2d::CCSprite` |
+| `002a78cc` | 0, 1, 2 | `Controls +0x12c/+0x130/+0x134` | `ControlsButton` |
+| `002a87d2` | 3, 4, 5 | `ControlsButton +0x104/+0x10c/+0x108` | `cocos2d::CCSprite` |
+
+The relevant factory return stores in `Controls::init()` are ELF
+`0x298066` (`CCJoyStick::create` -> `+0x124`),
+`0x2980e0` (`CCSprite::create` -> `+0x174`),
+`0x298120`, `0x298172`, `0x2981c2`
+(`ControlsButton::create` -> `+0x12c/+0x130/+0x134`).
+`ControlsButton::initWithNormalImage()` stores `CCSprite::create`
+returns at ELF `0x2984cc`, `0x2984ea`, `0x298510`
+(`+0x104/+0x108/+0x10c`); the two-image overload also writes
+`+0x104/+0x108` at `0x2985c4/0x2985de`.
+
+The catalog's slot-`0x80` target for `ControlsButton` and `CCJoyStick`
+is `libcocos2dcpp.so:00525d2e`, but for `cocos2d::CCSprite` it is
+`libcocos2dcpp.so:00549f1e`. If field provenance holds for all callsites,
+13 of the 17 calls would have the former target and four the latter.
+
+**v11 provenance warning:** calls 3, 4, 7 of `002a7594` were previously
+recovered by an audit of the `Controls::showControlsAttackKey()` *caller*
+argument. That argument is not automatically the receiver of a nested virtual
+call on `Controls +0x12c/+0x130/+0x134`. Their existing target happens to
+match the `ControlsButton` slot-`0x80` target, but the reported
+`GameSceneUI/Controls` receiver-class evidence should not be promoted
+without a corrected field-level proof.
 
 ## Run (Manjaro, local Ghidra)
 
