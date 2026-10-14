@@ -79,11 +79,28 @@ def receiver_row(source_id: str, class_name: str, call_index: int, *, fmt: int =
     }
 
 
+def provenance_row(source_id: str, classes: list[str]) -> dict[str, str]:
+    return {
+        "format": "NEVERGONE.GhidraReceiverParameterProvenance/1",
+        "source_id": source_id,
+        "function_entry": source_id.split(":", 1)[1],
+        "call_index": "0",
+        "call_address": "00000001",
+        "status": "caller_type_candidate",
+        "parameter_index": "0",
+        "direct_caller_count": "1",
+        "matched_caller_calls": "1",
+        "caller_single_pointer_pointee_names_json": json.dumps([x.split("::")[-1] for x in classes]),
+        "caller_single_pointer_pointee_displays_json": json.dumps(classes),
+    }
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
         analysis = tmp / "analysis.jsonl"
         receivers = tmp / "receivers.tsv"
+        provenance = tmp / "parameter-provenance.tsv"
         catalog = tmp / "catalog.jsonl"
         runtime = tmp / "runtime.jsonl"
         inference = tmp / "inference.jsonl"
@@ -99,6 +116,8 @@ def main() -> int:
             ("libcocos2dcpp.so:00330000", ["0x10"]),
             ("libcocos2dcpp.so:00340000", ["0x10"]),
             ("libcocos2dcpp.so:00350000", ["0x10"]),
+            ("libcocos2dcpp.so:00360000", ["0x10"]),
+            ("libcocos2dcpp.so:00370000", ["0x10"]),
         ]
         write_jsonl(analysis, [analysis_row(source_id, slots) for source_id, slots in sources])
 
@@ -132,11 +151,32 @@ def main() -> int:
                          flow=["ActionData", "EenemyActionDataSet"]),
             # No usable single-pointer evidence remains conservatively blocked.
             receiver_row("libcocos2dcpp.so:00350000", "void", 0, pointer_depth=2, flow=[]),
+            # Local type is unusable, but caller provenance uniquely recovers a catalog class.
+            receiver_row("libcocos2dcpp.so:00360000", "int", 0),
+            # Conflicting caller provenance must remain blocked.
+            receiver_row("libcocos2dcpp.so:00370000", "int", 0),
         ])
         with receivers.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t")
             writer.writeheader()
             writer.writerows(receiver_rows)
+
+        provenance_fields = [
+            "format", "source_id", "function_entry", "call_index", "call_address", "status",
+            "parameter_index", "direct_caller_count", "matched_caller_calls",
+            "caller_single_pointer_pointee_names_json",
+            "caller_single_pointer_pointee_displays_json",
+        ]
+        with provenance.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=provenance_fields, delimiter="\t")
+            writer.writeheader()
+            writer.writerows([
+                provenance_row("libcocos2dcpp.so:00360000", ["CallerRecoveredClass"]),
+                provenance_row(
+                    "libcocos2dcpp.so:00370000",
+                    ["ActionData", "EenemyActionDataSet"],
+                ),
+            ])
 
         write_jsonl(catalog, [
             catalog_row("ActionData", "libcocos2dcpp.so:008f3928", "0x24", "libcocos2dcpp.so:0029e9ba", "runtime_match"),
@@ -147,6 +187,7 @@ def main() -> int:
             catalog_row("DupClass", "libcocos2dcpp.so:00910008", "0x10", "libcocos2dcpp.so:00410000", "runtime_unobserved"),
             catalog_row("DupClass", "libcocos2dcpp.so:00920008", "0x10", "libcocos2dcpp.so:00420000", "runtime_unobserved"),
             catalog_row("RecoveredClass", "libcocos2dcpp.so:00930008", "0x10", "libcocos2dcpp.so:00430000", "runtime_unobserved"),
+            catalog_row("CallerRecoveredClass", "libcocos2dcpp.so:00940008", "0x10", "libcocos2dcpp.so:00440000", "runtime_unobserved"),
         ])
 
         write_jsonl(runtime, [
@@ -161,6 +202,7 @@ def main() -> int:
             str(ROOT / "tools/ml/infer_nevergone_static_receiver_vtables.py"),
             str(analysis), str(receivers), str(catalog),
             "--runtime-observations", str(runtime),
+            "--parameter-provenance", str(provenance),
             "--output", str(inference),
             "--queries-output", str(queries),
         ], check=True)
@@ -168,10 +210,10 @@ def main() -> int:
         inferred = [json.loads(x) for x in inference.read_text().splitlines() if x.strip()]
         status_counts = Counter(x["status"] for x in inferred)
         assert status_counts["resolved_unique_vtable_runtime_match"] == 4, status_counts
-        assert status_counts["resolved_unique_vtable"] == 2, status_counts
+        assert status_counts["resolved_unique_vtable"] == 3, status_counts
         assert status_counts["ambiguous_class_vtable"] == 1, status_counts
         assert status_counts["unresolved_receiver_class"] == 1, status_counts
-        assert status_counts["ambiguous_receiver_class"] == 1, status_counts
+        assert status_counts["ambiguous_receiver_class"] == 2, status_counts
         assert status_counts["receiver_not_single_pointer"] == 1, status_counts
 
         recovered = next(x for x in inferred if x["source_id"].endswith(":00330000"))
@@ -181,13 +223,25 @@ def main() -> int:
         ambiguous_flow = next(x for x in inferred if x["source_id"].endswith(":00340000"))
         assert ambiguous_flow["candidate_receiver_class_names"] == ["ActionData", "EenemyActionDataSet"], ambiguous_flow
 
+        caller_recovered = next(x for x in inferred if x["source_id"].endswith(":00360000"))
+        assert caller_recovered["class_name"] == "CallerRecoveredClass", caller_recovered
+        assert caller_recovered["class_evidence_source"] == "parameter_caller_type", caller_recovered
+        assert caller_recovered["class_match_kind"].startswith("parameter_caller_"), caller_recovered
+        assert caller_recovered["parameter_index"] == 0, caller_recovered
+        ambiguous_caller = next(x for x in inferred if x["source_id"].endswith(":00370000"))
+        assert ambiguous_caller["status"] == "ambiguous_receiver_class", ambiguous_caller
+        assert ambiguous_caller["candidate_receiver_class_names"] == ["ActionData", "EenemyActionDataSet"], ambiguous_caller
+
         query_rows = [json.loads(x) for x in queries.read_text().splitlines() if x.strip()]
-        assert len(query_rows) == 6, query_rows
+        assert len(query_rows) == 7, query_rows
         ccnode = next(x for x in query_rows if x["source_id"].endswith(":00300000"))
         assert ccnode["receiver_vtable_id"] == "libcocos2dcpp.so:00900008"
         recovered_query = next(x for x in query_rows if x["source_id"].endswith(":00330000"))
         assert recovered_query["receiver_vtable_id"] == "libcocos2dcpp.so:00930008"
         assert recovered_query["receiver_class_evidence_source"] == "transparent_type_flow"
+        caller_query = next(x for x in query_rows if x["source_id"].endswith(":00360000"))
+        assert caller_query["receiver_vtable_id"] == "libcocos2dcpp.so:00940008"
+        assert caller_query["receiver_class_evidence_source"] == "parameter_caller_type"
 
         subprocess.run([
             sys.executable,
@@ -197,7 +251,7 @@ def main() -> int:
         resolved = [json.loads(x) for x in resolutions.read_text().splitlines() if x.strip()]
         resolution_counts = Counter(x["status"] for x in resolved)
         assert resolution_counts["exact_key_runtime_verified"] == 4, resolution_counts
-        assert resolution_counts["exact_key_single_candidate"] == 2, resolution_counts
+        assert resolution_counts["exact_key_single_candidate"] == 3, resolution_counts
 
         java = (ROOT / "tools/ghidra/ExportIndirectCallReceiverTypes.java").read_text(encoding="utf-8")
         for token in (
