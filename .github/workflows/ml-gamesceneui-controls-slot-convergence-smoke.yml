@@ -1,0 +1,40 @@
+name: Nevergone ML GameSceneUI Controls slot convergence smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_gamesceneui_controls_slot_convergence.py'
+      - 'tools/ml/run_nevergone_gamesceneui_controls_slot_convergence_audit.sh'
+      - '.github/workflows/ml-gamesceneui-controls-slot-convergence-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile tools/ml/audit_nevergone_gamesceneui_controls_slot_convergence.py
+          bash -n tools/ml/run_nevergone_gamesceneui_controls_slot_convergence_audit.sh
+      - name: Synthetic convergence and mismatch
+        run: |
+          tmp="$(mktemp -d)"
+          cat > "$tmp/consumer.jsonl" <<'EOF'
+          {"format":"NEVERGONE.GameSceneUIControlsReturnConsumerAudit/1","accessor_chain_ok":true,"mapped_classes":["Controls"],"mapped_vtables":["libcocos2dcpp.so:008f4498"],"status":"unique_catalog_member_consumer_class"}
+          EOF
+          for c in 3 4 7; do
+            printf '%s\n' "{\"format\":\"NEVERGONE.CallerArgumentSubtreeAudit/1\",\"source_id\":\"libcocos2dcpp.so:002a7594\",\"call_index\":$c,\"direct_caller_functions\":1,\"matched_caller_calls\":3,\"status\":\"caller_argument_requires_nontransparent_provenance\"}" >> "$tmp/caller.jsonl"
+          done
+          cat > "$tmp/catalog-ok.jsonl" <<'EOF'
+          {"format":"NEVERGONE.StaticVtableSlotCatalog/3","class_name":"GameSceneUI","receiver_vtable_id":"libcocos2dcpp.so:00900000","dispatch_slot_offset":"0x80","candidate_target_ids":["libcocos2dcpp.so:00500000"],"target_functions":[{"name":"cocos2d::CCNode::visit"}],"static_status":"single_function_memory_pointer","runtime_validation_status":"runtime_unobserved"}
+          {"format":"NEVERGONE.StaticVtableSlotCatalog/3","class_name":"Controls","receiver_vtable_id":"libcocos2dcpp.so:008f4498","dispatch_slot_offset":"0x80","candidate_target_ids":["libcocos2dcpp.so:00500000"],"target_functions":[{"name":"cocos2d::CCNode::visit"}],"static_status":"single_function_memory_pointer","runtime_validation_status":"runtime_unobserved"}
+          EOF
+          cp "$tmp/catalog-ok.jsonl" "$tmp/catalog-bad.jsonl"
+          sed -i '2s/00500000/00500004/g' "$tmp/catalog-bad.jsonl"
+          ok="$(python3 tools/ml/audit_nevergone_gamesceneui_controls_slot_convergence.py "$tmp/catalog-ok.jsonl" "$tmp/consumer.jsonl" "$tmp/caller.jsonl")"
+          bad="$(python3 tools/ml/audit_nevergone_gamesceneui_controls_slot_convergence.py "$tmp/catalog-bad.jsonl" "$tmp/consumer.jsonl" "$tmp/caller.jsonl")"
+          grep -q 'status: mixed_receiver_slot_target_converges' <<<"$ok"
+          grep -q 'converged target: libcocos2dcpp.so:00500000' <<<"$ok"
+          grep -q 'status: mixed_receiver_slot_target_not_proven' <<<"$bad"
+          grep -q 'slot_0x80_targets_do_not_converge' <<<"$bad"
