@@ -71,7 +71,7 @@ def main():
     bad[3]["parent_node_id"] = "0"
     rejected(inf, bad)
     bad = copy.deepcopy(rows)
-    bad[2]["defining_address"] = "002a0000"
+    bad[1]["defining_address"] = "002a0000"
     rejected(inf, bad)
     bad = copy.deepcopy(rows)
     bad[-2]["node_token"] = "register:register:00000030:4"
