@@ -1,0 +1,31 @@
+name: Nevergone ML LOAD address-root classification smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/plan_nevergone_load_address_root_probe.py'
+      - 'tools/ml/audit_nevergone_load_address_root_classification.py'
+      - 'tools/ml/run_nevergone_load_address_root_classification_probe.sh'
+      - 'tools/ml/nevergone_load_address_root_classification_smoke.py'
+      - '.github/workflows/ml-load-address-root-classification-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax checks
+        run: |
+          python3 -m py_compile \
+            tools/ml/plan_nevergone_load_address_root_probe.py \
+            tools/ml/audit_nevergone_load_address_root_classification.py \
+            tools/ml/nevergone_load_address_root_classification_smoke.py
+          bash -n tools/ml/run_nevergone_load_address_root_classification_probe.sh
+      - name: Synthetic classification smoke
+        run: python3 tools/ml/nevergone_load_address_root_classification_smoke.py
+      - name: Check evidence-only contract
+        run: |
+          grep -q 'affects routing: no' tools/ml/plan_nevergone_load_address_root_probe.py
+          grep -q 'affects routing: no' tools/ml/audit_nevergone_load_address_root_classification.py
+          grep -q 'affects routing: no' tools/ml/run_nevergone_load_address_root_classification_probe.sh
