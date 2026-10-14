@@ -1,0 +1,20 @@
+name: GameScene direct spatial geometry
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build direct spatial-geometry smoke
+        run: >-
+          c++ -std=c++17 -Wall -Wextra -Werror
+          -Iandroid/app/src/main/cpp
+          tools/game_scene_direct_spatial_geometry_smoke.cpp
+          -o /tmp/game_scene_direct_spatial_geometry_smoke
+      - name: Run direct spatial-geometry smoke
+        run: /tmp/game_scene_direct_spatial_geometry_smoke
