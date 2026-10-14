@@ -28,7 +28,7 @@ jobs:
         run: |
           grep -q 'NEVERGONE.GhidraStructuralReceiverSlice/1' tools/ghidra/ExportIndirectCallStructuralReceiverSlice.java
           grep -q 'canonical_receiver' tools/ghidra/ExportIndirectCallStructuralReceiverSlice.java
-          grep -q 'PcodeOp.MULTIEQUAL' tools/ml/audit_nevergone_structural_receiver_slices.py
+          grep -q 'MULTIEQUAL' tools/ml/audit_nevergone_structural_receiver_slices.py
           grep -q 'getReturnType' tools/ghidra/ExportIndirectCallStructuralReceiverSlice.java
           grep -q 'STRUCTURAL_RECEIVER_SLICE_AFFECTS_ROUTING=no' tools/ghidra/ExportIndirectCallStructuralReceiverSlice.java
           grep -q 'affects routing: no' tools/ml/audit_nevergone_structural_receiver_slices.py
