@@ -6,6 +6,7 @@ on:
       - 'tools/ml/audit_nevergone_parameter_relative_receiver_field.py'
       - 'tools/ml/run_nevergone_parameter_relative_receiver_field_probe.sh'
       - 'tools/ml/nevergone_parameter_relative_receiver_field_smoke.py'
+      - 'tools/ghidra/ExportAddressClassification.java'
       - '.github/workflows/ml-parameter-relative-receiver-field-smoke.yml'
   workflow_dispatch:
 
@@ -24,7 +25,9 @@ jobs:
         run: python3 tools/ml/nevergone_parameter_relative_receiver_field_smoke.py
       - name: Check evidence-only contracts
         run: |
-          grep -q 'parameter_relative_field_with_virtual_owner_evidence' tools/ml/audit_nevergone_parameter_relative_receiver_field.py
+          grep -q 'parameter_relative_field_with_function_owner_evidence' tools/ml/audit_nevergone_parameter_relative_receiver_field.py
+          grep -q 'ghidra_function_owner_unresolved' tools/ml/audit_nevergone_parameter_relative_receiver_field.py
           grep -q 'parameter_no_direct_caller_calls' tools/ml/audit_nevergone_parameter_relative_receiver_field.py
+          grep -q 'ExportAddressClassification.java' tools/ml/run_nevergone_parameter_relative_receiver_field_probe.sh
           grep -q 'affects routing: no' tools/ml/audit_nevergone_parameter_relative_receiver_field.py
           grep -q 'affects routing: no' tools/ml/run_nevergone_parameter_relative_receiver_field_probe.sh
