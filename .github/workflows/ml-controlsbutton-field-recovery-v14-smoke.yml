@@ -1,0 +1,34 @@
+name: Nevergone ControlsButton field recovery v14 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controlsbutton_packaged_field_stability.py'
+      - 'tools/ml/finalize_nevergone_controlsbutton_field_recovery_v14.py'
+      - 'tools/ml/nevergone_controlsbutton_field_recovery_v14_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_field_recovery_v14.sh'
+      - '.github/workflows/ml-controlsbutton-field-recovery-v14-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controlsbutton_packaged_field_stability.py'
+      - 'tools/ml/finalize_nevergone_controlsbutton_field_recovery_v14.py'
+      - 'tools/ml/nevergone_controlsbutton_field_recovery_v14_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_field_recovery_v14.sh'
+      - '.github/workflows/ml-controlsbutton-field-recovery-v14-smoke.yml'
+
+jobs:
+  controlsbutton-field-v14:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate fail-closed v14 recovery
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_controlsbutton_packaged_field_stability.py \
+            tools/ml/finalize_nevergone_controlsbutton_field_recovery_v14.py
+          python3 tools/ml/nevergone_controlsbutton_field_recovery_v14_smoke.py
+          bash -n tools/ml/run_nevergone_controlsbutton_field_recovery_v14.sh
