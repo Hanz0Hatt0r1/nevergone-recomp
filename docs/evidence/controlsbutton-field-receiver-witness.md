@@ -69,6 +69,13 @@ The direct non-virtual calls to
 function corroborate the intended field class; they do not replace
 the constructor/store proof.
 
+A bounded halfword-aligned scan of the original Thumb code region
+`0x2966d4..0x2983b0` (the contiguous `Controls` method block)
+finds **exactly three** direct `STR.W Rt,[Rn,#imm12]` writes to
+`0x12c`, `0x130`, `0x134`: the three factory stores above,
+all with `Rn=r4`, `Rt=r0`. This scan does **not** exclude
+register-indexed stores, aliases or writers outside the bounded block.
+
 ## Conservative conclusion
 
 The actual receiver values of all eight virtual calls are loaded
