@@ -27,7 +27,8 @@ mkdir -p "$SLICE_DIR"
 run_slice() {
   local source_id="$1"
   local entry="$2"
-  local safe="${source_id//[:\/]/_}"
+  local safe="${source_id//\//_}"
+  safe="${safe//:/_}"
   local out="$SLICE_DIR/$safe.tsv"
   printf '\n== structural receiver slice: %s ==\n' "$source_id"
   "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
