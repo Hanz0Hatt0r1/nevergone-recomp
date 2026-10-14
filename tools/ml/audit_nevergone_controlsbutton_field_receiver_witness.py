@@ -136,6 +136,18 @@ def verify_binary(elf: OriginalElf) -> None:
     for field, (site, signature, store) in FACTORY_STORES.items():
         require(elf.at(site, len(signature)) == signature, f"field 0x{field:x}: factory-to-store witness mismatch")
         require(site < store < site + len(signature), f"field 0x{field:x}: store location mismatch")
+    # Bounded machine-code inventory: the contiguous Controls method block
+    # has exactly these direct Thumb STR.W immediate stores to the three
+    # fields. This does NOT exclude alias writes or writes by other classes.
+    direct_stores = []
+    for pc in range(0x2966d4, 0x2983b0, 2):
+        hi, lo = struct.unpack("<HH", elf.at(pc, 4))
+        if (hi & 0xfff0) == 0xf8c0 and (lo & 0xfff) in FACTORY_STORES:
+            direct_stores.append((pc, hi & 0xf, lo >> 12, lo & 0xfff))
+    expected_stores = sorted((store, 4, 0, field)
+                             for field, (_, _, store) in FACTORY_STORES.items())
+    require(sorted(direct_stores) == expected_stores,
+            "unexpected direct STR.W immediate writer in Controls method block")
     require(elf.at(0x298614, 4) == bytes.fromhex("fff718ff"), "ControlsButton::create constructor call mismatch")
     require(elf.at(0x298450, 16) == bytes.fromhex("0b4b04f590707b441b6803f108022260"),
             "ControlsButton constructor vptr assignment mismatch")
@@ -255,6 +267,7 @@ def main() -> int:
     print("exact original ELF SHA-256: matched")
     print("constructor -> ControlsButton vtable -> slot 0x80: matched")
     print("factory -> Controls fields 0x12c, 0x130, 0x134: matched")
+    print("bounded Controls-method direct STR.W field writers: exactly 3")
     print("actual CALLIND receiver field reads: 8/8 matched")
     print("all writers excluded: no; affects routing: no")
     print("output:", a.details_output)
