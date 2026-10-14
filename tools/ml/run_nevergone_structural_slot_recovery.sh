@@ -12,6 +12,9 @@ set -euo pipefail
 : "${OUT:=$WORK_ROOT/target-receiver-slot-provenance.tsv}"
 : "${DETAILS:=$WORK_ROOT/structural-slot-recovery-audit.jsonl}"
 : "${AUDIT_TXT:=$WORK_ROOT/structural-slot-recovery-audit.txt}"
+: "${SLICE_DIR:=$WORK_ROOT/evidence/indirect-slices}"
+: "${SLICE_DETAILS:=$WORK_ROOT/missing-slot-target-slice-audit.jsonl}"
+: "${SLICE_AUDIT_TXT:=$WORK_ROOT/missing-slot-target-slice-audit.txt}"
 
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 [[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }
@@ -27,6 +30,15 @@ ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 }
 [[ -f "$REPO_ROOT/tools/ml/audit_nevergone_structural_slot_recovery.py" ]] || {
   echo "missing structural slot recovery audit" >&2
+  exit 2
+}
+[[ -f "$REPO_ROOT/tools/ml/audit_nevergone_missing_slot_target_slices.py" ]] || {
+  echo "missing missing-slot target slice audit" >&2
+  exit 2
+}
+[[ -d "$SLICE_DIR" ]] || {
+  echo "missing persistent CALLIND slices: $SLICE_DIR" >&2
+  echo "run tools/ml/run_nevergone_receiver_provenance_fresh.sh first" >&2
   exit 2
 }
 
@@ -51,7 +63,17 @@ python3 "$REPO_ROOT/tools/ml/audit_nevergone_structural_slot_recovery.py" \
   --samples 20 \
   | tee "$AUDIT_TXT"
 
+echo
+echo "missing-slot target slice audit:"
+python3 "$REPO_ROOT/tools/ml/audit_nevergone_missing_slot_target_slices.py" \
+  "$INFERENCE" \
+  "$SLICE_DIR" \
+  --details-output "$SLICE_DETAILS" \
+  | tee "$SLICE_AUDIT_TXT"
+
 printf 'target provenance output: %s\n' "$OUT"
 printf 'audit details: %s\n' "$DETAILS"
 printf 'audit text: %s\n' "$AUDIT_TXT"
+printf 'slice audit details: %s\n' "$SLICE_DETAILS"
+printf 'slice audit text: %s\n' "$SLICE_AUDIT_TXT"
 printf 'affects routing: no\n'
