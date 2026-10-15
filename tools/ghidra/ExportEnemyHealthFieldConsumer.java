@@ -55,13 +55,21 @@ public class ExportEnemyHealthFieldConsumer extends GhidraScript {
         final int parameterIndex;
         final long offset;
         final int size;
+        final boolean intToFloat;
         final String address;
         final int time;
 
-        SourceLoad(int parameterIndex, long offset, int size, String address, int time) {
+        SourceLoad(
+                int parameterIndex,
+                long offset,
+                int size,
+                boolean intToFloat,
+                String address,
+                int time) {
             this.parameterIndex = parameterIndex;
             this.offset = offset;
             this.size = size;
+            this.intToFloat = intToFloat;
             this.address = address;
             this.time = time;
         }
@@ -223,6 +231,7 @@ public class ExportEnemyHealthFieldConsumer extends GhidraScript {
             HighFunction high,
             Varnode node,
             int depth,
+            boolean sawIntToFloat,
             Set<Varnode> active,
             Map<String, SourceLoad> sources) {
         if (node == null || depth > MAX_VALUE_DEPTH || active.contains(node)) return;
@@ -241,25 +250,49 @@ public class ExportEnemyHealthFieldConsumer extends GhidraScript {
                 parameter,
                 address.offset,
                 node.getSize(),
+                sawIntToFloat,
                 cell(sequence == null ? null : sequence.getTarget()),
                 sequence == null ? -1 : sequence.getTime());
-            sources.put(source.key(), source);
+            SourceLoad previous = sources.get(source.key());
+            if (previous == null || (!previous.intToFloat && source.intToFloat)) {
+                sources.put(source.key(), source);
+            }
             return;
         }
 
         if (valueTransparent(def) && def.getNumInputs() >= 1) {
-            collectSourceLoads(high, def.getInput(0), depth + 1, next, sources);
+            boolean nextSawIntToFloat =
+                sawIntToFloat || def.getOpcode() == PcodeOp.FLOAT_INT2FLOAT;
+            collectSourceLoads(
+                high,
+                def.getInput(0),
+                depth + 1,
+                nextSawIntToFloat,
+                next,
+                sources);
             return;
         }
 
         if (def.getOpcode() == PcodeOp.SUBPIECE && def.getNumInputs() >= 1) {
-            collectSourceLoads(high, def.getInput(0), depth + 1, next, sources);
+            collectSourceLoads(
+                high,
+                def.getInput(0),
+                depth + 1,
+                sawIntToFloat,
+                next,
+                sources);
             return;
         }
 
         if (def.getOpcode() == PcodeOp.MULTIEQUAL) {
             for (int index = 0; index < def.getNumInputs(); ++index) {
-                collectSourceLoads(high, def.getInput(index), depth + 1, next, sources);
+                collectSourceLoads(
+                    high,
+                    def.getInput(index),
+                    depth + 1,
+                    sawIntToFloat,
+                    next,
+                    sources);
             }
         }
     }
@@ -296,7 +329,7 @@ public class ExportEnemyHealthFieldConsumer extends GhidraScript {
                 "format\tfunction_entry\tfunction_name\tstore_address\tstore_time\t" +
                 "store_base_parameter_index\tstore_offset\tvalue_size\tsource_count\t" +
                 "source_parameter_index\tsource_offset\tsource_size\t" +
-                "source_load_address\tsource_load_time\ttrace_status");
+                "source_int_to_float\tsource_load_address\tsource_load_time\ttrace_status");
             out.newLine();
 
             Iterator<PcodeOpAST> operations = high.getPcodeOps();
@@ -315,7 +348,7 @@ public class ExportEnemyHealthFieldConsumer extends GhidraScript {
                 Varnode value = op.getInput(2);
                 Map<String, SourceLoad> sources = new LinkedHashMap<String, SourceLoad>();
                 collectSourceLoads(
-                    high, value, 0, new HashSet<Varnode>(), sources);
+                    high, value, 0, false, new HashSet<Varnode>(), sources);
 
                 SourceLoad unique = sources.size() == 1
                     ? sources.values().iterator().next()
@@ -338,6 +371,7 @@ public class ExportEnemyHealthFieldConsumer extends GhidraScript {
                     unique == null ? "-" : Integer.toString(unique.parameterIndex),
                     unique == null ? "-" : hex(unique.offset),
                     unique == null ? "-" : Integer.toString(unique.size),
+                    unique == null ? "-" : (unique.intToFloat ? "1" : "0"),
                     unique == null ? "-" : unique.address,
                     unique == null || unique.time < 0 ? "-" : Integer.toString(unique.time),
                     status));
