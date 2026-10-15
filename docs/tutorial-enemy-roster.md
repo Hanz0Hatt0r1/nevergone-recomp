@@ -112,6 +112,20 @@ The tool still does not rename parser fields automatically. Its output is the
 bounded evidence package that should be reviewed before introducing semantic
 `enemy_id` / `base_health` accessors and the production `BaseHealthResolver`.
 
+## Wave-generation safety
+
+Each roster mutation now requires the generation returned by
+`Roster::snapshot().generation` after `begin()`. This applies to
+`advance_to()`, damage, death, enemy-state changes, no-death overrides, and
+`consume_all_defeated()`. Reused slot indices alone are not sufficient
+identifiers: a delayed EnemyObject callback from an earlier wave must not
+change or complete the next wave. `reset()` invalidates outstanding tokens
+without resetting the generation counter.
+
+The damage adapter rejects non-finite and negative amounts rather than
+allowing a corrupted callback to poison the recovered health/death predicate.
+This does not invent combat damage or enemy HP.
+
 ## Completion boundary
 
 The roster exposes a one-shot `consume_all_defeated()` edge only when all
