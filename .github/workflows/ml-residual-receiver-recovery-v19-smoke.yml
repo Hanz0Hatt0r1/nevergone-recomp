@@ -1,0 +1,29 @@
+name: Nevergone residual receiver recovery v19 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/finalize_nevergone_residual_receiver_recovery_v19.py'
+      - 'tools/ml/nevergone_residual_receiver_recovery_v19_smoke.py'
+      - 'tools/ml/run_nevergone_residual_receiver_recovery_v19.sh'
+      - 'tools/ml/run_nevergone_non_slot80_receiver_frontier_v18.sh'
+      - 'docs/evidence/residual-receiver-recovery-v19.md'
+      - '.github/workflows/ml-residual-receiver-recovery-v19-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python tools
+        run: |
+          python3 -m py_compile \
+            tools/ml/finalize_nevergone_residual_receiver_recovery_v19.py \
+            tools/ml/nevergone_residual_receiver_recovery_v19_smoke.py
+      - name: Check shell runners
+        run: |
+          bash -n tools/ml/run_nevergone_residual_receiver_recovery_v19.sh
+          bash -n tools/ml/run_nevergone_non_slot80_receiver_frontier_v18.sh
+      - name: Run fail-closed recovery smoke
+        run: python3 tools/ml/nevergone_residual_receiver_recovery_v19_smoke.py
