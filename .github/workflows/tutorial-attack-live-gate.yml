@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'android/app/src/main/cpp/tutorial_attack_live_gate.*'
+      - 'android/app/src/main/cpp/tutorial_player_face_dir_provider.h'
+      - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/tutorial_attack_wave_runtime.*'
       - 'android/app/src/main/cpp/tutorial_spawn_inputs.*'
       - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
@@ -14,6 +16,8 @@ on:
   pull_request:
     paths:
       - 'android/app/src/main/cpp/tutorial_attack_live_gate.*'
+      - 'android/app/src/main/cpp/tutorial_player_face_dir_provider.h'
+      - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/tutorial_attack_wave_runtime.*'
       - 'android/app/src/main/cpp/tutorial_spawn_inputs.*'
       - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
@@ -39,5 +43,6 @@ jobs:
             android/app/src/main/cpp/enemy_health_state.cpp \
             android/app/src/main/cpp/game_levels_enemy_record_mapping.cpp \
             android/app/src/main/cpp/tutorial_gameplay_state.cpp \
+            android/app/src/main/cpp/player_control_contract.cpp \
             -o /tmp/tutorial_attack_live_gate_smoke
           /tmp/tutorial_attack_live_gate_smoke

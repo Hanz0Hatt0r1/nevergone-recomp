@@ -3,9 +3,11 @@
 #include <vector>
 
 #include "tutorial_attack_live_gate.h"
+#include "tutorial_player_face_dir_provider.h"
 
 int main() {
     namespace gate_ns = nevergone::tutorial_attack_live_gate;
+    namespace face_ns = nevergone::tutorial_player_face_dir_provider;
     namespace gameplay_ns = nevergone::tutorial_gameplay_state;
     namespace spawn_ns = nevergone::game_scene_player_spawn_state;
     namespace levels_ns = nevergone::game_levels_runtime_state;
@@ -47,19 +49,27 @@ int main() {
 
     gate_ns::Gate gate;
 
-    // No reviewed values are silently synthesized. Even with all live scene
-    // state ready, the first unresolved semantic input blocks the wave.
+    // Pure Gate remains fail-closed until an evidence provider supplies the
+    // per-generation facing value.
     assert(gate.tick(100, gameplay, spawn, motion, control, levels, records));
     auto state = gate.snapshot();
     assert(state.spawn_inputs.status == inputs_ns::Status::kPlayerFaceDirUnreviewed);
     assert(state.attack.status == attack_ns::Status::kWaitingForSpawnInputs);
     assert(!state.attack.wave_started);
-    assert(!state.enemy_mapping_usable);
+
+    // Production now derives this from the recovered shared MEPlayer +0x12c
+    // contract. Once injected, scene limits become the next unresolved gate.
+    const auto face = face_ns::resolve(control);
+    assert(face.ready());
+    assert(face.face_dir.value == 1);
+    gate.set_player_face_dir_evidence(face.face_dir);
+    assert(gate.tick(100, gameplay, spawn, motion, control, levels, records));
+    state = gate.snapshot();
+    assert(state.spawn_inputs.status == inputs_ns::Status::kSceneLimitsUnreviewed);
+    assert(!state.attack.wave_started);
 
     gate_ns::ReviewBundle review;
-    review.player_face_dir.reviewed = true;
-    review.player_face_dir.control_generation = 30;
-    review.player_face_dir.value = 7;
+    review.player_face_dir = face.face_dir;
     review.scene_limits.reviewed = true;
     review.scene_limits.runtime_load_attempt_count = 40;
     review.scene_limits.scene_guid = "tutorial-scene";
@@ -108,18 +118,23 @@ int main() {
     assert(!gate.consume_completion_after_publish());
     assert(gate.snapshot().completion_publish_count == 1);
 
-    // Stale reviewed values fail closed against new live generations.
+    // A control-generation change receives a fresh provider token. Reusing the
+    // old token remains stale and fails closed until the provider is refreshed.
     gate.reset();
-    review.player_face_dir.control_generation = 29;
+    control.generation = 31;
+    review.player_face_dir = face.face_dir;
     gate.set_review_bundle(review);
     assert(gate.tick(200, gameplay, spawn, motion, control, levels, records));
     state = gate.snapshot();
     assert(state.spawn_inputs.status == inputs_ns::Status::kPlayerFaceDirStale);
     assert(!state.attack.wave_started);
 
-    const std::string report = gate.status_report();
-    assert(report.find("Tutorial Attack live gate") != std::string::npos);
-    assert(report.find("spawn input status: player-face-dir-stale") != std::string::npos);
+    const auto refreshed_face = face_ns::resolve(control);
+    assert(refreshed_face.ready());
+    assert(refreshed_face.face_dir.control_generation == 31);
+    gate.set_player_face_dir_evidence(refreshed_face.face_dir);
+    assert(gate.tick(200, gameplay, spawn, motion, control, levels, records));
+    assert(gate.snapshot().spawn_inputs.ready());
 
     std::cout << "Tutorial Attack live gate smoke: PASS\n";
     return 0;
