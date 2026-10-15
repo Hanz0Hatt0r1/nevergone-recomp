@@ -74,6 +74,29 @@ def main() -> int:
         )
         assert module.refresh_center(xml) == (300, 240)
 
+        # When imported game files are ready MainActivity collapses the
+        # diagnostics ScrollView and exposes this control instead. The device
+        # harness may expand it, but must not match the expanded-state
+        # "Hide developer tools" label and accidentally collapse the panel.
+        write_xml(
+            xml,
+            '<node text="Developer tools" bounds="[700,1400][1060,1520]" />',
+        )
+        assert module.developer_tools_center(xml) == (880, 1460)
+        expect_value_error(lambda: module.refresh_center(xml))
+
+        write_xml(
+            xml,
+            '<node text="DEVELOPER TOOLS" bounds="[700,1400][1060,1520]" />',
+        )
+        assert module.developer_tools_center(xml) == (880, 1460)
+
+        write_xml(
+            xml,
+            '<node text="Hide developer tools" bounds="[700,1400][1060,1520]" />',
+        )
+        expect_value_error(lambda: module.developer_tools_center(xml))
+
         write_xml(
             xml,
             '<node text="Refresh runtime diagnostics" bounds="[10,10][10,20]" />',
