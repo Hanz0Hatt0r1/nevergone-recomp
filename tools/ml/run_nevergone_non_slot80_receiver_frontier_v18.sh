@@ -63,10 +63,34 @@ while IFS=$'\t' read -r format source entry calls addresses slots expected; do
     "$entry" "$out" "$MAX_NODES" "$MAX_DEPTH"
 done < <(tail -n +2 "$PLAN")
 
+set +e
 python3 "$REPO_ROOT/tools/ml/audit_nevergone_non_slot80_receiver_frontier_v18.py" \
   "$PLAN" "$FAILURES" "$INFERENCE" "$SLICE_DIR" \
   --details-output "$DETAILS" \
   --require-complete | tee "$AUDIT_TXT"
+audit_rc=${PIPESTATUS[0]}
+set -e
+
+archive_v18() {
+  local members=(
+    "$(basename "$PLAN")"
+    "$(basename "$FAILURES")"
+    "$(basename "$INFERENCE")"
+    "evidence/non-slot80-receiver-frontier-v18"
+  )
+  [[ -f "$DETAILS" ]] && members+=("$(basename "$DETAILS")")
+  [[ -f "$AUDIT_TXT" ]] && members+=("$(basename "$AUDIT_TXT")")
+  tar -C "$WORK_ROOT" -czf "$ARCHIVE" "${members[@]}"
+}
+
+# Preserve diagnostics even when --require-complete correctly rejects one or
+# more structural slices. The runner still exits non-zero in that case.
+archive_v18
+if (( audit_rc != 0 )); then
+  printf '\ndiagnostic archive: %s\nstrict completeness: failed (exit %d)\nreceiver class proven: no\naffects routing: no\n' \
+    "$ARCHIVE" "$audit_rc" >&2
+  exit "$audit_rc"
+fi
 
 python3 - "$PLAN" "$DETAILS" <<'PY'
 import csv
@@ -112,12 +136,5 @@ for required in \
   [[ -f "$required" ]] || { echo "missing archive member: $required" >&2; exit 2; }
 done
 
-tar -C "$WORK_ROOT" -czf "$ARCHIVE" \
-  "$(basename "$PLAN")" \
-  "$(basename "$DETAILS")" \
-  "$(basename "$AUDIT_TXT")" \
-  "$(basename "$FAILURES")" \
-  "$(basename "$INFERENCE")" \
-  "evidence/non-slot80-receiver-frontier-v18"
-
+archive_v18
 printf '\narchive: %s\nresidual calls required: 7\nslot 0x80 allowed: no\nreceiver class proven: no\naffects routing: no\n' "$ARCHIVE"
