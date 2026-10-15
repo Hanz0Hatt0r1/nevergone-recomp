@@ -10,7 +10,9 @@ The stage reuses three existing Ghidra exporters against the exact analyzed `lib
 
 1. `ExportClassParameterFieldWrites.java` over exact class `cocos2d::CCScriptEngineManager` to enumerate parameter-0-relative field stores and classify stored-value provenance.
 2. `ExportClassOwnerAliasFlow.java` over the same class to require a proven owner parameter for `setScriptEngine` and retain the class-local alias frontier.
-3. `ExportAccessorReturnConsumers.java` over `CCScriptEngineManager::sharedManager()` at `00536cdc` to enumerate every direct caller and bounded use-def consumer of the returned singleton pointer.
+3. `ExportAccessorReturnConsumers.java` over the exact qualified symbol `cocos2d::CCScriptEngineManager::sharedManager` to enumerate every direct caller and bounded use-def consumer of the returned singleton pointer.
+
+The real-device/Ghidra v39 run exposed why the third probe must be symbol-qualified: the packaged ELF evidence uses virtual address `0x00536cdc`, while the local analyzed Ghidra project currently places the same `sharedManager` function at `0x00546cdc`. Passing the packaged ELF address to the project caused the generic accessor exporter to resolve the containing unrelated `CCTransitionSlideInL::create` function. The runner therefore deliberately avoids a hard-coded function address for this probe. A regression smoke rejects reintroducing the old `00536cdc` invocation.
 
 The audit derives the engine-field offset from the unique `setScriptEngine(this, param1)` field write rather than hard-coding a layout. Constant-zero writes to that same field are classified separately from non-null replacement writes. Any other manager-class write to the engine field keeps the manager writer frontier open.
 
