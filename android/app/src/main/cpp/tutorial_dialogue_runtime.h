@@ -4,6 +4,10 @@
 #include <cstdint>
 #include <string>
 
+// The JNI bridge is emitted from the same translation unit outside the runtime
+// namespace. Keep the identical hard array bound visible to that bridge.
+inline constexpr std::size_t kMaxPixels = 16u * 1024u * 1024u;
+
 namespace nevergone::tutorial_dialogue_runtime {
 
 enum class Stage : int {
