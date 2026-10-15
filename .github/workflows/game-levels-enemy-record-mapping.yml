@@ -1,0 +1,41 @@
+name: GameLevels enemy record mapping
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/game_levels_enemy_record_mapping_smoke.cpp'
+      - 'tools/enemy_record_cross_evidence.py'
+      - 'tools/enemy_record_cross_evidence_smoke.py'
+      - '.github/workflows/game-levels-enemy-record-mapping.yml'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/game_levels_enemy_record_mapping_smoke.cpp'
+      - 'tools/enemy_record_cross_evidence.py'
+      - 'tools/enemy_record_cross_evidence_smoke.py'
+      - '.github/workflows/game-levels-enemy-record-mapping.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate cross-evidence candidate manifest
+        run: python3 tools/enemy_record_cross_evidence_smoke.py
+      - name: Validate reviewed runtime mapping gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -I android/app/src/main/cpp \
+            tools/game_levels_enemy_record_mapping_smoke.cpp \
+            android/app/src/main/cpp/game_levels_enemy_record_mapping.cpp \
+            -o /tmp/game_levels_enemy_record_mapping_smoke
+          /tmp/game_levels_enemy_record_mapping_smoke

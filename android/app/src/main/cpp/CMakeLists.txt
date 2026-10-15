@@ -78,6 +78,7 @@ add_library(nevergone_recomp SHARED
     game_levels_actions_section.cpp
     game_levels_asset_probe.cpp
     game_levels_enter_transition.cpp
+    game_levels_enemy_record_mapping.cpp
     game_levels_global_section.cpp
     game_levels_layer_tail.cpp
     game_levels_model.cpp
