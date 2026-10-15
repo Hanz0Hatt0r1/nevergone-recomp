@@ -1,0 +1,46 @@
+name: Nevergone receiver parameter-root safety v20 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_resolved_caller_safety.py'
+      - 'tools/ml/enforce_nevergone_receiver_parameter_root_safety_v20.py'
+      - 'tools/ml/nevergone_receiver_parameter_root_safety_v20_smoke.py'
+      - 'tools/ml/nevergone_resolved_caller_safety_v20_smoke.py'
+      - 'tools/ml/run_nevergone_receiver_parameter_root_safety_v20.sh'
+      - 'tools/ghidra/ExportClassParameterFieldWrites.java'
+      - 'tools/ml/audit_nevergone_residual_owner_field_writes_v21.py'
+      - 'tools/ml/nevergone_residual_owner_field_writes_v21_smoke.py'
+      - 'tools/ml/run_nevergone_residual_owner_field_writes_v21.sh'
+      - 'docs/evidence/receiver-parameter-root-safety-v20.md'
+      - '.github/workflows/ml-receiver-parameter-root-safety-v20-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python tools
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_resolved_caller_safety.py \
+            tools/ml/enforce_nevergone_receiver_parameter_root_safety_v20.py \
+            tools/ml/nevergone_receiver_parameter_root_safety_v20_smoke.py \
+            tools/ml/nevergone_resolved_caller_safety_v20_smoke.py \
+            tools/ml/audit_nevergone_residual_owner_field_writes_v21.py \
+            tools/ml/nevergone_residual_owner_field_writes_v21_smoke.py
+      - name: Check shell runners
+        run: |
+          bash -n tools/ml/run_nevergone_receiver_parameter_root_safety_v20.sh
+          bash -n tools/ml/run_nevergone_residual_owner_field_writes_v21.sh
+      - name: Run fail-closed safety smokes
+        run: |
+          python3 tools/ml/nevergone_resolved_caller_safety_v20_smoke.py
+          python3 tools/ml/nevergone_receiver_parameter_root_safety_v20_smoke.py
+          python3 tools/ml/nevergone_residual_owner_field_writes_v21_smoke.py
+      - name: Check Ghidra exporter contract
+        run: |
+          grep -q 'NEVERGONE.GhidraClassParameterFieldWrite/1' tools/ghidra/ExportClassParameterFieldWrites.java
+          grep -q 'if (baseParam!=0) continue;' tools/ghidra/ExportClassParameterFieldWrites.java
+          grep -q 'CLASS_PARAMETER_FIELD_WRITE_AFFECTS_ROUTING=no' tools/ghidra/ExportClassParameterFieldWrites.java
