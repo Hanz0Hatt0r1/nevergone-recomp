@@ -1,0 +1,44 @@
+name: EnemyObject action-init evidence
+
+on:
+  pull_request:
+    paths:
+      - 'tools/enemy_object_action_init_evidence.py'
+      - 'tools/enemy_object_action_init_evidence_smoke.py'
+      - 'tools/run_enemy_object_action_init_probe.py'
+      - 'tools/ghidra/ExportFunctionPcodeFlow.java'
+      - '.github/workflows/enemy-object-action-init-evidence.yml'
+      - 'docs/enemy-object-action-init-evidence.md'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'tools/enemy_object_action_init_evidence.py'
+      - 'tools/enemy_object_action_init_evidence_smoke.py'
+      - 'tools/run_enemy_object_action_init_probe.py'
+      - 'tools/ghidra/ExportFunctionPcodeFlow.java'
+      - '.github/workflows/enemy-object-action-init-evidence.yml'
+      - 'docs/enemy-object-action-init-evidence.md'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate EnemyObject action-init argument tracing
+        run: python3 tools/enemy_object_action_init_evidence_smoke.py
+      - name: Validate probe wrapper CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/run_enemy_object_action_init_probe.py \
+            --project-dir /tmp/not-a-real-ghidra-project \
+            --project-name Nevergone \
+            --program libcocos2dcpp.so \
+            --dry-run > /tmp/enemy-object-action-init-probe.txt
+          grep -q 'loadEnemyObjectFile' /tmp/enemy-object-action-init-probe.txt
+          grep -q 'ExportFunctionPcodeFlow.java' /tmp/enemy-object-action-init-probe.txt
+          grep -q 'enemy_object_action_init_evidence.py' /tmp/enemy-object-action-init-probe.txt
