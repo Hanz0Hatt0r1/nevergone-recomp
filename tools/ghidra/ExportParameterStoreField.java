@@ -3,6 +3,7 @@ import ghidra.app.decompiler.DecompileResults;
 import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.FunctionIterator;
 import ghidra.program.model.pcode.HighFunction;
 import ghidra.program.model.pcode.HighSymbol;
 import ghidra.program.model.pcode.HighVariable;
@@ -62,9 +63,27 @@ public class ExportParameterStoreField extends GhidraScript {
             if (function == null) function = currentProgram.getFunctionManager().getFunctionContaining(address);
             if (function != null) return function;
         }
-        for (Function function : currentProgram.getFunctionManager().getFunctions(true)) {
-            if (token.equals(function.getName()) || token.equals(function.getName(true))) return function;
+
+        Function exact = null;
+        Function partial = null;
+        int partialCount = 0;
+        FunctionIterator functions = currentProgram.getFunctionManager().getFunctions(true);
+        while (functions.hasNext() && !monitor.isCancelled()) {
+            Function function = functions.next();
+            String shortName = function.getName();
+            String fullName = function.getName(true);
+            if (token.equals(shortName) || token.equals(fullName)) {
+                exact = function;
+                break;
+            }
+            if (shortName.contains(token) || fullName.contains(token)) {
+                partial = function;
+                partialCount++;
+            }
         }
+        if (exact != null) return exact;
+        if (partialCount == 1) return partial;
+        if (partialCount > 1) throw new IllegalArgumentException("Ambiguous function token: " + token);
         throw new IllegalArgumentException("Function not found: " + token);
     }
 
