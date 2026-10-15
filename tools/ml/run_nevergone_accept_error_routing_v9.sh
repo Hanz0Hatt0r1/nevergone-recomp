@@ -2,6 +2,9 @@
 set -euo pipefail
 
 NGML="${1:-$HOME/.local/share/nevergone-ml-v2}"
+if (($#)); then
+  shift
+fi
 BASE_OOF="$NGML/models/production-code-domain-v5.2/oof_predictions.jsonl"
 V8_OOF="$NGML/evidence-v8-monotone-correctness-routing/oof_monotone_correctness_routing.jsonl"
 EVIDENCE="$NGML/evidence-v5.2/evidence.jsonl"
