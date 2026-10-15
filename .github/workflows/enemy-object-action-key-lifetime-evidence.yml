@@ -1,0 +1,56 @@
+name: EnemyObject action key lifetime evidence
+
+on:
+  pull_request:
+    paths:
+      - 'tools/enemy_object_action_key_lifetime.py'
+      - 'tools/enemy_object_action_key_lifetime_smoke.py'
+      - 'tools/run_enemy_object_action_key_lifetime.py'
+      - 'tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java'
+      - '.github/workflows/enemy-object-action-key-lifetime-evidence.yml'
+      - 'docs/enemy-object-action-key-lifetime-evidence.md'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'tools/enemy_object_action_key_lifetime.py'
+      - 'tools/enemy_object_action_key_lifetime_smoke.py'
+      - 'tools/run_enemy_object_action_key_lifetime.py'
+      - 'tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java'
+      - '.github/workflows/enemy-object-action-key-lifetime-evidence.yml'
+      - 'docs/enemy-object-action-key-lifetime-evidence.md'
+
+permissions:
+  contents: read
+
+jobs:
+  key-lifetime-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate Python tools
+        run: |
+          python3 -m py_compile \
+            tools/enemy_object_action_key_lifetime.py \
+            tools/enemy_object_action_key_lifetime_smoke.py \
+            tools/run_enemy_object_action_key_lifetime.py
+          PYTHONPATH=tools python3 tools/enemy_object_action_key_lifetime_smoke.py
+      - name: Validate bounded Ghidra exporter contract
+        run: |
+          grep -q 'NEVERGONE.EnemyObjectActionKeyLifetimePlan/1' tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java
+          grep -q 'NEVERGONE.GhidraFunctionIdentity/1' tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java
+          grep -q 'getFunctionAt' tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java
+      - name: Validate runner CLI
+        run: |
+          python3 tools/run_enemy_object_action_key_lifetime.py \
+            --project-dir /tmp/not-a-real-ghidra-project \
+            --project-name Nevergone \
+            --program libcocos2dcpp.so \
+            --pcode /tmp/not-a-real-pcode.tsv \
+            --dry-run > /tmp/enemy-object-action-key-lifetime.txt
+          grep -q 'enemy_object_action_key_lifetime.py plan' /tmp/enemy-object-action-key-lifetime.txt
+          grep -q 'ExportActionKeyLifetimeFunctionIdentities.java' /tmp/enemy-object-action-key-lifetime.txt
+          grep -q 'enemy_object_action_key_lifetime.py report' /tmp/enemy-object-action-key-lifetime.txt
+          grep -q -- '-recursive' /tmp/enemy-object-action-key-lifetime.txt
