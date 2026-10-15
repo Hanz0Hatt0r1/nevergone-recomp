@@ -1,0 +1,35 @@
+name: Tutorial LoadingLayer fade
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/tutorial_loading_fade.h'
+      - 'android/app/src/main/cpp/tutorial_loading_compositor.cpp'
+      - 'android/app/src/main/cpp/tutorial_scene_bootstrap.h'
+      - 'tools/tutorial_loading_fade_smoke.cpp'
+      - '.github/workflows/tutorial-loading-fade.yml'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'android/app/src/main/cpp/tutorial_loading_fade.h'
+      - 'android/app/src/main/cpp/tutorial_loading_compositor.cpp'
+      - 'android/app/src/main/cpp/tutorial_scene_bootstrap.h'
+      - 'tools/tutorial_loading_fade_smoke.cpp'
+      - '.github/workflows/tutorial-loading-fade.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run fixed-tick fade smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/tutorial_loading_fade_smoke.cpp \
+            -o /tmp/tutorial_loading_fade_smoke
+          /tmp/tutorial_loading_fade_smoke
