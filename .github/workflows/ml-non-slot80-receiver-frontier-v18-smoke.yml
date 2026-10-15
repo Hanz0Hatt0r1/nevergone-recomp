@@ -1,0 +1,36 @@
+name: Nevergone non-slot80 receiver frontier v18 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/plan_nevergone_non_slot80_receiver_frontier_v18.py'
+      - 'tools/ml/audit_nevergone_non_slot80_receiver_frontier_v18.py'
+      - 'tools/ml/nevergone_non_slot80_receiver_frontier_v18_smoke.py'
+      - 'tools/ml/run_nevergone_non_slot80_receiver_frontier_v18.sh'
+      - '.github/workflows/ml-non-slot80-receiver-frontier-v18-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/plan_nevergone_non_slot80_receiver_frontier_v18.py'
+      - 'tools/ml/audit_nevergone_non_slot80_receiver_frontier_v18.py'
+      - 'tools/ml/nevergone_non_slot80_receiver_frontier_v18_smoke.py'
+      - 'tools/ml/run_nevergone_non_slot80_receiver_frontier_v18.sh'
+      - '.github/workflows/ml-non-slot80-receiver-frontier-v18-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run fail-closed v18 smoke
+        run: python3 tools/ml/nevergone_non_slot80_receiver_frontier_v18_smoke.py
+      - name: Compile v18 Python tools
+        run: |
+          python3 -m py_compile \
+            tools/ml/plan_nevergone_non_slot80_receiver_frontier_v18.py \
+            tools/ml/audit_nevergone_non_slot80_receiver_frontier_v18.py
+      - name: Check v18 runner syntax
+        run: bash -n tools/ml/run_nevergone_non_slot80_receiver_frontier_v18.sh
