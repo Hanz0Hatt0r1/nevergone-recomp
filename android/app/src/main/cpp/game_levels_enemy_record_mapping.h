@@ -40,6 +40,13 @@ struct ResolverContext {
 const char* field_name(IntegerField field);
 bool parse_field_name(const std::string& name, IntegerField* out);
 
+// Exact original ARMv7 evidence closes both semantic fields. LoadGL_Global
+// stores first_i32 at GameLevelsEnemyData +0x14 and second_i32 at +0x18/+0x1c;
+// GetEnemyDataWithEnemyID consumes +0x14, while EnemyObject::loadEnemyObjectFile
+// seeds health from +0x18. This helper is therefore reviewed production
+// evidence, not a promoted heuristic candidate.
+Mapping reviewed_original_mapping();
+
 // A cross-evidence candidate is deliberately not usable by production. The
 // identity and base-health fields must also be distinct.
 bool is_usable(const Mapping& mapping);
