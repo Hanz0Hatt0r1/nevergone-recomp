@@ -7,11 +7,15 @@ on:
       - 'tools/enemy_object_action_init_evidence_smoke.py'
       - 'tools/enemy_action_init_caller_arguments.py'
       - 'tools/enemy_action_init_caller_arguments_smoke.py'
+      - 'tools/enemy_action_factory_call_matrix.py'
+      - 'tools/enemy_action_factory_call_matrix_smoke.py'
       - 'tools/run_enemy_object_action_init_probe.py'
+      - 'tools/run_enemy_action_factory_call_matrix.py'
       - 'tools/ghidra/ExportFunctionPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedReverseCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportCallerArgumentSubtree.java'
+      - 'tools/ghidra/ExportCallerFunctionIdentities.java'
       - '.github/workflows/enemy-object-action-init-evidence.yml'
       - 'docs/enemy-object-action-init-evidence.md'
   push:
@@ -21,11 +25,15 @@ on:
       - 'tools/enemy_object_action_init_evidence_smoke.py'
       - 'tools/enemy_action_init_caller_arguments.py'
       - 'tools/enemy_action_init_caller_arguments_smoke.py'
+      - 'tools/enemy_action_factory_call_matrix.py'
+      - 'tools/enemy_action_factory_call_matrix_smoke.py'
       - 'tools/run_enemy_object_action_init_probe.py'
+      - 'tools/run_enemy_action_factory_call_matrix.py'
       - 'tools/ghidra/ExportFunctionPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedReverseCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportCallerArgumentSubtree.java'
+      - 'tools/ghidra/ExportCallerFunctionIdentities.java'
       - '.github/workflows/enemy-object-action-init-evidence.yml'
       - 'docs/enemy-object-action-init-evidence.md'
 
@@ -42,6 +50,10 @@ jobs:
         run: python3 tools/enemy_object_action_init_evidence_smoke.py
       - name: Validate EnemyActions init caller argument planning
         run: python3 tools/enemy_action_init_caller_arguments_smoke.py
+      - name: Validate createWithFile per-call matrix
+        run: |
+          python3 tools/enemy_action_factory_call_matrix_smoke.py
+          grep -q 'getName(true)' tools/ghidra/ExportCallerFunctionIdentities.java
       - name: Validate probe wrapper CLI
         shell: bash
         run: |
@@ -70,3 +82,13 @@ jobs:
             echo 'ELF offsets leaked into default Ghidra probe command' >&2
             exit 1
           fi
+
+          python3 tools/run_enemy_action_factory_call_matrix.py \
+            --project-dir /tmp/not-a-real-ghidra-project \
+            --project-name Nevergone \
+            --program libcocos2dcpp.so \
+            --subtrees /tmp/not-a-real-subtrees.tsv \
+            --dry-run > /tmp/enemy-action-factory-call-matrix.txt
+          grep -q 'ExportCallerFunctionIdentities.java' /tmp/enemy-action-factory-call-matrix.txt
+          grep -q 'enemy_action_factory_call_matrix.py' /tmp/enemy-action-factory-call-matrix.txt
+          grep -q -- '-recursive' /tmp/enemy-action-factory-call-matrix.txt
