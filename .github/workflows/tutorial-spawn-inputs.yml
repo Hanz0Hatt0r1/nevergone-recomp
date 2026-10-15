@@ -1,0 +1,37 @@
+name: Tutorial spawn inputs
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/tutorial_spawn_inputs.*'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/tutorial_spawn_inputs_smoke.cpp'
+      - '.github/workflows/tutorial-spawn-inputs.yml'
+      - 'docs/tutorial-spawn-inputs.md'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'android/app/src/main/cpp/tutorial_spawn_inputs.*'
+      - 'android/app/src/main/cpp/CMakeLists.txt'
+      - 'tools/tutorial_spawn_inputs_smoke.cpp'
+      - '.github/workflows/tutorial-spawn-inputs.yml'
+      - 'docs/tutorial-spawn-inputs.md'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run spawn-input gate smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -I android/app/src/main/cpp \
+            tools/tutorial_spawn_inputs_smoke.cpp \
+            android/app/src/main/cpp/tutorial_spawn_inputs.cpp \
+            -o /tmp/tutorial_spawn_inputs_smoke
+          /tmp/tutorial_spawn_inputs_smoke
