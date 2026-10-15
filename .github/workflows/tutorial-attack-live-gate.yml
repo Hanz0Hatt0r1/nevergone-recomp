@@ -10,8 +10,10 @@ on:
       - 'android/app/src/main/cpp/tutorial_attack_wave_runtime.*'
       - 'android/app/src/main/cpp/tutorial_spawn_inputs.*'
       - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
+      - 'android/app/src/main/cpp/tutorial_enemy_actor_bindings.h'
       - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
       - 'tools/tutorial_attack_live_gate_smoke.cpp'
+      - 'tools/tutorial_enemy_actor_bindings_smoke.cpp'
       - '.github/workflows/tutorial-attack-live-gate.yml'
   pull_request:
     paths:
@@ -21,8 +23,10 @@ on:
       - 'android/app/src/main/cpp/tutorial_attack_wave_runtime.*'
       - 'android/app/src/main/cpp/tutorial_spawn_inputs.*'
       - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
+      - 'android/app/src/main/cpp/tutorial_enemy_actor_bindings.h'
       - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
       - 'tools/tutorial_attack_live_gate_smoke.cpp'
+      - 'tools/tutorial_enemy_actor_bindings_smoke.cpp'
       - '.github/workflows/tutorial-attack-live-gate.yml'
 
 jobs:
@@ -30,6 +34,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Build and run actor binding smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/tutorial_enemy_actor_bindings_smoke.cpp \
+            -o /tmp/tutorial_enemy_actor_bindings_smoke
+          /tmp/tutorial_enemy_actor_bindings_smoke
       - name: Build and run live gate smoke
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
