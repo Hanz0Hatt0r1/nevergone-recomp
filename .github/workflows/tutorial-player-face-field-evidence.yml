@@ -1,0 +1,40 @@
+name: Tutorial player face field evidence
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportParameterStoreField.java'
+      - 'tools/tutorial_player_face_field_evidence.py'
+      - 'tools/tutorial_player_face_field_evidence_smoke.py'
+      - 'tools/run_tutorial_player_face_field_probe.py'
+      - '.github/workflows/tutorial-player-face-field-evidence.yml'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'tools/ghidra/ExportParameterStoreField.java'
+      - 'tools/tutorial_player_face_field_evidence.py'
+      - 'tools/tutorial_player_face_field_evidence_smoke.py'
+      - 'tools/run_tutorial_player_face_field_probe.py'
+      - '.github/workflows/tutorial-player-face-field-evidence.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Analyze synthetic field evidence
+        run: python3 tools/tutorial_player_face_field_evidence_smoke.py
+      - name: Validate wrapper CLI
+        run: |
+          python3 tools/run_tutorial_player_face_field_probe.py \
+            --project-dir /tmp/never-existing-ghidra-project \
+            --project-name Nevergone \
+            --program libcocos2dcpp.so \
+            --dry-run > /tmp/tutorial-player-face-probe.txt
+          grep -q 'ExportAccessorReturnField.java' /tmp/tutorial-player-face-probe.txt
+          grep -q 'ExportParameterStoreField.java' /tmp/tutorial-player-face-probe.txt
+          grep -q 'tutorial_player_face_field_evidence.py' /tmp/tutorial-player-face-probe.txt
