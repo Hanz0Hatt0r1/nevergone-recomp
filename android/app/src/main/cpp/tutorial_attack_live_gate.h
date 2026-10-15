@@ -36,6 +36,11 @@ public:
     void reset();
     void set_review_bundle(const ReviewBundle& review);
 
+    // Updates only the per-control-generation facing evidence. Scene limits
+    // and enemy mapping remain governed by their independent review paths.
+    void set_player_face_dir_evidence(
+        const tutorial_spawn_inputs::ReviewedPlayerFaceDir& player_face_dir);
+
     bool tick(
         std::uint64_t game_tick,
         const tutorial_gameplay_state::Snapshot& gameplay,
@@ -69,8 +74,8 @@ private:
     std::uint64_t completion_publish_count_ = 0;
 };
 
-// Android frame-loop instance. Evidence providers may install reviewed values
-// later; until then this remains deliberately fail-closed.
+// Android frame-loop instance. Evidence providers install only fields that are
+// independently proven; unresolved scene limits/mapping remain fail-closed.
 void live_reset();
 void live_set_review_bundle(const ReviewBundle& review);
 bool live_tick();
