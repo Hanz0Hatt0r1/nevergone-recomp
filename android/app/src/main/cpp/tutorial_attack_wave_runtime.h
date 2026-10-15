@@ -24,6 +24,7 @@ enum class Status {
 struct Snapshot {
     Status status = Status::kIdle;
     std::uint64_t generation = 0;
+    std::uint64_t wave_generation = 0;
     std::uint64_t start_game_tick = 0;
     std::uint64_t last_game_tick = 0;
     bool wave_started = false;
@@ -47,10 +48,15 @@ public:
         tutorial_enemy_roster::BaseHealthResolver resolver,
         void* resolver_user_data = nullptr);
 
-    bool apply_damage(std::size_t slot, float damage);
-    bool set_dead(std::size_t slot);
-    bool set_enemy_state(std::size_t slot, int enemy_state);
-    bool set_force_action_state_no_dead(std::size_t slot, bool enabled);
+    // Enemy callbacks must carry the wave generation captured when their slot
+    // was materialized. A slot index alone is not stable across tutorial waves.
+    bool apply_damage(
+        std::size_t slot, float damage, std::uint64_t expected_wave_generation);
+    bool set_dead(std::size_t slot, std::uint64_t expected_wave_generation);
+    bool set_enemy_state(
+        std::size_t slot, int enemy_state, std::uint64_t expected_wave_generation);
+    bool set_force_action_state_no_dead(
+        std::size_t slot, bool enabled, std::uint64_t expected_wave_generation);
 
     // One-shot edge for the outer LessonLayer integration. Calling this never
     // mutates tutorial_gameplay_state directly; the frame boundary may publish
@@ -71,6 +77,7 @@ private:
     tutorial_enemy_roster::Roster roster_{};
     Status status_ = Status::kIdle;
     std::uint64_t generation_ = 0;
+    std::uint64_t wave_generation_ = 0;
     std::uint64_t start_game_tick_ = 0;
     std::uint64_t last_game_tick_ = 0;
     bool wave_started_ = false;

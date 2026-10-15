@@ -59,6 +59,7 @@ int main() {
     auto state = enemies.snapshot();
     assert(state.active);
     assert(state.generation == 1);
+    const std::uint64_t wave = state.generation;
     assert(state.planned_count == 3);
     assert(state.materialized_count == 0);
     assert(!state.all_materialized);
@@ -66,15 +67,15 @@ int main() {
 
     // The immediate first enemy is due, but the roster must not manufacture a
     // default HP value when imported GameLevelsEnemyData is unavailable.
-    assert(enemies.advance_to(0.0f, resolve_health, &resolver));
+    assert(enemies.advance_to(0.0f, resolve_health, wave, &resolver));
     state = enemies.snapshot();
     assert(state.due_count == 1);
     assert(state.unresolved_health_count == 1);
     assert(state.materialized_count == 0);
-    assert(!enemies.consume_all_defeated());
+    assert(!enemies.consume_all_defeated(wave));
 
     resolver.available = true;
-    assert(enemies.advance_to(0.0f, resolve_health, &resolver));
+    assert(enemies.advance_to(0.0f, resolve_health, wave, &resolver));
     state = enemies.snapshot();
     assert(state.materialized_count == 1);
     assert(state.enemies[0].request.enemy_id == 3u);
@@ -86,10 +87,10 @@ int main() {
 
     // The recovered delayed requests are scheduled independently: the third
     // slot is due at 0.5 s and the second at 1.0 s for the Attack wave.
-    assert(enemies.advance_to(0.49f, resolve_health, &resolver));
+    assert(enemies.advance_to(0.49f, resolve_health, wave, &resolver));
     assert(enemies.snapshot().materialized_count == 1);
 
-    assert(enemies.advance_to(0.5f, resolve_health, &resolver));
+    assert(enemies.advance_to(0.5f, resolve_health, wave, &resolver));
     state = enemies.snapshot();
     assert(state.materialized_count == 2);
     assert(state.enemies[2].materialized);
@@ -97,7 +98,7 @@ int main() {
     assert(near(state.enemies[2].request.x, 750.0f));
     assert(near(state.enemies[2].request.y, 120.0f));
 
-    assert(enemies.advance_to(1.0f, resolve_health, &resolver));
+    assert(enemies.advance_to(1.0f, resolve_health, wave, &resolver));
     state = enemies.snapshot();
     assert(state.materialized_count == 3);
     assert(state.all_materialized);
@@ -107,24 +108,24 @@ int main() {
 
     // Completion tracks the recovered EnemyObject::isDead predicate rather
     // than merely observing non-positive health.
-    assert(enemies.set_dead(0));
-    assert(enemies.set_dead(2));
+    assert(enemies.set_dead(0, wave));
+    assert(enemies.set_dead(2, wave));
     assert(!enemies.snapshot().all_defeated);
 
-    assert(enemies.set_enemy_state(1, 0x2c));
-    assert(enemies.set_dead(1));
+    assert(enemies.set_enemy_state(1, 0x2c, wave));
+    assert(enemies.set_dead(1, wave));
     state = enemies.snapshot();
     assert(state.dead_count == 2);
     assert(!state.all_defeated);
-    assert(!enemies.consume_all_defeated());
+    assert(!enemies.consume_all_defeated(wave));
 
-    assert(enemies.set_enemy_state(1, 0x1c));
+    assert(enemies.set_enemy_state(1, 0x1c, wave));
     state = enemies.snapshot();
     assert(state.dead_count == 3);
     assert(state.all_defeated);
 
-    assert(enemies.consume_all_defeated());
-    assert(!enemies.consume_all_defeated());
+    assert(enemies.consume_all_defeated(wave));
+    assert(!enemies.consume_all_defeated(wave));
     state = enemies.snapshot();
     assert(!state.active);
     assert(state.completion_consumed);
@@ -134,7 +135,41 @@ int main() {
     assert(tutorial::snapshot().step == tutorial::Step::kBlock);
 
     // Absolute roster time is monotonic and cannot be rewound accidentally.
-    assert(!enemies.advance_to(0.75f, resolve_health, &resolver));
+    assert(!enemies.advance_to(0.75f, resolve_health, wave, &resolver));
+
+    // Late callbacks must not mutate a newer wave reusing the same slots.
+    assert(enemies.begin(spawn::Kind::kAttackWave, inputs));
+    const std::uint64_t next_wave = enemies.snapshot().generation;
+    assert(next_wave != wave);
+    assert(!enemies.advance_to(1.0f, resolve_health, wave, &resolver));
+    assert(enemies.snapshot().materialized_count == 0);
+    assert(enemies.advance_to(1.0f, resolve_health, next_wave, &resolver));
+    assert(enemies.snapshot().materialized_count == 3);
+    assert(!enemies.set_dead(0, wave));
+    assert(!enemies.set_enemy_state(0, 0x2c, wave));
+    assert(!enemies.set_force_action_state_no_dead(0, true, wave));
+    assert(!enemies.apply_damage(0, 100.0f, wave));
+    assert(!enemies.consume_all_defeated(wave));
+    assert(enemies.snapshot().dead_count == 0);
+
+    // Reject non-finite and negative damage at the external callback boundary.
+    assert(!enemies.apply_damage(0, std::nanf(""), next_wave));
+    assert(!enemies.apply_damage(0, INFINITY, next_wave));
+    assert(!enemies.apply_damage(0, -1.0f, next_wave));
+    assert(near(enemies.snapshot().enemies[0].health.current_health, 137.0f));
+    assert(enemies.apply_damage(0, 137.0f, next_wave));
+    assert(enemies.snapshot().dead_count == 1);
+    assert(!enemies.consume_all_defeated(next_wave));
+
+    // Reset must not alias the generation of an earlier scene.
+    enemies.reset();
+    const std::uint64_t reset_generation = enemies.snapshot().generation;
+    assert(reset_generation != next_wave);
+    assert(enemies.begin(spawn::Kind::kAttackWave, inputs));
+    const std::uint64_t after_reset = enemies.snapshot().generation;
+    assert(after_reset != wave && after_reset != next_wave);
+    assert(!enemies.advance_to(1.0f, resolve_health, next_wave, &resolver));
+    assert(enemies.advance_to(0.0f, resolve_health, after_reset, &resolver));
 
     return 0;
 }

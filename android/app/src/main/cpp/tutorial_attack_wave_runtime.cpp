@@ -16,6 +16,7 @@ void Runtime::set_status(Status status) {
 
 void Runtime::reset() {
     roster_.reset();
+    wave_generation_ = 0;
     start_game_tick_ = 0;
     last_game_tick_ = 0;
     wave_started_ = false;
@@ -101,6 +102,11 @@ bool Runtime::tick(
             return false;
         }
 
+        wave_generation_ = roster_.snapshot().generation;
+        if (wave_generation_ == 0) {
+            set_status(Status::kPlanInvalid);
+            return false;
+        }
         start_game_tick_ = game_tick;
         last_game_tick_ = game_tick;
         wave_started_ = true;
@@ -119,11 +125,11 @@ bool Runtime::tick(
         return false;
     }
     if (!roster_.advance_to(
-            static_cast<float>(elapsed), resolver, resolver_user_data)) {
+            static_cast<float>(elapsed), resolver, wave_generation_, resolver_user_data)) {
         return false;
     }
 
-    if (roster_.consume_all_defeated()) {
+    if (roster_.consume_all_defeated(wave_generation_)) {
         wave_completed_ = true;
         completion_pending_ = true;
         ++generation_;
@@ -134,30 +140,53 @@ bool Runtime::tick(
     return true;
 }
 
-bool Runtime::apply_damage(std::size_t slot, float damage) {
-    if (wave_completed_) return false;
-    const bool applied = roster_.apply_damage(slot, damage);
+bool Runtime::apply_damage(
+        std::size_t slot,
+        float damage,
+        std::uint64_t expected_wave_generation) {
+    if (wave_completed_ || !wave_started_ ||
+            expected_wave_generation != wave_generation_) {
+        return false;
+    }
+    const bool applied = roster_.apply_damage(slot, damage, expected_wave_generation);
     if (applied) ++generation_;
     return applied;
 }
 
-bool Runtime::set_dead(std::size_t slot) {
-    if (wave_completed_) return false;
-    const bool applied = roster_.set_dead(slot);
+bool Runtime::set_dead(std::size_t slot, std::uint64_t expected_wave_generation) {
+    if (wave_completed_ || !wave_started_ ||
+            expected_wave_generation != wave_generation_) {
+        return false;
+    }
+    const bool applied = roster_.set_dead(slot, expected_wave_generation);
     if (applied) ++generation_;
     return applied;
 }
 
-bool Runtime::set_enemy_state(std::size_t slot, int enemy_state) {
-    if (wave_completed_) return false;
-    const bool applied = roster_.set_enemy_state(slot, enemy_state);
+bool Runtime::set_enemy_state(
+        std::size_t slot,
+        int enemy_state,
+        std::uint64_t expected_wave_generation) {
+    if (wave_completed_ || !wave_started_ ||
+            expected_wave_generation != wave_generation_) {
+        return false;
+    }
+    const bool applied = roster_.set_enemy_state(
+        slot, enemy_state, expected_wave_generation);
     if (applied) ++generation_;
     return applied;
 }
 
-bool Runtime::set_force_action_state_no_dead(std::size_t slot, bool enabled) {
-    if (wave_completed_) return false;
-    const bool applied = roster_.set_force_action_state_no_dead(slot, enabled);
+bool Runtime::set_force_action_state_no_dead(
+        std::size_t slot,
+        bool enabled,
+        std::uint64_t expected_wave_generation) {
+    if (wave_completed_ || !wave_started_ ||
+            expected_wave_generation != wave_generation_) {
+        return false;
+    }
+    const bool applied = roster_.set_force_action_state_no_dead(
+        slot, enabled, expected_wave_generation);
     if (applied) ++generation_;
     return applied;
 }
@@ -174,6 +203,7 @@ Snapshot Runtime::snapshot() const {
     Snapshot out;
     out.status = status_;
     out.generation = generation_;
+    out.wave_generation = wave_generation_;
     out.start_game_tick = start_game_tick_;
     out.last_game_tick = last_game_tick_;
     out.wave_started = wave_started_;
@@ -189,6 +219,7 @@ std::string Runtime::status_report() const {
     out << "Tutorial attack wave runtime\n";
     out << "status: " << status_name(state.status) << "\n";
     out << "generation: " << state.generation << "\n";
+    out << "wave generation: " << state.wave_generation << "\n";
     out << "start game tick: " << state.start_game_tick << "\n";
     out << "last game tick: " << state.last_game_tick << "\n";
     out << "wave started: " << (state.wave_started ? "true" : "false") << "\n";

@@ -50,6 +50,8 @@ public:
             tutorial_enemy_spawn_plan::Kind kind,
             const tutorial_enemy_spawn_plan::Inputs& inputs);
 
+    // The expected generation is mandatory: a delayed callback from a prior
+    // wave must not spawn enemies in a newly started wave.
     // Advances against absolute elapsed time since begin(). Delayed requests
     // use the exact delay_seconds values recovered in tutorial_enemy_spawn_plan.
     // A due request whose GameLevelsEnemyData health is not available remains
@@ -57,19 +59,23 @@ public:
     bool advance_to(
             float elapsed_seconds,
             BaseHealthResolver resolver,
+            std::uint64_t expected_generation,
             void* user_data = nullptr);
 
-    bool apply_damage(std::size_t slot, float damage);
-    bool set_dead(std::size_t slot);
-    bool set_enemy_state(std::size_t slot, int enemy_state);
-    bool set_force_action_state_no_dead(std::size_t slot, bool enabled);
+    // All mutations must carry the wave generation captured at begin().
+    // Late EnemyObject callbacks from an earlier wave are rejected.
+    bool apply_damage(std::size_t slot, float damage, std::uint64_t expected_generation);
+    bool set_dead(std::size_t slot, std::uint64_t expected_generation);
+    bool set_enemy_state(std::size_t slot, int enemy_state, std::uint64_t expected_generation);
+    bool set_force_action_state_no_dead(
+            std::size_t slot, bool enabled, std::uint64_t expected_generation);
 
     Snapshot snapshot() const;
 
     // One-shot edge used by the LessonLayer integration. It cannot fire until
     // every planned request has materialized and every corresponding recovered
     // EnemyObject death predicate is true.
-    bool consume_all_defeated();
+    bool consume_all_defeated(std::uint64_t expected_generation);
 
 private:
     tutorial_enemy_spawn_plan::Plan plan_{};
