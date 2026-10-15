@@ -14,16 +14,29 @@ For the original Never Gone 1.0.9 ARMv7 library, the project already proves:
 
 - `EnemyObject::loadEnemyObjectFile(GameLevelsEnemyData*, ...)` consumes the
   reviewed enemy record and seeds the recovered health state;
-- `EnemyActionsSystem::initWithFile(char const*, ...)` is at `0x002adcb0` and
-  receives its action-data filename from its caller;
-- `ActionDataManager::addActionDataWithID(int, int, char const*)` is at
-  `0x0028ee34`;
+- native/ELF disassembly places `EnemyActionsSystem::initWithFile(char const*, ...)`
+  at ELF code offset `0x002adcb0` and shows that it receives its action-data
+  filename from its caller;
+- native/ELF symbol evidence places
+  `ActionDataManager::addActionDataWithID(int, int, char const*)` at ELF code
+  offset `0x0028ee34`;
 - object-type selector 0 routes action-data registration through that
   `ActionDataManager` call;
 - selector-specific resource construction later uses the reconstructed
   EnemyActions document/frame pipeline.
 
-What was not yet proven is how the `EnemyObject` load path supplies those action
+Those ELF offsets are **not automatically Ghidra image addresses**. The analyzed
+project used for current probes maps this library with a `+0x10000` image delta
+for these functions. A live reverse run demonstrated the consequence directly:
+passing ELF offset `002adcb0` to Ghidra resolved inside `DataManager::init` at
+`002adbf2`, not to `EnemyActionsSystem::initWithFile`.
+
+For that reason the probe no longer uses numeric ELF offsets as Ghidra defaults.
+It resolves `EnemyActionsSystem::initWithFile` by symbol name and validates the
+resolved root identity before exporting callers. Numeric overrides are accepted
+only as explicit **Ghidra image-space** addresses.
+
+What is not yet proven is how the runtime path supplies those action
 initialization arguments for a concrete enemy such as tutorial enemy ID `3`.
 
 ## Probe
@@ -33,7 +46,7 @@ P-code starting at `EnemyObject::loadEnemyObjectFile` with
 `ExportBoundedCallGraphPcodeFlow.java`, then runs
 `tools/enemy_object_action_init_evidence.py`.
 
-Two live runs on 2026-10-15 established:
+Two live forward runs on 2026-10-15 established:
 
 1. `loadEnemyObjectFile` itself has no direct `EnemyActionsSystem::initWithFile`
    or `ActionDataManager::addActionDataWithID` call;
@@ -41,11 +54,18 @@ Two live runs on 2026-10-15 established:
    P-code rows with `capped=false` and still contained no resolved init call.
 
 That means increasing the forward depth is not the justified next step. When the
-forward analyzer returns its fail-closed status code `2`, the wrapper now
-launches `ExportBoundedReverseCallGraphPcodeFlow.java` from the reviewed
-`EnemyActionsSystem::initWithFile` entry. The reverse exporter includes the
-`initWithFile` function itself plus bounded direct callers discovered from
-Ghidra call references. This exposes both:
+forward analyzer returns its fail-closed status code `2`, the wrapper launches
+`ExportBoundedReverseCallGraphPcodeFlow.java` from the symbolic target
+`EnemyActionsSystem::initWithFile`.
+
+The reverse exporter validates that the resolved root function name contains
+`EnemyActionsSystem::initWithFile`. If an explicit numeric override lands inside
+another function because an ELF offset was confused with a Ghidra image address,
+the exporter stops with an identity-mismatch error instead of exporting the wrong
+call graph.
+
+The reverse exporter includes the `initWithFile` function itself plus bounded
+direct callers discovered from Ghidra call references. This exposes both:
 
 - the actual functions that directly call `initWithFile` and their arguments;
 - the internal `addActionDataWithID` call made by the target path when present.
@@ -61,7 +81,9 @@ Only resolved direct call references are traversed. `CALLIND` targets are not
 guessed. No action filename, object type, or enemy ID is assigned from an
 unresolved value.
 
-The analyzer recognizes calls found anywhere in either bounded export to:
+The analyzer recognizes calls found anywhere in either bounded export by their
+resolved symbol names. Optional numeric fallbacks can also be supplied when a
+local Ghidra database lacks a useful target name:
 
 ```text
 EnemyActionsSystem::initWithFile
@@ -88,20 +110,22 @@ python3 tools/run_enemy_object_action_init_probe.py \
   --program libcocos2dcpp.so
 ```
 
-The reviewed original ARMv7 entries are defaults:
+No numeric target entries are required for the normal path. The wrapper resolves
+`EnemyActionsSystem::initWithFile` by symbol name.
 
-```text
-EnemyActionsSystem::initWithFile = 002adcb0
-ActionDataManager::addActionDataWithID = 0028ee34
-```
-
-Override them only when intentionally probing a different analyzed image:
+If a different Ghidra database lacks that symbol, an explicit image-space
+fallback may be provided:
 
 ```bash
 python3 tools/run_enemy_object_action_init_probe.py ... \
-  --init-entry <entry> \
-  --add-entry <entry>
+  --init-entry <Ghidra-image-address> \
+  --add-entry <Ghidra-image-address>
 ```
+
+Do not copy ELF offsets such as `0x002adcb0` or `0x0028ee34` into those options
+without first converting/confirming them in the actual Ghidra image. The reverse
+exporter still validates the `initWithFile` root name when an address override is
+used.
 
 The wrapper passes `-recursive` to Ghidra's `-process` mode so an imported
 library can live below a nested Ghidra project folder.
