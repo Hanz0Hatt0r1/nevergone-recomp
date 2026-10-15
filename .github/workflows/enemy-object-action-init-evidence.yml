@@ -42,3 +42,4 @@ jobs:
           grep -q 'loadEnemyObjectFile' /tmp/enemy-object-action-init-probe.txt
           grep -q 'ExportFunctionPcodeFlow.java' /tmp/enemy-object-action-init-probe.txt
           grep -q 'enemy_object_action_init_evidence.py' /tmp/enemy-object-action-init-probe.txt
+          grep -q -- '-recursive' /tmp/enemy-object-action-init-probe.txt

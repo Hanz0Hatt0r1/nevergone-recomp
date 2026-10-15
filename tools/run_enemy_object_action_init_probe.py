@@ -16,7 +16,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ghidra", type=Path, default=Path("/opt/ghidra"))
     parser.add_argument("--project-dir", type=Path, required=True)
     parser.add_argument("--project-name", required=True)
-    parser.add_argument("--program", required=True)
+    parser.add_argument(
+        "--program",
+        required=True,
+        help="Ghidra program filename; nested project folders are searched recursively",
+    )
     parser.add_argument(
         "--load-enemy-object",
         default="loadEnemyObjectFile",
@@ -41,12 +45,17 @@ def main(argv: list[str] | None = None) -> int:
     flow_tsv = output_dir / "load-enemy-object-pcode.tsv"
     report = output_dir / "enemy-object-action-init-report.txt"
 
+    # Ghidra's -process filename search is limited to the selected project folder
+    # unless -recursive is supplied. User projects commonly keep imported APK
+    # libraries below nested folders, so search those folders while retaining the
+    # exact requested filename as the match boundary.
     export_command = [
         str(ghidra_root / "support" / "analyzeHeadless"),
         str(project_dir),
         args.project_name,
         "-process",
         args.program,
+        "-recursive",
         "-noanalysis",
         "-scriptPath",
         str(script_dir),
