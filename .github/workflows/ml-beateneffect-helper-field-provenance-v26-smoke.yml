@@ -1,0 +1,33 @@
+name: Nevergone BeatenEffect helper provenance v26 smoke
+
+on:
+  push:
+    paths:
+      - 'tools/ml/plan_nevergone_beateneffect_helper_callers_v26.py'
+      - 'tools/ml/audit_nevergone_beateneffect_helper_field_provenance_v26.py'
+      - 'tools/ml/nevergone_beateneffect_helper_field_provenance_v26_smoke.py'
+      - 'tools/ml/run_nevergone_beateneffect_helper_field_provenance_v26.sh'
+      - '.github/workflows/ml-beateneffect-helper-field-provenance-v26-smoke.yml'
+  pull_request:
+    paths:
+      - 'tools/ml/plan_nevergone_beateneffect_helper_callers_v26.py'
+      - 'tools/ml/audit_nevergone_beateneffect_helper_field_provenance_v26.py'
+      - 'tools/ml/nevergone_beateneffect_helper_field_provenance_v26_smoke.py'
+      - 'tools/ml/run_nevergone_beateneffect_helper_field_provenance_v26.sh'
+      - '.github/workflows/ml-beateneffect-helper-field-provenance-v26-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile v26 Python
+        run: |
+          python3 -m py_compile \
+            tools/ml/plan_nevergone_beateneffect_helper_callers_v26.py \
+            tools/ml/audit_nevergone_beateneffect_helper_field_provenance_v26.py \
+            tools/ml/nevergone_beateneffect_helper_field_provenance_v26_smoke.py
+      - name: Run v26 smoke
+        run: python3 tools/ml/nevergone_beateneffect_helper_field_provenance_v26_smoke.py
+      - name: Shell syntax
+        run: bash -n tools/ml/run_nevergone_beateneffect_helper_field_provenance_v26.sh
