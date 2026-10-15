@@ -9,8 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-DEFAULT_INIT_ENTRY = "002adcb0"
-DEFAULT_ADD_ENTRY = "0028ee34"
+DEFAULT_INIT_TARGET = "EnemyActionsSystem::initWithFile"
+EXPECTED_INIT_NAME = "EnemyActionsSystem::initWithFile"
 
 
 def run(command: list[str]) -> int:
@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--load-enemy-object",
         default="loadEnemyObjectFile",
-        help="exact/unique function token or Ghidra address for EnemyObject::loadEnemyObjectFile",
+        help="exact/unique function token or Ghidra image address for EnemyObject::loadEnemyObjectFile",
     )
     parser.add_argument(
         "--max-depth",
@@ -47,19 +47,26 @@ def main(argv: list[str] | None = None) -> int:
         help="maximum number of functions decompiled by each bounded exporter (default: 96)",
     )
     parser.add_argument(
-        "--init-entry",
-        default=DEFAULT_INIT_ENTRY,
+        "--init-target",
+        default=DEFAULT_INIT_TARGET,
         help=(
-            "exact Ghidra entry for EnemyActionsSystem::initWithFile "
-            f"(default: {DEFAULT_INIT_ENTRY}, reviewed original ARMv7 evidence)"
+            "symbol token used to locate EnemyActionsSystem::initWithFile in Ghidra "
+            f"(default: {DEFAULT_INIT_TARGET})"
+        ),
+    )
+    parser.add_argument(
+        "--init-entry",
+        help=(
+            "optional exact Ghidra image address for EnemyActionsSystem::initWithFile; "
+            "when supplied it overrides --init-target for reverse traversal and is also "
+            "used as an analyzer fallback. Do not pass an ELF file offset here."
         ),
     )
     parser.add_argument(
         "--add-entry",
-        default=DEFAULT_ADD_ENTRY,
         help=(
-            "exact Ghidra entry for ActionDataManager::addActionDataWithID "
-            f"(default: {DEFAULT_ADD_ENTRY}, reviewed original ARMv7 evidence)"
+            "optional exact Ghidra image address for ActionDataManager::addActionDataWithID; "
+            "used only as an analyzer fallback. Do not pass an ELF file offset here."
         ),
     )
     parser.add_argument(
@@ -105,26 +112,30 @@ def main(argv: list[str] | None = None) -> int:
         str(args.max_depth),
         str(args.max_functions),
     ]
+
+    reverse_target = args.init_entry or args.init_target
     reverse_export_command = common_ghidra + [
         "ExportBoundedReverseCallGraphPcodeFlow.java",
-        args.init_entry,
+        reverse_target,
         str(reverse_tsv),
         str(args.max_depth),
         str(args.max_functions),
+        EXPECTED_INIT_NAME,
     ]
 
     def analyze_command(tsv: Path) -> list[str]:
-        return [
+        command = [
             sys.executable,
             str(analyzer),
             str(tsv),
             "--output",
             str(report),
-            "--init-entry",
-            args.init_entry,
-            "--add-entry",
-            args.add_entry,
         ]
+        if args.init_entry:
+            command.extend(["--init-entry", args.init_entry])
+        if args.add_entry:
+            command.extend(["--add-entry", args.add_entry])
+        return command
 
     forward_analyze_command = analyze_command(forward_tsv)
     reverse_analyze_command = analyze_command(reverse_tsv)
@@ -175,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         "Forward graph contains no resolved EnemyActionsSystem::initWithFile call; "
-        f"falling back to bounded reverse callers from {args.init_entry}.",
+        f"falling back to bounded reverse callers from {reverse_target}.",
         file=sys.stderr,
     )
     code = run(reverse_export_command)
