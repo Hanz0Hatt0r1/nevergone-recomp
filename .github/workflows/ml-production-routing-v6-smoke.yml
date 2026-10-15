@@ -1,0 +1,34 @@
+name: Nevergone production routing v6 GAME meta gate
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/evaluate_nevergone_game_meta_routing_v6.py'
+      - 'tools/ml/nevergone_game_meta_routing_v6_smoke.py'
+      - 'tools/ml/run_nevergone_game_meta_routing_v6.sh'
+      - 'docs/ml/PRODUCTION_ROUTING_V6.md'
+      - '.github/workflows/ml-production-routing-v6-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/evaluate_nevergone_game_meta_routing_v6.py'
+      - 'tools/ml/nevergone_game_meta_routing_v6_smoke.py'
+      - 'tools/ml/run_nevergone_game_meta_routing_v6.sh'
+      - 'docs/ml/PRODUCTION_ROUTING_V6.md'
+      - '.github/workflows/ml-production-routing-v6-smoke.yml'
+
+jobs:
+  production-routing-v6:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate GAME meta routing
+        run: |
+          python -m py_compile \
+            tools/ml/evaluate_nevergone_game_meta_routing_v6.py \
+            tools/ml/nevergone_game_meta_routing_v6_smoke.py
+          PYTHONPATH=tools/ml python tools/ml/nevergone_game_meta_routing_v6_smoke.py
+          bash -n tools/ml/run_nevergone_game_meta_routing_v6.sh
