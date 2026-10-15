@@ -75,7 +75,8 @@ int main() {
     context.player_index = 2;
     assert(evaluate_state_callback(context).advance);
 
-    for (int state : {0x11, 0x17, 0x2f, 0x30}) {
+    const int dodge_states[] = {0x11, 0x17, 0x2f, 0x30};
+    for (int state : dodge_states) {
         context = {};
         context.lesson_counter = 9;
         context.meplayer_state = state;
