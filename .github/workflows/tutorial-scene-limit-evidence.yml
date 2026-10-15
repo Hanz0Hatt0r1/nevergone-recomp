@@ -1,0 +1,43 @@
+name: Tutorial scene-limit evidence
+
+on:
+  pull_request:
+    paths:
+      - 'tools/tutorial_scene_limit_evidence.py'
+      - 'tools/tutorial_scene_limit_evidence_smoke.py'
+      - 'tools/run_tutorial_scene_limit_probe.py'
+      - '.github/workflows/tutorial-scene-limit-evidence.yml'
+      - 'docs/tutorial-scene-limit-evidence.md'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'tools/tutorial_scene_limit_evidence.py'
+      - 'tools/tutorial_scene_limit_evidence_smoke.py'
+      - 'tools/run_tutorial_scene_limit_probe.py'
+      - '.github/workflows/tutorial-scene-limit-evidence.yml'
+      - 'docs/tutorial-scene-limit-evidence.md'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate nested load-chain analyzer
+        run: python3 tools/tutorial_scene_limit_evidence_smoke.py
+      - name: Validate two-stage wrapper CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/run_tutorial_scene_limit_probe.py \
+            --project-dir /tmp/not-a-real-ghidra-project \
+            --project-name Nevergone \
+            --program libcocos2dcpp.so \
+            --dry-run > /tmp/tutorial-scene-limit-probe.txt
+          grep -q '003e67b8' /tmp/tutorial-scene-limit-probe.txt
+          grep -q '003e67ac' /tmp/tutorial-scene-limit-probe.txt
+          grep -q 'ExportFunctionPcodeFlow.java' /tmp/tutorial-scene-limit-probe.txt
+          grep -q 'tutorial_scene_limit_evidence.py' /tmp/tutorial-scene-limit-probe.txt
