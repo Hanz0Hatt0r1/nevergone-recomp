@@ -168,6 +168,7 @@ add_library(nevergone_recomp SHARED
     trap_actions_document.cpp
     trap_actions_prefix.cpp
     trap_actions_primary.cpp
+    tutorial_attack_live_gate.cpp
     tutorial_attack_wave_runtime.cpp
     tutorial_dialogue_runtime.cpp
     tutorial_enemy_roster.cpp
