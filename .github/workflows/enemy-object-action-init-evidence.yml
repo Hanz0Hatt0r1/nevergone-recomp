@@ -9,8 +9,11 @@ on:
       - 'tools/enemy_action_init_caller_arguments_smoke.py'
       - 'tools/enemy_action_factory_call_matrix.py'
       - 'tools/enemy_action_factory_call_matrix_smoke.py'
+      - 'tools/enemy_object_init_actions_callsite.py'
+      - 'tools/enemy_object_init_actions_callsite_smoke.py'
       - 'tools/run_enemy_object_action_init_probe.py'
       - 'tools/run_enemy_action_factory_call_matrix.py'
+      - 'tools/run_enemy_object_init_actions_callsite.py'
       - 'tools/ghidra/ExportFunctionPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedReverseCallGraphPcodeFlow.java'
@@ -27,8 +30,11 @@ on:
       - 'tools/enemy_action_init_caller_arguments_smoke.py'
       - 'tools/enemy_action_factory_call_matrix.py'
       - 'tools/enemy_action_factory_call_matrix_smoke.py'
+      - 'tools/enemy_object_init_actions_callsite.py'
+      - 'tools/enemy_object_init_actions_callsite_smoke.py'
       - 'tools/run_enemy_object_action_init_probe.py'
       - 'tools/run_enemy_action_factory_call_matrix.py'
+      - 'tools/run_enemy_object_init_actions_callsite.py'
       - 'tools/ghidra/ExportFunctionPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedReverseCallGraphPcodeFlow.java'
@@ -54,6 +60,8 @@ jobs:
         run: |
           python3 tools/enemy_action_factory_call_matrix_smoke.py
           grep -q 'getName(true)' tools/ghidra/ExportCallerFunctionIdentities.java
+      - name: Validate focused EnemyObject initActionsSystem call site
+        run: python3 tools/enemy_object_init_actions_callsite_smoke.py
       - name: Validate probe wrapper CLI
         shell: bash
         run: |
@@ -92,3 +100,15 @@ jobs:
           grep -q 'ExportCallerFunctionIdentities.java' /tmp/enemy-action-factory-call-matrix.txt
           grep -q 'enemy_action_factory_call_matrix.py' /tmp/enemy-action-factory-call-matrix.txt
           grep -q -- '-recursive' /tmp/enemy-action-factory-call-matrix.txt
+
+          python3 tools/run_enemy_object_init_actions_callsite.py \
+            --project-dir /tmp/not-a-real-ghidra-project \
+            --project-name Nevergone \
+            --program libcocos2dcpp.so \
+            --subtrees /tmp/not-a-real-subtrees.tsv \
+            --identities /tmp/not-a-real-identities.tsv \
+            --dry-run > /tmp/enemy-object-init-actions-callsite.txt
+          grep -q 'ExportFunctionPcodeFlow.java' /tmp/enemy-object-init-actions-callsite.txt
+          grep -q 'EnemyObject::initActionsSystem' /tmp/enemy-object-init-actions-callsite.txt
+          grep -q 'enemy_object_init_actions_callsite.py' /tmp/enemy-object-init-actions-callsite.txt
+          grep -q -- '-recursive' /tmp/enemy-object-init-actions-callsite.txt
