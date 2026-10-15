@@ -33,6 +33,9 @@ jobs:
       - name: Validate enemy health field Ghidra wrapper
         run: python3 tools/test_run_enemy_health_field_consumer_probe.py
 
+      - name: Validate enemy record cross evidence
+        run: python3 tools/enemy_record_cross_evidence_smoke.py
+
       - name: Validate local resource indexer
         run: python3 tools/resource_index_smoke.py
 
