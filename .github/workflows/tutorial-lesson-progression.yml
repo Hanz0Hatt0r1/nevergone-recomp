@@ -1,0 +1,31 @@
+name: Tutorial lesson progression
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/tutorial_lesson_progression_contract.*'
+      - 'tools/tutorial_lesson_progression_smoke.cpp'
+      - '.github/workflows/tutorial-lesson-progression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/tutorial_lesson_progression_contract.*'
+      - 'tools/tutorial_lesson_progression_smoke.cpp'
+      - '.github/workflows/tutorial-lesson-progression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run tutorial lesson progression smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Wpedantic -Werror \
+            tools/tutorial_lesson_progression_smoke.cpp \
+            android/app/src/main/cpp/tutorial_lesson_progression_contract.cpp \
+            -o /tmp/tutorial_lesson_progression_smoke
+          /tmp/tutorial_lesson_progression_smoke
