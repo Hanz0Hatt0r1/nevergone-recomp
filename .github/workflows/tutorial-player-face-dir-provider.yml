@@ -1,0 +1,34 @@
+name: Tutorial PLAYERFACEDIR provider
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/tutorial_player_face_dir_provider.h'
+      - 'android/app/src/main/cpp/player_control_contract.*'
+      - 'android/app/src/main/cpp/player_control_runtime_state.*'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate*'
+      - 'tools/tutorial_player_face_dir_provider_smoke.cpp'
+      - '.github/workflows/tutorial-player-face-dir-provider.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/tutorial_player_face_dir_provider.h'
+      - 'android/app/src/main/cpp/player_control_contract.*'
+      - 'android/app/src/main/cpp/player_control_runtime_state.*'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate*'
+      - 'tools/tutorial_player_face_dir_provider_smoke.cpp'
+      - '.github/workflows/tutorial-player-face-dir-provider.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run PLAYERFACEDIR provider smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/tutorial_player_face_dir_provider_smoke.cpp \
+            android/app/src/main/cpp/player_control_contract.cpp \
+            -o /tmp/tutorial_player_face_dir_provider_smoke
+          /tmp/tutorial_player_face_dir_provider_smoke
