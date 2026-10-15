@@ -11,6 +11,7 @@ from pathlib import Path
 
 DEFAULT_INIT_TARGET = "EnemyActionsSystem::initWithFile"
 EXPECTED_INIT_NAME = "EnemyActionsSystem::initWithFile"
+FACTORY_REPORT_TITLE = "EnemyActions createWithFile caller parameter subtree evidence"
 
 
 def run(command: list[str]) -> int:
@@ -97,6 +98,9 @@ def main(argv: list[str] | None = None) -> int:
     caller_plan = output_dir / "enemy-actions-init-caller-argument-plan.tsv"
     caller_subtrees = output_dir / "enemy-actions-init-caller-argument-subtrees.tsv"
     caller_report = output_dir / "enemy-actions-init-caller-argument-report.txt"
+    factory_plan = output_dir / "enemy-actions-create-with-file-caller-parameter-plan.tsv"
+    factory_subtrees = output_dir / "enemy-actions-create-with-file-caller-parameter-subtrees.tsv"
+    factory_report = output_dir / "enemy-actions-create-with-file-caller-parameter-report.txt"
 
     common_ghidra = [
         str(ghidra_root / "support" / "analyzeHeadless"),
@@ -151,6 +155,15 @@ def main(argv: list[str] | None = None) -> int:
             str(caller_plan),
         ]
 
+    def factory_plan_command(tsv: Path) -> list[str]:
+        return [
+            sys.executable,
+            str(caller_arguments),
+            "factory-plan",
+            str(tsv),
+            str(factory_plan),
+        ]
+
     caller_subtree_export_command = common_ghidra + [
         "ExportCallerArgumentSubtree.java",
         str(caller_plan),
@@ -163,6 +176,21 @@ def main(argv: list[str] | None = None) -> int:
         str(caller_subtrees),
         "--output",
         str(caller_report),
+    ]
+    factory_subtree_export_command = common_ghidra + [
+        "ExportCallerArgumentSubtree.java",
+        str(factory_plan),
+        str(factory_subtrees),
+    ]
+    factory_report_command = [
+        sys.executable,
+        str(caller_arguments),
+        "report",
+        str(factory_subtrees),
+        "--title",
+        FACTORY_REPORT_TITLE,
+        "--output",
+        str(factory_report),
     ]
 
     forward_analyze_command = analyze_command(forward_tsv)
@@ -178,6 +206,10 @@ def main(argv: list[str] | None = None) -> int:
         print(shlex.join(caller_plan_command(reverse_tsv)))
         print(shlex.join(caller_subtree_export_command))
         print(shlex.join(caller_report_command))
+        print("# then trace every direct createWithFile call parameter one caller level higher")
+        print(shlex.join(factory_plan_command(reverse_tsv)))
+        print(shlex.join(factory_subtree_export_command))
+        print(shlex.join(factory_report_command))
         return 0
 
     required = [
@@ -203,6 +235,9 @@ def main(argv: list[str] | None = None) -> int:
             caller_plan_command(pcode_tsv),
             caller_subtree_export_command,
             caller_report_command,
+            factory_plan_command(pcode_tsv),
+            factory_subtree_export_command,
+            factory_report_command,
         ]
         for command in commands:
             code = run(command)
@@ -213,6 +248,14 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 return code or 1
         return 0
+
+    def print_subtree_outputs() -> None:
+        print(f"EnemyActions init caller argument plan: {caller_plan}")
+        print(f"EnemyActions init caller argument subtrees: {caller_subtrees}")
+        print(f"EnemyActions init caller argument report: {caller_report}")
+        print(f"EnemyActions createWithFile caller parameter plan: {factory_plan}")
+        print(f"EnemyActions createWithFile caller parameter subtrees: {factory_subtrees}")
+        print(f"EnemyActions createWithFile caller parameter report: {factory_report}")
 
     code = run(forward_export_command)
     if code != 0:
@@ -229,9 +272,7 @@ def main(argv: list[str] | None = None) -> int:
             return code
         print(f"Bounded forward call-graph P-code: {forward_tsv}")
         print(f"Enemy action-init evidence: {report}")
-        print(f"EnemyActions init caller argument plan: {caller_plan}")
-        print(f"EnemyActions init caller argument subtrees: {caller_subtrees}")
-        print(f"EnemyActions init caller argument report: {caller_report}")
+        print_subtree_outputs()
         return 0
     if code != 2:
         print(
@@ -268,9 +309,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Bounded forward call-graph P-code: {forward_tsv}")
     print(f"Bounded reverse caller P-code: {reverse_tsv}")
     print(f"Enemy action-init evidence: {report}")
-    print(f"EnemyActions init caller argument plan: {caller_plan}")
-    print(f"EnemyActions init caller argument subtrees: {caller_subtrees}")
-    print(f"EnemyActions init caller argument report: {caller_report}")
+    print_subtree_outputs()
     return 0
 
 
