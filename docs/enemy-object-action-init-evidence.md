@@ -63,6 +63,11 @@ python3 tools/run_enemy_object_action_init_probe.py \
   --program libcocos2dcpp.so
 ```
 
+The wrapper passes `-recursive` to Ghidra's `-process` mode. This is required
+when the imported library lives in a nested Ghidra project folder rather than at
+the project root. The requested filename remains the match boundary; the probe
+does not fall back to processing unrelated project programs.
+
 Outputs:
 
 ```text
