@@ -1,0 +1,43 @@
+name: PLAYERFACEDIR call evidence
+
+on:
+  pull_request:
+    paths:
+      - 'tools/player_face_dir_call_evidence.py'
+      - 'tools/player_face_dir_call_evidence_smoke.py'
+      - 'tools/run_player_face_dir_call_probe.py'
+      - '.github/workflows/player-face-dir-call-evidence.yml'
+      - 'docs/player-face-dir-call-evidence.md'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'tools/player_face_dir_call_evidence.py'
+      - 'tools/player_face_dir_call_evidence_smoke.py'
+      - 'tools/run_player_face_dir_call_probe.py'
+      - '.github/workflows/player-face-dir-call-evidence.yml'
+      - 'docs/player-face-dir-call-evidence.md'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate call argument tracing
+        run: python3 tools/player_face_dir_call_evidence_smoke.py
+      - name: Validate wrapper CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/run_player_face_dir_call_probe.py \
+            --project-dir /tmp/not-a-real-ghidra-project \
+            --project-name Nevergone \
+            --program libcocos2dcpp.so \
+            --dry-run > /tmp/player-face-dir-call-probe.txt
+          grep -q '0032ddee' /tmp/player-face-dir-call-probe.txt
+          grep -q '0032c75a' /tmp/player-face-dir-call-probe.txt
+          grep -q 'ExportFunctionPcodeFlow.java' /tmp/player-face-dir-call-probe.txt
+          grep -q 'player_face_dir_call_evidence.py' /tmp/player-face-dir-call-probe.txt
