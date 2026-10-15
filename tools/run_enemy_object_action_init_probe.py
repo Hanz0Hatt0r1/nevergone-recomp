@@ -26,6 +26,18 @@ def main(argv: list[str] | None = None) -> int:
         default="loadEnemyObjectFile",
         help="exact/unique function token or Ghidra address for EnemyObject::loadEnemyObjectFile",
     )
+    parser.add_argument(
+        "--max-depth",
+        type=int,
+        default=4,
+        help="maximum direct-call depth exported from loadEnemyObjectFile (default: 4)",
+    )
+    parser.add_argument(
+        "--max-functions",
+        type=int,
+        default=96,
+        help="maximum number of internal functions decompiled by the bounded exporter (default: 96)",
+    )
     parser.add_argument("--init-entry", help="optional exact Ghidra entry for EnemyActionsSystem::initWithFile")
     parser.add_argument("--add-entry", help="optional exact Ghidra entry for ActionDataManager::addActionDataWithID")
     parser.add_argument(
@@ -36,19 +48,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
+    if args.max_depth < 0:
+        parser.error("--max-depth must be >= 0")
+    if args.max_functions < 1:
+        parser.error("--max-functions must be >= 1")
+
     ghidra_root = args.ghidra.expanduser().resolve()
     project_dir = args.project_dir.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
     script_dir = repo_root / "tools" / "ghidra"
-    exporter = script_dir / "ExportFunctionPcodeFlow.java"
+    exporter = script_dir / "ExportBoundedCallGraphPcodeFlow.java"
     analyzer = repo_root / "tools" / "enemy_object_action_init_evidence.py"
-    flow_tsv = output_dir / "load-enemy-object-pcode.tsv"
+    flow_tsv = output_dir / "load-enemy-object-callgraph-pcode.tsv"
     report = output_dir / "enemy-object-action-init-report.txt"
 
-    # Ghidra's -process filename search is limited to the selected project folder
-    # unless -recursive is supplied. User projects commonly keep imported APK
-    # libraries below nested folders, so search those folders while retaining the
-    # exact requested filename as the match boundary.
+    # -recursive searches nested Ghidra project folders for the exact requested
+    # program. The exporter itself then follows only resolved internal direct
+    # calls from the requested root, with explicit depth/function caps.
     export_command = [
         str(ghidra_root / "support" / "analyzeHeadless"),
         str(project_dir),
@@ -60,9 +76,11 @@ def main(argv: list[str] | None = None) -> int:
         "-scriptPath",
         str(script_dir),
         "-postScript",
-        "ExportFunctionPcodeFlow.java",
+        "ExportBoundedCallGraphPcodeFlow.java",
         args.load_enemy_object,
         str(flow_tsv),
+        str(args.max_depth),
+        str(args.max_functions),
     ]
     analyze_command = [sys.executable, str(analyzer), str(flow_tsv), "--output", str(report)]
     if args.init_entry:
@@ -93,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return result.returncode or 1
 
-    print(f"P-code flow: {flow_tsv}")
+    print(f"Bounded call-graph P-code: {flow_tsv}")
     print(f"Enemy action-init evidence: {report}")
     return 0
 
