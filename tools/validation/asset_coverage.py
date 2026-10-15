@@ -1,22 +1,31 @@
 #!/usr/bin/env python3
-"""Check static Lua asset references against a locally decoded original asset tree.
+"""Check static Lua asset references against local decoded assets and optional APK inventory.
 
-The report is metadata-only: it records referenced paths and resolution status but
-never copies decoded Lua or proprietary asset bytes into the repository.
+This is a conservative static inventory helper, not a runtime asset tracer. Lua
+comments and obvious dynamic/log-only strings are reported separately so they do
+not masquerade as missing files. Explicit requirements are supplied with
+``--require``; no player ``.actData`` member is assumed to exist as a standalone
+file because current device evidence shows those can live inside ``.actionsData``
+containers.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import re
+import zipfile
 from collections import defaultdict
 from pathlib import Path, PurePosixPath
 
 DEFAULT_EXTENSIONS = ("actData", "plist", "png", "hpc", "csv", "lua")
-# p01_i01.actData is consumed by the recovered first-scene/tutorial path even when
-# it is not discoverable as a direct quoted Lua edge. Keep it as an explicit
-# bootstrap requirement rather than silently inventing it only when Lua is absent.
-DEFAULT_REQUIRED = ("p01_i01.actData",)
+STATUS_ORDER = (
+    "resolved-exact",
+    "resolved-suffix",
+    "dynamic-template",
+    "non-asset-literal",
+    "ambiguous",
+    "missing",
+)
 
 
 def normalize_reference(value: str) -> str | None:
@@ -34,39 +43,149 @@ def normalize_reference(value: str) -> str | None:
 
 def quoted_asset_pattern(extensions: tuple[str, ...]) -> re.Pattern[str]:
     ext_group = "|".join(re.escape(extension) for extension in extensions)
-    return re.compile(rf"(?P<quote>['\"])(?P<path>[^'\"\r\n]+\.(?:{ext_group}))(?P=quote)", re.IGNORECASE)
+    return re.compile(
+        rf"(?P<quote>['\"])(?P<path>[^'\"\r\n]+\.(?:{ext_group}))(?P=quote)",
+        re.IGNORECASE,
+    )
 
 
-def collect_references(decoded_dir: Path, extensions: tuple[str, ...]) -> list[dict[str, str]]:
+def strip_lua_comments(text: str) -> str:
+    """Blank Lua line/long comments while preserving quoted strings and newlines."""
+    out: list[str] = []
+    index = 0
+    length = len(text)
+    while index < length:
+        ch = text[index]
+        if ch in ("'", '"'):
+            quote = ch
+            out.append(ch)
+            index += 1
+            while index < length:
+                current = text[index]
+                out.append(current)
+                index += 1
+                if current == "\\" and index < length:
+                    out.append(text[index])
+                    index += 1
+                elif current == quote:
+                    break
+            continue
+
+        if text.startswith("--", index):
+            long_match = re.match(r"--\[(=*)\[", text[index:])
+            if long_match:
+                equals = long_match.group(1)
+                opener_len = long_match.end()
+                closing = "]" + equals + "]"
+                end = text.find(closing, index + opener_len)
+                stop = length if end < 0 else end + len(closing)
+                segment = text[index:stop]
+                out.extend("\n" if c == "\n" else " " for c in segment)
+                index = stop
+                continue
+            end = text.find("\n", index)
+            if end < 0:
+                out.extend(" " for _ in text[index:])
+                break
+            out.extend(" " for _ in text[index:end])
+            out.append("\n")
+            index = end + 1
+            continue
+
+        out.append(ch)
+        index += 1
+    return "".join(out)
+
+
+def _line_context(text: str, start: int, end: int) -> tuple[int, str, str]:
+    line_number = text.count("\n", 0, start) + 1
+    line_start = text.rfind("\n", 0, start) + 1
+    line_end = text.find("\n", end)
+    if line_end < 0:
+        line_end = len(text)
+    line = text[line_start:line_end]
+    prefix = text[line_start:start]
+    return line_number, line, prefix
+
+
+def collect_references(decoded_dir: Path, extensions: tuple[str, ...]) -> list[dict[str, object]]:
     pattern = quoted_asset_pattern(extensions)
-    rows: list[dict[str, str]] = []
+    rows: list[dict[str, object]] = []
     for lua_path in sorted(decoded_dir.rglob("*.lua")):
         if not lua_path.is_file():
             continue
         try:
-            text = lua_path.read_text(encoding="utf-8", errors="replace")
+            raw_text = lua_path.read_text(encoding="utf-8", errors="replace")
         except OSError as error:
             raise RuntimeError(f"cannot read {lua_path}: {error}") from error
+        text = strip_lua_comments(raw_text)
         source = lua_path.relative_to(decoded_dir).as_posix()
         for match in pattern.finditer(text):
-            reference = normalize_reference(match.group("path"))
+            raw_reference = match.group("path").replace("\\", "/").strip()
+            line_number, _line, prefix = _line_context(text, match.start(), match.end())
+            if "%" in raw_reference or "?" in raw_reference:
+                rows.append({
+                    "source": source,
+                    "line": line_number,
+                    "reference": raw_reference,
+                    "status": "dynamic-template",
+                    "matches": [],
+                })
+                continue
+            if re.search(r"\bprint\s*\([^)]*$", prefix):
+                rows.append({
+                    "source": source,
+                    "line": line_number,
+                    "reference": raw_reference,
+                    "status": "non-asset-literal",
+                    "matches": [],
+                })
+                continue
+            reference = normalize_reference(raw_reference)
             if reference is not None:
-                rows.append({"source": source, "reference": reference})
+                rows.append({"source": source, "line": line_number, "reference": reference})
     return rows
 
 
-def inventory(decoded_dir: Path) -> tuple[set[str], dict[str, list[str]]]:
+def _inventory_variants(relative: str) -> set[str]:
+    normalized = relative.replace("\\", "/").lstrip("/")
+    variants = {normalized} if normalized else set()
+    if normalized.startswith("assets/"):
+        variants.add(normalized[len("assets/"):])
+    return variants
+
+
+def inventory(decoded_dir: Path, apk: Path | None) -> tuple[set[str], dict[str, list[str]], dict[str, int]]:
     paths: set[str] = set()
     by_suffix: dict[str, list[str]] = defaultdict(list)
+    counts = {"decoded_files": 0, "apk_asset_files": 0}
+
+    def add(relative: str) -> None:
+        for variant in _inventory_variants(relative):
+            if not variant or variant in paths:
+                continue
+            paths.add(variant)
+            parts = PurePosixPath(variant).parts
+            for index in range(len(parts)):
+                by_suffix["/".join(parts[index:])].append(variant)
+
     for path in sorted(decoded_dir.rglob("*")):
         if not path.is_file():
             continue
-        relative = path.relative_to(decoded_dir).as_posix()
-        paths.add(relative)
-        parts = PurePosixPath(relative).parts
-        for index in range(len(parts)):
-            by_suffix["/".join(parts[index:])].append(relative)
-    return paths, by_suffix
+        counts["decoded_files"] += 1
+        add(path.relative_to(decoded_dir).as_posix())
+
+    if apk is not None:
+        if not apk.is_file() or not zipfile.is_zipfile(apk):
+            raise ValueError(f"APK inventory source is not a ZIP-compatible file: {apk}")
+        with zipfile.ZipFile(apk) as archive:
+            for info in archive.infolist():
+                if info.is_dir() or not info.filename.startswith("assets/"):
+                    continue
+                counts["apk_asset_files"] += 1
+                add(info.filename)
+
+    return paths, by_suffix, counts
 
 
 def resolve(reference: str, exact_paths: set[str], by_suffix: dict[str, list[str]]) -> tuple[str, list[str]]:
@@ -89,6 +208,7 @@ def resolve(reference: str, exact_paths: set[str], by_suffix: dict[str, list[str
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--decoded-dir", type=Path, default=Path("build/decoded-assets"))
+    parser.add_argument("--apk", type=Path, help="optional original APK; adds raw assets/ entries to inventory")
     parser.add_argument("--out", type=Path, default=Path("evidence/asset-coverage"))
     parser.add_argument("--extensions", default=",".join(DEFAULT_EXTENSIONS))
     parser.add_argument(
@@ -96,12 +216,12 @@ def main() -> int:
         action="append",
         default=[],
         metavar="ASSET",
-        help="Additional required asset path or basename (repeatable).",
+        help="Explicit required standalone asset path or basename (repeatable).",
     )
     parser.add_argument(
         "--no-default-required",
         action="store_true",
-        help="Do not require the known first-scene bootstrap asset p01_i01.actData.",
+        help="Deprecated compatibility option; no default standalone requirements are injected.",
     )
     parser.add_argument("--fail-on-missing", action="store_true")
     parser.add_argument("--fail-on-ambiguous", action="store_true")
@@ -114,76 +234,99 @@ def main() -> int:
         parser.error("no extensions selected")
 
     references = collect_references(args.decoded_dir, extensions)
-    exact_paths, by_suffix = inventory(args.decoded_dir)
-    dedup: dict[tuple[str, str], dict[str, object]] = {}
+    try:
+        exact_paths, by_suffix, inventory_counts = inventory(args.decoded_dir, args.apk)
+    except ValueError as error:
+        parser.error(str(error))
+
+    dedup: dict[tuple[str, int, str], dict[str, object]] = {}
     for row in references:
-        key = (row["source"], row["reference"])
+        source = str(row["source"])
+        line = int(row["line"])
+        reference = str(row["reference"])
+        key = (source, line, reference)
         if key in dedup:
             continue
-        status, matches = resolve(row["reference"], exact_paths, by_suffix)
+        if "status" in row:
+            dedup[key] = row
+            continue
+        status, matches = resolve(reference, exact_paths, by_suffix)
         dedup[key] = {**row, "status": status, "matches": matches}
 
-    required_assets = [] if args.no_default_required else list(DEFAULT_REQUIRED)
-    required_assets.extend(args.require)
-    for raw_reference in required_assets:
+    for raw_reference in args.require:
         reference = normalize_reference(raw_reference)
         if reference is None:
-            parser.error(f"invalid required asset reference: {raw_reference!r}")
-        key = ("<required>", reference)
+            parser.error(f"invalid required standalone asset reference: {raw_reference!r}")
+        key = ("<required>", 0, reference)
         if key in dedup:
             continue
         status, matches = resolve(reference, exact_paths, by_suffix)
         dedup[key] = {
             "source": "<required>",
+            "line": 0,
             "reference": reference,
             "status": status,
             "matches": matches,
         }
 
-    rows = sorted(dedup.values(), key=lambda row: (str(row["status"]), str(row["source"]), str(row["reference"])))
-
-    counts = {status: sum(1 for row in rows if row["status"] == status) for status in (
-        "resolved-exact", "resolved-suffix", "ambiguous", "missing"
-    )}
+    rows = sorted(
+        dedup.values(),
+        key=lambda row: (str(row["status"]), str(row["source"]), int(row["line"]), str(row["reference"])),
+    )
+    counts = {status: sum(1 for row in rows if row["status"] == status) for status in STATUS_ORDER}
     result = {
         "decoded_dir": str(args.decoded_dir),
+        "apk": str(args.apk) if args.apk is not None else None,
         "extensions": list(extensions),
-        "required_assets": [row["reference"] for row in rows if row["source"] == "<required>"],
-        "inventory_files": len(exact_paths),
+        "explicit_requirements": list(args.require),
+        "inventory": inventory_counts,
+        "inventory_paths": len(exact_paths),
         "reference_edges": len(rows),
         "counts": counts,
         "rows": rows,
     }
     args.out.mkdir(parents=True, exist_ok=True)
-    (args.out / "coverage.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (args.out / "coverage.json").write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
     missing = [row for row in rows if row["status"] == "missing"]
     ambiguous = [row for row in rows if row["status"] == "ambiguous"]
+    dynamic = [row for row in rows if row["status"] == "dynamic-template"]
+    non_asset = [row for row in rows if row["status"] == "non-asset-literal"]
     report = [
         "# Static Lua asset coverage",
         "",
-        f"- decoded files inventoried: `{len(exact_paths)}`",
+        f"- decoded files inventoried: `{inventory_counts['decoded_files']}`",
+        f"- APK assets inventoried: `{inventory_counts['apk_asset_files']}`",
         f"- unique source/reference edges: `{len(rows)}`",
-        f"- explicit bootstrap requirements: `{sum(1 for row in rows if row['source'] == '<required>')}`",
+        f"- explicit standalone requirements: `{len(args.require)}`",
         f"- exact resolutions: `{counts['resolved-exact']}`",
         f"- unique suffix resolutions: `{counts['resolved-suffix']}`",
-        f"- ambiguous references: `{counts['ambiguous']}`",
-        f"- missing references: `{counts['missing']}`",
+        f"- dynamic templates ignored as file requirements: `{len(dynamic)}`",
+        f"- non-asset literals ignored as file requirements: `{len(non_asset)}`",
+        f"- ambiguous references: `{len(ambiguous)}`",
+        f"- unresolved literal references: `{len(missing)}`",
         "",
-        "This is a static lower bound over quoted Lua references plus explicit bootstrap requirements, not a full runtime asset tracer.",
+        "This is a static inventory check, not a runtime asset tracer. An unresolved literal means it was not found in the supplied decoded/APK inventories; it does not prove the runtime lacks it because writable/downloaded data may provide it.",
+        "",
+        "Player `.actData` names must not be assumed to be standalone files. Current device evidence shows player actions can be embedded members of `player_NN.actionsData`; use the player-action/runtime probes for that boundary.",
     ]
     if missing:
-        report.extend(["", "## Missing", ""] + [f"- `{row['source']}` -> `{row['reference']}`" for row in missing[:100]])
+        report.extend(["", "## Unresolved literals", ""] + [
+            f"- `{row['source']}:{row['line']}` -> `{row['reference']}`" for row in missing[:100]
+        ])
     if ambiguous:
         report.extend(["", "## Ambiguous", ""] + [
-            f"- `{row['source']}` -> `{row['reference']}` -> {', '.join(f'`{m}`' for m in row['matches'])}"
+            f"- `{row['source']}:{row['line']}` -> `{row['reference']}` -> "
+            + ", ".join(f"`{match}`" for match in row["matches"])
             for row in ambiguous[:100]
         ])
     (args.out / "report.md").write_text("\n".join(report) + "\n", encoding="utf-8")
 
     print(
-        f"asset references={len(rows)} missing={counts['missing']} ambiguous={counts['ambiguous']} "
-        f"report={args.out / 'report.md'}"
+        f"asset references={len(rows)} missing={len(missing)} ambiguous={len(ambiguous)} "
+        f"dynamic={len(dynamic)} non_asset={len(non_asset)} report={args.out / 'report.md'}"
     )
     if args.fail_on_missing and missing:
         return 1
