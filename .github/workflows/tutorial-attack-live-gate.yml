@@ -1,0 +1,43 @@
+name: Tutorial Attack live gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate.*'
+      - 'android/app/src/main/cpp/tutorial_attack_wave_runtime.*'
+      - 'android/app/src/main/cpp/tutorial_spawn_inputs.*'
+      - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
+      - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
+      - 'tools/tutorial_attack_live_gate_smoke.cpp'
+      - '.github/workflows/tutorial-attack-live-gate.yml'
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate.*'
+      - 'android/app/src/main/cpp/tutorial_attack_wave_runtime.*'
+      - 'android/app/src/main/cpp/tutorial_spawn_inputs.*'
+      - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
+      - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
+      - 'tools/tutorial_attack_live_gate_smoke.cpp'
+      - '.github/workflows/tutorial-attack-live-gate.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run live gate smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/tutorial_attack_live_gate_smoke.cpp \
+            android/app/src/main/cpp/tutorial_attack_live_gate.cpp \
+            android/app/src/main/cpp/tutorial_attack_wave_runtime.cpp \
+            android/app/src/main/cpp/tutorial_spawn_inputs.cpp \
+            android/app/src/main/cpp/tutorial_enemy_roster.cpp \
+            android/app/src/main/cpp/tutorial_enemy_spawn_plan.cpp \
+            android/app/src/main/cpp/enemy_health_state.cpp \
+            android/app/src/main/cpp/game_levels_enemy_record_mapping.cpp \
+            android/app/src/main/cpp/tutorial_gameplay_state.cpp \
+            -o /tmp/tutorial_attack_live_gate_smoke
+          /tmp/tutorial_attack_live_gate_smoke
