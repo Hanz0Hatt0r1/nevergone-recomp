@@ -25,6 +25,11 @@ from train_nevergone_production_classifier_v4 import (
     ARTIFACT_FORMAT_V4,
     route_action_with_contrastive_ood,
 )
+from train_nevergone_production_classifier_v5 import (
+    ARTIFACT_FORMAT_V5,
+    augment_text,
+    load_evidence,
+)
 
 
 def _require_joblib():
@@ -89,6 +94,15 @@ def main() -> int:
     parser.add_argument("input", help="JSONL corpus/dataset path, or - for stdin")
     parser.add_argument("--output", help="JSONL result path; default stdout")
     parser.add_argument(
+        "--evidence",
+        type=Path,
+        help=(
+            "optional NEVERGONE.ProductionEvidence/1 JSONL. "
+            "ProductionClassifier/5 always derives structural evidence from P-code; "
+            "this adds callgraph/receiver evidence when available"
+        ),
+    )
+    parser.add_argument(
         "--no-probabilities",
         action="store_true",
         help="omit the full per-class probability map",
@@ -100,6 +114,7 @@ def main() -> int:
     artifact = joblib.load(artifact_path)
     artifact_format = artifact.get("format") if isinstance(artifact, dict) else None
     supported = {
+        ARTIFACT_FORMAT_V5,
         ARTIFACT_FORMAT_V4,
         ARTIFACT_FORMAT_V3,
         ARTIFACT_FORMAT,
@@ -110,6 +125,7 @@ def main() -> int:
 
     model = artifact["model"]
     classes = list(artifact["classes"])
+    external_evidence = load_evidence(args.evidence) if artifact_format == ARTIFACT_FORMAT_V5 else {}
 
     input_handle, source_name, close_input = _open_input(args.input)
     output_handle, close_output = _open_output(args.output)
@@ -118,13 +134,24 @@ def main() -> int:
         if not rows:
             return 0
         ids: list[str] = []
-        texts: list[str] = []
+        model_texts: list[str] = []
+        evidence_token_counts: list[int] = []
+        external_presence: list[bool] = []
         for line_no, row in enumerate(rows, 1):
             record_id, portable = _extract_text(row, line_no)
             ids.append(record_id)
-            texts.append(portable)
+            if artifact_format == ARTIFACT_FORMAT_V5:
+                external = external_evidence.get(record_id, {})
+                document, token_count = augment_text(portable, external)
+                model_texts.append(document)
+                evidence_token_counts.append(token_count)
+                external_presence.append(bool(external))
+            else:
+                model_texts.append(portable)
+                evidence_token_counts.append(0)
+                external_presence.append(False)
 
-        probabilities = model.predict_proba(texts)
+        probabilities = model.predict_proba(model_texts)
         model_classes = list(model.named_steps["classifier"].classes_)
         class_positions = {label: index for index, label in enumerate(model_classes)}
         predictions: list[str] = []
@@ -148,15 +175,15 @@ def main() -> int:
             nearest = nearest_family_by_predicted_class(
                 vectorizer,
                 artifact["family_prototypes"],
-                texts,
+                model_texts,
                 predictions,
             )
-        elif artifact_format == ARTIFACT_FORMAT_V4:
+        elif artifact_format in {ARTIFACT_FORMAT_V4, ARTIFACT_FORMAT_V5}:
             vectorizer = model.named_steps["tfidf"]
             contrastive = contrastive_family_scores(
                 vectorizer,
                 artifact["family_prototypes"],
-                texts,
+                model_texts,
                 predictions,
             )
 
@@ -174,7 +201,7 @@ def main() -> int:
 
             if artifact_format == ARTIFACT_FORMAT_V3:
                 family_similarity, nearest_training_family = nearest[row_index]
-            elif artifact_format == ARTIFACT_FORMAT_V4:
+            elif artifact_format in {ARTIFACT_FORMAT_V4, ARTIFACT_FORMAT_V5}:
                 score = contrastive[row_index]
                 family_similarity = float(score["predicted_similarity"])
                 nearest_training_family = score["predicted_family"]
@@ -183,7 +210,12 @@ def main() -> int:
                 nearest_competing_label = score["competing_label"]
                 contrast_margin = float(score["contrast_margin"])
 
-            if artifact_format in {ARTIFACT_FORMAT_V4, ARTIFACT_FORMAT_V3, ARTIFACT_FORMAT}:
+            if artifact_format in {
+                ARTIFACT_FORMAT_V5,
+                ARTIFACT_FORMAT_V4,
+                ARTIFACT_FORMAT_V3,
+                ARTIFACT_FORMAT,
+            }:
                 confidence, confidence_source = calibrate_confidence(
                     prediction,
                     raw_confidence,
@@ -197,7 +229,7 @@ def main() -> int:
                 ood_accept_threshold = policy.get("ood_accept_threshold")
                 contrast_accept_threshold = policy.get("contrast_accept_threshold")
 
-                if artifact_format == ARTIFACT_FORMAT_V4:
+                if artifact_format in {ARTIFACT_FORMAT_V4, ARTIFACT_FORMAT_V5}:
                     action = route_action_with_contrastive_ood(
                         prediction,
                         confidence,
@@ -240,7 +272,11 @@ def main() -> int:
                 "accept_threshold": accept_threshold,
                 "review_threshold": review_threshold,
             }
-            if artifact_format in {ARTIFACT_FORMAT_V3, ARTIFACT_FORMAT_V4}:
+            if artifact_format in {
+                ARTIFACT_FORMAT_V3,
+                ARTIFACT_FORMAT_V4,
+                ARTIFACT_FORMAT_V5,
+            }:
                 result.update(
                     {
                         "family_similarity": float(family_similarity),
@@ -252,7 +288,7 @@ def main() -> int:
                         ),
                     }
                 )
-            if artifact_format == ARTIFACT_FORMAT_V4:
+            if artifact_format in {ARTIFACT_FORMAT_V4, ARTIFACT_FORMAT_V5}:
                 result.update(
                     {
                         "competing_similarity": float(competing_similarity),
@@ -264,6 +300,13 @@ def main() -> int:
                             contrast_accept_threshold is not None
                             and contrast_margin >= float(contrast_accept_threshold)
                         ),
+                    }
+                )
+            if artifact_format == ARTIFACT_FORMAT_V5:
+                result.update(
+                    {
+                        "evidence_token_count": evidence_token_counts[row_index],
+                        "external_evidence_present": external_presence[row_index],
                     }
                 )
             if not args.no_probabilities:
