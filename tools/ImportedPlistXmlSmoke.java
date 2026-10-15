@@ -14,6 +14,9 @@ public final class ImportedPlistXmlSmoke {
     private static final String APPLE =
             "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " +
             "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"";
+    private static final String APPLE_COMPUTER =
+            "<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" " +
+            "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"";
     private static final String BODY = "<plist version=\"1.0\"><dict/></plist>";
 
     private static final class NoXIncludeFactory extends DocumentBuilderFactory {
@@ -67,9 +70,12 @@ public final class ImportedPlistXmlSmoke {
             assert accepts(file, HEADER + BODY);
             assert accepts(file, HEADER + APPLE + ">\n" + BODY);
             assert accepts(file, HEADER + APPLE + "/>\n" + BODY);
+            assert accepts(file, HEADER + APPLE_COMPUTER + ">\n" + BODY);
+            assert accepts(file, HEADER + APPLE_COMPUTER + "/>\n" + BODY);
             assert !accepts(file, HEADER + "<!DOCTYPE plist [<!ENTITY x SYSTEM " +
                     "\"file:///etc/passwd\">]>" + BODY);
             assert !accepts(file, HEADER + APPLE + ">\n" + APPLE + ">\n" + BODY);
+            assert !accepts(file, HEADER + APPLE_COMPUTER + ">\n" + APPLE + ">\n" + BODY);
             Files.writeString(file.toPath(), HEADER + BODY, StandardCharsets.UTF_8);
             assert ImportedPlistXml.parse(file, 8) == null;
         } finally {
