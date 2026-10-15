@@ -1,0 +1,39 @@
+name: Nevergone owner alias flow v23 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportClassOwnerAliasFlow.java'
+      - 'tools/ml/audit_nevergone_owner_alias_flow_v23.py'
+      - 'tools/ml/audit_nevergone_residual_receiver_candidates_v23.py'
+      - 'tools/ml/nevergone_owner_alias_flow_v23_smoke.py'
+      - 'tools/ml/nevergone_residual_receiver_candidates_v23_smoke.py'
+      - 'tools/ml/run_nevergone_owner_alias_flow_v23.sh'
+      - '.github/workflows/ml-owner-alias-flow-v23-smoke.yml'
+      - 'docs/evidence/owner-alias-flow-v23.md'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python tools
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_owner_alias_flow_v23.py \
+            tools/ml/audit_nevergone_residual_receiver_candidates_v23.py \
+            tools/ml/nevergone_owner_alias_flow_v23_smoke.py \
+            tools/ml/nevergone_residual_receiver_candidates_v23_smoke.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_owner_alias_flow_v23.sh
+      - name: Run owner alias flow smoke
+        run: python3 tools/ml/nevergone_owner_alias_flow_v23_smoke.py
+      - name: Run residual receiver candidate smoke
+        run: python3 tools/ml/nevergone_residual_receiver_candidates_v23_smoke.py
+      - name: Check Ghidra exporter contract
+        run: |
+          grep -q 'NEVERGONE.GhidraClassOwnerAliasFlow/1' tools/ghidra/ExportClassOwnerAliasFlow.java
+          grep -q 'owner_field_value' tools/ghidra/ExportClassOwnerAliasFlow.java
+          grep -q 'owner_address' tools/ghidra/ExportClassOwnerAliasFlow.java
+          grep -q 'owner_parameter_unproven' tools/ghidra/ExportClassOwnerAliasFlow.java
