@@ -1,0 +1,28 @@
+name: Nevergone accept-error routing v9
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/evaluate_nevergone_accept_error_routing_v9.py'
+      - 'tools/ml/nevergone_accept_error_routing_v9_smoke.py'
+      - 'tools/ml/run_nevergone_accept_error_routing_v9.sh'
+      - 'docs/ml/PRODUCTION_ROUTING_V9.md'
+      - '.github/workflows/ml-accept-error-routing-v9-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  accept-error-routing-v9:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install ML dependencies
+        run: python -m pip install --upgrade pip numpy scikit-learn
+      - name: Validate v9 accept-error routing
+        run: |
+          python -m py_compile \
+            tools/ml/evaluate_nevergone_accept_error_routing_v9.py \
+            tools/ml/nevergone_accept_error_routing_v9_smoke.py
+          PYTHONPATH=tools/ml python tools/ml/nevergone_accept_error_routing_v9_smoke.py
