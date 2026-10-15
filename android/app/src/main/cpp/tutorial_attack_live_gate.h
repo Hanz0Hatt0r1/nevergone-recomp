@@ -53,6 +53,10 @@ public:
     bool set_force_action_state_no_dead(
         std::size_t slot, bool enabled, std::uint64_t expected_wave_generation);
 
+    // Consume only after the caller has successfully published
+    // kTutorialEnemiesDefeated to tutorial_gameplay_state.
+    bool consume_completion_after_publish();
+
     Snapshot snapshot() const;
     std::string status_report() const;
 
