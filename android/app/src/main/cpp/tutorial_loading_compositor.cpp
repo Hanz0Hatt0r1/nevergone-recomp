@@ -5,8 +5,10 @@
 #include <cstdint>
 #include <vector>
 
+#include "game_clock.h"
 #include "offline_startup_flow.h"
 #include "tutorial_loading_compositor.h"
+#include "tutorial_scene_bootstrap.h"
 
 namespace nevergone::tutorial_loading_compositor {
 namespace {
@@ -24,9 +26,14 @@ struct Frame {
 
 GLuint g_program = 0;
 GLint g_sampler = -1;
+GLint g_alpha_uniform = -1;
+GLuint g_black_texture = 0;
 Frame g_frames[kFrameCount]{};
 int g_surface_width = 0;
 int g_surface_height = 0;
+bool g_loading_route_seen = false;
+bool g_hide_fade_active = false;
+std::uint64_t g_hide_fade_start_tick = 0u;
 
 GLuint compile_shader(GLenum type, const char* source) {
     const GLuint shader = glCreateShader(type);
@@ -54,8 +61,10 @@ void main() {
 precision mediump float;
 varying vec2 vTexCoord;
 uniform sampler2D uTexture;
+uniform float uAlpha;
 void main() {
-    gl_FragColor = texture2D(uTexture, vTexCoord);
+    vec4 sampled = texture2D(uTexture, vTexCoord);
+    gl_FragColor = vec4(sampled.rgb, sampled.a * uAlpha);
 }
 )GLSL";
 
@@ -141,6 +150,36 @@ GLuint create_texture(const Frame& frame) {
     return texture;
 }
 
+GLuint create_black_texture() {
+    static constexpr std::uint8_t kBlack[] = {0u, 0u, 0u, 255u};
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    if (texture == 0) return 0;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        1,
+        1,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        kBlack);
+    const GLenum error = glGetError();
+    glBindTexture(GL_TEXTURE_2D, 0);
+    if (error != GL_NO_ERROR) {
+        glDeleteTextures(1, &texture);
+        return 0;
+    }
+    return texture;
+}
+
 bool ensure_texture(Frame* frame) {
     if (frame == nullptr) return false;
     if (frame->texture != 0) return true;
@@ -155,7 +194,48 @@ int first_available_frame() {
     return -1;
 }
 
-void draw_frame(Frame* frame) {
+void draw_texture(GLuint texture, const GLfloat* vertices, float alpha) {
+    if (texture == 0 || vertices == nullptr ||
+            g_program == 0 || g_sampler < 0 || g_alpha_uniform < 0 || alpha <= 0.0f) {
+        return;
+    }
+    static constexpr GLfloat kTexCoords[] = {
+        0.0f, 0.0f,
+        0.0f, 1.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+    };
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glUseProgram(g_program);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glUniform1i(g_sampler, 0);
+    glUniform1f(g_alpha_uniform, std::clamp(alpha, 0.0f, 1.0f));
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, kTexCoords);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
+    glDisable(GL_BLEND);
+}
+
+void draw_black_overlay(float alpha) {
+    static constexpr GLfloat kVertices[] = {
+        -1.0f, 1.0f,
+        -1.0f, -1.0f,
+        1.0f, 1.0f,
+        1.0f, -1.0f,
+    };
+    draw_texture(g_black_texture, kVertices, alpha);
+}
+
+void draw_frame(Frame* frame, float alpha) {
     if (frame == nullptr || !ensure_texture(frame) ||
             g_surface_width <= 0 || g_surface_height <= 0) {
         return;
@@ -181,28 +261,22 @@ void draw_frame(Frame* frame) {
         right * 2.0f / static_cast<float>(g_surface_width) - 1.0f,
         1.0f - bottom * 2.0f / static_cast<float>(g_surface_height),
     };
-    static constexpr GLfloat kTexCoords[] = {
-        0.0f, 0.0f,
-        0.0f, 1.0f,
-        1.0f, 0.0f,
-        1.0f, 1.0f,
-    };
+    draw_texture(frame->texture, vertices, alpha);
+}
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glUseProgram(g_program);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, frame->texture);
-    glUniform1i(g_sampler, 0);
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, kTexCoords);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glDisableVertexAttribArray(1);
-    glDisableVertexAttribArray(0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glDisable(GL_BLEND);
+float hide_fade_alpha() {
+    if (!g_hide_fade_active) return 0.0f;
+    const std::uint64_t now = game_clock::tick_count();
+    const std::uint64_t elapsed_ticks =
+        now >= g_hide_fade_start_tick ? now - g_hide_fade_start_tick : 0u;
+    const double elapsed_seconds =
+        static_cast<double>(elapsed_ticks) * game_clock::kFixedStepSeconds;
+    if (elapsed_seconds >= tutorial_scene_bootstrap::kOriginalHideFadeSeconds) {
+        g_hide_fade_active = false;
+        return 0.0f;
+    }
+    return static_cast<float>(
+        1.0 - elapsed_seconds / tutorial_scene_bootstrap::kOriginalHideFadeSeconds);
 }
 
 }  // namespace
@@ -212,6 +286,11 @@ void on_surface_created() {
     if (g_program != 0) glDeleteProgram(g_program);
     g_program = build_program();
     g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
+    g_alpha_uniform = g_program != 0 ? glGetUniformLocation(g_program, "uAlpha") : -1;
+    g_black_texture = create_black_texture();
+    g_loading_route_seen = false;
+    g_hide_fade_active = false;
+    g_hide_fade_start_tick = 0u;
 }
 
 void on_surface_changed(int width, int height) {
@@ -248,21 +327,52 @@ bool upload_frame(
 }
 
 void draw() {
-    if (offline_startup_flow::snapshot().route !=
-            offline_startup_flow::Route::kTutorialLoading) {
+    const auto route = offline_startup_flow::snapshot().route;
+    float alpha = 0.0f;
+
+    if (route == offline_startup_flow::Route::kTutorialLoading) {
+        // The original layer is fully opaque while switchNextScene is pending.
+        // Remember that it really owned at least one frame; this also prevents
+        // an unrelated later game-levels route from fabricating a hide fade.
+        g_loading_route_seen = true;
+        g_hide_fade_active = false;
+        g_hide_fade_start_tick = 0u;
+        alpha = 1.0f;
+    } else if (route == offline_startup_flow::Route::kGameLevels) {
+        // GameScene::tick(mode 0x0b) calls hideLoadingLayer(0.2f) after the
+        // Lesson UI is created. The route changes earlier in this same render
+        // frame, so retain the loading compositor independently for exactly
+        // that recovered fade interval while the prepared GameScene remains
+        // visible underneath it.
+        if (!g_hide_fade_active) {
+            if (!g_loading_route_seen) return;
+            g_loading_route_seen = false;
+            g_hide_fade_active = true;
+            g_hide_fade_start_tick = game_clock::tick_count();
+        }
+        alpha = hide_fade_alpha();
+        if (alpha <= 0.0f) return;
+    } else {
+        g_loading_route_seen = false;
+        g_hide_fade_active = false;
+        g_hide_fade_start_tick = 0u;
         return;
     }
 
-    // The frozen original loading capture proves a black full-surface layer.
-    // It does not prove the cadence for logo_01..03, so do not fabricate an
-    // animation speed. Until that timing is recovered, render the first
-    // available imported frame deterministically.
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    if (g_program == 0 || g_sampler < 0) return;
+    // A frozen original loading capture proves a black full-surface layer. The
+    // logo_01..03 cadence is still unknown, so keep the first imported frame
+    // deterministic while reproducing only the independently recovered hide
+    // alpha transition.
+    if (alpha >= 1.0f) {
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    } else {
+        draw_black_overlay(alpha);
+    }
 
+    if (g_program == 0 || g_sampler < 0 || g_alpha_uniform < 0) return;
     const int index = first_available_frame();
-    if (index >= 0) draw_frame(&g_frames[index]);
+    if (index >= 0) draw_frame(&g_frames[index], alpha);
 }
 
 }  // namespace nevergone::tutorial_loading_compositor
