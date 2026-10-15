@@ -26,12 +26,27 @@ initialization arguments for a concrete enemy such as tutorial enemy ID `3`.
 
 ## Probe
 
-`tools/run_enemy_object_action_init_probe.py` exports High P-code metadata for
-`EnemyObject::loadEnemyObjectFile` with the existing
-`ExportFunctionPcodeFlow.java`, then runs
+`tools/run_enemy_object_action_init_probe.py` exports metadata-only High P-code
+starting at `EnemyObject::loadEnemyObjectFile` with
+`ExportBoundedCallGraphPcodeFlow.java`, then runs
 `tools/enemy_object_action_init_evidence.py`.
 
-The analyzer recognizes direct calls to:
+The first live run on 2026-10-15 proved that `loadEnemyObjectFile` itself does
+**not** directly call `EnemyActionsSystem::initWithFile` or
+`ActionDataManager::addActionDataWithID`. The exporter therefore follows only
+resolved internal direct calls from that root. Traversal is explicitly bounded:
+
+```text
+max direct-call depth: 4
+max decompiled functions: 96
+```
+
+Enemy/Action-named callees are prioritized before generic and library helpers so
+the bounded frontier stays focused on the original action initialization path.
+Indirect calls are exported as structural P-code rows but are not guessed into
+direct targets.
+
+The analyzer recognizes direct calls found anywhere in the bounded export to:
 
 ```text
 EnemyActionsSystem::initWithFile
@@ -49,9 +64,10 @@ Transparent copies/casts/extensions and `MULTIEQUAL` joins are traced. Other
 arithmetic or unresolved values remain `derived`. No argument is automatically
 renamed to `filename`, `enemy_id`, `object_type`, or any other gameplay meaning.
 
-The analyzer fails closed when no direct `EnemyActionsSystem::initWithFile`
-call is present. An exact Ghidra target entry can be supplied when the local
-analysis database lacks a useful symbol name.
+The analyzer still fails closed when the bounded graph contains no direct
+`EnemyActionsSystem::initWithFile` call. Increase the explicit traversal bounds
+only when a real report shows that the current frontier is insufficient; do not
+replace unresolved call edges with guessed targets.
 
 ## Run on the analyzed original library
 
@@ -68,10 +84,18 @@ when the imported library lives in a nested Ghidra project folder rather than at
 the project root. The requested filename remains the match boundary; the probe
 does not fall back to processing unrelated project programs.
 
+The traversal bounds can be overridden explicitly:
+
+```bash
+python3 tools/run_enemy_object_action_init_probe.py ... \
+  --max-depth 5 \
+  --max-functions 128
+```
+
 Outputs:
 
 ```text
-build/enemy-object-action-init-evidence/load-enemy-object-pcode.tsv
+build/enemy-object-action-init-evidence/load-enemy-object-callgraph-pcode.tsv
 build/enemy-object-action-init-evidence/enemy-object-action-init-report.txt
 ```
 
