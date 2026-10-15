@@ -15,7 +15,7 @@ struct Binding {
     std::uint64_t wave_generation = 0;
     unsigned enemy_id = 0;
     int initial_enemy_state = 0;
-    int base_health = 0;
+    float base_health = 0.0f;
     float spawn_x = 0.0f;
     float spawn_y = 0.0f;
 };
