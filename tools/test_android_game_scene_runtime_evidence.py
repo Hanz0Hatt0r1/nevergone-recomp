@@ -42,13 +42,15 @@ frame-cache sprites: 7
 direct-file sprites: 3
 deferred scene-action pairs: 1
 unresolved render objects: 1
-GameScene static renderer
+GameScene type-0 renderer
 shader: ready
 surface: 1080x1920
 camera eye x: 64.5
 draw attempts: 18
 drawn frames: 16
-last static sprites: 10
+last sprites: 10
+post-init animated sprites: 2
+last minimum opacity: 240
 GameScene asset staging
 state: ready
 attempts: 1
@@ -140,7 +142,7 @@ def main() -> int:
         # #358 introduced transactional hidden slots for the recovered ordinary
         # GameScene null-frame fallback. They are fully staged and validated by
         # the texture cache but intentionally submit no GLES quad.
-        report = replace(root, "last static sprites: 10", "last static sprites: 8")
+        report = replace(root, "last sprites: 10", "last sprites: 8")
         proof = module.validate(module.parse_report(report))
         assert proof is not None
         assert proof.staging_requests == 10
@@ -157,6 +159,20 @@ def main() -> int:
         )
         assert module.extract_diagnostics_from_ui(xml).startswith("Never Gone Recomp")
 
+        # Preserve compatibility with retained evidence captured before the
+        # runtime report was renamed from static renderer/last static sprites.
+        legacy = DIAGNOSTICS.replace("GameScene type-0 renderer", "GameScene static renderer")
+        legacy = legacy.replace("last sprites: 10", "last static sprites: 10")
+        report = write_report(root, diagnostics=legacy)
+        proof = module.validate(module.parse_report(report))
+        assert proof is not None and proof.drawn_sprites == 10
+        xml.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<hierarchy><node text="' + legacy.replace("&", "&amp;").replace("\n", "&#10;") + '" /></hierarchy>',
+            encoding="utf-8",
+        )
+        assert module.extract_diagnostics_from_ui(xml).startswith("Never Gone Recomp")
+
         expect_invalid(replace(root, "Original OBB assets: present", "Original OBB assets: not imported"))
         expect_invalid(replace(root, "state: runtime-render-queue-ready", "state: runtime-model-ready"))
         expect_invalid(replace(root, "scene render queue: ready", "scene render queue: missing"))
@@ -165,8 +181,8 @@ def main() -> int:
         expect_invalid(replace(root, "camera eye x: 64.5", "camera eye x: nan"))
         expect_invalid(replace(root, "camera eye x: 64.5\n", ""))
         expect_invalid(replace(root, "drawn frames: 16", "drawn frames: 0"))
-        expect_invalid(replace(root, "last static sprites: 10", "last static sprites: 0"))
-        expect_invalid(replace(root, "last static sprites: 10", "last static sprites: 11"))
+        expect_invalid(replace(root, "last sprites: 10", "last sprites: 0"))
+        expect_invalid(replace(root, "last sprites: 10", "last sprites: 11"))
         expect_invalid(replace(root, "render sprites: 12", "render sprites: 0"))
 
         report = write_report(root, status="fail", diagnostics="capture failed\n")
@@ -193,7 +209,13 @@ def main() -> int:
 
         report = write_report(root)
         text = report.read_text(encoding="utf-8")
-        report.write_text(text.replace("diagnostics_file=runtime-diagnostics.txt", "diagnostics_file=../runtime-diagnostics.txt"), encoding="utf-8")
+        report.write_text(
+            text.replace(
+                "diagnostics_file=runtime-diagnostics.txt",
+                "diagnostics_file=../runtime-diagnostics.txt",
+            ),
+            encoding="utf-8",
+        )
         expect_invalid(report)
 
     print("Android GameScene runtime evidence validator smoke: ok")
