@@ -33,17 +33,21 @@ Requires Pillow and NumPy. Unlike the proposed script, it does not silently resi
 
 ### `tools/validation/asset_coverage.py`
 
-Static lower-bound coverage check for a user-local decoded asset tree:
+Conservative static inventory check for a user-local decoded asset tree. The base decoder only transforms the four extensions recovered from `CCFileUtilsAndroid`, so pass the original APK as an additional raw `assets/` inventory when checking references to other extensions:
 
 ```bash
 python3 tools/asset_decoder.py /path/to/com.hippiegame.nevergone.apk \
   --output build/decoded-assets
 python3 tools/validation/asset_coverage.py \
   --decoded-dir build/decoded-assets \
-  --fail-on-missing
+  --apk /path/to/com.hippiegame.nevergone.apk
 ```
 
-It scans quoted Lua references to `.actData`, `.plist`, `.png`, `.hpc`, `.csv`, and `.lua`, resolves exact or unique suffix paths, and distinguishes missing from ambiguous references. There is no hard-coded `p01_i01.actData` fallback: if that asset is required, it must be discovered from the actual decoded scripts/metadata. Reports contain paths/status only, not proprietary script bodies or assets.
+The checker scans quoted Lua references to `.actData`, `.plist`, `.png`, `.hpc`, `.csv`, and `.lua`, strips Lua comments, and separates obvious dynamic templates/log-only literals from file requirements. It resolves exact or unique suffix paths against the decoded tree plus the optional raw APK inventory and distinguishes unresolved literals from ambiguous paths.
+
+There is deliberately **no** hard-coded `p01_i01.actData` standalone requirement. Retained writable-data evidence proves that `p01_i01.actData` is an embedded member of `player_01.actionsData`, and the live `PlayerActionAssetResolver` already follows that container boundary. Use repeatable `--require ASSET` only for resources independently proven to be standalone files. `--fail-on-missing` remains available for such strict local checks, but an unresolved Lua literal by itself does not prove a runtime asset is absent because writable/downloaded data may supply it.
+
+Reports contain paths/status only, not proprietary script bodies or assets.
 
 ### `tools/build/arm64_sanity_check.py`
 
@@ -68,7 +72,7 @@ The checker inspects `lib/arm64-v8a/*.so` in the APK with `readelf`, requires AA
 
 - all four Python files compile with `python3 -m py_compile`;
 - render diff returns global similarity `1.0`, zero MAE and zero changed pixels for an identical retained 2340x1080 Never Gone frame;
-- asset coverage synthetic smoke distinguishes a present `.actData` reference from a missing `.plist` reference;
+- asset coverage synthetic smoke distinguishes resolved, ambiguous, dynamic-template, non-asset-literal and unresolved references without assuming embedded player action members are standalone files;
 - ARM64 audit rejects the supplied original Never Gone APK because that APK contains only `armeabi-v7a` libraries, which is the expected result for an ARM64-specific gate.
 
 The contiguous device proof still requires execution on an attached device after the current build reaches the live first GameLevels scene; the tool itself does not fabricate or pre-approve that evidence.
