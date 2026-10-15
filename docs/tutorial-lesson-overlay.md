@@ -142,3 +142,36 @@ The first project-owned `LessonOverlay` compositor should therefore:
 The existing tutorial session then enters the separately recovered modal
 post-lesson Dialogue phase. Interactive A/B/C/joystick input remains disabled
 until that dialogue completes.
+
+## Reconstructed initial overlay
+
+`tutorial_lesson_overlay` now owns the first concrete runtime implementation of
+this boundary. `TutorialLessonOverlayAssetLoader` requires both imported
+`lessonsUI/keyboard_lesson.png` and `lessonsUI/lesson_text_01.plist`; the plist
+must expose the recovered `text_id`, `text_title`, and `text_01` keys before the
+overlay is considered stageable. The keyboard bytes remain user-owned and are
+decoded locally with `BitmapFactory`.
+
+The Continue label is resolved from the imported `Login/ALL_Loin.csv` through
+the same recovered language-column contract used elsewhere in the standalone
+UI, then rasterized with Android `Paint`/`Canvas`, `Arial`, size 25. No English
+fallback is embedded in the runtime.
+
+The GLES compositor centers the imported keyboard in 1136x640 design space and
+places the localized Continue label at the recovered `(visible_width-160, 45)`
+center. Until the original button chrome/bounds are recovered, the actionable
+region is deliberately limited to the actual localized label rectangle rather
+than inventing padding or a button size.
+
+While `LessonOverlay` is active, the post-scene touch bridge sends the complete
+surface to this modal handler and swallows all non-Continue touches. A completed
+press/release inside the retained label rectangle is the only path that calls
+`tutorial_session_state::on_lesson_overlay_complete()`. It therefore advances
+to `Dialogue` without a fabricated timer and without exposing joystick/A-B-C
+input behind the overlay.
+
+The runtime diagnostics now retain overlay asset readiness, imported pixel
+sizes, draw attempts/frames, Continue captures/taps, and successful overlay
+completions. The remaining fidelity boundary is the set of additional
+localized keyboard labels, original fixed-button chrome/hit area, the recovered
+0.2-second LoadingLayer fade, and the subsequent Dialogue presentation.

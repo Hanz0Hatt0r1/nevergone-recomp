@@ -1,0 +1,595 @@
+#include "tutorial_lesson_overlay.h"
+
+#include <GLES2/gl2.h>
+#include <jni.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "login_localization_csv.h"
+#include "tutorial_session_state.h"
+
+namespace nevergone::tutorial_lesson_overlay {
+namespace {
+
+constexpr float kDesignWidth = 1136.0f;
+constexpr float kDesignHeight = 640.0f;
+constexpr float kContinueCenterX = kDesignWidth - 160.0f;
+constexpr float kContinueCenterY = 45.0f;
+constexpr int kActionDown = 0;
+constexpr int kActionUp = 1;
+constexpr int kActionMove = 2;
+constexpr int kActionCancel = 3;
+constexpr int kActionPointerDown = 5;
+constexpr int kActionPointerUp = 6;
+constexpr std::size_t kMaxPixels = 16u * 1024u * 1024u;
+
+struct Asset {
+    int width = 0;
+    int height = 0;
+    std::vector<std::uint32_t> pixels;
+};
+
+struct State {
+    Asset keyboard;
+    Asset continue_label;
+    std::uint64_t asset_generation = 0;
+    std::uint64_t draw_attempt_count = 0;
+    std::uint64_t drawn_frame_count = 0;
+    std::uint64_t accepted_begin_count = 0;
+    std::uint64_t accepted_end_count = 0;
+    std::uint64_t continue_tap_count = 0;
+    std::uint64_t completion_count = 0;
+    std::uint64_t cancel_count = 0;
+    int captured_pointer = -1;
+};
+
+struct SurfaceMetrics {
+    int width = 0;
+    int height = 0;
+    float scale = 0.0f;
+    float offset_x = 0.0f;
+    float offset_y = 0.0f;
+};
+
+std::mutex g_mutex;
+State g_state;
+GLuint g_program = 0;
+GLint g_sampler = -1;
+GLuint g_keyboard_texture = 0;
+GLuint g_continue_texture = 0;
+std::uint64_t g_texture_generation = 0;
+std::atomic<int> g_surface_width{0};
+std::atomic<int> g_surface_height{0};
+
+bool valid_asset(const Asset& asset) {
+    return asset.width > 0 && asset.height > 0 &&
+        asset.pixels.size() ==
+            static_cast<std::size_t>(asset.width) * static_cast<std::size_t>(asset.height) &&
+        asset.pixels.size() <= kMaxPixels;
+}
+
+bool make_asset(
+        int width,
+        int height,
+        const std::uint32_t* argb,
+        std::size_t count,
+        Asset* output) {
+    if (output == nullptr || width <= 0 || height <= 0 || argb == nullptr ||
+            count == 0 || count > kMaxPixels ||
+            count != static_cast<std::size_t>(width) * static_cast<std::size_t>(height)) {
+        return false;
+    }
+    Asset asset;
+    asset.width = width;
+    asset.height = height;
+    asset.pixels.assign(argb, argb + count);
+    if (!valid_asset(asset)) return false;
+    *output = std::move(asset);
+    return true;
+}
+
+bool current_surface(SurfaceMetrics* output) {
+    if (output == nullptr) return false;
+    const int width = g_surface_width.load(std::memory_order_relaxed);
+    const int height = g_surface_height.load(std::memory_order_relaxed);
+    if (width <= 0 || height <= 0) return false;
+    const float scale = std::min(
+        static_cast<float>(width) / kDesignWidth,
+        static_cast<float>(height) / kDesignHeight);
+    if (!std::isfinite(scale) || scale <= 0.0f) return false;
+    output->width = width;
+    output->height = height;
+    output->scale = scale;
+    output->offset_x = (static_cast<float>(width) - kDesignWidth * scale) * 0.5f;
+    output->offset_y = (static_cast<float>(height) - kDesignHeight * scale) * 0.5f;
+    return true;
+}
+
+GLuint compile_shader(GLenum type, const char* source) {
+    const GLuint shader = glCreateShader(type);
+    if (shader == 0) return 0;
+    glShaderSource(shader, 1, &source, nullptr);
+    glCompileShader(shader);
+    GLint compiled = GL_FALSE;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+    if (compiled == GL_TRUE) return shader;
+    glDeleteShader(shader);
+    return 0;
+}
+
+GLuint build_program() {
+    static constexpr const char* kVertex = R"GLSL(
+attribute vec2 aPosition;
+attribute vec2 aTexCoord;
+varying vec2 vTexCoord;
+void main() {
+    vTexCoord = aTexCoord;
+    gl_Position = vec4(aPosition, 0.0, 1.0);
+}
+)GLSL";
+    static constexpr const char* kFragment = R"GLSL(
+precision mediump float;
+varying vec2 vTexCoord;
+uniform sampler2D uTexture;
+void main() {
+    gl_FragColor = texture2D(uTexture, vTexCoord);
+}
+)GLSL";
+
+    const GLuint vertex = compile_shader(GL_VERTEX_SHADER, kVertex);
+    const GLuint fragment = compile_shader(GL_FRAGMENT_SHADER, kFragment);
+    if (vertex == 0 || fragment == 0) {
+        if (vertex != 0) glDeleteShader(vertex);
+        if (fragment != 0) glDeleteShader(fragment);
+        return 0;
+    }
+
+    const GLuint program = glCreateProgram();
+    if (program == 0) {
+        glDeleteShader(vertex);
+        glDeleteShader(fragment);
+        return 0;
+    }
+    glAttachShader(program, vertex);
+    glAttachShader(program, fragment);
+    glBindAttribLocation(program, 0, "aPosition");
+    glBindAttribLocation(program, 1, "aTexCoord");
+    glLinkProgram(program);
+    glDeleteShader(vertex);
+    glDeleteShader(fragment);
+
+    GLint linked = GL_FALSE;
+    glGetProgramiv(program, GL_LINK_STATUS, &linked);
+    if (linked != GL_TRUE) {
+        glDeleteProgram(program);
+        return 0;
+    }
+    return program;
+}
+
+void release_textures() {
+    if (g_keyboard_texture != 0) glDeleteTextures(1, &g_keyboard_texture);
+    if (g_continue_texture != 0) glDeleteTextures(1, &g_continue_texture);
+    g_keyboard_texture = 0;
+    g_continue_texture = 0;
+    g_texture_generation = 0;
+}
+
+GLuint create_texture(const Asset& asset) {
+    if (!valid_asset(asset)) return 0;
+    std::vector<std::uint8_t> rgba(asset.pixels.size() * 4u);
+    for (std::size_t index = 0; index < asset.pixels.size(); ++index) {
+        const std::uint32_t pixel = asset.pixels[index];
+        rgba[index * 4u] = static_cast<std::uint8_t>((pixel >> 16u) & 0xffu);
+        rgba[index * 4u + 1u] = static_cast<std::uint8_t>((pixel >> 8u) & 0xffu);
+        rgba[index * 4u + 2u] = static_cast<std::uint8_t>(pixel & 0xffu);
+        rgba[index * 4u + 3u] = static_cast<std::uint8_t>((pixel >> 24u) & 0xffu);
+    }
+
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    if (texture == 0) return 0;
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        asset.width,
+        asset.height,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        rgba.data());
+    const GLenum error = glGetError();
+    glBindTexture(GL_TEXTURE_2D, 0);
+    if (error != GL_NO_ERROR) {
+        glDeleteTextures(1, &texture);
+        return 0;
+    }
+    return texture;
+}
+
+bool ensure_textures() {
+    Asset keyboard;
+    Asset continue_label;
+    std::uint64_t generation = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        if (!valid_asset(g_state.keyboard) || !valid_asset(g_state.continue_label)) return false;
+        generation = g_state.asset_generation;
+        if (g_texture_generation == generation &&
+                g_keyboard_texture != 0 && g_continue_texture != 0) {
+            return true;
+        }
+        keyboard = g_state.keyboard;
+        continue_label = g_state.continue_label;
+    }
+
+    release_textures();
+    const GLuint keyboard_texture = create_texture(keyboard);
+    if (keyboard_texture == 0) return false;
+    const GLuint continue_texture = create_texture(continue_label);
+    if (continue_texture == 0) {
+        glDeleteTextures(1, &keyboard_texture);
+        return false;
+    }
+    g_keyboard_texture = keyboard_texture;
+    g_continue_texture = continue_texture;
+    g_texture_generation = generation;
+    return true;
+}
+
+void draw_asset(
+        GLuint texture,
+        const Asset& asset,
+        const SurfaceMetrics& surface,
+        float design_center_x,
+        float design_center_y) {
+    if (texture == 0 || !valid_asset(asset)) return;
+    const float center_x = surface.offset_x + design_center_x * surface.scale;
+    const float center_y = surface.offset_y + (kDesignHeight - design_center_y) * surface.scale;
+    const float half_width = static_cast<float>(asset.width) * surface.scale * 0.5f;
+    const float half_height = static_cast<float>(asset.height) * surface.scale * 0.5f;
+    const float left = center_x - half_width;
+    const float right = center_x + half_width;
+    const float top = center_y - half_height;
+    const float bottom = center_y + half_height;
+
+    const GLfloat vertices[] = {
+        left * 2.0f / static_cast<float>(surface.width) - 1.0f,
+        1.0f - top * 2.0f / static_cast<float>(surface.height),
+        left * 2.0f / static_cast<float>(surface.width) - 1.0f,
+        1.0f - bottom * 2.0f / static_cast<float>(surface.height),
+        right * 2.0f / static_cast<float>(surface.width) - 1.0f,
+        1.0f - top * 2.0f / static_cast<float>(surface.height),
+        right * 2.0f / static_cast<float>(surface.width) - 1.0f,
+        1.0f - bottom * 2.0f / static_cast<float>(surface.height),
+    };
+    static constexpr GLfloat kTexCoords[] = {
+        0.0f, 0.0f,
+        0.0f, 1.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+    };
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, kTexCoords);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+bool map_surface(float surface_x, float surface_y, float* design_x, float* design_y) {
+    if (design_x == nullptr || design_y == nullptr ||
+            !std::isfinite(surface_x) || !std::isfinite(surface_y)) {
+        return false;
+    }
+    SurfaceMetrics surface;
+    if (!current_surface(&surface)) return false;
+    const float local_x = surface_x - surface.offset_x;
+    const float local_y = surface_y - surface.offset_y;
+    if (local_x < 0.0f || local_y < 0.0f ||
+            local_x > kDesignWidth * surface.scale ||
+            local_y > kDesignHeight * surface.scale) {
+        return false;
+    }
+    *design_x = local_x / surface.scale;
+    *design_y = kDesignHeight - local_y / surface.scale;
+    return true;
+}
+
+bool continue_hit(float design_x, float design_y) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!valid_asset(g_state.continue_label)) return false;
+    const float half_width = static_cast<float>(g_state.continue_label.width) * 0.5f;
+    const float half_height = static_cast<float>(g_state.continue_label.height) * 0.5f;
+    return design_x >= kContinueCenterX - half_width &&
+        design_x <= kContinueCenterX + half_width &&
+        design_y >= kContinueCenterY - half_height &&
+        design_y <= kContinueCenterY + half_height;
+}
+
+}  // namespace
+
+void on_surface_created() {
+    g_keyboard_texture = 0;
+    g_continue_texture = 0;
+    g_texture_generation = 0;
+    if (g_program != 0) glDeleteProgram(g_program);
+    g_program = build_program();
+    g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
+}
+
+void on_surface_changed(int width, int height) {
+    g_surface_width.store(width, std::memory_order_relaxed);
+    g_surface_height.store(height, std::memory_order_relaxed);
+}
+
+void clear_assets() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state.keyboard = {};
+    g_state.continue_label = {};
+    g_state.captured_pointer = -1;
+    ++g_state.asset_generation;
+}
+
+bool upload_keyboard(
+        int width,
+        int height,
+        const std::uint32_t* argb,
+        std::size_t count) {
+    Asset asset;
+    if (!make_asset(width, height, argb, count, &asset)) return false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state.keyboard = std::move(asset);
+    ++g_state.asset_generation;
+    return true;
+}
+
+bool upload_continue_label(
+        int width,
+        int height,
+        const std::uint32_t* argb,
+        std::size_t count) {
+    Asset asset;
+    if (!make_asset(width, height, argb, count, &asset)) return false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state.continue_label = std::move(asset);
+    ++g_state.asset_generation;
+    return true;
+}
+
+bool draw() {
+    if (tutorial_session_state::snapshot().phase !=
+            tutorial_session_state::Phase::kLessonOverlay) {
+        return false;
+    }
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        ++g_state.draw_attempt_count;
+    }
+    SurfaceMetrics surface;
+    if (g_program == 0 || g_sampler < 0 || !current_surface(&surface) || !ensure_textures()) {
+        return false;
+    }
+
+    Asset keyboard;
+    Asset continue_label;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        keyboard = g_state.keyboard;
+        continue_label = g_state.continue_label;
+    }
+
+    while (glGetError() != GL_NO_ERROR) {
+    }
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glUseProgram(g_program);
+    glActiveTexture(GL_TEXTURE0);
+    glUniform1i(g_sampler, 0);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    draw_asset(
+        g_keyboard_texture,
+        keyboard,
+        surface,
+        kDesignWidth * 0.5f,
+        kDesignHeight * 0.5f);
+    draw_asset(g_continue_texture, continue_label, surface, kContinueCenterX, kContinueCenterY);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glDisable(GL_BLEND);
+
+    if (glGetError() != GL_NO_ERROR) return false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    ++g_state.drawn_frame_count;
+    return true;
+}
+
+bool on_touch(int action, int pointer_id, float surface_x, float surface_y) {
+    if (tutorial_session_state::snapshot().phase !=
+            tutorial_session_state::Phase::kLessonOverlay) {
+        return false;
+    }
+
+    float design_x = 0.0f;
+    float design_y = 0.0f;
+    const bool mapped = map_surface(surface_x, surface_y, &design_x, &design_y);
+
+    if (action == kActionCancel) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        if (g_state.captured_pointer >= 0) ++g_state.cancel_count;
+        g_state.captured_pointer = -1;
+        return true;
+    }
+
+    if (action == kActionDown || action == kActionPointerDown) {
+        if (mapped && continue_hit(design_x, design_y)) {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            if (g_state.captured_pointer < 0) {
+                g_state.captured_pointer = pointer_id;
+                ++g_state.accepted_begin_count;
+            }
+        }
+        return true;
+    }
+
+    if (action == kActionMove) return true;
+
+    if (action == kActionUp || action == kActionPointerUp) {
+        bool captured = false;
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            captured = g_state.captured_pointer == pointer_id;
+            if (captured) {
+                g_state.captured_pointer = -1;
+                ++g_state.accepted_end_count;
+            }
+        }
+        if (!captured) return true;
+        const bool tapped = mapped && continue_hit(design_x, design_y);
+        if (!tapped) return true;
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            ++g_state.continue_tap_count;
+        }
+        if (tutorial_session_state::on_lesson_overlay_complete()) {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            ++g_state.completion_count;
+        }
+        return true;
+    }
+
+    return true;
+}
+
+std::string status_report() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    std::ostringstream out;
+    out << "Tutorial LessonOverlay\n";
+    out << "assets ready: "
+        << (valid_asset(g_state.keyboard) && valid_asset(g_state.continue_label) ? "yes" : "no")
+        << "\n";
+    out << "asset generation: " << g_state.asset_generation << "\n";
+    if (valid_asset(g_state.keyboard)) {
+        out << "keyboard pixels: " << g_state.keyboard.width << "x" << g_state.keyboard.height << "\n";
+    }
+    if (valid_asset(g_state.continue_label)) {
+        out << "continue label pixels: " << g_state.continue_label.width << "x"
+            << g_state.continue_label.height << "\n";
+    }
+    out << "draw attempts: " << g_state.draw_attempt_count << "\n";
+    out << "drawn frames: " << g_state.drawn_frame_count << "\n";
+    out << "continue begins: " << g_state.accepted_begin_count << "\n";
+    out << "continue ends: " << g_state.accepted_end_count << "\n";
+    out << "continue taps: " << g_state.continue_tap_count << "\n";
+    out << "overlay completions: " << g_state.completion_count << "\n";
+    out << "cancelled captures: " << g_state.cancel_count << "\n";
+    return out.str();
+}
+
+}  // namespace nevergone::tutorial_lesson_overlay
+
+namespace {
+
+std::string jstring_to_utf8(JNIEnv* env, jstring value) {
+    if (env == nullptr || value == nullptr) return {};
+    const char* chars = env->GetStringUTFChars(value, nullptr);
+    if (chars == nullptr) return {};
+    std::string result(chars);
+    env->ReleaseStringUTFChars(value, chars);
+    return result;
+}
+
+bool upload_java_asset(
+        JNIEnv* env,
+        jint width,
+        jint height,
+        jintArray pixels,
+        bool keyboard) {
+    if (env == nullptr || pixels == nullptr || width <= 0 || height <= 0) return false;
+    const jsize length = env->GetArrayLength(pixels);
+    const std::size_t expected =
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    if (static_cast<std::size_t>(length) != expected || expected > 16u * 1024u * 1024u) {
+        return false;
+    }
+    jint* values = env->GetIntArrayElements(pixels, nullptr);
+    if (values == nullptr) return false;
+    const bool ok = keyboard
+        ? nevergone::tutorial_lesson_overlay::upload_keyboard(
+            static_cast<int>(width),
+            static_cast<int>(height),
+            reinterpret_cast<const std::uint32_t*>(values),
+            expected)
+        : nevergone::tutorial_lesson_overlay::upload_continue_label(
+            static_cast<int>(width),
+            static_cast<int>(height),
+            reinterpret_cast<const std::uint32_t*>(values),
+            expected);
+    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
+    return ok;
+}
+
+}  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeClear(JNIEnv*, jclass) {
+    nevergone::tutorial_lesson_overlay::clear_assets();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeUploadKeyboard(
+        JNIEnv* env,
+        jclass,
+        jint width,
+        jint height,
+        jintArray pixels) {
+    return upload_java_asset(env, width, height, pixels, true) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeUploadContinueLabel(
+        JNIEnv* env,
+        jclass,
+        jint width,
+        jint height,
+        jintArray pixels) {
+    return upload_java_asset(env, width, height, pixels, false) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeLocalizedString(
+        JNIEnv* env,
+        jclass,
+        jstring files_dir,
+        jstring key,
+        jint language_column) {
+    if (env == nullptr || files_dir == nullptr || key == nullptr || language_column < 0) {
+        return nullptr;
+    }
+    std::string value;
+    if (!nevergone::login_localization_csv::resolve_key_file(
+            jstring_to_utf8(env, files_dir),
+            jstring_to_utf8(env, key),
+            static_cast<std::size_t>(language_column),
+            &value) || value.empty()) {
+        return nullptr;
+    }
+    return env->NewStringUTF(value.c_str());
+}

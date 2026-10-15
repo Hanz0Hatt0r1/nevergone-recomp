@@ -17,6 +17,7 @@
 #include "server_selection_compositor.h"
 #include "single_select_hero_confirm_compositor.h"
 #include "startup_contract.h"
+#include "tutorial_lesson_overlay.h"
 #include "tutorial_loading_compositor.h"
 #include "tutorial_scene_bootstrap.h"
 #include "tutorial_session_state.h"
@@ -32,6 +33,8 @@ namespace {
 std::uint64_t g_last_character_name_asset_attempt_generation =
     std::numeric_limits<std::uint64_t>::max();
 std::uint64_t g_last_tutorial_loading_asset_attempt =
+    std::numeric_limits<std::uint64_t>::max();
+std::uint64_t g_last_tutorial_lesson_asset_generation =
     std::numeric_limits<std::uint64_t>::max();
 std::uint64_t g_last_action_asset_attempt =
     std::numeric_limits<std::uint64_t>::max();
@@ -98,6 +101,20 @@ void maybe_stage_tutorial_loading_assets(JNIEnv* env) {
     (void)invoke_files_dir_loader(env, "org/nevergone/recomp/TutorialLoadingAssetLoader");
 }
 
+void maybe_stage_tutorial_lesson_assets(JNIEnv* env) {
+    if (env == nullptr) return;
+    const auto session = nevergone::tutorial_session_state::snapshot();
+    if (session.phase != nevergone::tutorial_session_state::Phase::kLessonOverlay) {
+        g_last_tutorial_lesson_asset_generation =
+            std::numeric_limits<std::uint64_t>::max();
+        return;
+    }
+    if (session.generation == g_last_tutorial_lesson_asset_generation) return;
+    g_last_tutorial_lesson_asset_generation = session.generation;
+    (void)invoke_files_dir_loader(
+        env, "org/nevergone/recomp/TutorialLessonOverlayAssetLoader");
+}
+
 void maybe_stage_action_assets(JNIEnv* env) {
     if (env == nullptr) return;
     const auto state = nevergone::offline_startup_flow::snapshot();
@@ -122,13 +139,15 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::server_selection_compositor::on_surface_created();
     nevergone::character_name_compositor::on_surface_created();
     nevergone::tutorial_loading_compositor::on_surface_created();
+    nevergone::tutorial_lesson_overlay::on_surface_created();
     nevergone::scene_actions_gles_compositor::on_surface_created();
     nevergone::game_scene_action_compositor::on_surface_created();
     nevergone::game_scene_action_surface_input::cancel_all_captures();
     nevergone::controls_function_state_runtime::reset();
-    // A GLES context recreation invalidates action textures even when the
-    // fresh-role generation is unchanged. Force one imported-asset restage.
+    // A GLES context recreation invalidates action/tutorial textures even when
+    // the corresponding fresh-role generation is unchanged. Force restaging.
     g_last_action_asset_attempt = std::numeric_limits<std::uint64_t>::max();
+    g_last_tutorial_lesson_asset_generation = std::numeric_limits<std::uint64_t>::max();
     while (glGetError() != GL_NO_ERROR) {
     }
 }
@@ -149,6 +168,7 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
         g_surface_height.store(viewport[3], std::memory_order_relaxed);
         nevergone::game_scene_direct_renderer::on_surface_changed(viewport[2], viewport[3]);
         nevergone::tutorial_loading_compositor::on_surface_changed(viewport[2], viewport[3]);
+        nevergone::tutorial_lesson_overlay::on_surface_changed(viewport[2], viewport[3]);
         nevergone::scene_actions_gles_compositor::on_surface_changed(viewport[2], viewport[3]);
         nevergone::game_scene_action_compositor::on_surface_changed(viewport[2], viewport[3]);
         game_scene_drawn = nevergone::game_scene_direct_renderer::draw();
@@ -191,6 +211,13 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     // Controls cannot leak through behind LoadingLayer.
     nevergone::tutorial_scene_bootstrap::observe_scene_draw(game_scene_drawn);
 
+    // The successful handoff above moves the session to LessonOverlay. Stage
+    // only user-imported lesson assets, then draw the recovered centered
+    // keyboard presentation over the live cp_lesson scene. No timer advances
+    // this modal layer: only its Continue callback enters Dialogue.
+    maybe_stage_tutorial_lesson_assets(env);
+    (void)nevergone::tutorial_lesson_overlay::draw();
+
     // LoadingLayer owns the complete surface until the handoff above succeeds.
     maybe_stage_tutorial_loading_assets(env);
     const auto loading_route = nevergone::offline_startup_flow::snapshot();
@@ -207,12 +234,21 @@ void wrapped_native_touch(
         jint pointer_id,
         jfloat x,
         jfloat y) {
-    // The original LessonLayer/Dialogue phases are modal and hide gameplay
-    // controls. Until their own reconstructed overlay input is installed, do
-    // not leak touches through to joystick/action gameplay behind the modal UI.
-    if (nevergone::offline_startup_flow::snapshot().route ==
-            nevergone::offline_startup_flow::Route::kGameLevels &&
-            nevergone::tutorial_session_state::modal_input_blocked()) {
+    const auto tutorial = nevergone::tutorial_session_state::snapshot();
+    if (tutorial.phase == nevergone::tutorial_session_state::Phase::kLessonOverlay) {
+        // LessonOverlay owns the whole surface. Its Continue target is handled
+        // internally; every other touch is swallowed exactly at this modal
+        // boundary rather than leaking to joystick or action controls.
+        (void)nevergone::tutorial_lesson_overlay::on_touch(
+            static_cast<int>(action),
+            static_cast<int>(pointer_id),
+            static_cast<float>(x),
+            static_cast<float>(y));
+        nevergone::game_scene_action_surface_input::cancel_all_captures();
+        return;
+    }
+    if (tutorial.phase == nevergone::tutorial_session_state::Phase::kLoading ||
+            tutorial.phase == nevergone::tutorial_session_state::Phase::kDialogue) {
         nevergone::game_scene_action_surface_input::cancel_all_captures();
         return;
     }
