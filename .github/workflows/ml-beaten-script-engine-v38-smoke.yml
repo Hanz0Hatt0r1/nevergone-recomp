@@ -1,0 +1,34 @@
+name: Nevergone BeatenEffect script engine v38 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_beaten_script_engine_v38.py'
+      - 'tools/ml/nevergone_beaten_script_engine_v38_smoke.py'
+      - 'tools/ml/run_nevergone_beaten_script_engine_v38.sh'
+      - '.github/workflows/ml-beaten-script-engine-v38-smoke.yml'
+      - 'docs/evidence/beaten-script-engine-v38.md'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_beaten_script_engine_v38.py'
+      - 'tools/ml/nevergone_beaten_script_engine_v38_smoke.py'
+      - 'tools/ml/run_nevergone_beaten_script_engine_v38.sh'
+      - '.github/workflows/ml-beaten-script-engine-v38-smoke.yml'
+      - 'docs/evidence/beaten-script-engine-v38.md'
+
+jobs:
+  beaten-script-engine-v38:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate v38 analyzer
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_beaten_script_engine_v38.py \
+            tools/ml/nevergone_beaten_script_engine_v38_smoke.py
+          PYTHONPATH=tools/ml python3 tools/ml/nevergone_beaten_script_engine_v38_smoke.py
+          bash -n tools/ml/run_nevergone_beaten_script_engine_v38.sh
