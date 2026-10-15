@@ -1,0 +1,38 @@
+name: Nevergone residual alias field-map v22 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportClassOwnerAliasInventory.java'
+      - 'tools/ml/audit_nevergone_residual_owner_alias_frontier_v22.py'
+      - 'tools/ml/audit_nevergone_newly_unresolved_field_shapes_v22.py'
+      - 'tools/ml/nevergone_residual_owner_alias_frontier_v22_smoke.py'
+      - 'tools/ml/nevergone_newly_unresolved_field_shapes_v22_smoke.py'
+      - 'tools/ml/run_nevergone_residual_alias_fieldmap_v22.sh'
+      - '.github/workflows/ml-residual-alias-fieldmap-v22-smoke.yml'
+      - 'docs/evidence/residual-alias-fieldmap-v22.md'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python tools
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_residual_owner_alias_frontier_v22.py \
+            tools/ml/audit_nevergone_newly_unresolved_field_shapes_v22.py \
+            tools/ml/nevergone_residual_owner_alias_frontier_v22_smoke.py \
+            tools/ml/nevergone_newly_unresolved_field_shapes_v22_smoke.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_residual_alias_fieldmap_v22.sh
+      - name: Run alias frontier smoke
+        run: python3 tools/ml/nevergone_residual_owner_alias_frontier_v22_smoke.py
+      - name: Run newly unresolved shape smoke
+        run: python3 tools/ml/nevergone_newly_unresolved_field_shapes_v22_smoke.py
+      - name: Check Ghidra exporter contract
+        run: |
+          grep -q 'NEVERGONE.GhidraClassOwnerAliasInventory/1' tools/ghidra/ExportClassOwnerAliasInventory.java
+          grep -q 'param0_unknown_store_count' tools/ghidra/ExportClassOwnerAliasInventory.java
+          grep -q 'address_contains_param0' tools/ghidra/ExportClassOwnerAliasInventory.java
