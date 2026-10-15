@@ -1,0 +1,33 @@
+name: Nevergone conditional fusion readiness smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_conditional_fusion_readiness.py'
+      - 'tools/ml/nevergone_conditional_fusion_readiness_smoke.py'
+      - 'tools/ml/run_nevergone_conditional_fusion_readiness.sh'
+      - '.github/workflows/ml-conditional-fusion-readiness-smoke.yml'
+      - 'docs/ml/CONDITIONAL_FUSION_READINESS.md'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_conditional_fusion_readiness.py'
+      - 'tools/ml/nevergone_conditional_fusion_readiness_smoke.py'
+      - 'tools/ml/run_nevergone_conditional_fusion_readiness.sh'
+      - '.github/workflows/ml-conditional-fusion-readiness-smoke.yml'
+      - 'docs/ml/CONDITIONAL_FUSION_READINESS.md'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run fail-closed readiness smoke
+        run: python3 tools/ml/nevergone_conditional_fusion_readiness_smoke.py
+      - name: Compile readiness audit
+        run: python3 -m py_compile tools/ml/audit_nevergone_conditional_fusion_readiness.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_conditional_fusion_readiness.sh
