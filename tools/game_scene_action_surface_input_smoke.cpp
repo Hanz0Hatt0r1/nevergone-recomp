@@ -54,8 +54,19 @@ int main() {
     input = action::snapshot();
     assert(input.last_control == action::Control::kButtonC);
     assert(input.last_gesture == action::Gesture::kTap);
-    assert(tutorial::snapshot().step == tutorial::Step::kAttack);
+    assert(input.tutorial_jump_request_count == 1);
+    assert(input.tutorial_event_count == 0);
+    assert(tutorial::snapshot().step == tutorial::Step::kJump);
     assert(surface_state.taps == 1);
+
+    // The surface tap is only the request. The recovered LessonLayer contract
+    // advances Jump once the live player action has actually committed state
+    // 0x20, so preserve that gate in this end-to-end surface smoke as well.
+    assert(action::observe_live_meplayer_state(0x20u));
+    input = action::snapshot();
+    assert(input.tutorial_jump_request_count == 1);
+    assert(input.tutorial_event_count == 1);
+    assert(tutorial::snapshot().step == tutorial::Step::kAttack);
 
     // A begins at design center (898,90). Releasing outside its normal sprite
     // bounding box must release capture without manufacturing a tap.
