@@ -18,7 +18,11 @@ ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 SCRIPT_PATH="$ROOT/tools/ghidra"
 TRAINING_DATASET="${V10_FROZEN_TRAINING_DATASET:-$NGML/dataset-4class}"
 BASE_MODEL="$NGML/models/production-code-domain-v5.2"
+BASE_OOF="$BASE_MODEL/oof_predictions.jsonl"
+V9_OOF="$NGML/evidence-v9-accept-error-routing/oof_accept_error_routing.jsonl"
+TRAIN_EVIDENCE="$NGML/evidence-v5.2/evidence.jsonl"
 ROUTER_DIR="$NGML/models/accept-error-router-v10"
+ROUTER_MANIFEST="$ROUTER_DIR/manifest.json"
 OUT="$NGML/frozen-validation/unseen500-v10"
 SOURCE="$OUT/wide-corpus.jsonl"
 CORPUS="$OUT/corpus.jsonl"
@@ -32,6 +36,7 @@ EVIDENCE_BASE="$OUT/evidence-base.jsonl"
 EVIDENCE="$OUT/evidence.jsonl"
 CLASSIFIED="$OUT/v10.classified.jsonl"
 SUMMARY="$OUT/validation-summary.json"
+DRIFT_SUMMARY="$OUT/drift-summary.json"
 VTABLE_SLOTS="$NGML/receiver-v5.1/vtable-slots.tsv.gz"
 VTABLE_CATALOG="$NGML/receiver-v5.1/static-vtable-slot-catalog.jsonl"
 LOG_DIR="$NGML/logs"
@@ -41,7 +46,11 @@ for required in \
   "$TRAINING_DATASET/validation.jsonl" \
   "$TRAINING_DATASET/test.jsonl" \
   "$BASE_MODEL/classifier.joblib" \
+  "$BASE_OOF" \
+  "$V9_OOF" \
+  "$TRAIN_EVIDENCE" \
   "$ROUTER_DIR/accept_error_router.joblib" \
+  "$ROUTER_MANIFEST" \
   "docs/ghidra/full-index/libcocos2dcpp.functions.tsv.gz" \
   "docs/ghidra/full-index/libcocos2dcpp.calls.tsv.gz" \
   "$SCRIPT_PATH/ExportMlPcodeCorpus.java" \
@@ -166,7 +175,7 @@ python3 tools/ml/classify_nevergone_pcode_with_accept_router.py \
   --output "$CLASSIFIED"
 
 python3 - "$FREEZE_MANIFEST" "$EVIDENCE" "$CLASSIFIED" "$SUMMARY" <<'PY'
-import collections, hashlib, json, math, sys
+import collections, hashlib, json, sys
 manifest_path, evidence_path, classified_path, summary_path = sys.argv[1:]
 manifest = json.load(open(manifest_path, encoding='utf-8'))
 evidence = [json.loads(line) for line in open(evidence_path, encoding='utf-8') if line.strip()]
@@ -222,3 +231,14 @@ print('labels_available=', summary['labels_available'])
 print('summary=', summary_path)
 print('classified=', classified_path)
 PY
+
+echo
+echo "== frozen unseen: distribution-shift audit =="
+python3 tools/ml/audit_nevergone_frozen_drift_v10.py \
+  "$BASE_OOF" \
+  "$V9_OOF" \
+  "$ROUTER_MANIFEST" \
+  "$TRAIN_EVIDENCE" \
+  "$CLASSIFIED" \
+  "$EVIDENCE" \
+  --output "$DRIFT_SUMMARY"
