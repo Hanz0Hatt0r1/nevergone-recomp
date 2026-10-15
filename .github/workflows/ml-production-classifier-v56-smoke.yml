@@ -1,0 +1,36 @@
+name: Nevergone Production Classifier v5.6 game meta verifier
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/evaluate_nevergone_game_meta_verifier_v56.py'
+      - 'tools/ml/nevergone_game_meta_verifier_v56_smoke.py'
+      - 'tools/ml/run_nevergone_game_meta_verifier_v56.sh'
+      - 'docs/ml/PRODUCTION_CLASSIFIER_V56.md'
+      - '.github/workflows/ml-production-classifier-v56-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/evaluate_nevergone_game_meta_verifier_v56.py'
+      - 'tools/ml/nevergone_game_meta_verifier_v56_smoke.py'
+      - 'tools/ml/run_nevergone_game_meta_verifier_v56.sh'
+      - 'docs/ml/PRODUCTION_CLASSIFIER_V56.md'
+      - '.github/workflows/ml-production-classifier-v56-smoke.yml'
+
+jobs:
+  production-classifier-v56:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install ML dependencies
+        run: python -m pip install -U numpy scikit-learn joblib
+      - name: Validate game meta verifier
+        run: |
+          python -m py_compile \
+            tools/ml/evaluate_nevergone_game_meta_verifier_v56.py \
+            tools/ml/nevergone_game_meta_verifier_v56_smoke.py
+          PYTHONPATH=tools/ml python tools/ml/nevergone_game_meta_verifier_v56_smoke.py
+          bash -n tools/ml/run_nevergone_game_meta_verifier_v56.sh
