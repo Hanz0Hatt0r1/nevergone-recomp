@@ -3,7 +3,6 @@
 #include <mutex>
 #include <sstream>
 
-#include "tutorial_dialogue_runtime.h"
 #include "tutorial_gameplay_state.h"
 
 namespace nevergone::tutorial_session_state {
@@ -25,24 +24,18 @@ bool advance_locked(Phase expected, Phase next) {
 }  // namespace
 
 void reset() {
-    {
-        std::lock_guard<std::mutex> lock(g_mutex);
-        g_state = {};
-        tutorial_gameplay_state::reset();
-    }
-    tutorial_dialogue_runtime::reset();
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state = {};
+    tutorial_gameplay_state::reset();
 }
 
 void begin_loading() {
-    {
-        std::lock_guard<std::mutex> lock(g_mutex);
-        ++g_state.generation;
-        g_state.phase = Phase::kLoading;
-        g_state.transition_count = 0;
-        g_state.rejected_transition_count = 0;
-        tutorial_gameplay_state::reset();
-    }
-    tutorial_dialogue_runtime::reset();
+    std::lock_guard<std::mutex> lock(g_mutex);
+    ++g_state.generation;
+    g_state.phase = Phase::kLoading;
+    g_state.transition_count = 0;
+    g_state.rejected_transition_count = 0;
+    tutorial_gameplay_state::reset();
 }
 
 bool on_loading_complete() {
@@ -51,16 +44,10 @@ bool on_loading_complete() {
 }
 
 bool on_lesson_overlay_complete() {
-    {
-        std::lock_guard<std::mutex> lock(g_mutex);
-        if (!advance_locked(Phase::kLessonOverlay, Phase::kDialogue)) return false;
-        tutorial_gameplay_state::begin_dialogue_sequence();
-    }
-    // LessonLayer::menuContinueCallback() immediately dispatches
-    // firstDlgCallBack(), which opens Guide/guide_text.plist dialogue 8.
-    // Keep the recovered dialogue runtime outside the session mutex: the
-    // runtime verifies the now-live Dialogue phase and owns its own lock.
-    return tutorial_dialogue_runtime::begin_first_dialogue();
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!advance_locked(Phase::kLessonOverlay, Phase::kDialogue)) return false;
+    tutorial_gameplay_state::begin_dialogue_sequence();
+    return true;
 }
 
 bool on_dialogue_complete() {
