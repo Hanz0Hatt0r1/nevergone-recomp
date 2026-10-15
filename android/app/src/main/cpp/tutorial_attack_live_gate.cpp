@@ -10,6 +10,8 @@ void Gate::reset() {
     attack_.reset();
     enemy_record_count_ = 0;
     completion_publish_count_ = 0;
+    bound_load_attempt_ = 0;
+    bound_scene_guid_.clear();
     ++generation_;
 }
 
@@ -46,6 +48,19 @@ bool Gate::tick(
         review_.scene_limits);
     enemy_record_count_ = enemy_records.size();
 
+    // A wave belongs to one imported scene/load attempt. Reject callbacks
+    // from an old scene even if the gameplay step is still Attack.
+    if (bound_load_attempt_ != 0 &&
+            (levels.load_attempt_count != bound_load_attempt_ ||
+             levels.current_scene_guid != bound_scene_guid_ ||
+             !levels.current_scene_render_queue_ready ||
+             levels.status != game_levels_runtime_state::LoadStatus::kReady)) {
+        attack_.reset();
+        bound_load_attempt_ = 0;
+        bound_scene_guid_.clear();
+        ++generation_;
+    }
+
     game_levels_enemy_record_mapping::ResolverContext resolver_context;
     resolver_context.mapping = &review_.enemy_mapping;
     resolver_context.records = &enemy_records;
@@ -60,6 +75,14 @@ bool Gate::tick(
             ? &game_levels_enemy_record_mapping::roster_base_health_resolver
             : nullptr,
         mapping_usable ? &resolver_context : nullptr);
+    const auto attack_state = attack_.snapshot();
+    if (attack_state.wave_started && bound_load_attempt_ == 0) {
+        bound_load_attempt_ = levels.load_attempt_count;
+        bound_scene_guid_ = levels.current_scene_guid;
+    } else if (!attack_state.wave_started) {
+        bound_load_attempt_ = 0;
+        bound_scene_guid_.clear();
+    }
     ++generation_;
     return ok;
 }

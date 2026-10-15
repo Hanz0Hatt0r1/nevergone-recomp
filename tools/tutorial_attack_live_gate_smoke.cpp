@@ -135,6 +135,27 @@ int main() {
     gate.set_player_face_dir_evidence(refreshed_face.face_dir);
     assert(gate.tick(200, gameplay, spawn, motion, control, levels, records));
     assert(gate.snapshot().spawn_inputs.ready());
+    const std::uint64_t old_wave = gate.snapshot().attack.wave_generation;
+    assert(old_wave != 0);
+
+    // A new imported scene load invalidates the old wave even when the
+    // gameplay step has not yet moved away from Attack.
+    levels.load_attempt_count = 41;
+    levels.current_scene_guid = "another-scene";
+    levels.current_scene_render_queue_ready = false;
+    assert(gate.tick(201, gameplay, spawn, motion, control, levels, records));
+    assert(!gate.snapshot().attack.wave_started);
+    assert(!gate.set_dead(0, old_wave));
+    assert(!gate.apply_damage(0, 1.0f, old_wave));
+    assert(!gate.consume_completion_after_publish());
+
+    // The old reviewed scene limits and old spawn GUID must not allow a
+    // wave to be started in the replacement scene.
+    levels.status = levels_ns::LoadStatus::kReady;
+    levels.current_scene_render_queue_ready = true;
+    assert(gate.tick(202, gameplay, spawn, motion, control, levels, records));
+    assert(!gate.snapshot().attack.wave_started);
+    assert(!gate.set_dead(0, old_wave));
 
     std::cout << "Tutorial Attack live gate smoke: PASS\n";
     return 0;
