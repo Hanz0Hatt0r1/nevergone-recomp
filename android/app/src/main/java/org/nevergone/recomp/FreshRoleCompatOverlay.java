@@ -7,6 +7,8 @@ import android.os.Looper;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
+import android.view.KeyEvent;
+import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -16,8 +18,10 @@ import android.widget.LinearLayout;
  *
  * Career selection, SingleSelectHero Confirm, CharacterName Random/Confirm/Cancel,
  * and modal touch ownership are now provided by the reconstructed native surface.
- * This view only mirrors the active role name into an Android EditText so the
- * platform IME can still edit the recovered native CharacterName state.
+ * This view mirrors the active role name into an Android EditText so the platform
+ * IME can edit the recovered native CharacterName state. IME Done/Enter is also
+ * retained as a compatibility submit path until the native CharacterName surface
+ * is fully usable on physical devices.
  */
 final class FreshRoleCompatOverlay extends LinearLayout {
     private static final int MODE_HIDDEN = 0;
@@ -59,6 +63,7 @@ final class FreshRoleCompatOverlay extends LinearLayout {
         roleName.setTextColor(Color.WHITE);
         roleName.setHintTextColor(0xffaaaaaa);
         roleName.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        roleName.setImeOptions(EditorInfo.IME_ACTION_DONE);
         roleName.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
@@ -67,8 +72,17 @@ final class FreshRoleCompatOverlay extends LinearLayout {
             public void afterTextChanged(Editable editable) {
                 if (!syncingName && nativeMode() == MODE_NAME) {
                     nativeSetRoleName(editable.toString());
+                    roleName.setError(null);
                 }
             }
+        });
+        roleName.setOnEditorActionListener((view, actionId, event) -> {
+            final boolean done = actionId == EditorInfo.IME_ACTION_DONE;
+            final boolean enter = event != null
+                    && event.getKeyCode() == KeyEvent.KEYCODE_ENTER
+                    && event.getAction() == KeyEvent.ACTION_DOWN;
+            if (!done && !enter) return false;
+            return submitRoleNameFromIme();
         });
         addView(roleName, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
     }
@@ -112,6 +126,26 @@ final class FreshRoleCompatOverlay extends LinearLayout {
             }
         }
         previousMode = mode;
+    }
+
+    private boolean submitRoleNameFromIme() {
+        if (nativeMode() != MODE_NAME) return false;
+        if (!nativeSetRoleName(roleName.getText().toString())) {
+            roleName.setError("Character name state is no longer active");
+            return true;
+        }
+
+        final String outcome = nativeDispatchNameAction(1);
+        if (outcome != null && outcome.startsWith("submitted")) {
+            roleName.setError(null);
+            hideKeyboard();
+            return true;
+        }
+
+        roleName.setError(outcome == null || outcome.isEmpty()
+                ? "Character name submit failed"
+                : outcome);
+        return true;
     }
 
     private void syncRoleName() {
