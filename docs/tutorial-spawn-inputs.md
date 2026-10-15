@@ -3,9 +3,9 @@
 `tutorial_enemy_spawn_plan` already contains the recovered enemy geometry, but
 starting a live wave requires a coherent snapshot of player and scene state.
 `tutorial_spawn_inputs` is the fail-closed boundary that assembles that snapshot
-without inventing still-unresolved scene data.
+without inventing unresolved combat data.
 
-## Already reconstructed inputs
+## Reconstructed inputs
 
 The adapter consumes the existing live snapshots for:
 
@@ -13,7 +13,8 @@ The adapter consumes the existing live snapshots for:
 - `game_scene_player_motion_state`: accumulated evidence-backed movement offset;
 - `player_control_runtime_state`: current horizontal control generation and the
   `flip_x` bool retained from the same value passed to `MEPlayer::filpPlayer()`;
-- `game_levels_runtime_state`: current loaded scene/load-attempt identity.
+- `game_levels_runtime_state`: current loaded scene/load-attempt identity and
+  current parsed PortNode record.
 
 The current tutorial position is therefore:
 
@@ -35,15 +36,27 @@ CONTROLSSTATE 0x13 -> flip_x=false -> PLAYERFACEDIR 0
 stamped with the exact `player_control_runtime_state` generation. The provider
 fails closed if the retained enum and bool disagree.
 
-## Input that remains evidence-gated
+## Scene limits are now live-derived
 
-`ReviewedSceneLimits` still requires the two vertical edges and right-side X
-value read through the recovered `GameScene +0x238 -> +0x20` path. The reviewed
-set is stamped with both the exact `GameLevels` load-attempt count and current
-scene GUID; a scene reload makes it stale and blocks wave creation.
+Direct ARMv7 evidence in `LessonLayer::nextLesson()` closes the raw scene-limit
+field mapping and comparison order:
 
-The separate enemy identity/base-health mapping remains a later materialization
-gate rather than a spawn-geometry input.
+```text
+PortNode third_u32  -> owner +0x4ac -> vertical_edge_a
+PortNode fourth_u32 -> owner +0x4b0 -> vertical_edge_b
+PortNode fifth_u32  -> owner +0x4b4 -> right_edge_x
+```
+
+`GameLevels::LoadGL_PortNode()` independently proves that these three serialized
+uint32 values are stored into those exact `GameScenePortNodeData` fields. The
+clean-room parser already retains the same record, and runtime navigation
+already exposes the current PortNode.
+
+`tutorial_scene_limit_provider` therefore creates `ReviewedSceneLimits` directly
+from the current parsed PortNode. It requires the PortNode's recovered first
+scene-GUID string to equal the current runtime scene GUID, then stamps the values
+with the exact runtime load-attempt count and scene GUID. A reload or navigation
+mismatch fails closed.
 
 ## Readiness checks
 
@@ -56,28 +69,26 @@ true:
 - motion state is ready and belongs to the exact spawn generation;
 - horizontal facing has been established;
 - the evidence-backed `PLAYERFACEDIR` belongs to the exact control generation;
-- scene limits are reviewed and belong to the exact runtime load attempt/scene;
+- PortNode-derived scene limits belong to the exact runtime load attempt/scene;
 - the resulting player coordinates are finite.
 
 There is no default face direction, no default map extent, and no reuse of
 reviewed values across generations.
 
-## Integration sequence
+## Remaining Attack-wave gate
 
-The remaining live Attack-wave integration is now:
+The geometry side of the first live Attack wave is now evidence-backed. The
+remaining materialization sequence is:
 
-1. derive current `ReviewedPlayerFaceDir` through the recovered shared
-   `MEPlayer +0x12c` facing contract;
-2. run/review the `tutorial-scene-limit-evidence` pipeline and recover the three
-   raw scene-limit fields plus vertical A/B branch ordering;
-3. generate `ReviewedSceneLimits` for the current scene/load generation;
-4. call `tutorial_spawn_inputs::resolve()`;
-5. only when it returns `kReady`, pass `Result::inputs` to the existing Attack
-   wave runtime/roster;
-6. resolve enemy ID/base HP through the separately reviewed
-   `game_levels_enemy_record_mapping` boundary before materialization;
-7. publish the tutorial zero-live-enemy event only after the roster's recovered
+1. derive current `ReviewedPlayerFaceDir` from live controls;
+2. derive current `ReviewedSceneLimits` from the selected parsed PortNode;
+3. call `tutorial_spawn_inputs::resolve()`;
+4. resolve enemy ID/base HP through the separately reviewed
+   `game_levels_enemy_record_mapping` boundary;
+5. materialize the recovered Attack roster only when both geometry and imported
+   enemy data are ready;
+6. publish the tutorial zero-live-enemy event only after the roster's recovered
    death predicate says every materialized enemy is dead.
 
-This keeps the first combat tutorial blocked only on concrete original-game
-evidence that is actually still missing.
+The remaining production evidence blocker is therefore the enemy identity/base-
+health record mapping, not tutorial map geometry.

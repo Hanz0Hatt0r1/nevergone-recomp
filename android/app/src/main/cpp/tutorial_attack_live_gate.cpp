@@ -31,6 +31,21 @@ void Gate::set_player_face_dir_evidence(
     ++generation_;
 }
 
+void Gate::set_scene_limit_evidence(
+        const tutorial_spawn_inputs::ReviewedSceneLimits& scene_limits) {
+    if (review_.scene_limits.reviewed == scene_limits.reviewed &&
+            review_.scene_limits.runtime_load_attempt_count ==
+                scene_limits.runtime_load_attempt_count &&
+            review_.scene_limits.scene_guid == scene_limits.scene_guid &&
+            review_.scene_limits.vertical_edge_a == scene_limits.vertical_edge_a &&
+            review_.scene_limits.vertical_edge_b == scene_limits.vertical_edge_b &&
+            review_.scene_limits.right_edge_x == scene_limits.right_edge_x) {
+        return;
+    }
+    review_.scene_limits = scene_limits;
+    ++generation_;
+}
+
 bool Gate::tick(
         std::uint64_t game_tick,
         const tutorial_gameplay_state::Snapshot& gameplay,

@@ -7,9 +7,17 @@ on:
       - 'tools/tutorial_scene_limit_evidence_smoke.py'
       - 'tools/tutorial_scene_limit_candidate.py'
       - 'tools/tutorial_scene_limit_candidate_smoke.py'
+      - 'tools/tutorial_scene_limit_binary_evidence.py'
+      - 'tools/tutorial_scene_limit_binary_evidence_smoke.py'
+      - 'tools/tutorial_scene_limit_provider_smoke.cpp'
       - 'tools/run_tutorial_scene_limit_probe.py'
+      - 'android/app/src/main/cpp/tutorial_scene_limit_provider.h'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate.cpp'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate.h'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate_runtime.cpp'
       - '.github/workflows/tutorial-scene-limit-evidence.yml'
       - 'docs/tutorial-scene-limit-evidence.md'
+      - 'docs/evidence/tutorial-scene-limit-fields-2026-10-15.md'
   push:
     branches-ignore: [main]
     paths:
@@ -17,9 +25,17 @@ on:
       - 'tools/tutorial_scene_limit_evidence_smoke.py'
       - 'tools/tutorial_scene_limit_candidate.py'
       - 'tools/tutorial_scene_limit_candidate_smoke.py'
+      - 'tools/tutorial_scene_limit_binary_evidence.py'
+      - 'tools/tutorial_scene_limit_binary_evidence_smoke.py'
+      - 'tools/tutorial_scene_limit_provider_smoke.cpp'
       - 'tools/run_tutorial_scene_limit_probe.py'
+      - 'android/app/src/main/cpp/tutorial_scene_limit_provider.h'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate.cpp'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate.h'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate_runtime.cpp'
       - '.github/workflows/tutorial-scene-limit-evidence.yml'
       - 'docs/tutorial-scene-limit-evidence.md'
+      - 'docs/evidence/tutorial-scene-limit-fields-2026-10-15.md'
 
 permissions:
   contents: read
@@ -34,6 +50,17 @@ jobs:
         run: python3 tools/tutorial_scene_limit_evidence_smoke.py
       - name: Validate machine-readable candidate
         run: python3 tools/tutorial_scene_limit_candidate_smoke.py
+      - name: Validate exact ARMv7 verifier
+        run: python3 tools/tutorial_scene_limit_binary_evidence_smoke.py
+      - name: Build and run scene-limit provider smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -Wall -Wextra -pedantic \
+            -Iandroid/app/src/main/cpp \
+            tools/tutorial_scene_limit_provider_smoke.cpp \
+            -o /tmp/tutorial_scene_limit_provider_smoke
+          /tmp/tutorial_scene_limit_provider_smoke
       - name: Validate two-stage wrapper CLI
         shell: bash
         run: |
