@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REFRESH_TEXT = "Refresh runtime diagnostics"
+DEVELOPER_TOOLS_TEXT = "Developer tools"
 SCROLL_VIEW_CLASS = "android.widget.ScrollView"
 SCROLL_DIRECTIONS = ("toward-start", "toward-end")
 BOUNDS_RE = re.compile(r"^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$")
@@ -50,19 +51,30 @@ def _normalized_label(value: str) -> str:
     return " ".join(value.split()).casefold()
 
 
-def refresh_center(path: Path) -> tuple[int, int]:
+def _control_center(path: Path, expected_text: str, label: str) -> tuple[int, int]:
     matches: list[tuple[int, int]] = []
-    expected = _normalized_label(REFRESH_TEXT)
+    expected = _normalized_label(expected_text)
     for node in _root(path).iter("node"):
         text = _normalized_label(node.attrib.get("text", ""))
         content_desc = _normalized_label(node.attrib.get("content-desc", ""))
         if text != expected and content_desc != expected:
             continue
-        left, top, right, bottom = _bounds(node, "refresh button")
+        left, top, right, bottom = _bounds(node, label)
         matches.append(((left + right) // 2, (top + bottom) // 2))
     if len(matches) != 1:
-        raise ValueError(f"expected exactly one refresh button, found {len(matches)}")
+        raise ValueError(f"expected exactly one {label}, found {len(matches)}")
     return matches[0]
+
+
+def refresh_center(path: Path) -> tuple[int, int]:
+    return _control_center(path, REFRESH_TEXT, "refresh button")
+
+
+def developer_tools_center(path: Path) -> tuple[int, int]:
+    # Only match the collapsed-state label. Once the panel is expanded the
+    # Activity changes the text to "Hide developer tools", so callers cannot
+    # accidentally collapse the panel while trying to expose diagnostics.
+    return _control_center(path, DEVELOPER_TOOLS_TEXT, "developer tools button")
 
 
 def _scroll_node(path: Path) -> ET.Element:
@@ -137,6 +149,9 @@ def main() -> int:
     center_parser = subparsers.add_parser("refresh-center")
     center_parser.add_argument("xml", type=Path)
 
+    developer_parser = subparsers.add_parser("developer-tools-center")
+    developer_parser.add_argument("xml", type=Path)
+
     swipe_parser = subparsers.add_parser("scroll-swipe")
     swipe_parser.add_argument("xml", type=Path)
     swipe_parser.add_argument(
@@ -152,6 +167,10 @@ def main() -> int:
     args = parser.parse_args()
     if args.command == "refresh-center":
         x, y = refresh_center(args.xml)
+        print(f"{x} {y}")
+        return 0
+    if args.command == "developer-tools-center":
+        x, y = developer_tools_center(args.xml)
         print(f"{x} {y}")
         return 0
     if args.command == "scroll-swipe":

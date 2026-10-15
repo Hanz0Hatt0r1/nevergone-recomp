@@ -60,6 +60,24 @@ dump_runtime_ui() {
   [[ -s "$LOCAL_UI_XML" ]] && grep -Fq "package=\"$PACKAGE\"" "$LOCAL_UI_XML"
 }
 
+expand_developer_tools_if_needed() {
+  local center tap_x tap_y
+
+  if ! dump_runtime_ui; then
+    return 0
+  fi
+  if python3 tools/android_runtime_diagnostics.py refresh-center "$LOCAL_UI_XML" >/dev/null 2>&1; then
+    return 0
+  fi
+  if ! center="$(python3 tools/android_runtime_diagnostics.py developer-tools-center "$LOCAL_UI_XML" 2>/dev/null)"; then
+    return 0
+  fi
+
+  read -r tap_x tap_y <<<"$center"
+  timeout 5s adb shell input tap "$tap_x" "$tap_y" >/dev/null
+  sleep 1
+}
+
 scroll_runtime_ui() {
   local direction="$1"
   local swipe start_x start_y end_x end_y
@@ -99,6 +117,7 @@ refresh_and_extract() {
   local output="$1"
   local center tap_x tap_y attempt
 
+  expand_developer_tools_if_needed
   if ! center="$(find_refresh_center)"; then
     echo 'Could not locate Refresh runtime diagnostics without leaving the current Activity.' >&2
     return 1
