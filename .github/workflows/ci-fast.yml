@@ -156,6 +156,10 @@ jobs:
             -o /tmp/offline_startup_flow_smoke
           /tmp/offline_startup_flow_smoke
 
+          g++ $CXXFLAGS tools/tutorial_loading_fade_smoke.cpp \
+            -o /tmp/tutorial_loading_fade_smoke
+          /tmp/tutorial_loading_fade_smoke
+
       - name: Validate bounded scene parsing
         shell: bash
         run: |

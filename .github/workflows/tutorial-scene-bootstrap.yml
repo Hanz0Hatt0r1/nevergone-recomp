@@ -5,6 +5,8 @@ on:
     paths:
       - 'android/app/src/main/cpp/tutorial_scene_bootstrap.*'
       - 'android/app/src/main/cpp/tutorial_session_state.*'
+      - 'android/app/src/main/cpp/tutorial_loading_compositor.*'
+      - 'android/app/src/main/cpp/tutorial_loading_fade.h'
       - 'android/app/src/main/cpp/offline_startup_flow.*'
       - 'android/app/src/main/cpp/game_clock.*'
       - 'android/app/src/main/cpp/filesystem_bindings.*'
@@ -17,6 +19,7 @@ on:
       - 'android/app/src/main/cpp/native_bootstrap.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/tutorial_scene_bootstrap_smoke.cpp'
+      - 'tools/tutorial_loading_fade_smoke.cpp'
       - 'docs/tutorial-loading-route.md'
       - '.github/workflows/tutorial-scene-bootstrap.yml'
   push:
@@ -24,6 +27,8 @@ on:
     paths:
       - 'android/app/src/main/cpp/tutorial_scene_bootstrap.*'
       - 'android/app/src/main/cpp/tutorial_session_state.*'
+      - 'android/app/src/main/cpp/tutorial_loading_compositor.*'
+      - 'android/app/src/main/cpp/tutorial_loading_fade.h'
       - 'android/app/src/main/cpp/offline_startup_flow.*'
       - 'android/app/src/main/cpp/game_clock.*'
       - 'android/app/src/main/cpp/filesystem_bindings.*'
@@ -36,6 +41,7 @@ on:
       - 'android/app/src/main/cpp/native_bootstrap.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/tutorial_scene_bootstrap_smoke.cpp'
+      - 'tools/tutorial_loading_fade_smoke.cpp'
       - 'docs/tutorial-loading-route.md'
       - '.github/workflows/tutorial-scene-bootstrap.yml'
 
@@ -78,3 +84,10 @@ jobs:
             -pthread \
             -o /tmp/tutorial_scene_bootstrap_smoke
           /tmp/tutorial_scene_bootstrap_smoke
+      - name: Build and run tutorial loading fade smoke
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Iandroid/app/src/main/cpp \
+            tools/tutorial_loading_fade_smoke.cpp \
+            -o /tmp/tutorial_loading_fade_smoke
+          /tmp/tutorial_loading_fade_smoke

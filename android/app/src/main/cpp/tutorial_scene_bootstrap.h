@@ -55,7 +55,13 @@ struct Snapshot {
 // logical tick at or after 0.5 seconds.
 constexpr double kOriginalSwitchDelaySeconds = 0.5;
 constexpr std::uint64_t kOriginalSwitchDelayTicks = 18u;
+
+// GameSceneUI::hideLoadingLayer(0.2f) starts after LessonLayer is created.
+// At the recovered fixed 35 Hz game clock, 0.2 seconds is exactly seven
+// logical ticks; keep the integer boundary explicit so floating-point rounding
+// cannot extend the fade by an extra frame.
 constexpr double kOriginalHideFadeSeconds = 0.2;
+constexpr std::uint64_t kOriginalHideFadeTicks = 7u;
 
 void reset();
 
