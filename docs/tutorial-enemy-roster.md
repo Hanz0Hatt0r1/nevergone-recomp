@@ -76,6 +76,42 @@ coverage is explicitly marked incomplete.
 finite float parsing, total/omitted accounting, TSV export, truncated-report
 handling, and candidate-column filtering.
 
+## Cross-evidence mapping
+
+The independent Ghidra consumer probe described in
+`docs/enemy-health-death-contract.md` produces:
+
+```text
+build/enemy-health-field-consumer/enemy-health-field-consumer.tsv
+```
+
+Once both artifacts exist, combine them rather than interpreting either one by
+itself:
+
+```bash
+python3 tools/enemy_record_cross_evidence.py \
+  artifacts/android-game-scene-runtime/runtime-diagnostics.txt \
+  build/enemy-health-field-consumer/enemy-health-field-consumer.tsv \
+  --known-enemy-id 3 \
+  --output artifacts/android-game-scene-runtime/enemy-record-cross-evidence.txt
+```
+
+When a second independently recovered ID is known to belong to the same captured
+record set, add it as another `--known-enemy-id` (for example `0x15`). More than
+one ID is useful because it can eliminate coincidental integer-column matches.
+
+The cross-evidence analyzer emits a mapping candidate only when:
+
+- the runtime report is complete rather than truncated;
+- supplied known enemy IDs select exactly one integer identity column;
+- the Ghidra consumer probe yields one shared source field for both recovered
+  object health stores;
+- the identity and base-health candidates are different raw fields.
+
+The tool still does not rename parser fields automatically. Its output is the
+bounded evidence package that should be reviewed before introducing semantic
+`enemy_id` / `base_health` accessors and the production `BaseHealthResolver`.
+
 ## Completion boundary
 
 The roster exposes a one-shot `consume_all_defeated()` edge only when all
@@ -97,7 +133,7 @@ transition from `Attack` to `Block`.
 
 `enemy_health_state.cpp`, `tutorial_enemy_spawn_plan.cpp`, and
 `tutorial_enemy_roster.cpp` are linked into the Android native target. The
-remaining production boundary is to prove the imported enemy identity/base-HP
-mapping, provide that resolver to the roster, and connect live `EnemyObject`
-damage/death updates to matching slots. Until that data path is recovered, the
-roster will not guess HP or falsely advance the tutorial.
+remaining production boundary is to prove and review the imported enemy
+identity/base-HP mapping, provide that resolver to the roster, and connect live
+`EnemyObject` damage/death updates to matching slots. Until that data path is
+recovered, the roster will not guess HP or falsely advance the tutorial.
