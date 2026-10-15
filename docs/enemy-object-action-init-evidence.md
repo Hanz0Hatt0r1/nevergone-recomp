@@ -87,25 +87,54 @@ ActionDataManager::addActionDataWithID:
   explicit arguments:    3
 ```
 
-The structural analyzer currently traces the eight `initWithFile` explicit
-arguments to four register roots followed by four stack roots. That is useful
-identity/ABI evidence, but is not enough to assign filename, object type, or
-enemy-ID semantics.
+The structural analyzer traces the eight `initWithFile` explicit arguments to
+four register roots followed by four stack roots. That is useful identity/ABI
+evidence, but is not enough to assign filename, object type, or enemy-ID
+semantics.
 
-The next phase therefore does **not** widen the call graph. Once a structural hit
-exists, the wrapper now:
+### Resolved first caller-subtree hit
+
+The next live caller-subtree run identifies the `0x002bddfc` function as
+`createWithFile`. Its call to `initWithFile` has complete single-caller coverage.
+The `EnemyActionsSystem*` receiver is produced by `operator.new`, while all eight
+explicit init arguments remain direct ABI roots in `createWithFile`:
+
+```text
+receiver: EnemyActionsSystem * <- operator.new
+arg[0..3]: register roots, undefined4
+arg[4..5]: stack roots, undefined4
+arg[6..7]: stack roots, undefined1
+```
+
+This is evidence that local SSA inside `createWithFile` is exhausted for those
+values. It is **not** evidence that any particular argument is the filename,
+object type, or enemy ID.
+
+The probe therefore now continues one caller level higher without widening the
+Ghidra reverse graph. It derives the `createWithFile` entry from the resolved init
+caller, scans the already-exported reverse P-code for every direct call to that
+entry, and builds an exact-coverage `ExportCallerArgumentSubtree` plan for every
+parameter present at those calls. The same bounded subtree exporter then records:
+
+- direct caller function and call site;
+- root High-P-code type and pointer information;
+- constants;
+- defining operations and direct CALL targets;
+- bounded SSA leaves.
+
+No semantic label is assigned from parameter position alone.
+
+The first subtree phase remains available as well. Once a structural init hit
+exists, the wrapper:
 
 1. builds a plan directly from the resolved `initWithFile` CALL row;
-2. uses the existing `ExportCallerArgumentSubtree.java` exporter for the receiver
-   plus every explicit argument;
-3. records caller function name, call site, High-P-code type information, pointer
-   depth/pointee type, constants, defining operations and bounded SSA leaves;
-4. summarizes that evidence with
-   `tools/enemy_action_init_caller_arguments.py`.
-
-The plan is derived from the live CALL itself. For the current binary it contains
-nine raw call inputs: one member receiver plus `arg[0]` through `arg[7]`. No
-parameter meaning is assigned by position.
+2. uses `ExportCallerArgumentSubtree.java` for the receiver plus every explicit
+   init argument;
+3. summarizes those local roots;
+4. derives the unique init caller/factory entry;
+5. finds direct calls to that factory in the same bounded P-code export;
+6. builds a second exact-coverage plan for every factory parameter;
+7. exports and summarizes the values supplied by the factory's callers.
 
 Both call-graph traversals remain explicitly bounded:
 
@@ -117,25 +146,6 @@ max decompiled functions per traversal: 96
 Only resolved direct call references are traversed. `CALLIND` targets are not
 guessed. No action filename, object type, or enemy ID is assigned from an
 unresolved value.
-
-The structural analyzer recognizes calls found anywhere in either bounded export
-by their resolved symbol names. Optional numeric fallbacks can also be supplied
-when a local Ghidra database lacks a useful target name:
-
-```text
-EnemyActionsSystem::initWithFile
-ActionDataManager::addActionDataWithID
-```
-
-For each structural call it reports:
-
-- call site and resolved target;
-- receiver provenance;
-- every explicit argument in original call order;
-- structurally traced constants and root tokens.
-
-Transparent copies/casts/extensions and `MULTIEQUAL` joins are traced. Other
-arithmetic or unresolved values remain `derived`.
 
 ## Run on the analyzed original library
 
@@ -176,15 +186,19 @@ build/enemy-object-action-init-evidence/enemy-object-action-init-report.txt
 build/enemy-object-action-init-evidence/enemy-actions-init-caller-argument-plan.tsv
 build/enemy-object-action-init-evidence/enemy-actions-init-caller-argument-subtrees.tsv
 build/enemy-object-action-init-evidence/enemy-actions-init-caller-argument-report.txt
+build/enemy-object-action-init-evidence/enemy-actions-create-with-file-caller-parameter-plan.tsv
+build/enemy-object-action-init-evidence/enemy-actions-create-with-file-caller-parameter-subtrees.tsv
+build/enemy-object-action-init-evidence/enemy-actions-create-with-file-caller-parameter-report.txt
 ```
 
 ## Acceptance boundary for the next runtime step
 
-A report that merely finds an `initWithFile` call is not sufficient to hard-code
-an enemy action path. Before a tutorial binding can load an action document, the
-relevant argument must be tied independently to an imported, bounded asset name
-or an already reconstructed ActionDataManager mapping. If the source stays
-`derived` or ambiguous, the actor bridge remains fail-closed.
+A report that merely finds an `initWithFile` or `createWithFile` call is not
+sufficient to hard-code an enemy action path. Before a tutorial binding can load
+an action document, the relevant caller-supplied value must be tied independently
+to an imported, bounded asset name or an already reconstructed
+`ActionDataManager` mapping. If the source stays derived or ambiguous, the actor
+bridge remains fail-closed.
 
 Once that filename/ID correspondence is proven, the existing reconstructed
 `enemy_actions_wbg_document` and `enemy_actions_runtime_state` layers can drive
