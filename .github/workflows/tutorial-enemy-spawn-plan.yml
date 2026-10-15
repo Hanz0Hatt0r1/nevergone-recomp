@@ -1,0 +1,31 @@
+name: Tutorial enemy spawn plan
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/tutorial_enemy_spawn_plan.*'
+      - 'tools/tutorial_enemy_spawn_plan_smoke.cpp'
+      - '.github/workflows/tutorial-enemy-spawn-plan.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/tutorial_enemy_spawn_plan.*'
+      - 'tools/tutorial_enemy_spawn_plan_smoke.cpp'
+      - '.github/workflows/tutorial-enemy-spawn-plan.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run tutorial enemy spawn-plan smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Wpedantic -Werror \
+            tools/tutorial_enemy_spawn_plan_smoke.cpp \
+            android/app/src/main/cpp/tutorial_enemy_spawn_plan.cpp \
+            -o /tmp/tutorial_enemy_spawn_plan_smoke
+          /tmp/tutorial_enemy_spawn_plan_smoke
