@@ -227,3 +227,11 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeResetPlayerActionDocum
     nevergone::game_scene_player_joystick_input::reset();
     nevergone::meplayer_live_action_state::reset();
 }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeStatusReport(
+        JNIEnv* env,
+        jclass) {
+    const std::string report = runtime_status_report();
+    return env->NewStringUTF(report.c_str());
+}
