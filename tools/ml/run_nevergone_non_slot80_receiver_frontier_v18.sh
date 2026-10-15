@@ -47,7 +47,9 @@ while IFS=$'\t' read -r format source entry calls addresses slots expected; do
     exit 2
   }
   [[ "$entry" =~ ^[0-9a-f]{8}$ ]] || { echo "invalid source entry: $entry" >&2; exit 2; }
-  [[ "$slots" != *"0x80"* ]] || { echo "v18 plan unexpectedly contains slot 0x80" >&2; exit 2; }
+  case ",$slots," in
+    *,0x80,*) echo "v18 plan unexpectedly contains slot 0x80" >&2; exit 2 ;;
+  esac
 
   safe="${source//\//_}"
   safe="${safe//:/_}"
