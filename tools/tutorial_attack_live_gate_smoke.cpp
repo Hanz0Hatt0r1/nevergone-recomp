@@ -54,6 +54,7 @@ int main() {
     assert(state.spawn_inputs.status == inputs_ns::Status::kPlayerFaceDirUnreviewed);
     assert(state.attack.status == attack_ns::Status::kWaitingForSpawnInputs);
     assert(!state.attack.wave_started);
+    assert(state.enemy_bindings.active_count == 0);
 
     const auto face = face_ns::resolve(control);
     assert(face.ready());
@@ -63,6 +64,7 @@ int main() {
     state = gate.snapshot();
     assert(state.spawn_inputs.status == inputs_ns::Status::kSceneLimitsUnreviewed);
     assert(!state.attack.wave_started);
+    assert(state.enemy_bindings.active_count == 0);
 
     gate_ns::ReviewBundle review;
     review.player_face_dir = face.face_dir;
@@ -85,6 +87,7 @@ int main() {
     assert(!state.enemy_mapping_usable);
     assert(state.attack.status == attack_ns::Status::kWaitingForBaseHealth);
     assert(!state.attack.wave_started);
+    assert(state.enemy_bindings.active_count == 0);
 
     // Production installs this independently reviewed mapping from exact ARMv7
     // evidence rather than promoting the candidate above at runtime.
@@ -101,10 +104,34 @@ int main() {
     const std::uint64_t wave = state.attack.wave_generation;
     assert(wave != 0);
 
+    // Actor identity is published only for the immediate materialized slot.
+    assert(state.enemy_bindings.wave_bound);
+    assert(state.enemy_bindings.wave_generation == wave);
+    assert(state.enemy_bindings.active_count == 1);
+    assert(state.enemy_bindings.bindings[0].active);
+    assert(state.enemy_bindings.bindings[0].enemy_id == 3u);
+    assert(state.enemy_bindings.bindings[0].base_health == 137.0f);
+    assert(state.enemy_bindings.bindings[0].spawn_x == 500.0f);
+    assert(state.enemy_bindings.bindings[0].spawn_y == 100.0f);
+
+    // A callback for a planned but not-yet-materialized slot is rejected even
+    // when it carries the correct wave token.
+    assert(!gate.set_dead(1, wave));
+    assert(!gate.apply_damage(2, 1.0f, wave));
+
     assert(gate.tick(118, gameplay, spawn, motion, control, levels, records));
-    assert(gate.snapshot().attack.roster.materialized_count == 2);
+    state = gate.snapshot();
+    assert(state.attack.roster.materialized_count == 2);
+    assert(state.enemy_bindings.active_count == 2);
+    assert(state.enemy_bindings.bindings[2].active);
+    assert(!state.enemy_bindings.bindings[1].active);
+    assert(!gate.set_dead(1, wave));
+
     assert(gate.tick(135, gameplay, spawn, motion, control, levels, records));
-    assert(gate.snapshot().attack.roster.materialized_count == 3);
+    state = gate.snapshot();
+    assert(state.attack.roster.materialized_count == 3);
+    assert(state.enemy_bindings.active_count == 3);
+    assert(state.enemy_bindings.bindings[1].active);
 
     assert(gate.set_dead(0, wave));
     assert(gate.set_dead(1, wave));
@@ -112,12 +139,14 @@ int main() {
     assert(gate.tick(136, gameplay, spawn, motion, control, levels, records));
     state = gate.snapshot();
     assert(state.attack.completion_pending);
+    assert(state.enemy_bindings.active_count == 3);
     assert(state.completion_publish_count == 0);
     assert(gate.consume_completion_after_publish());
     assert(!gate.consume_completion_after_publish());
     assert(gate.snapshot().completion_publish_count == 1);
 
     gate.reset();
+    assert(gate.snapshot().enemy_bindings.active_count == 0);
     control.generation = 31;
     review.player_face_dir = face.face_dir;
     gate.set_review_bundle(review);
@@ -126,21 +155,26 @@ int main() {
     state = gate.snapshot();
     assert(state.spawn_inputs.status == inputs_ns::Status::kPlayerFaceDirStale);
     assert(!state.attack.wave_started);
+    assert(state.enemy_bindings.active_count == 0);
 
     const auto refreshed_face = face_ns::resolve(control);
     assert(refreshed_face.ready());
     assert(refreshed_face.face_dir.control_generation == 31);
     gate.set_player_face_dir_evidence(refreshed_face.face_dir);
     assert(gate.tick(200, gameplay, spawn, motion, control, levels, records));
-    assert(gate.snapshot().spawn_inputs.ready());
-    const std::uint64_t old_wave = gate.snapshot().attack.wave_generation;
+    state = gate.snapshot();
+    assert(state.spawn_inputs.ready());
+    assert(state.enemy_bindings.active_count == 1);
+    const std::uint64_t old_wave = state.attack.wave_generation;
     assert(old_wave != 0);
 
     levels.load_attempt_count = 41;
     levels.current_scene_guid = "another-scene";
     levels.current_scene_render_queue_ready = false;
     assert(gate.tick(201, gameplay, spawn, motion, control, levels, records));
-    assert(!gate.snapshot().attack.wave_started);
+    state = gate.snapshot();
+    assert(!state.attack.wave_started);
+    assert(state.enemy_bindings.active_count == 0);
     assert(!gate.set_dead(0, old_wave));
     assert(!gate.apply_damage(0, 1.0f, old_wave));
     assert(!gate.consume_completion_after_publish());
@@ -149,6 +183,7 @@ int main() {
     levels.current_scene_render_queue_ready = true;
     assert(gate.tick(202, gameplay, spawn, motion, control, levels, records));
     assert(!gate.snapshot().attack.wave_started);
+    assert(gate.snapshot().enemy_bindings.active_count == 0);
     assert(!gate.set_dead(0, old_wave));
 
     std::cout << "Tutorial Attack live gate smoke: PASS\n";
