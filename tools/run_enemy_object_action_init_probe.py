@@ -9,6 +9,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+DEFAULT_INIT_ENTRY = "002adcb0"
+DEFAULT_ADD_ENTRY = "0028ee34"
+
+
+def run(command: list[str]) -> int:
+    result = subprocess.run(command, check=False)
+    return result.returncode
+
 
 def main(argv: list[str] | None = None) -> int:
     repo_root = Path(__file__).resolve().parents[1]
@@ -30,16 +38,30 @@ def main(argv: list[str] | None = None) -> int:
         "--max-depth",
         type=int,
         default=4,
-        help="maximum direct-call depth exported from loadEnemyObjectFile (default: 4)",
+        help="maximum direct-call/reverse-call depth exported (default: 4)",
     )
     parser.add_argument(
         "--max-functions",
         type=int,
         default=96,
-        help="maximum number of internal functions decompiled by the bounded exporter (default: 96)",
+        help="maximum number of functions decompiled by each bounded exporter (default: 96)",
     )
-    parser.add_argument("--init-entry", help="optional exact Ghidra entry for EnemyActionsSystem::initWithFile")
-    parser.add_argument("--add-entry", help="optional exact Ghidra entry for ActionDataManager::addActionDataWithID")
+    parser.add_argument(
+        "--init-entry",
+        default=DEFAULT_INIT_ENTRY,
+        help=(
+            "exact Ghidra entry for EnemyActionsSystem::initWithFile "
+            f"(default: {DEFAULT_INIT_ENTRY}, reviewed original ARMv7 evidence)"
+        ),
+    )
+    parser.add_argument(
+        "--add-entry",
+        default=DEFAULT_ADD_ENTRY,
+        help=(
+            "exact Ghidra entry for ActionDataManager::addActionDataWithID "
+            f"(default: {DEFAULT_ADD_ENTRY}, reviewed original ARMv7 evidence)"
+        ),
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -57,15 +79,14 @@ def main(argv: list[str] | None = None) -> int:
     project_dir = args.project_dir.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
     script_dir = repo_root / "tools" / "ghidra"
-    exporter = script_dir / "ExportBoundedCallGraphPcodeFlow.java"
+    forward_exporter = script_dir / "ExportBoundedCallGraphPcodeFlow.java"
+    reverse_exporter = script_dir / "ExportBoundedReverseCallGraphPcodeFlow.java"
     analyzer = repo_root / "tools" / "enemy_object_action_init_evidence.py"
-    flow_tsv = output_dir / "load-enemy-object-callgraph-pcode.tsv"
+    forward_tsv = output_dir / "load-enemy-object-callgraph-pcode.tsv"
+    reverse_tsv = output_dir / "enemy-actions-init-reverse-callgraph-pcode.tsv"
     report = output_dir / "enemy-object-action-init-report.txt"
 
-    # -recursive searches nested Ghidra project folders for the exact requested
-    # program. The exporter itself then follows only resolved internal direct
-    # calls from the requested root, with explicit depth/function caps.
-    export_command = [
+    common_ghidra = [
         str(ghidra_root / "support" / "analyzeHeadless"),
         str(project_dir),
         args.project_name,
@@ -76,24 +97,53 @@ def main(argv: list[str] | None = None) -> int:
         "-scriptPath",
         str(script_dir),
         "-postScript",
+    ]
+    forward_export_command = common_ghidra + [
         "ExportBoundedCallGraphPcodeFlow.java",
         args.load_enemy_object,
-        str(flow_tsv),
+        str(forward_tsv),
         str(args.max_depth),
         str(args.max_functions),
     ]
-    analyze_command = [sys.executable, str(analyzer), str(flow_tsv), "--output", str(report)]
-    if args.init_entry:
-        analyze_command.extend(["--init-entry", args.init_entry])
-    if args.add_entry:
-        analyze_command.extend(["--add-entry", args.add_entry])
+    reverse_export_command = common_ghidra + [
+        "ExportBoundedReverseCallGraphPcodeFlow.java",
+        args.init_entry,
+        str(reverse_tsv),
+        str(args.max_depth),
+        str(args.max_functions),
+    ]
+
+    def analyze_command(tsv: Path) -> list[str]:
+        return [
+            sys.executable,
+            str(analyzer),
+            str(tsv),
+            "--output",
+            str(report),
+            "--init-entry",
+            args.init_entry,
+            "--add-entry",
+            args.add_entry,
+        ]
+
+    forward_analyze_command = analyze_command(forward_tsv)
+    reverse_analyze_command = analyze_command(reverse_tsv)
 
     if args.dry_run:
-        print(shlex.join(export_command))
-        print(shlex.join(analyze_command))
+        print(shlex.join(forward_export_command))
+        print(shlex.join(forward_analyze_command))
+        print("# fallback only when the forward analyzer returns status 2 (no init call)")
+        print(shlex.join(reverse_export_command))
+        print(shlex.join(reverse_analyze_command))
         return 0
 
-    for path in (ghidra_root / "support" / "analyzeHeadless", exporter, analyzer):
+    required = [
+        ghidra_root / "support" / "analyzeHeadless",
+        forward_exporter,
+        reverse_exporter,
+        analyzer,
+    ]
+    for path in required:
         if not path.is_file():
             print(f"missing required tool: {path}", file=sys.stderr)
             return 2
@@ -102,16 +152,50 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    for command in (export_command, analyze_command):
-        result = subprocess.run(command, check=False)
-        if result.returncode != 0:
-            print(
-                f"command failed with exit code {result.returncode}: {shlex.join(command)}",
-                file=sys.stderr,
-            )
-            return result.returncode or 1
 
-    print(f"Bounded call-graph P-code: {flow_tsv}")
+    code = run(forward_export_command)
+    if code != 0:
+        print(
+            f"command failed with exit code {code}: {shlex.join(forward_export_command)}",
+            file=sys.stderr,
+        )
+        return code or 1
+
+    code = run(forward_analyze_command)
+    if code == 0:
+        print(f"Bounded forward call-graph P-code: {forward_tsv}")
+        print(f"Enemy action-init evidence: {report}")
+        return 0
+    if code != 2:
+        print(
+            f"command failed with exit code {code}: {shlex.join(forward_analyze_command)}",
+            file=sys.stderr,
+        )
+        return code or 1
+
+    print(
+        "Forward graph contains no resolved EnemyActionsSystem::initWithFile call; "
+        f"falling back to bounded reverse callers from {args.init_entry}.",
+        file=sys.stderr,
+    )
+    code = run(reverse_export_command)
+    if code != 0:
+        print(
+            f"command failed with exit code {code}: {shlex.join(reverse_export_command)}",
+            file=sys.stderr,
+        )
+        return code or 1
+
+    code = run(reverse_analyze_command)
+    if code != 0:
+        print(
+            f"command failed with exit code {code}: {shlex.join(reverse_analyze_command)}",
+            file=sys.stderr,
+        )
+        return code or 1
+
+    print(f"Bounded forward call-graph P-code: {forward_tsv}")
+    print(f"Bounded reverse caller P-code: {reverse_tsv}")
     print(f"Enemy action-init evidence: {report}")
     return 0
 

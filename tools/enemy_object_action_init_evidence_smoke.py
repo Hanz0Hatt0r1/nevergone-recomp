@@ -39,10 +39,10 @@ def main() -> int:
              "const:0x3:4", "-", "-"],
             ["002ae000", "002ae120", "0", "CALL", "-",
              "register:r4:4;def:002ae100:0:4;def:002ae110:0:4;const:0x0:4",
-             "002bdcb0", "EnemyActionsSystem::initWithFile(char const*, int, int)"],
+             "002adcb0", "EnemyActionsSystem::initWithFile(char const*, int, int)"],
             ["002ae000", "002ae130", "0", "CALL", "-",
              "register:r5:4;const:0x3:4;const:0x1c:4;def:002ae100:0:4",
-             "0029ee34", "ActionDataManager::addActionDataWithID(int, int, char const*)"],
+             "0028ee34", "ActionDataManager::addActionDataWithID(int, int, char const*)"],
         ])
 
         calls = collect_call_evidence(read_rows(sample))
@@ -79,7 +79,7 @@ def main() -> int:
              "input:ram:00fedcba:4", "-", "-"],
             ["002bf000", "002bf040", "0", "CALL", "-",
              "register:r6:4;def:002bf020:0:4;const:0x3:4;const:0x0:4",
-             "002bdcb0", "EnemyActionsSystem::initWithFile(char const*, int, int)"],
+             "002adcb0", "EnemyActionsSystem::initWithFile(char const*, int, int)"],
         ])
         nested_calls = collect_call_evidence(read_rows(nested))
         assert status(nested_calls) == "structural-init-call-found"
@@ -92,9 +92,9 @@ def main() -> int:
         unnamed = root / "unnamed.tsv"
         write_tsv(unnamed, [[
             "002ae000", "002ae200", "0", "CALL", "-",
-            "register:r4:4;input:ram:00abcdef:4", "002bdcb0", "-",
+            "register:r4:4;input:ram:00abcdef:4", "002adcb0", "-",
         ]])
-        by_entry = collect_call_evidence(read_rows(unnamed), init_entry="0x002bdcb0")
+        by_entry = collect_call_evidence(read_rows(unnamed), init_entry="0x002adcb0")
         assert status(by_entry) == "structural-init-call-found"
         assert len(by_entry) == 1
         assert by_entry[0].arguments[0].source.roots == ("input:ram:00abcdef:4",)
