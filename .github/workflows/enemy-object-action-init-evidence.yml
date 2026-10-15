@@ -11,16 +11,22 @@ on:
       - 'tools/enemy_action_factory_call_matrix_smoke.py'
       - 'tools/enemy_object_init_actions_callsite.py'
       - 'tools/enemy_object_init_actions_callsite_smoke.py'
+      - 'tools/enemy_object_action_dictionary_chain.py'
+      - 'tools/enemy_object_action_dictionary_chain_smoke.py'
       - 'tools/run_enemy_object_action_init_probe.py'
       - 'tools/run_enemy_action_factory_call_matrix.py'
       - 'tools/run_enemy_object_init_actions_callsite.py'
+      - 'tools/run_enemy_object_action_dictionary_chain.py'
       - 'tools/ghidra/ExportFunctionPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedReverseCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportCallerArgumentSubtree.java'
       - 'tools/ghidra/ExportCallerFunctionIdentities.java'
+      - 'tools/ghidra/ExportPcodeDefinedStrings.java'
       - '.github/workflows/enemy-object-action-init-evidence.yml'
       - 'docs/enemy-object-action-init-evidence.md'
+      - 'docs/enemy-object-init-actions-callsite-evidence.md'
+      - 'docs/enemy-object-action-dictionary-chain-evidence.md'
   push:
     branches-ignore: [main]
     paths:
@@ -32,16 +38,22 @@ on:
       - 'tools/enemy_action_factory_call_matrix_smoke.py'
       - 'tools/enemy_object_init_actions_callsite.py'
       - 'tools/enemy_object_init_actions_callsite_smoke.py'
+      - 'tools/enemy_object_action_dictionary_chain.py'
+      - 'tools/enemy_object_action_dictionary_chain_smoke.py'
       - 'tools/run_enemy_object_action_init_probe.py'
       - 'tools/run_enemy_action_factory_call_matrix.py'
       - 'tools/run_enemy_object_init_actions_callsite.py'
+      - 'tools/run_enemy_object_action_dictionary_chain.py'
       - 'tools/ghidra/ExportFunctionPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedReverseCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportCallerArgumentSubtree.java'
       - 'tools/ghidra/ExportCallerFunctionIdentities.java'
+      - 'tools/ghidra/ExportPcodeDefinedStrings.java'
       - '.github/workflows/enemy-object-action-init-evidence.yml'
       - 'docs/enemy-object-action-init-evidence.md'
+      - 'docs/enemy-object-init-actions-callsite-evidence.md'
+      - 'docs/enemy-object-action-dictionary-chain-evidence.md'
 
 permissions:
   contents: read
@@ -62,6 +74,10 @@ jobs:
           grep -q 'getName(true)' tools/ghidra/ExportCallerFunctionIdentities.java
       - name: Validate focused EnemyObject initActionsSystem call site
         run: python3 tools/enemy_object_init_actions_callsite_smoke.py
+      - name: Validate EnemyObject action dictionary chain
+        run: |
+          python3 tools/enemy_object_action_dictionary_chain_smoke.py
+          grep -q 'NEVERGONE.GhidraPcodeDefinedString/1' tools/ghidra/ExportPcodeDefinedStrings.java
       - name: Validate probe wrapper CLI
         shell: bash
         run: |
@@ -112,3 +128,13 @@ jobs:
           grep -q 'EnemyObject::initActionsSystem' /tmp/enemy-object-init-actions-callsite.txt
           grep -q 'enemy_object_init_actions_callsite.py' /tmp/enemy-object-init-actions-callsite.txt
           grep -q -- '-recursive' /tmp/enemy-object-init-actions-callsite.txt
+
+          python3 tools/run_enemy_object_action_dictionary_chain.py \
+            --project-dir /tmp/not-a-real-ghidra-project \
+            --project-name Nevergone \
+            --program libcocos2dcpp.so \
+            --pcode /tmp/not-a-real-pcode.tsv \
+            --dry-run > /tmp/enemy-object-action-dictionary-chain.txt
+          grep -q 'ExportPcodeDefinedStrings.java' /tmp/enemy-object-action-dictionary-chain.txt
+          grep -q 'enemy_object_action_dictionary_chain.py' /tmp/enemy-object-action-dictionary-chain.txt
+          grep -q -- '-recursive' /tmp/enemy-object-action-dictionary-chain.txt
