@@ -88,10 +88,15 @@ def main(argv: list[str] | None = None) -> int:
     script_dir = repo_root / "tools" / "ghidra"
     forward_exporter = script_dir / "ExportBoundedCallGraphPcodeFlow.java"
     reverse_exporter = script_dir / "ExportBoundedReverseCallGraphPcodeFlow.java"
+    caller_subtree_exporter = script_dir / "ExportCallerArgumentSubtree.java"
     analyzer = repo_root / "tools" / "enemy_object_action_init_evidence.py"
+    caller_arguments = repo_root / "tools" / "enemy_action_init_caller_arguments.py"
     forward_tsv = output_dir / "load-enemy-object-callgraph-pcode.tsv"
     reverse_tsv = output_dir / "enemy-actions-init-reverse-callgraph-pcode.tsv"
     report = output_dir / "enemy-object-action-init-report.txt"
+    caller_plan = output_dir / "enemy-actions-init-caller-argument-plan.tsv"
+    caller_subtrees = output_dir / "enemy-actions-init-caller-argument-subtrees.tsv"
+    caller_report = output_dir / "enemy-actions-init-caller-argument-report.txt"
 
     common_ghidra = [
         str(ghidra_root / "support" / "analyzeHeadless"),
@@ -137,6 +142,29 @@ def main(argv: list[str] | None = None) -> int:
             command.extend(["--add-entry", args.add_entry])
         return command
 
+    def caller_plan_command(tsv: Path) -> list[str]:
+        return [
+            sys.executable,
+            str(caller_arguments),
+            "plan",
+            str(tsv),
+            str(caller_plan),
+        ]
+
+    caller_subtree_export_command = common_ghidra + [
+        "ExportCallerArgumentSubtree.java",
+        str(caller_plan),
+        str(caller_subtrees),
+    ]
+    caller_report_command = [
+        sys.executable,
+        str(caller_arguments),
+        "report",
+        str(caller_subtrees),
+        "--output",
+        str(caller_report),
+    ]
+
     forward_analyze_command = analyze_command(forward_tsv)
     reverse_analyze_command = analyze_command(reverse_tsv)
 
@@ -146,13 +174,19 @@ def main(argv: list[str] | None = None) -> int:
         print("# fallback only when the forward analyzer returns status 2 (no init call)")
         print(shlex.join(reverse_export_command))
         print(shlex.join(reverse_analyze_command))
+        print("# after a structural init hit, extract receiver + explicit caller arguments")
+        print(shlex.join(caller_plan_command(reverse_tsv)))
+        print(shlex.join(caller_subtree_export_command))
+        print(shlex.join(caller_report_command))
         return 0
 
     required = [
         ghidra_root / "support" / "analyzeHeadless",
         forward_exporter,
         reverse_exporter,
+        caller_subtree_exporter,
         analyzer,
+        caller_arguments,
     ]
     for path in required:
         if not path.is_file():
@@ -164,6 +198,22 @@ def main(argv: list[str] | None = None) -> int:
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    def run_caller_subtree_phase(pcode_tsv: Path) -> int:
+        commands = [
+            caller_plan_command(pcode_tsv),
+            caller_subtree_export_command,
+            caller_report_command,
+        ]
+        for command in commands:
+            code = run(command)
+            if code != 0:
+                print(
+                    f"command failed with exit code {code}: {shlex.join(command)}",
+                    file=sys.stderr,
+                )
+                return code or 1
+        return 0
+
     code = run(forward_export_command)
     if code != 0:
         print(
@@ -174,8 +224,14 @@ def main(argv: list[str] | None = None) -> int:
 
     code = run(forward_analyze_command)
     if code == 0:
+        code = run_caller_subtree_phase(forward_tsv)
+        if code != 0:
+            return code
         print(f"Bounded forward call-graph P-code: {forward_tsv}")
         print(f"Enemy action-init evidence: {report}")
+        print(f"EnemyActions init caller argument plan: {caller_plan}")
+        print(f"EnemyActions init caller argument subtrees: {caller_subtrees}")
+        print(f"EnemyActions init caller argument report: {caller_report}")
         return 0
     if code != 2:
         print(
@@ -205,9 +261,16 @@ def main(argv: list[str] | None = None) -> int:
         )
         return code or 1
 
+    code = run_caller_subtree_phase(reverse_tsv)
+    if code != 0:
+        return code
+
     print(f"Bounded forward call-graph P-code: {forward_tsv}")
     print(f"Bounded reverse caller P-code: {reverse_tsv}")
     print(f"Enemy action-init evidence: {report}")
+    print(f"EnemyActions init caller argument plan: {caller_plan}")
+    print(f"EnemyActions init caller argument subtrees: {caller_subtrees}")
+    print(f"EnemyActions init caller argument report: {caller_report}")
     return 0
 
 
