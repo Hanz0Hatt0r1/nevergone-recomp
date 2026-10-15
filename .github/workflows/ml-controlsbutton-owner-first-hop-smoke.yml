@@ -1,0 +1,29 @@
+name: Nevergone ControlsButton owner first-hop smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controlsbutton_owner_first_hop.py'
+      - 'tools/ml/nevergone_controlsbutton_owner_first_hop_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_owner_first_hop.sh'
+      - '.github/workflows/ml-controlsbutton-owner-first-hop-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controlsbutton_owner_first_hop.py'
+      - 'tools/ml/nevergone_controlsbutton_owner_first_hop_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_owner_first_hop.sh'
+      - '.github/workflows/ml-controlsbutton-owner-first-hop-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run fail-closed smoke
+        run: python3 tools/ml/nevergone_controlsbutton_owner_first_hop_smoke.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_controlsbutton_owner_first_hop.sh
