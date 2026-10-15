@@ -3,6 +3,38 @@
 #include <sstream>
 
 namespace nevergone::tutorial_attack_live_gate {
+namespace {
+
+bool same_scene_limits(
+        const tutorial_spawn_inputs::ReviewedSceneLimits& a,
+        const tutorial_spawn_inputs::ReviewedSceneLimits& b) {
+    return a.reviewed == b.reviewed &&
+        a.runtime_load_attempt_count == b.runtime_load_attempt_count &&
+        a.scene_guid == b.scene_guid &&
+        a.vertical_edge_a == b.vertical_edge_a &&
+        a.vertical_edge_b == b.vertical_edge_b &&
+        a.right_edge_x == b.right_edge_x;
+}
+
+bool same_enemy_mapping(
+        const game_levels_enemy_record_mapping::Mapping& a,
+        const game_levels_enemy_record_mapping::Mapping& b) {
+    return a.identity_field == b.identity_field &&
+        a.base_health_field == b.base_health_field &&
+        a.review_status == b.review_status;
+}
+
+}  // namespace
+
+void Gate::invalidate_wave() {
+    if (!attack_.snapshot().wave_started &&
+            enemy_bindings_.snapshot().active_count == 0) return;
+    attack_.reset();
+    enemy_bindings_.reset();
+    bound_load_attempt_ = 0;
+    bound_scene_guid_.clear();
+    ++generation_;
+}
 
 void Gate::reset() {
     review_ = {};
@@ -17,6 +49,10 @@ void Gate::reset() {
 }
 
 void Gate::set_review_bundle(const ReviewBundle& review) {
+    if (!same_scene_limits(review_.scene_limits, review.scene_limits) ||
+            !same_enemy_mapping(review_.enemy_mapping, review.enemy_mapping)) {
+        invalidate_wave();
+    }
     review_ = review;
     ++generation_;
 }
@@ -34,26 +70,16 @@ void Gate::set_player_face_dir_evidence(
 
 void Gate::set_scene_limit_evidence(
         const tutorial_spawn_inputs::ReviewedSceneLimits& scene_limits) {
-    if (review_.scene_limits.reviewed == scene_limits.reviewed &&
-            review_.scene_limits.runtime_load_attempt_count ==
-                scene_limits.runtime_load_attempt_count &&
-            review_.scene_limits.scene_guid == scene_limits.scene_guid &&
-            review_.scene_limits.vertical_edge_a == scene_limits.vertical_edge_a &&
-            review_.scene_limits.vertical_edge_b == scene_limits.vertical_edge_b &&
-            review_.scene_limits.right_edge_x == scene_limits.right_edge_x) {
-        return;
-    }
+    if (same_scene_limits(review_.scene_limits, scene_limits)) return;
+    invalidate_wave();
     review_.scene_limits = scene_limits;
     ++generation_;
 }
 
 void Gate::set_enemy_mapping_evidence(
         const game_levels_enemy_record_mapping::Mapping& enemy_mapping) {
-    if (review_.enemy_mapping.identity_field == enemy_mapping.identity_field &&
-            review_.enemy_mapping.base_health_field == enemy_mapping.base_health_field &&
-            review_.enemy_mapping.review_status == enemy_mapping.review_status) {
-        return;
-    }
+    if (same_enemy_mapping(review_.enemy_mapping, enemy_mapping)) return;
+    invalidate_wave();
     review_.enemy_mapping = enemy_mapping;
     ++generation_;
 }
