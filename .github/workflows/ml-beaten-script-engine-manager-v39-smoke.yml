@@ -5,6 +5,7 @@ on:
     paths:
       - 'tools/ml/audit_nevergone_beaten_script_engine_manager_v39.py'
       - 'tools/ml/nevergone_beaten_script_engine_manager_v39_smoke.py'
+      - 'tools/ml/nevergone_v39_shared_manager_symbol_resolution_smoke.py'
       - 'tools/ml/run_nevergone_beaten_script_engine_manager_v39.sh'
       - '.github/workflows/ml-beaten-script-engine-manager-v39-smoke.yml'
       - 'docs/evidence/beaten-script-engine-manager-v39.md'
@@ -13,6 +14,7 @@ on:
     paths:
       - 'tools/ml/audit_nevergone_beaten_script_engine_manager_v39.py'
       - 'tools/ml/nevergone_beaten_script_engine_manager_v39_smoke.py'
+      - 'tools/ml/nevergone_v39_shared_manager_symbol_resolution_smoke.py'
       - 'tools/ml/run_nevergone_beaten_script_engine_manager_v39.sh'
       - '.github/workflows/ml-beaten-script-engine-manager-v39-smoke.yml'
       - 'docs/evidence/beaten-script-engine-manager-v39.md'
@@ -29,8 +31,10 @@ jobs:
         run: |
           python3 -m py_compile \
             tools/ml/audit_nevergone_beaten_script_engine_manager_v39.py \
-            tools/ml/nevergone_beaten_script_engine_manager_v39_smoke.py
+            tools/ml/nevergone_beaten_script_engine_manager_v39_smoke.py \
+            tools/ml/nevergone_v39_shared_manager_symbol_resolution_smoke.py
           PYTHONPATH=tools/ml python3 tools/ml/nevergone_beaten_script_engine_manager_v39_smoke.py
+          python3 tools/ml/nevergone_v39_shared_manager_symbol_resolution_smoke.py
           bash -n tools/ml/run_nevergone_beaten_script_engine_manager_v39.sh
           grep -q 'NEVERGONE.GhidraClassParameterFieldWrite/1' tools/ghidra/ExportClassParameterFieldWrites.java
           grep -q 'NEVERGONE.GhidraClassOwnerAliasFlow/1' tools/ghidra/ExportClassOwnerAliasFlow.java
