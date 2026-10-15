@@ -17,6 +17,7 @@
 #include "server_selection_compositor.h"
 #include "single_select_hero_confirm_compositor.h"
 #include "startup_contract.h"
+#include "tutorial_attack_live_gate.h"
 #include "tutorial_dialogue_runtime.h"
 #include "tutorial_lesson_overlay.h"
 #include "tutorial_loading_compositor.h"
@@ -179,6 +180,7 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::tutorial_loading_compositor::on_surface_created();
     nevergone::tutorial_lesson_overlay::on_surface_created();
     nevergone::tutorial_dialogue_runtime::on_surface_created();
+    nevergone::tutorial_attack_live_gate::live_reset();
     nevergone::scene_actions_gles_compositor::on_surface_created();
     nevergone::game_scene_action_compositor::on_surface_created();
     nevergone::game_scene_action_surface_input::cancel_all_captures();
@@ -229,6 +231,11 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     if (controls_allowed) {
         (void)nevergone::game_scene_action_compositor::draw();
     }
+
+    // Runs every GL frame but remains fail-closed until the separately
+    // reviewed PLAYERFACEDIR, scene-limit, and enemy-record mapping providers
+    // are installed. No default enemy geometry or HP is introduced here.
+    (void)nevergone::tutorial_attack_live_gate::live_tick();
 
     nevergone::tutorial_scene_bootstrap::observe_scene_draw(game_scene_drawn);
 
