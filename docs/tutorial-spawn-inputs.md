@@ -3,7 +3,7 @@
 `tutorial_enemy_spawn_plan` already contains the recovered enemy geometry, but
 starting a live wave requires a coherent snapshot of player and scene state.
 `tutorial_spawn_inputs` is the fail-closed boundary that assembles that snapshot
-without inventing the still-unresolved fields.
+without inventing still-unresolved scene data.
 
 ## Already reconstructed inputs
 
@@ -22,22 +22,28 @@ x = spawn.player_x + motion.offset_x
 y = spawn.player_y + motion.offset_y
 ```
 
-and `player_is_face` is sourced from the recovered `flip_x` path. The adapter
-requires an established horizontal primary state before using that bool.
+`player_is_face` is sourced from the recovered `flip_x` path. A bounded ARMv7
+review also proves that `MEPlayer::setPlayerDir(PLAYERFACEDIR)`, `isFace()`, and
+`filpPlayer(bool, ...)` all use the same `MEPlayer +0x12c` field. The live
+`tutorial_player_face_dir_provider` therefore produces:
 
-## Inputs that remain evidence-gated
+```text
+CONTROLSSTATE 0x12 -> flip_x=true  -> PLAYERFACEDIR 1
+CONTROLSSTATE 0x13 -> flip_x=false -> PLAYERFACEDIR 0
+```
 
-Two inputs are deliberately not derived from guesses:
+stamped with the exact `player_control_runtime_state` generation. The provider
+fails closed if the retained enum and bool disagree.
 
-1. `ReviewedPlayerFaceDir` — the integer `PLAYERFACEDIR` forwarded by the
-   original `LessonLayer` into enemy creation;
-2. `ReviewedSceneLimits` — the two vertical edges and right-side X value read
-   through the recovered `GameScene +0x238 -> +0x20` path.
+## Input that remains evidence-gated
 
-A reviewed player-face-dir value is stamped with the exact live control
-generation. A reviewed scene-limit set is stamped with both the exact
-`GameLevels` load-attempt count and current scene GUID. Any later input change or
-scene reload makes the corresponding value stale and blocks wave creation.
+`ReviewedSceneLimits` still requires the two vertical edges and right-side X
+value read through the recovered `GameScene +0x238 -> +0x20` path. The reviewed
+set is stamped with both the exact `GameLevels` load-attempt count and current
+scene GUID; a scene reload makes it stale and blocks wave creation.
+
+The separate enemy identity/base-health mapping remains a later materialization
+gate rather than a spawn-geometry input.
 
 ## Readiness checks
 
@@ -49,30 +55,29 @@ true:
 - spawn and runtime refer to the same non-empty scene GUID;
 - motion state is ready and belongs to the exact spawn generation;
 - horizontal facing has been established;
-- `PLAYERFACEDIR` is reviewed and belongs to the exact control generation;
+- the evidence-backed `PLAYERFACEDIR` belongs to the exact control generation;
 - scene limits are reviewed and belong to the exact runtime load attempt/scene;
 - the resulting player coordinates are finite.
 
-There is no fallback face direction, no default map extent, and no reuse of
+There is no default face direction, no default map extent, and no reuse of
 reviewed values across generations.
 
 ## Integration sequence
 
-The remaining live Attack-wave integration is now explicit:
+The remaining live Attack-wave integration is now:
 
-1. run/review the `tutorial-player-face-field-evidence` pipeline and recover the
-   dynamic `PLAYERFACEDIR` value contract;
+1. derive current `ReviewedPlayerFaceDir` through the recovered shared
+   `MEPlayer +0x12c` facing contract;
 2. run/review the `tutorial-scene-limit-evidence` pipeline and recover the three
    raw scene-limit fields plus vertical A/B branch ordering;
-3. generate `ReviewedPlayerFaceDir` and `ReviewedSceneLimits` for the current
-   live generations;
+3. generate `ReviewedSceneLimits` for the current scene/load generation;
 4. call `tutorial_spawn_inputs::resolve()`;
-5. only when it returns `kReady`, pass `Result::inputs` to
-   `tutorial_enemy_roster::begin(kAttackWave, ...)`;
+5. only when it returns `kReady`, pass `Result::inputs` to the existing Attack
+   wave runtime/roster;
 6. resolve enemy ID/base HP through the separately reviewed
    `game_levels_enemy_record_mapping` boundary before materialization;
 7. publish the tutorial zero-live-enemy event only after the roster's recovered
    death predicate says every materialized enemy is dead.
 
-This keeps the first combat tutorial blocked on concrete original-game evidence
-rather than replacing unknown values with visually plausible constants.
+This keeps the first combat tutorial blocked only on concrete original-game
+evidence that is actually still missing.
