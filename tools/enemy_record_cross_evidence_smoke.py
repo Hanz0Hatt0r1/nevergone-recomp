@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from enemy_health_field_consumer_evidence import HealthFieldCandidate
-from enemy_record_cross_evidence import render_report, resolve_mapping
+from enemy_record_cross_evidence import (
+    mapping_candidate_document,
+    render_report,
+    resolve_mapping,
+)
 from game_levels_enemy_record_evidence import parse_diagnostics
 
 
@@ -53,6 +57,18 @@ def main() -> int:
     assert mapping.health_source_offset == 0x10
     assert mapping.known_enemy_ids == (3, 21)
     assert mapping.global_enemy_record_count == 3
+
+    document = mapping_candidate_document(mapping)
+    assert document == {
+        "schema": "NEVERGONE.EnemyRecordMappingCandidate/1",
+        "semantic_status": "cross-evidence-candidate",
+        "identity_field": "first_i32",
+        "base_health_field": "fourth_i32",
+        "health_source_parameter_index": 1,
+        "health_source_offset": 0x10,
+        "known_enemy_ids": [3, 21],
+        "global_enemy_record_count": 3,
+    }
 
     report = render_report(runtime, health(), {3, 21})
     assert "identity field candidates: first_i32" in report
