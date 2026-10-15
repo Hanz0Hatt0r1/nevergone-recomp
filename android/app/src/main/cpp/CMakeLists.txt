@@ -178,6 +178,7 @@ add_library(nevergone_recomp SHARED
     tutorial_scene_bootstrap.cpp
     tutorial_scene_bootstrap_jni.cpp
     tutorial_session_state.cpp
+    tutorial_spawn_inputs.cpp
     xml_validation_binding.cpp
 )
 
