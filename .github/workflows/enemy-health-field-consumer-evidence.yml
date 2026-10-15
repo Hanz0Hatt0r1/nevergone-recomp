@@ -1,0 +1,36 @@
+name: Enemy health field consumer evidence
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportEnemyHealthFieldConsumer.java'
+      - 'tools/enemy_health_field_consumer_evidence.py'
+      - 'tools/enemy_health_field_consumer_evidence_smoke.py'
+      - 'tools/run_enemy_health_field_consumer_probe.py'
+      - 'tools/test_run_enemy_health_field_consumer_probe.py'
+      - '.github/workflows/enemy-health-field-consumer-evidence.yml'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'tools/ghidra/ExportEnemyHealthFieldConsumer.java'
+      - 'tools/enemy_health_field_consumer_evidence.py'
+      - 'tools/enemy_health_field_consumer_evidence_smoke.py'
+      - 'tools/run_enemy_health_field_consumer_probe.py'
+      - 'tools/test_run_enemy_health_field_consumer_probe.py'
+      - '.github/workflows/enemy-health-field-consumer-evidence.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python tools
+        run: python3 -m compileall -q tools/enemy_health_field_consumer_evidence.py tools/enemy_health_field_consumer_evidence_smoke.py tools/run_enemy_health_field_consumer_probe.py tools/test_run_enemy_health_field_consumer_probe.py
+      - name: Validate consumer evidence analyzer
+        run: python3 tools/enemy_health_field_consumer_evidence_smoke.py
+      - name: Validate headless Ghidra wrapper commands
+        run: python3 tools/test_run_enemy_health_field_consumer_probe.py
