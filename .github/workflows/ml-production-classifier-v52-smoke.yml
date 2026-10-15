@@ -1,0 +1,37 @@
+name: Nevergone Production Classifier v5.2 receiver ratios
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/augment_nevergone_v52_receiver_ratios.py'
+      - 'tools/ml/audit_nevergone_game_engine_boundary.py'
+      - 'tools/ml/nevergone_production_classifier_v52_smoke.py'
+      - 'tools/ml/run_nevergone_production_classifier_v52.sh'
+      - 'docs/ml/PRODUCTION_CLASSIFIER_V52.md'
+      - '.github/workflows/ml-production-classifier-v52-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/augment_nevergone_v52_receiver_ratios.py'
+      - 'tools/ml/audit_nevergone_game_engine_boundary.py'
+      - 'tools/ml/nevergone_production_classifier_v52_smoke.py'
+      - 'tools/ml/run_nevergone_production_classifier_v52.sh'
+      - 'docs/ml/PRODUCTION_CLASSIFIER_V52.md'
+      - '.github/workflows/ml-production-classifier-v52-smoke.yml'
+
+jobs:
+  production-classifier-v52:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate v5.2 ratio and boundary tools
+        run: |
+          python -m py_compile \
+            tools/ml/augment_nevergone_v52_receiver_ratios.py \
+            tools/ml/audit_nevergone_game_engine_boundary.py \
+            tools/ml/nevergone_production_classifier_v52_smoke.py
+          PYTHONPATH=tools/ml python tools/ml/nevergone_production_classifier_v52_smoke.py
+          bash -n tools/ml/run_nevergone_production_classifier_v52.sh
