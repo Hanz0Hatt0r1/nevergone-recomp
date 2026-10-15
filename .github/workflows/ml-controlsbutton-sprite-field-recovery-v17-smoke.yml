@@ -1,0 +1,29 @@
+name: Nevergone ControlsButton sprite field recovery v17 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/finalize_nevergone_controlsbutton_sprite_field_recovery_v17.py'
+      - 'tools/ml/nevergone_controlsbutton_sprite_field_recovery_v17_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_sprite_field_recovery_v17.sh'
+      - '.github/workflows/ml-controlsbutton-sprite-field-recovery-v17-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/finalize_nevergone_controlsbutton_sprite_field_recovery_v17.py'
+      - 'tools/ml/nevergone_controlsbutton_sprite_field_recovery_v17_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_sprite_field_recovery_v17.sh'
+      - '.github/workflows/ml-controlsbutton-sprite-field-recovery-v17-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run fail-closed v17 smoke
+        run: python3 tools/ml/nevergone_controlsbutton_sprite_field_recovery_v17_smoke.py
+      - name: Check v17 runner syntax
+        run: bash -n tools/ml/run_nevergone_controlsbutton_sprite_field_recovery_v17.sh
