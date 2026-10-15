@@ -58,10 +58,13 @@ jobs:
           grep -q 'EnemyActionsSystem::initWithFile' /tmp/enemy-object-action-init-probe.txt
           grep -q 'enemy_object_action_init_evidence.py' /tmp/enemy-object-action-init-probe.txt
           grep -q 'enemy_action_init_caller_arguments.py plan' /tmp/enemy-object-action-init-probe.txt
+          grep -q 'enemy_action_init_caller_arguments.py factory-plan' /tmp/enemy-object-action-init-probe.txt
           grep -q 'enemy_action_init_caller_arguments.py report' /tmp/enemy-object-action-init-probe.txt
+          grep -q 'EnemyActions createWithFile caller parameter subtree evidence' /tmp/enemy-object-action-init-probe.txt
           grep -q -- '-recursive' /tmp/enemy-object-action-init-probe.txt
           grep -q 'fallback only when the forward analyzer returns status 2' /tmp/enemy-object-action-init-probe.txt
           grep -q 'receiver + explicit caller arguments' /tmp/enemy-object-action-init-probe.txt
+          grep -q 'trace every direct createWithFile call parameter one caller level higher' /tmp/enemy-object-action-init-probe.txt
           grep -q ' 4 96' /tmp/enemy-object-action-init-probe.txt
           if grep -Eq '002adcb0|0028ee34' /tmp/enemy-object-action-init-probe.txt; then
             echo 'ELF offsets leaked into default Ghidra probe command' >&2

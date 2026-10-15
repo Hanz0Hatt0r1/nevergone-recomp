@@ -45,24 +45,39 @@ def read_dict_rows(path: Path) -> list[dict[str, str]]:
         return [dict(row) for row in reader]
 
 
-def build_plan(reverse_pcode: Path, output: Path) -> list[dict[str, object]]:
-    with reverse_pcode.open("r", encoding="utf-8", newline="") as handle:
+def read_pcode_rows(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         fields = set(reader.fieldnames or ())
         missing = sorted(PCODE_REQUIRED.difference(fields))
         if missing:
-            raise ValueError(f"{reverse_pcode}: missing columns: {', '.join(missing)}")
-        matches: list[dict[str, str]] = []
-        for row in reader:
-            if row.get("opcode", "").strip() != "CALL":
-                continue
-            name = row.get("callee_name", "").strip()
-            if TARGET_NAME not in name:
-                continue
-            matches.append(dict(row))
+            raise ValueError(f"{path}: missing columns: {', '.join(missing)}")
+        return [dict(row) for row in reader]
 
+
+def resolved_init_calls(rows: list[dict[str, str]], source: Path) -> list[dict[str, str]]:
+    matches = [
+        row
+        for row in rows
+        if row.get("opcode", "").strip() == "CALL"
+        and TARGET_NAME in row.get("callee_name", "").strip()
+    ]
     if not matches:
-        raise ValueError(f"{reverse_pcode}: no resolved {TARGET_NAME} call")
+        raise ValueError(f"{source}: no resolved {TARGET_NAME} call")
+    return matches
+
+
+def write_plan(output: Path, planned: list[dict[str, object]]) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=PLAN_FIELDS, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(planned)
+
+
+def build_plan(reverse_pcode: Path, output: Path) -> list[dict[str, object]]:
+    rows = read_pcode_rows(reverse_pcode)
+    matches = resolved_init_calls(rows, reverse_pcode)
 
     target_entries = {row["callee_entry"].strip() for row in matches}
     if "-" in target_entries or "" in target_entries or len(target_entries) != 1:
@@ -100,11 +115,74 @@ def build_plan(reverse_pcode: Path, output: Path) -> list[dict[str, object]]:
             }
         )
 
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=PLAN_FIELDS, delimiter="\t")
-        writer.writeheader()
-        writer.writerows(planned)
+    write_plan(output, planned)
+    return planned
+
+
+def build_factory_plan(reverse_pcode: Path, output: Path) -> list[dict[str, object]]:
+    rows = read_pcode_rows(reverse_pcode)
+    init_calls = resolved_init_calls(rows, reverse_pcode)
+
+    factory_entries = {row.get("function_entry", "").strip() for row in init_calls}
+    if "" in factory_entries or "-" in factory_entries or len(factory_entries) != 1:
+        raise ValueError(
+            f"{reverse_pcode}: expected one resolved init caller/factory entry, got: "
+            + ", ".join(sorted(factory_entries))
+        )
+    factory_entry = next(iter(factory_entries))
+
+    factory_calls = [
+        row
+        for row in rows
+        if row.get("opcode", "").strip() == "CALL"
+        and row.get("callee_entry", "").strip() == factory_entry
+    ]
+    if not factory_calls:
+        raise ValueError(
+            f"{reverse_pcode}: no direct calls to init caller/factory {factory_entry}; "
+            "reverse depth does not expose the factory callers"
+        )
+
+    caller_entries = {row.get("function_entry", "").strip() for row in factory_calls}
+    if "" in caller_entries or "-" in caller_entries:
+        raise ValueError(f"{reverse_pcode}: unresolved direct caller of factory {factory_entry}")
+
+    input_counts = {len(split_inputs(row.get("inputs", ""))) for row in factory_calls}
+    if len(input_counts) != 1:
+        raise ValueError(
+            f"{reverse_pcode}: inconsistent factory {factory_entry} data-input counts: "
+            + ", ".join(str(value) for value in sorted(input_counts))
+        )
+    parameter_count = next(iter(input_counts))
+    if parameter_count < 1:
+        raise ValueError(f"{reverse_pcode}: factory {factory_entry} direct calls have no data inputs")
+
+    names = {
+        row.get("callee_name", "").strip()
+        for row in factory_calls
+        if row.get("callee_name", "").strip() not in ("", "-")
+    }
+    if len(names) > 1:
+        raise ValueError(
+            f"{reverse_pcode}: factory {factory_entry} has inconsistent resolved names: "
+            + ", ".join(sorted(names))
+        )
+
+    planned: list[dict[str, object]] = []
+    for parameter_index in range(parameter_count):
+        planned.append(
+            {
+                "source_id": f"enemy-actions-create-with-file:param[{parameter_index}]",
+                "source_entry": factory_entry,
+                "source_call_index": parameter_index,
+                "parameter_index": parameter_index,
+                "dispatch_slot_offset": "-",
+                "expected_direct_caller_functions": len(caller_entries),
+                "expected_matched_caller_calls": len(factory_calls),
+            }
+        )
+
+    write_plan(output, planned)
     return planned
 
 
@@ -141,7 +219,10 @@ def _render_node(row: dict[str, str]) -> str:
     return " ".join(pieces)
 
 
-def render_report(subtree_tsv: Path) -> tuple[str, bool]:
+def render_report(
+    subtree_tsv: Path,
+    title: str = "EnemyActions init caller argument subtree evidence",
+) -> tuple[str, bool]:
     rows = read_dict_rows(subtree_tsv)
     if not rows:
         raise ValueError(f"{subtree_tsv}: empty subtree export")
@@ -160,9 +241,14 @@ def render_report(subtree_tsv: Path) -> tuple[str, bool]:
                 return (1, int(source_id.rsplit("[", 1)[1][:-1], 10))
             except ValueError:
                 pass
-        return (2, 0)
+        if ":param[" in source_id and source_id.endswith("]"):
+            try:
+                return (2, int(source_id.rsplit("[", 1)[1][:-1], 10))
+            except ValueError:
+                pass
+        return (3, 0)
 
-    lines = ["EnemyActions init caller argument subtree evidence"]
+    lines = [title]
     all_complete = True
     for source_id in sorted(by_source, key=source_sort_key):
         group = by_source[source_id]
@@ -246,9 +332,27 @@ def cmd_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_factory_plan(args: argparse.Namespace) -> int:
+    try:
+        planned = build_factory_plan(args.reverse_pcode_tsv, args.output_tsv)
+    except (OSError, ValueError) as error:
+        raise SystemExit(f"error: {error}")
+    entries = sorted({str(row["source_entry"]) for row in planned})
+    print("EnemyActions createWithFile caller-parameter plan")
+    print(f"factory entries: {','.join(entries)}")
+    print(f"planned rows: {len(planned)}")
+    for row in planned:
+        print(
+            f"{row['source_id']} target={row['source_entry']} "
+            f"parameter_index={row['parameter_index']}"
+        )
+    print(f"output: {args.output_tsv}")
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     try:
-        report, complete = render_report(args.subtree_tsv)
+        report, complete = render_report(args.subtree_tsv, title=args.title)
     except (OSError, ValueError) as error:
         raise SystemExit(f"error: {error}")
     if args.output is not None:
@@ -262,14 +366,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    plan = subparsers.add_parser("plan", help="build ExportCallerArgumentSubtree plan from reverse P-code")
+    plan = subparsers.add_parser("plan", help="build init ExportCallerArgumentSubtree plan from P-code")
     plan.add_argument("reverse_pcode_tsv", type=Path)
     plan.add_argument("output_tsv", type=Path)
     plan.set_defaults(func=cmd_plan)
 
+    factory_plan = subparsers.add_parser(
+        "factory-plan",
+        help="build ExportCallerArgumentSubtree plan for direct callers of the resolved init factory",
+    )
+    factory_plan.add_argument("reverse_pcode_tsv", type=Path)
+    factory_plan.add_argument("output_tsv", type=Path)
+    factory_plan.set_defaults(func=cmd_factory_plan)
+
     report = subparsers.add_parser("report", help="summarize ExportCallerArgumentSubtree output")
     report.add_argument("subtree_tsv", type=Path)
     report.add_argument("--output", type=Path)
+    report.add_argument("--title", default="EnemyActions init caller argument subtree evidence")
     report.set_defaults(func=cmd_report)
 
     args = parser.parse_args()
