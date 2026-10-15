@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -67,6 +68,26 @@ def resolve_mapping(
     )
 
 
+def mapping_candidate_document(mapping: CrossEvidenceMapping) -> dict[str, object]:
+    """Return the deterministic candidate handoff consumed only after review.
+
+    This artifact intentionally says candidate rather than reviewed. Production
+    code must not treat it as an enabled semantic mapping without a separate
+    review/promote step.
+    """
+
+    return {
+        "schema": "NEVERGONE.EnemyRecordMappingCandidate/1",
+        "semantic_status": "cross-evidence-candidate",
+        "identity_field": mapping.identity_field,
+        "base_health_field": mapping.base_health_field,
+        "health_source_parameter_index": mapping.health_source_parameter_index,
+        "health_source_offset": mapping.health_source_offset,
+        "known_enemy_ids": list(mapping.known_enemy_ids),
+        "global_enemy_record_count": mapping.global_enemy_record_count,
+    }
+
+
 def render_report(
     runtime: EnemyRecordEvidence,
     health: HealthFieldCandidate | None,
@@ -116,19 +137,44 @@ def main() -> int:
         help="independently recovered tutorial enemy ID; repeatable",
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--mapping-output",
+        type=Path,
+        help=(
+            "write a deterministic NEVERGONE.EnemyRecordMappingCandidate/1 JSON "
+            "only when the cross-evidence mapping is unique"
+        ),
+    )
     args = parser.parse_args()
 
     try:
         runtime = parse_diagnostics(args.runtime_diagnostics.read_text(encoding="utf-8"))
         health_rows = read_health_rows(args.health_consumer_tsv)
         health, _ = health_field_candidate(health_rows)
-        report = render_report(runtime, health, set(args.known_enemy_ids))
+        known_enemy_ids = set(args.known_enemy_ids)
+        mapping, reason = resolve_mapping(runtime, health, known_enemy_ids)
+        report = render_report(runtime, health, known_enemy_ids)
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(report, encoding="utf-8")
+
+    if args.mapping_output is not None:
+        # Never leave a stale candidate artifact behind after a failed rerun.
+        try:
+            args.mapping_output.unlink(missing_ok=True)
+        except OSError as error:
+            parser.error(str(error))
+        if mapping is None:
+            parser.error(f"cannot write mapping candidate: {reason}")
+        args.mapping_output.parent.mkdir(parents=True, exist_ok=True)
+        args.mapping_output.write_text(
+            json.dumps(mapping_candidate_document(mapping), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
     print(report, end="")
     return 0
 
