@@ -18,9 +18,16 @@ final class ImportedPlistXml {
     private static final String APPLE_DTD =
             "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " +
             "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">";
+    // Older shipped scene atlases use Apple's earlier public identifier.
+    private static final String APPLE_COMPUTER_DTD =
+            "<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" " +
+            "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">";
     // TexturePacker's shipped player atlases contain this non-XML closing '/>'.
     private static final String APPLE_DTD_TEXTURE_PACKER =
             "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " +
+            "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"/>";
+    private static final String APPLE_COMPUTER_DTD_TEXTURE_PACKER =
+            "<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" " +
             "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"/>";
 
     private ImportedPlistXml() {}
@@ -38,8 +45,12 @@ final class ImportedPlistXml {
         if (dtd >= 0) {
             String expected = xml.startsWith(APPLE_DTD, dtd)
                     ? APPLE_DTD
-                    : xml.startsWith(APPLE_DTD_TEXTURE_PACKER, dtd)
-                            ? APPLE_DTD_TEXTURE_PACKER : null;
+                    : xml.startsWith(APPLE_COMPUTER_DTD, dtd)
+                            ? APPLE_COMPUTER_DTD
+                            : xml.startsWith(APPLE_DTD_TEXTURE_PACKER, dtd)
+                                    ? APPLE_DTD_TEXTURE_PACKER
+                                    : xml.startsWith(APPLE_COMPUTER_DTD_TEXTURE_PACKER, dtd)
+                                            ? APPLE_COMPUTER_DTD_TEXTURE_PACKER : null;
             if (expected == null || dtd > 512) return null;
             xml = xml.substring(0, dtd) + xml.substring(dtd + expected.length());
         }
