@@ -1,0 +1,37 @@
+name: Nevergone residual receiver closure v24 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportClassOwnerAliasFlow.java'
+      - 'tools/ml/audit_nevergone_residual_closure_v24.py'
+      - 'tools/ml/nevergone_residual_closure_v24_smoke.py'
+      - 'tools/ml/nevergone_owner_alias_namespace_v24_smoke.py'
+      - 'tools/ml/run_nevergone_residual_receiver_closure_v24.sh'
+      - '.github/workflows/ml-residual-receiver-closure-v24-smoke.yml'
+      - 'docs/evidence/residual-receiver-closure-v24.md'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python tools
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_residual_closure_v24.py \
+            tools/ml/nevergone_residual_closure_v24_smoke.py \
+            tools/ml/nevergone_owner_alias_namespace_v24_smoke.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_residual_receiver_closure_v24.sh
+      - name: Check namespaced owner matching
+        run: python3 tools/ml/nevergone_owner_alias_namespace_v24_smoke.py
+      - name: Run residual closure smoke
+        run: python3 tools/ml/nevergone_residual_closure_v24_smoke.py
+      - name: Check evidence-only contracts
+        run: |
+          grep -q 'affects routing: no' tools/ml/run_nevergone_residual_receiver_closure_v24.sh
+          grep -q 'NEVERGONE.ResidualReceiverClosureV24/1' tools/ml/audit_nevergone_residual_closure_v24.py
+          grep -q 'ExportFunctionPcodeFlow.java' tools/ml/run_nevergone_residual_receiver_closure_v24.sh
+          grep -q 'ExportIndirectCallStructuralReceiverSlice.java' tools/ml/run_nevergone_residual_receiver_closure_v24.sh
