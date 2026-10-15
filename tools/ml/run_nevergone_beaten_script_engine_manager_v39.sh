@@ -76,8 +76,10 @@ run_ghidra -postScript ExportClassOwnerAliasFlow.java \
   "cocos2d::CCScriptEngineManager" "$FLOW"
 
 echo "== sharedManager direct return consumers =="
+# Use the exact analyzed symbol rather than an ELF virtual address. The local
+# Ghidra project can carry an image-base delta relative to the packaged ELF.
 run_ghidra -postScript ExportAccessorReturnConsumers.java \
-  00536cdc "$CONSUMERS"
+  "cocos2d::CCScriptEngineManager::sharedManager" "$CONSUMERS"
 
 echo "== v39 manager/consumer frontier audit =="
 PYTHONPATH="$REPO_ROOT/tools/ml${PYTHONPATH:+:$PYTHONPATH}" \
