@@ -11,6 +11,7 @@
 #include "game_scene_player_spawn_state.h"
 #include "player_control_runtime_state.h"
 #include "tutorial_attack_wave_runtime.h"
+#include "tutorial_enemy_actor_bindings.h"
 #include "tutorial_gameplay_state.h"
 #include "tutorial_spawn_inputs.h"
 
@@ -26,6 +27,7 @@ struct Snapshot {
     std::uint64_t generation = 0;
     tutorial_spawn_inputs::Result spawn_inputs{};
     tutorial_attack_wave_runtime::Snapshot attack{};
+    tutorial_enemy_actor_bindings::Snapshot enemy_bindings{};
     bool enemy_mapping_usable = false;
     std::size_t enemy_record_count = 0;
     std::uint64_t completion_publish_count = 0;
@@ -53,6 +55,8 @@ public:
         const game_levels_runtime_state::Snapshot& levels,
         const std::vector<game_levels_global_section::EnemyRecord>& enemy_records);
 
+    // Combat callbacks are accepted only for roster slots that have already
+    // produced a live actor binding for this exact wave generation.
     bool apply_damage(
         std::size_t slot, float damage, std::uint64_t expected_wave_generation);
     bool set_dead(std::size_t slot, std::uint64_t expected_wave_generation);
@@ -72,6 +76,7 @@ private:
     ReviewBundle review_{};
     tutorial_spawn_inputs::Result last_spawn_inputs_{};
     tutorial_attack_wave_runtime::Runtime attack_{};
+    tutorial_enemy_actor_bindings::Store enemy_bindings_{};
     std::uint64_t generation_ = 0;
     std::size_t enemy_record_count_ = 0;
     std::uint64_t completion_publish_count_ = 0;

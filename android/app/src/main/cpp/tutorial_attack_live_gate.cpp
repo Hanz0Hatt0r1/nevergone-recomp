@@ -8,6 +8,7 @@ void Gate::reset() {
     review_ = {};
     last_spawn_inputs_ = {};
     attack_.reset();
+    enemy_bindings_.reset();
     enemy_record_count_ = 0;
     completion_publish_count_ = 0;
     bound_load_attempt_ = 0;
@@ -102,6 +103,12 @@ bool Gate::tick(
             : nullptr,
         mapping_usable ? &resolver_context : nullptr);
     const auto attack_state = attack_.snapshot();
+
+    // Publish actor identities only after the underlying roster slots have
+    // materialized with imported HP. This boundary is intentionally earlier
+    // than sprite/AI creation and later than the recovered spawn plan.
+    if (!enemy_bindings_.sync(attack_state)) return false;
+
     if (attack_state.wave_started && bound_load_attempt_ == 0) {
         bound_load_attempt_ = levels.load_attempt_count;
         bound_scene_guid_ = levels.current_scene_guid;
@@ -117,12 +124,14 @@ bool Gate::apply_damage(
         std::size_t slot,
         float damage,
         std::uint64_t expected_wave_generation) {
+    if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return false;
     const bool result = attack_.apply_damage(slot, damage, expected_wave_generation);
     if (result) ++generation_;
     return result;
 }
 
 bool Gate::set_dead(std::size_t slot, std::uint64_t expected_wave_generation) {
+    if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return false;
     const bool result = attack_.set_dead(slot, expected_wave_generation);
     if (result) ++generation_;
     return result;
@@ -132,6 +141,7 @@ bool Gate::set_enemy_state(
         std::size_t slot,
         int enemy_state,
         std::uint64_t expected_wave_generation) {
+    if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return false;
     const bool result = attack_.set_enemy_state(
         slot, enemy_state, expected_wave_generation);
     if (result) ++generation_;
@@ -142,6 +152,7 @@ bool Gate::set_force_action_state_no_dead(
         std::size_t slot,
         bool enabled,
         std::uint64_t expected_wave_generation) {
+    if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return false;
     const bool result = attack_.set_force_action_state_no_dead(
         slot, enabled, expected_wave_generation);
     if (result) ++generation_;
@@ -160,6 +171,7 @@ Snapshot Gate::snapshot() const {
     out.generation = generation_;
     out.spawn_inputs = last_spawn_inputs_;
     out.attack = attack_.snapshot();
+    out.enemy_bindings = enemy_bindings_.snapshot();
     out.enemy_mapping_usable =
         game_levels_enemy_record_mapping::is_usable(review_.enemy_mapping);
     out.enemy_record_count = enemy_record_count_;
@@ -193,6 +205,7 @@ std::string Gate::status_report() const {
     out << "enemy records: " << state.enemy_record_count << "\n";
     out << "completion publishes: " << state.completion_publish_count << "\n";
     out << attack_.status_report();
+    out << enemy_bindings_.status_report();
     return out.str();
 }
 
