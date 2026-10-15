@@ -1,0 +1,34 @@
+name: Nevergone protobuf nested receiver recovery v25 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/finalize_nevergone_protobuf_nested_receiver_recovery_v25.py'
+      - 'tools/ml/nevergone_protobuf_nested_receiver_recovery_v25_smoke.py'
+      - 'tools/ml/run_nevergone_protobuf_nested_receiver_recovery_v25.sh'
+      - '.github/workflows/ml-protobuf-nested-receiver-recovery-v25-smoke.yml'
+      - 'docs/evidence/protobuf-nested-receiver-recovery-v25.md'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python tools
+        run: |
+          python3 -m py_compile \
+            tools/ml/finalize_nevergone_protobuf_nested_receiver_recovery_v25.py \
+            tools/ml/nevergone_protobuf_nested_receiver_recovery_v25_smoke.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_protobuf_nested_receiver_recovery_v25.sh
+      - name: Run protobuf nested receiver recovery smoke
+        run: python3 tools/ml/nevergone_protobuf_nested_receiver_recovery_v25_smoke.py
+      - name: Check v25 contracts
+        run: |
+          grep -q 'NEVERGONE.ProtobufNestedReceiverRecoveryV25/1' tools/ml/finalize_nevergone_protobuf_nested_receiver_recovery_v25.py
+          grep -q -- '--require-four' tools/ml/run_nevergone_protobuf_nested_receiver_recovery_v25.sh
+          grep -q '002a3a20' tools/ml/run_nevergone_protobuf_nested_receiver_recovery_v25.sh
+          grep -q '002a3c74' tools/ml/run_nevergone_protobuf_nested_receiver_recovery_v25.sh
+          grep -q 'remaining unresolved receiver classes: 10' tools/ml/run_nevergone_protobuf_nested_receiver_recovery_v25.sh
+          grep -q 'affects routing: no' tools/ml/run_nevergone_protobuf_nested_receiver_recovery_v25.sh
