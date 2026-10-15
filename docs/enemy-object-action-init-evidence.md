@@ -14,10 +14,12 @@ For the original Never Gone 1.0.9 ARMv7 library, the project already proves:
 
 - `EnemyObject::loadEnemyObjectFile(GameLevelsEnemyData*, ...)` consumes the
   reviewed enemy record and seeds the recovered health state;
-- `EnemyActionsSystem::initWithFile(char const*, ...)` receives its action-data
-  filename from its caller;
-- object-type selector 0 routes action-data registration through
-  `ActionDataManager::addActionDataWithID(int, int, char const*)`;
+- `EnemyActionsSystem::initWithFile(char const*, ...)` is at `0x002adcb0` and
+  receives its action-data filename from its caller;
+- `ActionDataManager::addActionDataWithID(int, int, char const*)` is at
+  `0x0028ee34`;
+- object-type selector 0 routes action-data registration through that
+  `ActionDataManager` call;
 - selector-specific resource construction later uses the reconstructed
   EnemyActions document/frame pipeline.
 
@@ -26,27 +28,40 @@ initialization arguments for a concrete enemy such as tutorial enemy ID `3`.
 
 ## Probe
 
-`tools/run_enemy_object_action_init_probe.py` exports metadata-only High P-code
-starting at `EnemyObject::loadEnemyObjectFile` with
+`tools/run_enemy_object_action_init_probe.py` first exports metadata-only High
+P-code starting at `EnemyObject::loadEnemyObjectFile` with
 `ExportBoundedCallGraphPcodeFlow.java`, then runs
 `tools/enemy_object_action_init_evidence.py`.
 
-The first live run on 2026-10-15 proved that `loadEnemyObjectFile` itself does
-**not** directly call `EnemyActionsSystem::initWithFile` or
-`ActionDataManager::addActionDataWithID`. The exporter therefore follows only
-resolved internal direct calls from that root. Traversal is explicitly bounded:
+Two live runs on 2026-10-15 established:
+
+1. `loadEnemyObjectFile` itself has no direct `EnemyActionsSystem::initWithFile`
+   or `ActionDataManager::addActionDataWithID` call;
+2. a forward direct-call traversal of depth 4 covered 45 functions / 1553
+   P-code rows with `capped=false` and still contained no resolved init call.
+
+That means increasing the forward depth is not the justified next step. When the
+forward analyzer returns its fail-closed status code `2`, the wrapper now
+launches `ExportBoundedReverseCallGraphPcodeFlow.java` from the reviewed
+`EnemyActionsSystem::initWithFile` entry. The reverse exporter includes the
+`initWithFile` function itself plus bounded direct callers discovered from
+Ghidra call references. This exposes both:
+
+- the actual functions that directly call `initWithFile` and their arguments;
+- the internal `addActionDataWithID` call made by the target path when present.
+
+Both traversals are explicitly bounded:
 
 ```text
-max direct-call depth: 4
-max decompiled functions: 96
+max call depth: 4
+max decompiled functions per traversal: 96
 ```
 
-Enemy/Action-named callees are prioritized before generic and library helpers so
-the bounded frontier stays focused on the original action initialization path.
-Indirect calls are exported as structural P-code rows but are not guessed into
-direct targets.
+Only resolved direct call references are traversed. `CALLIND` targets are not
+guessed. No action filename, object type, or enemy ID is assigned from an
+unresolved value.
 
-The analyzer recognizes direct calls found anywhere in the bounded export to:
+The analyzer recognizes calls found anywhere in either bounded export to:
 
 ```text
 EnemyActionsSystem::initWithFile
@@ -61,13 +76,7 @@ For each call it reports:
 - structurally traced constants and root tokens.
 
 Transparent copies/casts/extensions and `MULTIEQUAL` joins are traced. Other
-arithmetic or unresolved values remain `derived`. No argument is automatically
-renamed to `filename`, `enemy_id`, `object_type`, or any other gameplay meaning.
-
-The analyzer still fails closed when the bounded graph contains no direct
-`EnemyActionsSystem::initWithFile` call. Increase the explicit traversal bounds
-only when a real report shows that the current frontier is insufficient; do not
-replace unresolved call edges with guessed targets.
+arithmetic or unresolved values remain `derived`.
 
 ## Run on the analyzed original library
 
@@ -79,37 +88,31 @@ python3 tools/run_enemy_object_action_init_probe.py \
   --program libcocos2dcpp.so
 ```
 
-The wrapper passes `-recursive` to Ghidra's `-process` mode. This is required
-when the imported library lives in a nested Ghidra project folder rather than at
-the project root. The requested filename remains the match boundary; the probe
-does not fall back to processing unrelated project programs.
+The reviewed original ARMv7 entries are defaults:
 
-The traversal bounds can be overridden explicitly:
+```text
+EnemyActionsSystem::initWithFile = 002adcb0
+ActionDataManager::addActionDataWithID = 0028ee34
+```
+
+Override them only when intentionally probing a different analyzed image:
 
 ```bash
 python3 tools/run_enemy_object_action_init_probe.py ... \
-  --max-depth 5 \
-  --max-functions 128
+  --init-entry <entry> \
+  --add-entry <entry>
 ```
 
-Outputs:
+The wrapper passes `-recursive` to Ghidra's `-process` mode so an imported
+library can live below a nested Ghidra project folder.
+
+Outputs can include:
 
 ```text
 build/enemy-object-action-init-evidence/load-enemy-object-callgraph-pcode.tsv
+build/enemy-object-action-init-evidence/enemy-actions-init-reverse-callgraph-pcode.tsv
 build/enemy-object-action-init-evidence/enemy-object-action-init-report.txt
 ```
-
-If local Ghidra symbols are incomplete, use exact analyzed-image entries:
-
-```bash
-python3 tools/run_enemy_object_action_init_probe.py ... \
-  --load-enemy-object <address> \
-  --init-entry <EnemyActionsSystem::initWithFile-address> \
-  --add-entry <ActionDataManager::addActionDataWithID-address>
-```
-
-The entry overrides are matching aids only; they do not assign semantics to any
-arguments.
 
 ## Acceptance boundary for the next runtime step
 
