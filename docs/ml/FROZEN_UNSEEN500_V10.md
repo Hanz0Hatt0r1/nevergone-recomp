@@ -24,7 +24,8 @@ The runner builds:
 - static receiver/vtable inference;
 - v5.2 receiver-ratio evidence;
 - v10 routed classifications;
-- an immutable corpus manifest and a validation summary.
+- an immutable corpus manifest and a validation summary;
+- a distribution-shift audit against the v5.2/v10 OOF reference.
 
 The holdout has no independent semantic labels. Therefore it validates identity
 separation, feature/evidence availability, routing stability and OOD/deployment
@@ -76,10 +77,34 @@ indirect-receiver-types.tsv
 static-receiver-vtable-inference.jsonl
 v10.classified.jsonl
 validation-summary.json
+drift-summary.json
 ```
 
 `validation-summary.json` records corpus SHA-256, prediction/action counts,
 router change rate and callgraph/receiver evidence coverage.
+
+## Distribution-shift audit
+
+`tools/ml/audit_nevergone_frozen_drift_v10.py` compares the frozen set against
+the labeled OOF reference without using frozen labels. It reports:
+
+- Jensen-Shannon divergence for predicted-class, base-action and routed-action
+  distributions;
+- confidence, raw-confidence, family-similarity, competing-similarity,
+  contrast-margin, max-probability, top-2-gap and entropy shifts;
+- the router downgrade rate among legacy `accept` rows;
+- callgraph/receiver evidence coverage changes;
+- the largest per-feature evidence-presence shifts.
+
+The audit emits a `low`, `moderate` or `high` drift indicator using documented
+heuristic thresholds. That indicator is diagnostic only: it is not a semantic
+accuracy estimate and it must not be used as a replacement for labeled
+validation.
+
+The production reference intervention rate is derived from the v10 cross-fitted
+calibration (`legacy_accept_examples - kept_examples`). Frozen rows are compared
+against that reference, so a higher downgrade rate can indicate appropriate
+caution on new identities rather than model failure.
 
 ## Refresh policy
 
