@@ -68,6 +68,26 @@ def main() -> int:
         assert "arg[0]" in report
         assert "input:ram:00123456:4" in report
 
+        # The production exporter emits multiple functions into one TSV. The
+        # analyzer must find the target even when loadEnemyObjectFile reaches it
+        # through a resolved helper rather than by a direct call.
+        nested = root / "nested.tsv"
+        write_tsv(nested, [
+            ["002be768", "002be800", "0", "CALL", "-",
+             "register:r4:4;register:r5:4", "002bf000", "EnemyObject::loadEnemyActions()"],
+            ["002bf000", "002bf020", "0", "COPY", "def:002bf020:0:4",
+             "input:ram:00fedcba:4", "-", "-"],
+            ["002bf000", "002bf040", "0", "CALL", "-",
+             "register:r6:4;def:002bf020:0:4;const:0x3:4;const:0x0:4",
+             "002bdcb0", "EnemyActionsSystem::initWithFile(char const*, int, int)"],
+        ])
+        nested_calls = collect_call_evidence(read_rows(nested))
+        assert status(nested_calls) == "structural-init-call-found"
+        assert len(nested_calls) == 1
+        assert nested_calls[0].function_entry == "002bf000"
+        assert nested_calls[0].arguments[0].source.roots == ("input:ram:00fedcba:4",)
+        assert nested_calls[0].arguments[1].source.constants == (3,)
+
         # Exact-entry fallback remains usable when Ghidra has no symbol name.
         unnamed = root / "unnamed.tsv"
         write_tsv(unnamed, [[
