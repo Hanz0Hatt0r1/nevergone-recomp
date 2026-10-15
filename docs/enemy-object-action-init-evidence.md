@@ -65,12 +65,49 @@ the exporter stops with an identity-mismatch error instead of exporting the wron
 call graph.
 
 The reverse exporter includes the `initWithFile` function itself plus bounded
-direct callers discovered from Ghidra call references. This exposes both:
+direct callers discovered from Ghidra call references.
 
-- the actual functions that directly call `initWithFile` and their arguments;
-- the internal `addActionDataWithID` call made by the target path when present.
+### Resolved structural hit
 
-Both traversals are explicitly bounded:
+The corrected live reverse run produced exactly one direct
+`EnemyActionsSystem::initWithFile` call and one internal
+`ActionDataManager::addActionDataWithID` call:
+
+```text
+EnemyActionsSystem::initWithFile:
+  caller function entry: 002bddfc
+  call site:             002bde38
+  target entry:          002bdcb0
+  explicit arguments:    8
+
+ActionDataManager::addActionDataWithID:
+  containing function:   002bdcb0
+  call site:             002bdd08
+  target entry:          0029ee34
+  explicit arguments:    3
+```
+
+The structural analyzer currently traces the eight `initWithFile` explicit
+arguments to four register roots followed by four stack roots. That is useful
+identity/ABI evidence, but is not enough to assign filename, object type, or
+enemy-ID semantics.
+
+The next phase therefore does **not** widen the call graph. Once a structural hit
+exists, the wrapper now:
+
+1. builds a plan directly from the resolved `initWithFile` CALL row;
+2. uses the existing `ExportCallerArgumentSubtree.java` exporter for the receiver
+   plus every explicit argument;
+3. records caller function name, call site, High-P-code type information, pointer
+   depth/pointee type, constants, defining operations and bounded SSA leaves;
+4. summarizes that evidence with
+   `tools/enemy_action_init_caller_arguments.py`.
+
+The plan is derived from the live CALL itself. For the current binary it contains
+nine raw call inputs: one member receiver plus `arg[0]` through `arg[7]`. No
+parameter meaning is assigned by position.
+
+Both call-graph traversals remain explicitly bounded:
 
 ```text
 max call depth: 4
@@ -81,16 +118,16 @@ Only resolved direct call references are traversed. `CALLIND` targets are not
 guessed. No action filename, object type, or enemy ID is assigned from an
 unresolved value.
 
-The analyzer recognizes calls found anywhere in either bounded export by their
-resolved symbol names. Optional numeric fallbacks can also be supplied when a
-local Ghidra database lacks a useful target name:
+The structural analyzer recognizes calls found anywhere in either bounded export
+by their resolved symbol names. Optional numeric fallbacks can also be supplied
+when a local Ghidra database lacks a useful target name:
 
 ```text
 EnemyActionsSystem::initWithFile
 ActionDataManager::addActionDataWithID
 ```
 
-For each call it reports:
+For each structural call it reports:
 
 - call site and resolved target;
 - receiver provenance;
@@ -136,6 +173,9 @@ Outputs can include:
 build/enemy-object-action-init-evidence/load-enemy-object-callgraph-pcode.tsv
 build/enemy-object-action-init-evidence/enemy-actions-init-reverse-callgraph-pcode.tsv
 build/enemy-object-action-init-evidence/enemy-object-action-init-report.txt
+build/enemy-object-action-init-evidence/enemy-actions-init-caller-argument-plan.tsv
+build/enemy-object-action-init-evidence/enemy-actions-init-caller-argument-subtrees.tsv
+build/enemy-object-action-init-evidence/enemy-actions-init-caller-argument-report.txt
 ```
 
 ## Acceptance boundary for the next runtime step
