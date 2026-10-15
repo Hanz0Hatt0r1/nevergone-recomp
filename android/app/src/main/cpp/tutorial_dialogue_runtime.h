@@ -41,9 +41,11 @@ void reset();
 bool begin_first_dialogue();
 
 // Advances only from timing loaded out of the user's imported guide plist.
-// The final ID-8 line enters kLessonInterlude; it deliberately does not call
-// tutorial_session_state::on_dialogue_complete(), because the original
-// callback1/showDialogue path runs before dialogue id 9 and interactive input.
+// The final ID-8 line enters kLessonInterlude. The Android frame boundary then
+// mirrors dialogEndCallBack(1) -> showDialogue() by advancing the coarse
+// tutorial session into Interactive. Dialogue id 9 remains a later, separate
+// boundary: the original schedules secondDlgCallBack after lesson step 12 sees
+// BattleManager::enemyNullCount()==0.
 void tick();
 
 void on_surface_created();
