@@ -88,7 +88,11 @@ public class ExportClassOwnerAliasFlow extends GhidraScript {
         String want=(cls+"*").replace(" ","");
         if (type.equals(want) || type.endsWith("::"+want)) return true;
         String name=parameterName(high,0);
-        return ("this".equals(name) || "__this".equals(name)) && type.contains(cls.replace(" ",""));
+        if (!("this".equals(name) || "__this".equals(name))) return false;
+        int split=cls.lastIndexOf("::");
+        String shortCls=split<0?cls:cls.substring(split+2);
+        String shortWant=(shortCls+"*").replace(" ","");
+        return type.equals(shortWant) || type.endsWith("::"+shortWant) || type.contains(cls.replace(" ",""));
     }
     private Expr traceAddress(Varnode node, int depth, Set<Varnode> active) {
         if (node==null || depth>MAX_DEPTH || active.contains(node)) return new Expr(null,null,"missing_cycle_or_depth");
