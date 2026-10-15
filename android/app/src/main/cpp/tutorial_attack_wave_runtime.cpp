@@ -19,6 +19,7 @@ void Runtime::reset() {
     start_game_tick_ = 0;
     last_game_tick_ = 0;
     wave_started_ = false;
+    wave_completed_ = false;
     completion_pending_ = false;
     set_status(Status::kIdle);
 }
@@ -63,15 +64,16 @@ bool Runtime::tick(
         tutorial_enemy_roster::BaseHealthResolver resolver,
         void* resolver_user_data) {
     if (gameplay.step != tutorial_gameplay_state::Step::kAttack) {
-        if (wave_started_ || completion_pending_ || status_ != Status::kIdle) {
+        if (wave_started_ || wave_completed_ || completion_pending_ ||
+                status_ != Status::kIdle) {
             reset();
         }
         return true;
     }
 
-    if (completion_pending_) {
+    if (wave_completed_) {
         last_game_tick_ = game_tick;
-        set_status(Status::kCompletionPending);
+        set_status(completion_pending_ ? Status::kCompletionPending : Status::kCompleted);
         return true;
     }
 
@@ -122,6 +124,7 @@ bool Runtime::tick(
     }
 
     if (roster_.consume_all_defeated()) {
+        wave_completed_ = true;
         completion_pending_ = true;
         ++generation_;
         set_status(Status::kCompletionPending);
@@ -132,24 +135,28 @@ bool Runtime::tick(
 }
 
 bool Runtime::apply_damage(std::size_t slot, float damage) {
+    if (wave_completed_) return false;
     const bool applied = roster_.apply_damage(slot, damage);
     if (applied) ++generation_;
     return applied;
 }
 
 bool Runtime::set_dead(std::size_t slot) {
+    if (wave_completed_) return false;
     const bool applied = roster_.set_dead(slot);
     if (applied) ++generation_;
     return applied;
 }
 
 bool Runtime::set_enemy_state(std::size_t slot, int enemy_state) {
+    if (wave_completed_) return false;
     const bool applied = roster_.set_enemy_state(slot, enemy_state);
     if (applied) ++generation_;
     return applied;
 }
 
 bool Runtime::set_force_action_state_no_dead(std::size_t slot, bool enabled) {
+    if (wave_completed_) return false;
     const bool applied = roster_.set_force_action_state_no_dead(slot, enabled);
     if (applied) ++generation_;
     return applied;
@@ -159,6 +166,7 @@ bool Runtime::consume_completion() {
     if (!completion_pending_) return false;
     completion_pending_ = false;
     ++generation_;
+    set_status(Status::kCompleted);
     return true;
 }
 
@@ -169,6 +177,7 @@ Snapshot Runtime::snapshot() const {
     out.start_game_tick = start_game_tick_;
     out.last_game_tick = last_game_tick_;
     out.wave_started = wave_started_;
+    out.wave_completed = wave_completed_;
     out.completion_pending = completion_pending_;
     out.roster = roster_.snapshot();
     return out;
@@ -183,6 +192,7 @@ std::string Runtime::status_report() const {
     out << "start game tick: " << state.start_game_tick << "\n";
     out << "last game tick: " << state.last_game_tick << "\n";
     out << "wave started: " << (state.wave_started ? "true" : "false") << "\n";
+    out << "wave completed: " << (state.wave_completed ? "true" : "false") << "\n";
     out << "completion pending: " << (state.completion_pending ? "true" : "false") << "\n";
     out << "planned enemies: " << state.roster.planned_count << "\n";
     out << "materialized enemies: " << state.roster.materialized_count << "\n";
@@ -200,6 +210,7 @@ const char* status_name(Status status) {
         case Status::kActive: return "active";
         case Status::kClockRegression: return "clock-regression";
         case Status::kCompletionPending: return "completion-pending";
+        case Status::kCompleted: return "completed";
     }
     return "unknown";
 }
