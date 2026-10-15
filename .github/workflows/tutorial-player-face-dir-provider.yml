@@ -8,6 +8,8 @@ on:
       - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
       - 'android/app/src/main/cpp/tutorial_attack_live_gate*'
+      - 'tools/player_face_dir_binary_evidence.py'
+      - 'tools/player_face_dir_binary_evidence_smoke.py'
       - 'tools/tutorial_player_face_dir_provider_smoke.cpp'
       - '.github/workflows/tutorial-player-face-dir-provider.yml'
   pull_request:
@@ -16,6 +18,8 @@ on:
       - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
       - 'android/app/src/main/cpp/tutorial_attack_live_gate*'
+      - 'tools/player_face_dir_binary_evidence.py'
+      - 'tools/player_face_dir_binary_evidence_smoke.py'
       - 'tools/tutorial_player_face_dir_provider_smoke.cpp'
       - '.github/workflows/tutorial-player-face-dir-provider.yml'
 
@@ -24,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate binary evidence verifier
+        run: python3 tools/player_face_dir_binary_evidence_smoke.py
       - name: Build and run PLAYERFACEDIR provider smoke
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
