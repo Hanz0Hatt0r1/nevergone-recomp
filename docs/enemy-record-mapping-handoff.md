@@ -1,49 +1,51 @@
 # Enemy record mapping handoff
 
-This stage bridges the recovered `LoadGL_Global` enemy records to the tutorial
-roster without silently turning a heuristic into a semantic field name.
+This boundary connects the recovered 32-byte `LoadGL_Global` enemy records to
+the tutorial roster without guessed IDs or HP.
 
-## Candidate artifact
+## Reviewed original mapping
 
-After capturing a complete real-device GameLevels diagnostic report and running
-the independent Ghidra health-consumer probe, create the bounded cross-evidence
-report and a machine-readable candidate together:
+Exact ARMv7 consumer evidence now closes both fields for Never Gone 1.0.9:
+
+```text
+EnemyRecord.first_i32  -> GameLevelsEnemyData +0x14 -> enemy_id
+EnemyRecord.second_i32 -> GameLevelsEnemyData +0x18 -> base_health
+EnemyRecord.second_i32 -> GameLevelsEnemyData +0x1c -> total-blood mirror
+```
+
+`GameLevels::GetEnemyDataWithEnemyID(unsigned int)` compares `+0x14` directly
+with its requested ID. `EnemyObject::loadEnemyObjectFile(...)` loads `+0x18`,
+converts it to float, and seeds both recovered health stores.
+`GameLevels::GetLevelALLEnemyBlood()` independently sums the `+0x1c` duplicate.
+
+`game_levels_enemy_record_mapping::reviewed_original_mapping()` therefore
+returns:
+
+```text
+identity_field    = first_i32
+base_health_field = second_i32
+review_status     = reviewed
+```
+
+The live tutorial Attack gate installs this reviewed mapping independently from
+its player-facing and scene-limit providers.
+
+See `docs/evidence/enemy-record-identity-health-2026-10-15.md` and reproduce the
+exact binary check with:
 
 ```bash
-python3 tools/enemy_record_cross_evidence.py \
-  artifacts/android-game-scene-runtime/runtime-diagnostics.txt \
-  build/enemy-health-field-consumer/enemy-health-field-consumer.tsv \
-  --known-enemy-id 3 \
-  --output artifacts/android-game-scene-runtime/enemy-record-cross-evidence.txt \
-  --mapping-output artifacts/android-game-scene-runtime/enemy-record-mapping-candidate.json
+python3 tools/enemy_record_binary_evidence.py \
+  /path/to/com.hippiegame.nevergone.apk
 ```
 
-Add another independently recovered enemy ID only when it is known to belong to
-the same captured record set. The tool fails closed when the runtime record dump
-is truncated, the identity column is ambiguous, the Ghidra consumer evidence
-has no unique health source, or both evidence paths resolve to the same raw
-field.
+The verifier requires the exact known `libcocos2dcpp.so` SHA-256 and all bounded
+Thumb signatures to match.
 
-The JSON schema is:
+## Runtime guard
 
-```text
-NEVERGONE.EnemyRecordMappingCandidate/1
-```
-
-and explicitly carries:
-
-```text
-semantic_status = cross-evidence-candidate
-```
-
-It is a review artifact, not a production switch.
-
-## Runtime gate
-
-`game_levels_enemy_record_mapping` is the project-owned semantic boundary used
-by the future live tutorial integration. It exposes only the seven integer
-slots from the recovered 32-byte record. The float slot cannot accidentally be
-selected as identity or base health.
+`game_levels_enemy_record_mapping` still exposes only the seven integer slots
+from the recovered record; the intervening float cannot accidentally become an
+identity or health field.
 
 A mapping is usable only when:
 
@@ -52,25 +54,29 @@ A mapping is usable only when:
 - the requested enemy ID selects exactly one imported record;
 - the resolved base health is positive.
 
-Duplicate identity rows, missing IDs, candidate-only mappings, zero/negative HP,
-and invalid field combinations all fail closed.
+Duplicate IDs, missing IDs, candidate-only mappings, zero/negative HP, and
+aliased fields all fail closed. `roster_base_health_resolver()` remains the
+adapter consumed by `tutorial_enemy_roster`.
 
-`roster_base_health_resolver()` has the exact callback signature expected by
-`tutorial_enemy_roster::BaseHealthResolver`, so no additional semantic adapter
-is required after the mapping is reviewed.
+## Legacy cross-evidence candidate
+
+`tools/enemy_record_cross_evidence.py` and the diagnostic/Ghidra candidate
+workflow remain useful as independent corroboration and regression evidence.
+Their JSON deliberately retains `semantic_status = cross-evidence-candidate`;
+it is not used to promote production fields at runtime now that exact original
+consumer evidence exists.
 
 ## Remaining production boundary
 
-The clean-room runtime still does not ship a hard-coded mapping. The next step
-requires real evidence from the user's original game data:
+The numerical data needed to materialize the first Attack roster is now
+resolved from imported scene data. The next boundary is the live enemy actor
+bridge:
 
-1. capture a complete `runtime-diagnostics.txt` from the first tutorial scene;
-2. run the Ghidra health-consumer probe against the analyzed original
-   `libcocos2dcpp.so`;
-3. generate and review the cross-evidence candidate;
-4. install the reviewed mapping into the tutorial enemy runtime;
-5. connect live damage/death state to the roster and publish
-   `kTutorialEnemiesDefeated` only after the recovered death predicate says the
-   full Attack wave is dead.
+1. create/bind reconstructed enemy entities for materialized roster slots;
+2. retain the active `wave_generation` on every binding;
+3. route actual combat damage, death, enemy-state, and no-death changes into the
+   roster using that token;
+4. publish `kTutorialEnemiesDefeated` only when all three recovered Attack-wave
+   enemies pass the original death predicate.
 
-No default enemy HP or guessed record field is introduced by this stage.
+No default HP constant or button-press completion shortcut is introduced.

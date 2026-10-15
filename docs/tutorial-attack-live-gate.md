@@ -1,9 +1,8 @@
 # Tutorial Attack live gate
 
 `tutorial_attack_live_gate` is the Android/frame-level boundary between the
-recovered first Attack-wave model and evidence that is still pending review. It
-exercises and reports the real readiness chain without inventing values for
-unresolved original-game fields.
+recovered first Attack-wave model and the live reconstructed scene/combat state.
+It exercises the evidence-backed readiness chain without inventing values.
 
 ## Frame inputs
 
@@ -39,7 +38,7 @@ unreviewed.
 ## Scene limits are live-derived
 
 Direct bounded Thumb evidence in the exact shipped library and independent
-`GameLevels::LoadGL_PortNode()` stores close the previous scene-limit gap:
+`GameLevels::LoadGL_PortNode()` stores close the scene-limit mapping:
 
 ```text
 third_u32  -> GameScenePortNodeData +0x4ac -> vertical_edge_a
@@ -49,19 +48,29 @@ fifth_u32  -> GameScenePortNodeData +0x4b4 -> right_edge_x
 
 `tutorial_scene_limit_provider` reads the current project-owned PortNode record,
 requires its recovered scene-GUID string to match the runtime scene GUID, and
-stamps the values with the current load-attempt count and GUID. No numeric
-fallback or developer setter is involved. A reload, missing PortNode, or GUID
-mismatch makes the provider unreviewed.
+stamps the values with the current load-attempt count and GUID. A reload,
+missing PortNode, or GUID mismatch fails closed.
 
-## Remaining mandatory evidence
+## Enemy identity/base health are reviewed
 
-The remaining pre-materialization evidence gate is
-`game_levels_enemy_record_mapping::Mapping`.
+Exact original consumers close the two `LoadGL_Global` fields required by the
+first Attack roster:
 
-A candidate enemy-record mapping remains unusable. The base-health resolver is
-provided to the Attack runtime only when
-`game_levels_enemy_record_mapping::is_usable()` accepts a mapping whose review
-status is `kReviewed` and whose identity/base-health fields are distinct.
+```text
+first_i32  -> GameLevelsEnemyData +0x14 -> enemy_id
+second_i32 -> GameLevelsEnemyData +0x18 -> base_health
+second_i32 -> GameLevelsEnemyData +0x1c -> total-blood mirror
+```
+
+The live wrapper installs
+`game_levels_enemy_record_mapping::reviewed_original_mapping()` every frame via
+the dedicated evidence setter. A candidate mapping remains unusable; the
+production helper is reviewed from exact binary evidence rather than promoted
+from runtime heuristics.
+
+The resolver still requires one unique imported row for the requested enemy ID
+and positive base health. Thus the Attack wave remains fail-closed if the loaded
+scene data does not contain a valid ID `3` record.
 
 ## Live diagnostics
 
@@ -71,24 +80,20 @@ status is `kReviewed` and whose identity/base-health fields are distinct.
 - `Tutorial PLAYERFACEDIR provider`;
 - `Tutorial scene-limit provider`.
 
-The report includes spawn-input status, provider readiness/current generations,
-resolved scene-limit values when reviewed, enemy mapping readiness, current raw
-enemy-record count, nested Attack-wave status/wave generation, and completion
-publication count.
+The Attack section reports spawn-input status, whether the exact enemy mapping
+is reviewed/usable, its identity/base-health field names, current raw enemy
+record count, nested wave status/generation, and completion publication count.
 
-Once facing is established and the current PortNode resolves, the expected next
-production blocker is `waiting-for-base-health` until enemy record mapping is
-reviewed.
+With valid `cp_lesson.glData`, the expected state after Jump is now an active
+project-owned Attack roster rather than `scene-limits-unreviewed` or
+`waiting-for-base-health`.
 
 ## Enemy callback identity
 
-Once materialization is possible, every damage/death/state callback must carry
-the active `wave_generation` obtained from the Attack runtime. Reused roster
-slot indices are not stable identities. Callbacks carrying a stale generation
-are rejected by both the live gate and underlying roster/runtime contracts.
-
-A scene reload also invalidates the bound wave before later callbacks can mutate
-reused slots.
+Every damage/death/state callback must carry the active `wave_generation`
+obtained from the Attack runtime. Reused roster slot indices are not stable
+identities. Stale-generation callbacks are rejected, and a scene reload
+invalidates the bound wave before later callbacks can mutate reused slots.
 
 ## Completion publication
 
@@ -103,10 +108,11 @@ TutorialEnemiesDefeated
 to `tutorial_gameplay_state`. The runtime completion edge is consumed only
 after that publication succeeds.
 
-## Remaining evidence work
+## Remaining production work
 
-The first-wave geometry inputs are now live and evidence-backed. The remaining
-production reconstruction is the enemy identity/base-health mapping and then the
-actual EnemyObject materialization/damage callback bridge. Test-only constants
-in host smokes are not production evidence and are never installed by the live
-path.
+The first-wave geometry, identity, and imported HP inputs are now all
+live/evidence-backed. The remaining blocker is the actual reconstructed enemy
+actor bridge: materialize visible/interactive enemy entities for roster slots,
+bind them to the current wave generation, and route real combat damage/death
+state back into the roster. Test-only constants in host smokes are never
+installed by the live path.

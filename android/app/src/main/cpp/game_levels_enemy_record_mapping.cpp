@@ -74,6 +74,14 @@ bool parse_field_name(const std::string& name, IntegerField* out) {
     return true;
 }
 
+Mapping reviewed_original_mapping() {
+    Mapping mapping;
+    mapping.identity_field = IntegerField::kFirstI32;
+    mapping.base_health_field = IntegerField::kSecondI32;
+    mapping.review_status = ReviewStatus::kReviewed;
+    return mapping;
+}
+
 bool is_usable(const Mapping& mapping) {
     return mapping.review_status == ReviewStatus::kReviewed &&
         mapping.identity_field != mapping.base_health_field;

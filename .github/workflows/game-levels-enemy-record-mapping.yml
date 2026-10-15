@@ -4,19 +4,31 @@ on:
   pull_request:
     paths:
       - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate.*'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate_runtime.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/game_levels_enemy_record_mapping_smoke.cpp'
+      - 'tools/enemy_record_binary_evidence.py'
+      - 'tools/enemy_record_binary_evidence_smoke.py'
       - 'tools/enemy_record_cross_evidence.py'
       - 'tools/enemy_record_cross_evidence_smoke.py'
+      - 'docs/evidence/enemy-record-identity-health-2026-10-15.md'
+      - 'docs/enemy-record-mapping-handoff.md'
       - '.github/workflows/game-levels-enemy-record-mapping.yml'
   push:
     branches-ignore: [main]
     paths:
       - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate.*'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate_runtime.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/game_levels_enemy_record_mapping_smoke.cpp'
+      - 'tools/enemy_record_binary_evidence.py'
+      - 'tools/enemy_record_binary_evidence_smoke.py'
       - 'tools/enemy_record_cross_evidence.py'
       - 'tools/enemy_record_cross_evidence_smoke.py'
+      - 'docs/evidence/enemy-record-identity-health-2026-10-15.md'
+      - 'docs/enemy-record-mapping-handoff.md'
       - '.github/workflows/game-levels-enemy-record-mapping.yml'
 
 permissions:
@@ -28,9 +40,11 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Validate cross-evidence candidate manifest
+      - name: Validate exact ARMv7 mapping verifier
+        run: python3 tools/enemy_record_binary_evidence_smoke.py
+      - name: Validate legacy cross-evidence candidate manifest
         run: python3 tools/enemy_record_cross_evidence_smoke.py
-      - name: Validate reviewed runtime mapping gate
+      - name: Validate reviewed runtime mapping
         shell: bash
         run: |
           set -euo pipefail

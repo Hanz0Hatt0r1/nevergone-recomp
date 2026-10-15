@@ -23,10 +23,10 @@ int main() {
     assert(!mapping::parse_field_name("enemy_id", &parsed));
     assert(mapping::field_name(IntegerField::kFourthI32) == std::string("fourth_i32"));
 
-    Mapping reviewed;
-    reviewed.identity_field = IntegerField::kFirstI32;
-    reviewed.base_health_field = IntegerField::kFourthI32;
-    reviewed.review_status = ReviewStatus::kReviewed;
+    const Mapping reviewed = mapping::reviewed_original_mapping();
+    assert(reviewed.identity_field == IntegerField::kFirstI32);
+    assert(reviewed.base_health_field == IntegerField::kSecondI32);
+    assert(reviewed.review_status == ReviewStatus::kReviewed);
     assert(mapping::is_usable(reviewed));
 
     Mapping candidate = reviewed;
@@ -39,11 +39,19 @@ int main() {
 
     std::vector<EnemyRecord> records(3);
     records[0].first_i32 = 3;
-    records[0].fourth_i32 = 70;
+    records[0].second_i32 = 70;
     records[1].first_i32 = 21;
-    records[1].fourth_i32 = 250;
+    records[1].second_i32 = 250;
     records[2].first_i32 = 99;
-    records[2].fourth_i32 = 900;
+    records[2].second_i32 = 900;
+
+    // Populate unrelated fields with plausible values so the smoke proves the
+    // production helper selects the exact first/second slots rather than a
+    // magnitude-based heuristic.
+    records[0].third_i32 = 7000;
+    records[0].fourth_i32 = 7001;
+    records[1].third_i32 = 25000;
+    records[1].fourth_i32 = 25001;
 
     int hp = -1;
     assert(mapping::resolve_base_health(records, reviewed, 3, &hp));
@@ -66,19 +74,19 @@ int main() {
     assert(hp == 70);
     assert(!mapping::roster_base_health_resolver(3, &hp, nullptr));
 
-    // Duplicate identities are ambiguous and must not be selected by physical
-    // record order.
+    // Duplicate semantic identities are ambiguous and must not be selected by
+    // physical record order.
     auto duplicate_records = records;
     duplicate_records.push_back(records[0]);
-    duplicate_records.back().fourth_i32 = 71;
+    duplicate_records.back().second_i32 = 71;
     assert(!mapping::resolve_base_health(duplicate_records, reviewed, 3, &hp));
 
     auto zero_health_records = records;
-    zero_health_records[0].fourth_i32 = 0;
+    zero_health_records[0].second_i32 = 0;
     assert(!mapping::resolve_base_health(zero_health_records, reviewed, 3, &hp));
 
     auto negative_health_records = records;
-    negative_health_records[0].fourth_i32 = -7;
+    negative_health_records[0].second_i32 = -7;
     assert(!mapping::resolve_base_health(negative_health_records, reviewed, 3, &hp));
 
     std::cout << "GameLevels enemy record mapping smoke: PASS\n";

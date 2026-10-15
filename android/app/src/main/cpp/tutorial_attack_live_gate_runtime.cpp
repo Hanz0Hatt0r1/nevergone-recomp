@@ -39,12 +39,15 @@ bool live_tick() {
     const std::uint64_t game_tick = game_clock::tick_count();
     const auto face_dir = tutorial_player_face_dir_provider::resolve(control);
     const auto scene_limits = tutorial_scene_limit_provider::resolve(levels, port_node);
+    const auto enemy_mapping =
+        game_levels_enemy_record_mapping::reviewed_original_mapping();
 
     std::lock_guard<std::mutex> lock(g_live_mutex);
     g_last_face_dir_resolution = face_dir;
     g_last_scene_limit_resolution = scene_limits;
     g_live_gate.set_player_face_dir_evidence(face_dir.face_dir);
     g_live_gate.set_scene_limit_evidence(scene_limits.scene_limits);
+    g_live_gate.set_enemy_mapping_evidence(enemy_mapping);
     if (!g_live_gate.tick(
             game_tick,
             gameplay,

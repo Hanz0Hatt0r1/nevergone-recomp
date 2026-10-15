@@ -46,6 +46,17 @@ void Gate::set_scene_limit_evidence(
     ++generation_;
 }
 
+void Gate::set_enemy_mapping_evidence(
+        const game_levels_enemy_record_mapping::Mapping& enemy_mapping) {
+    if (review_.enemy_mapping.identity_field == enemy_mapping.identity_field &&
+            review_.enemy_mapping.base_health_field == enemy_mapping.base_health_field &&
+            review_.enemy_mapping.review_status == enemy_mapping.review_status) {
+        return;
+    }
+    review_.enemy_mapping = enemy_mapping;
+    ++generation_;
+}
+
 bool Gate::tick(
         std::uint64_t game_tick,
         const tutorial_gameplay_state::Snapshot& gameplay,
@@ -171,6 +182,12 @@ std::string Gate::status_report() const {
         << (review_.enemy_mapping.review_status ==
                     game_levels_enemy_record_mapping::ReviewStatus::kReviewed
                 ? "yes" : "no")
+        << "\n";
+    out << "enemy mapping identity field: "
+        << game_levels_enemy_record_mapping::field_name(review_.enemy_mapping.identity_field)
+        << "\n";
+    out << "enemy mapping base-health field: "
+        << game_levels_enemy_record_mapping::field_name(review_.enemy_mapping.base_health_field)
         << "\n";
     out << "enemy mapping usable: " << (state.enemy_mapping_usable ? "yes" : "no") << "\n";
     out << "enemy records: " << state.enemy_record_count << "\n";
