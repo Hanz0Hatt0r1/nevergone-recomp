@@ -13,6 +13,10 @@ from collections import defaultdict
 from pathlib import Path, PurePosixPath
 
 DEFAULT_EXTENSIONS = ("actData", "plist", "png", "hpc", "csv", "lua")
+# p01_i01.actData is consumed by the recovered first-scene/tutorial path even when
+# it is not discoverable as a direct quoted Lua edge. Keep it as an explicit
+# bootstrap requirement rather than silently inventing it only when Lua is absent.
+DEFAULT_REQUIRED = ("p01_i01.actData",)
 
 
 def normalize_reference(value: str) -> str | None:
@@ -87,6 +91,18 @@ def main() -> int:
     parser.add_argument("--decoded-dir", type=Path, default=Path("build/decoded-assets"))
     parser.add_argument("--out", type=Path, default=Path("evidence/asset-coverage"))
     parser.add_argument("--extensions", default=",".join(DEFAULT_EXTENSIONS))
+    parser.add_argument(
+        "--require",
+        action="append",
+        default=[],
+        metavar="ASSET",
+        help="Additional required asset path or basename (repeatable).",
+    )
+    parser.add_argument(
+        "--no-default-required",
+        action="store_true",
+        help="Do not require the known first-scene bootstrap asset p01_i01.actData.",
+    )
     parser.add_argument("--fail-on-missing", action="store_true")
     parser.add_argument("--fail-on-ambiguous", action="store_true")
     args = parser.parse_args()
@@ -106,6 +122,24 @@ def main() -> int:
             continue
         status, matches = resolve(row["reference"], exact_paths, by_suffix)
         dedup[key] = {**row, "status": status, "matches": matches}
+
+    required_assets = [] if args.no_default_required else list(DEFAULT_REQUIRED)
+    required_assets.extend(args.require)
+    for raw_reference in required_assets:
+        reference = normalize_reference(raw_reference)
+        if reference is None:
+            parser.error(f"invalid required asset reference: {raw_reference!r}")
+        key = ("<required>", reference)
+        if key in dedup:
+            continue
+        status, matches = resolve(reference, exact_paths, by_suffix)
+        dedup[key] = {
+            "source": "<required>",
+            "reference": reference,
+            "status": status,
+            "matches": matches,
+        }
+
     rows = sorted(dedup.values(), key=lambda row: (str(row["status"]), str(row["source"]), str(row["reference"])))
 
     counts = {status: sum(1 for row in rows if row["status"] == status) for status in (
@@ -114,6 +148,7 @@ def main() -> int:
     result = {
         "decoded_dir": str(args.decoded_dir),
         "extensions": list(extensions),
+        "required_assets": [row["reference"] for row in rows if row["source"] == "<required>"],
         "inventory_files": len(exact_paths),
         "reference_edges": len(rows),
         "counts": counts,
@@ -129,12 +164,13 @@ def main() -> int:
         "",
         f"- decoded files inventoried: `{len(exact_paths)}`",
         f"- unique source/reference edges: `{len(rows)}`",
+        f"- explicit bootstrap requirements: `{sum(1 for row in rows if row['source'] == '<required>')}`",
         f"- exact resolutions: `{counts['resolved-exact']}`",
         f"- unique suffix resolutions: `{counts['resolved-suffix']}`",
         f"- ambiguous references: `{counts['ambiguous']}`",
         f"- missing references: `{counts['missing']}`",
         "",
-        "This is a static lower bound over quoted Lua references, not a full runtime asset tracer.",
+        "This is a static lower bound over quoted Lua references plus explicit bootstrap requirements, not a full runtime asset tracer.",
     ]
     if missing:
         report.extend(["", "## Missing", ""] + [f"- `{row['source']}` -> `{row['reference']}`" for row in missing[:100]])
