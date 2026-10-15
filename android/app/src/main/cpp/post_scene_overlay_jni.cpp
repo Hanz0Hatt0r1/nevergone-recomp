@@ -17,6 +17,7 @@
 #include "server_selection_compositor.h"
 #include "single_select_hero_confirm_compositor.h"
 #include "startup_contract.h"
+#include "tutorial_dialogue_overlay.h"
 #include "tutorial_lesson_overlay.h"
 #include "tutorial_loading_compositor.h"
 #include "tutorial_scene_bootstrap.h"
@@ -35,6 +36,8 @@ std::uint64_t g_last_character_name_asset_attempt_generation =
 std::uint64_t g_last_tutorial_loading_asset_attempt =
     std::numeric_limits<std::uint64_t>::max();
 std::uint64_t g_last_tutorial_lesson_asset_generation =
+    std::numeric_limits<std::uint64_t>::max();
+std::uint64_t g_last_tutorial_dialogue_asset_generation =
     std::numeric_limits<std::uint64_t>::max();
 std::uint64_t g_last_action_asset_attempt =
     std::numeric_limits<std::uint64_t>::max();
@@ -115,6 +118,20 @@ void maybe_stage_tutorial_lesson_assets(JNIEnv* env) {
         env, "org/nevergone/recomp/TutorialLessonOverlayAssetLoader");
 }
 
+void maybe_stage_tutorial_dialogue_assets(JNIEnv* env) {
+    if (env == nullptr) return;
+    const auto session = nevergone::tutorial_session_state::snapshot();
+    if (session.phase != nevergone::tutorial_session_state::Phase::kDialogue) {
+        g_last_tutorial_dialogue_asset_generation =
+            std::numeric_limits<std::uint64_t>::max();
+        return;
+    }
+    if (session.generation == g_last_tutorial_dialogue_asset_generation) return;
+    g_last_tutorial_dialogue_asset_generation = session.generation;
+    (void)invoke_files_dir_loader(
+        env, "org/nevergone/recomp/TutorialDialogueAssetLoader");
+}
+
 void maybe_stage_action_assets(JNIEnv* env) {
     if (env == nullptr) return;
     const auto state = nevergone::offline_startup_flow::snapshot();
@@ -140,6 +157,7 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::character_name_compositor::on_surface_created();
     nevergone::tutorial_loading_compositor::on_surface_created();
     nevergone::tutorial_lesson_overlay::on_surface_created();
+    nevergone::tutorial_dialogue_overlay::on_surface_created();
     nevergone::scene_actions_gles_compositor::on_surface_created();
     nevergone::game_scene_action_compositor::on_surface_created();
     nevergone::game_scene_action_surface_input::cancel_all_captures();
@@ -148,6 +166,7 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
     // the corresponding fresh-role generation is unchanged. Force restaging.
     g_last_action_asset_attempt = std::numeric_limits<std::uint64_t>::max();
     g_last_tutorial_lesson_asset_generation = std::numeric_limits<std::uint64_t>::max();
+    g_last_tutorial_dialogue_asset_generation = std::numeric_limits<std::uint64_t>::max();
     while (glGetError() != GL_NO_ERROR) {
     }
 }
@@ -169,6 +188,7 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
         nevergone::game_scene_direct_renderer::on_surface_changed(viewport[2], viewport[3]);
         nevergone::tutorial_loading_compositor::on_surface_changed(viewport[2], viewport[3]);
         nevergone::tutorial_lesson_overlay::on_surface_changed(viewport[2], viewport[3]);
+        nevergone::tutorial_dialogue_overlay::on_surface_changed(viewport[2], viewport[3]);
         nevergone::scene_actions_gles_compositor::on_surface_changed(viewport[2], viewport[3]);
         nevergone::game_scene_action_compositor::on_surface_changed(viewport[2], viewport[3]);
         game_scene_drawn = nevergone::game_scene_direct_renderer::draw();
@@ -218,6 +238,12 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     maybe_stage_tutorial_lesson_assets(env);
     (void)nevergone::tutorial_lesson_overlay::draw();
 
+    // LessonLayer::menuContinueCallback() schedules firstDlgCallBack(), which
+    // opens Guide/guide_text.plist group 8.  Stage and draw that exact imported
+    // manual DialogueUI sequence while the session owns its Dialogue phase.
+    maybe_stage_tutorial_dialogue_assets(env);
+    (void)nevergone::tutorial_dialogue_overlay::draw();
+
     // LoadingLayer owns the complete surface until the handoff above succeeds.
     maybe_stage_tutorial_loading_assets(env);
     const auto loading_route = nevergone::offline_startup_flow::snapshot();
@@ -247,8 +273,18 @@ void wrapped_native_touch(
         nevergone::game_scene_action_surface_input::cancel_all_captures();
         return;
     }
-    if (tutorial.phase == nevergone::tutorial_session_state::Phase::kLoading ||
-            tutorial.phase == nevergone::tutorial_session_state::Phase::kDialogue) {
+    if (tutorial.phase == nevergone::tutorial_session_state::Phase::kDialogue) {
+        // Original DialogueUI::ccTouchBegan accepts the complete surface and
+        // ccTouchEnded forwards manual conversations to GameConversation::nextText().
+        (void)nevergone::tutorial_dialogue_overlay::on_touch(
+            static_cast<int>(action),
+            static_cast<int>(pointer_id),
+            static_cast<float>(x),
+            static_cast<float>(y));
+        nevergone::game_scene_action_surface_input::cancel_all_captures();
+        return;
+    }
+    if (tutorial.phase == nevergone::tutorial_session_state::Phase::kLoading) {
         nevergone::game_scene_action_surface_input::cancel_all_captures();
         return;
     }
