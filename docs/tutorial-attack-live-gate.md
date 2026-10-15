@@ -95,6 +95,20 @@ obtained from the Attack runtime. Reused roster slot indices are not stable
 identities. Stale-generation callbacks are rejected, and a scene reload
 invalidates the bound wave before later callbacks can mutate reused slots.
 
+## Reviewed-evidence replacement
+
+An already materialized Attack wave is bound to the reviewed scene limits and
+enemy-record identity/base-HP mapping used at creation. Replacing either
+reviewed input invalidates the active wave and actor bindings **immediately**,
+before the next GL frame. This includes demoting a previously reviewed mapping
+back to candidate-only status. All outstanding callbacks carrying the old wave
+generation are rejected.
+
+The same rule applies when replacing the complete review bundle. Ordinary
+PLAYERFACEDIR updates do not invalidate an already spawned wave, since facing
+is a spawn-time input rather than a reason to retroactively recreate enemies.
+A new wave still requires all current evidence gates to pass.
+
 ## Completion publication
 
 The gate never advances the lesson from elapsed time or input alone. The roster

@@ -186,6 +186,44 @@ int main() {
     assert(gate.snapshot().enemy_bindings.active_count == 0);
     assert(!gate.set_dead(0, old_wave));
 
+    // Reinstall a fully reviewed scene and start another wave.
+    levels.load_attempt_count = 40;
+    levels.current_scene_guid = "tutorial-scene";
+    gate.reset();
+    review.player_face_dir = refreshed_face.face_dir;
+    review.enemy_mapping = original_mapping;
+    gate.set_review_bundle(review);
+    assert(gate.tick(300, gameplay, spawn, motion, control, levels, records));
+    const std::uint64_t reviewed_wave = gate.snapshot().attack.wave_generation;
+    assert(reviewed_wave != 0);
+    assert(gate.snapshot().enemy_bindings.active_count == 1);
+
+    // Replacing scene-limit evidence invalidates actors immediately, not only
+    // after the next GL tick. Old callbacks must fail before re-materialization.
+    auto new_limits = review.scene_limits;
+    new_limits.right_edge_x = 1700;
+    gate.set_scene_limit_evidence(new_limits);
+    assert(!gate.snapshot().attack.wave_started);
+    assert(gate.snapshot().enemy_bindings.active_count == 0);
+    assert(!gate.set_dead(0, reviewed_wave));
+    assert(gate.tick(301, gameplay, spawn, motion, control, levels, records));
+    const std::uint64_t updated_wave = gate.snapshot().attack.wave_generation;
+    assert(updated_wave != reviewed_wave);
+    assert(gate.snapshot().enemy_bindings.active_count == 1);
+    assert(!gate.apply_damage(0, 5.0f, reviewed_wave));
+
+    // Revoking the reviewed mapping also clears the wave immediately and
+    // prevents any new materialization until valid evidence is restored.
+    auto candidate_mapping = original_mapping;
+    candidate_mapping.review_status = mapping_ns::ReviewStatus::kCandidate;
+    gate.set_enemy_mapping_evidence(candidate_mapping);
+    assert(!gate.snapshot().attack.wave_started);
+    assert(gate.snapshot().enemy_bindings.active_count == 0);
+    assert(!gate.set_dead(0, updated_wave));
+    assert(gate.tick(302, gameplay, spawn, motion, control, levels, records));
+    assert(!gate.snapshot().attack.wave_started);
+    assert(gate.snapshot().attack.status == attack_ns::Status::kWaitingForBaseHealth);
+
     std::cout << "Tutorial Attack live gate smoke: PASS\n";
     return 0;
 }

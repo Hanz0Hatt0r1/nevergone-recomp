@@ -73,6 +73,7 @@ public:
     std::string status_report() const;
 
 private:
+    void invalidate_wave();
     ReviewBundle review_{};
     tutorial_spawn_inputs::Result last_spawn_inputs_{};
     tutorial_attack_wave_runtime::Runtime attack_{};
