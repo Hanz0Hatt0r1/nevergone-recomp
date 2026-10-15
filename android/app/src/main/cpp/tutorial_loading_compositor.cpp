@@ -8,7 +8,7 @@
 #include "game_clock.h"
 #include "offline_startup_flow.h"
 #include "tutorial_loading_compositor.h"
-#include "tutorial_scene_bootstrap.h"
+#include "tutorial_loading_fade.h"
 
 namespace nevergone::tutorial_loading_compositor {
 namespace {
@@ -31,9 +31,7 @@ GLuint g_black_texture = 0;
 Frame g_frames[kFrameCount]{};
 int g_surface_width = 0;
 int g_surface_height = 0;
-bool g_loading_route_seen = false;
-bool g_hide_fade_active = false;
-std::uint64_t g_hide_fade_start_tick = 0u;
+tutorial_loading_fade::State g_fade_state;
 
 GLuint compile_shader(GLenum type, const char* source) {
     const GLuint shader = glCreateShader(type);
@@ -264,21 +262,6 @@ void draw_frame(Frame* frame, float alpha) {
     draw_texture(frame->texture, vertices, alpha);
 }
 
-float hide_fade_alpha() {
-    if (!g_hide_fade_active) return 0.0f;
-    const std::uint64_t now = game_clock::tick_count();
-    const std::uint64_t elapsed_ticks =
-        now >= g_hide_fade_start_tick ? now - g_hide_fade_start_tick : 0u;
-    const double elapsed_seconds =
-        static_cast<double>(elapsed_ticks) * game_clock::kFixedStepSeconds;
-    if (elapsed_seconds >= tutorial_scene_bootstrap::kOriginalHideFadeSeconds) {
-        g_hide_fade_active = false;
-        return 0.0f;
-    }
-    return static_cast<float>(
-        1.0 - elapsed_seconds / tutorial_scene_bootstrap::kOriginalHideFadeSeconds);
-}
-
 }  // namespace
 
 void on_surface_created() {
@@ -288,9 +271,7 @@ void on_surface_created() {
     g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
     g_alpha_uniform = g_program != 0 ? glGetUniformLocation(g_program, "uAlpha") : -1;
     g_black_texture = create_black_texture();
-    g_loading_route_seen = false;
-    g_hide_fade_active = false;
-    g_hide_fade_start_tick = 0u;
+    tutorial_loading_fade::reset(&g_fade_state);
 }
 
 void on_surface_changed(int width, int height) {
@@ -328,41 +309,16 @@ bool upload_frame(
 
 void draw() {
     const auto route = offline_startup_flow::snapshot().route;
-    float alpha = 0.0f;
-
-    if (route == offline_startup_flow::Route::kTutorialLoading) {
-        // The original layer is fully opaque while switchNextScene is pending.
-        // Remember that it really owned at least one frame; this also prevents
-        // an unrelated later game-levels route from fabricating a hide fade.
-        g_loading_route_seen = true;
-        g_hide_fade_active = false;
-        g_hide_fade_start_tick = 0u;
-        alpha = 1.0f;
-    } else if (route == offline_startup_flow::Route::kGameLevels) {
-        // GameScene::tick(mode 0x0b) calls hideLoadingLayer(0.2f) after the
-        // Lesson UI is created. The route changes earlier in this same render
-        // frame, so retain the loading compositor independently for exactly
-        // that recovered fade interval while the prepared GameScene remains
-        // visible underneath it.
-        if (!g_hide_fade_active) {
-            if (!g_loading_route_seen) return;
-            g_loading_route_seen = false;
-            g_hide_fade_active = true;
-            g_hide_fade_start_tick = game_clock::tick_count();
-        }
-        alpha = hide_fade_alpha();
-        if (alpha <= 0.0f) return;
-    } else {
-        g_loading_route_seen = false;
-        g_hide_fade_active = false;
-        g_hide_fade_start_tick = 0u;
-        return;
-    }
+    const float alpha = tutorial_loading_fade::alpha_for_route(
+        &g_fade_state, route, game_clock::tick_count());
+    if (alpha <= 0.0f) return;
 
     // A frozen original loading capture proves a black full-surface layer. The
     // logo_01..03 cadence is still unknown, so keep the first imported frame
-    // deterministic while reproducing only the independently recovered hide
-    // alpha transition.
+    // deterministic. Once the exact cp_lesson handoff changes the route to
+    // game-levels, alpha_for_route retains this layer for the independently
+    // recovered hideLoadingLayer(0.2f) fade while the prepared scene remains
+    // visible underneath it.
     if (alpha >= 1.0f) {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
