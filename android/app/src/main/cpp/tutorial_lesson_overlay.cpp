@@ -4,6 +4,7 @@
 #include <jni.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -51,6 +52,14 @@ struct State {
     int captured_pointer = -1;
 };
 
+struct SurfaceMetrics {
+    int width = 0;
+    int height = 0;
+    float scale = 0.0f;
+    float offset_x = 0.0f;
+    float offset_y = 0.0f;
+};
+
 std::mutex g_mutex;
 State g_state;
 GLuint g_program = 0;
@@ -58,8 +67,8 @@ GLint g_sampler = -1;
 GLuint g_keyboard_texture = 0;
 GLuint g_continue_texture = 0;
 std::uint64_t g_texture_generation = 0;
-int g_surface_width = 0;
-int g_surface_height = 0;
+std::atomic<int> g_surface_width{0};
+std::atomic<int> g_surface_height{0};
 
 bool valid_asset(const Asset& asset) {
     return asset.width > 0 && asset.height > 0 &&
@@ -85,6 +94,23 @@ bool make_asset(
     asset.pixels.assign(argb, argb + count);
     if (!valid_asset(asset)) return false;
     *output = std::move(asset);
+    return true;
+}
+
+bool current_surface(SurfaceMetrics* output) {
+    if (output == nullptr) return false;
+    const int width = g_surface_width.load(std::memory_order_relaxed);
+    const int height = g_surface_height.load(std::memory_order_relaxed);
+    if (width <= 0 || height <= 0) return false;
+    const float scale = std::min(
+        static_cast<float>(width) / kDesignWidth,
+        static_cast<float>(height) / kDesignHeight);
+    if (!std::isfinite(scale) || scale <= 0.0f) return false;
+    output->width = width;
+    output->height = height;
+    output->scale = scale;
+    output->offset_x = (static_cast<float>(width) - kDesignWidth * scale) * 0.5f;
+    output->offset_y = (static_cast<float>(height) - kDesignHeight * scale) * 0.5f;
     return true;
 }
 
@@ -227,43 +253,31 @@ bool ensure_textures() {
     return true;
 }
 
-float surface_scale() {
-    if (g_surface_width <= 0 || g_surface_height <= 0) return 0.0f;
-    return std::min(
-        static_cast<float>(g_surface_width) / kDesignWidth,
-        static_cast<float>(g_surface_height) / kDesignHeight);
-}
-
 void draw_asset(
         GLuint texture,
         const Asset& asset,
+        const SurfaceMetrics& surface,
         float design_center_x,
         float design_center_y) {
-    const float scale = surface_scale();
-    if (texture == 0 || !valid_asset(asset) || scale <= 0.0f) return;
-
-    const float design_surface_width = kDesignWidth * scale;
-    const float design_surface_height = kDesignHeight * scale;
-    const float offset_x = (static_cast<float>(g_surface_width) - design_surface_width) * 0.5f;
-    const float offset_y = (static_cast<float>(g_surface_height) - design_surface_height) * 0.5f;
-    const float center_x = offset_x + design_center_x * scale;
-    const float center_y = offset_y + (kDesignHeight - design_center_y) * scale;
-    const float half_width = static_cast<float>(asset.width) * scale * 0.5f;
-    const float half_height = static_cast<float>(asset.height) * scale * 0.5f;
+    if (texture == 0 || !valid_asset(asset)) return;
+    const float center_x = surface.offset_x + design_center_x * surface.scale;
+    const float center_y = surface.offset_y + (kDesignHeight - design_center_y) * surface.scale;
+    const float half_width = static_cast<float>(asset.width) * surface.scale * 0.5f;
+    const float half_height = static_cast<float>(asset.height) * surface.scale * 0.5f;
     const float left = center_x - half_width;
     const float right = center_x + half_width;
     const float top = center_y - half_height;
     const float bottom = center_y + half_height;
 
     const GLfloat vertices[] = {
-        left * 2.0f / static_cast<float>(g_surface_width) - 1.0f,
-        1.0f - top * 2.0f / static_cast<float>(g_surface_height),
-        left * 2.0f / static_cast<float>(g_surface_width) - 1.0f,
-        1.0f - bottom * 2.0f / static_cast<float>(g_surface_height),
-        right * 2.0f / static_cast<float>(g_surface_width) - 1.0f,
-        1.0f - top * 2.0f / static_cast<float>(g_surface_height),
-        right * 2.0f / static_cast<float>(g_surface_width) - 1.0f,
-        1.0f - bottom * 2.0f / static_cast<float>(g_surface_height),
+        left * 2.0f / static_cast<float>(surface.width) - 1.0f,
+        1.0f - top * 2.0f / static_cast<float>(surface.height),
+        left * 2.0f / static_cast<float>(surface.width) - 1.0f,
+        1.0f - bottom * 2.0f / static_cast<float>(surface.height),
+        right * 2.0f / static_cast<float>(surface.width) - 1.0f,
+        1.0f - top * 2.0f / static_cast<float>(surface.height),
+        right * 2.0f / static_cast<float>(surface.width) - 1.0f,
+        1.0f - bottom * 2.0f / static_cast<float>(surface.height),
     };
     static constexpr GLfloat kTexCoords[] = {
         0.0f, 0.0f,
@@ -280,22 +294,20 @@ void draw_asset(
 
 bool map_surface(float surface_x, float surface_y, float* design_x, float* design_y) {
     if (design_x == nullptr || design_y == nullptr ||
-            g_surface_width <= 0 || g_surface_height <= 0 ||
             !std::isfinite(surface_x) || !std::isfinite(surface_y)) {
         return false;
     }
-    const float scale = surface_scale();
-    if (scale <= 0.0f) return false;
-    const float offset_x = (static_cast<float>(g_surface_width) - kDesignWidth * scale) * 0.5f;
-    const float offset_y = (static_cast<float>(g_surface_height) - kDesignHeight * scale) * 0.5f;
-    const float local_x = surface_x - offset_x;
-    const float local_y = surface_y - offset_y;
+    SurfaceMetrics surface;
+    if (!current_surface(&surface)) return false;
+    const float local_x = surface_x - surface.offset_x;
+    const float local_y = surface_y - surface.offset_y;
     if (local_x < 0.0f || local_y < 0.0f ||
-            local_x > kDesignWidth * scale || local_y > kDesignHeight * scale) {
+            local_x > kDesignWidth * surface.scale ||
+            local_y > kDesignHeight * surface.scale) {
         return false;
     }
-    *design_x = local_x / scale;
-    *design_y = kDesignHeight - local_y / scale;
+    *design_x = local_x / surface.scale;
+    *design_y = kDesignHeight - local_y / surface.scale;
     return true;
 }
 
@@ -322,8 +334,8 @@ void on_surface_created() {
 }
 
 void on_surface_changed(int width, int height) {
-    g_surface_width = width;
-    g_surface_height = height;
+    g_surface_width.store(width, std::memory_order_relaxed);
+    g_surface_height.store(height, std::memory_order_relaxed);
 }
 
 void clear_assets() {
@@ -369,7 +381,10 @@ bool draw() {
         std::lock_guard<std::mutex> lock(g_mutex);
         ++g_state.draw_attempt_count;
     }
-    if (g_program == 0 || g_sampler < 0 || !ensure_textures()) return false;
+    SurfaceMetrics surface;
+    if (g_program == 0 || g_sampler < 0 || !current_surface(&surface) || !ensure_textures()) {
+        return false;
+    }
 
     Asset keyboard;
     Asset continue_label;
@@ -379,6 +394,8 @@ bool draw() {
         continue_label = g_state.continue_label;
     }
 
+    while (glGetError() != GL_NO_ERROR) {
+    }
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(g_program);
@@ -386,8 +403,13 @@ bool draw() {
     glUniform1i(g_sampler, 0);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
-    draw_asset(g_keyboard_texture, keyboard, kDesignWidth * 0.5f, kDesignHeight * 0.5f);
-    draw_asset(g_continue_texture, continue_label, kContinueCenterX, kContinueCenterY);
+    draw_asset(
+        g_keyboard_texture,
+        keyboard,
+        surface,
+        kDesignWidth * 0.5f,
+        kDesignHeight * 0.5f);
+    draw_asset(g_continue_texture, continue_label, surface, kContinueCenterX, kContinueCenterY);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
