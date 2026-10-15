@@ -3,7 +3,7 @@
 
 This deliberately does not assume that every libEGL 'no current context' line is
 caused by first-scene texture upload. It records package/debuggability state and
-extracts the relevant logcat lines so the render-thread hypothesis can be tested
+extracts app-scoped logcat lines so the render-thread hypothesis can be tested
 against one device run.
 """
 
@@ -81,7 +81,7 @@ def main() -> int:
     parser.add_argument(
         "--require-clean-context",
         action="store_true",
-        help="Exit 1 when the retained log contains a no-current-context EGL error.",
+        help="Exit 1 when app-scoped logcat contains a no-current-context EGL error.",
     )
     args = parser.parse_args()
 
@@ -100,7 +100,13 @@ def main() -> int:
     run_as = run(prefix + ["shell", "run-as", args.package, "sh", "-c", "pwd && ls -ld files 2>/dev/null || true"]) if installed else CommandResult([], 1, "", "package not installed")
     run_as_ok = run_as.returncode == 0
 
-    logcat = run(prefix + ["logcat", "-d", "-v", "threadtime"], timeout=25.0)
+    pid_result = run(prefix + ["shell", "pidof", "-s", args.package]) if installed else CommandResult([], 1, "", "package not installed")
+    pid = pid_result.stdout.strip().split()[0] if pid_result.returncode == 0 and pid_result.stdout.strip() else None
+
+    logcat_argv = prefix + ["logcat", "-d", "-v", "threadtime"]
+    if pid:
+        logcat_argv += ["--pid", pid]
+    logcat = run(logcat_argv, timeout=25.0)
     interesting = [line for line in logcat.stdout.splitlines() if INTERESTING_RE.search(line)]
     retained = interesting[-max(1, args.log_lines):]
     no_context_lines = [line for line in retained if NO_CONTEXT_RE.search(line)]
@@ -109,6 +115,8 @@ def main() -> int:
     result = {
         "package": args.package,
         "installed": installed,
+        "pid": pid,
+        "logcat_pid_scoped": bool(pid),
         "debuggable": debuggable,
         "run_as_ok": run_as_ok,
         "run_as_returncode": run_as.returncode,
@@ -124,6 +132,8 @@ def main() -> int:
         "",
         f"- package: `{args.package}`",
         f"- installed: `{installed}`",
+        f"- pid: `{pid}`",
+        f"- logcat scoped to app pid: `{bool(pid)}`",
         f"- debuggable: `{debuggable}`",
         f"- run-as works: `{run_as_ok}`",
         f"- retained `no current context` lines: `{len(no_context_lines)}`",
@@ -142,10 +152,12 @@ def main() -> int:
     else:
         report.append("- Debuggability could not be proven from `dumpsys`; inspect the retained package output on-device if needed.")
 
-    if no_context_lines:
-        report.append("- EGL no-current-context calls are present in the retained log. This proves an invalid GL call occurred, but not which caller/thread caused it.")
+    if not pid:
+        report.append("- The app process is not currently running, so retained logcat is not PID-scoped and cannot by itself attribute EGL errors to Nevergone.")
+    elif no_context_lines:
+        report.append("- PID-scoped EGL no-current-context calls are present. This proves the Nevergone process made an invalid GL call, but not which caller/thread caused it.")
     else:
-        report.append("- No EGL no-current-context line is present in the retained log window.")
+        report.append("- No EGL no-current-context line is present in the app PID-scoped log window.")
 
     if run_as.stderr.strip():
         report.extend(["", "## run-as stderr", "", "```text", *tail_lines(run_as.stderr, 40), "```"])
@@ -155,14 +167,14 @@ def main() -> int:
     (args.out / "report.md").write_text("\n".join(report) + "\n", encoding="utf-8")
 
     print(
-        f"package={args.package} installed={installed} debuggable={debuggable} "
+        f"package={args.package} installed={installed} pid={pid} debuggable={debuggable} "
         f"run_as={run_as_ok} no_current_context={len(no_context_lines)} "
         f"report={args.out / 'report.md'}"
     )
 
     if not installed:
         return 2
-    if args.require_clean_context and no_context_lines:
+    if args.require_clean_context and pid and no_context_lines:
         return 1
     return 0
 
