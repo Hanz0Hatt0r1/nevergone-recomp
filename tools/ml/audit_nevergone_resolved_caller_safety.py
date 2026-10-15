@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Audit safety gates for receiver classes recovered from caller argument types."""
+"""Audit safety gates for receiver classes recovered from caller argument types.
+
+Caller argument types are class evidence only when the receiver itself is proven
+to root at the same function parameter. A LOAD from a parameter-relative field
+is not the parameter object and must not inherit the owner's class.
+"""
 from __future__ import annotations
 
 import argparse
@@ -126,7 +131,10 @@ def main() -> int:
         except ValueError:
             continue
         if source_id and call_index >= 0:
-            target_by_key[(source_id, call_index)] = row
+            key = (source_id, call_index)
+            if key in target_by_key:
+                raise ValueError(f"duplicate target receiver provenance row: {key}")
+            target_by_key[key] = row
 
     selected = [
         row for row in inference
@@ -139,8 +147,9 @@ def main() -> int:
     statuses = Counter()
     complete_typed = 0
     class_convergent = 0
-    structural_rows = 0
-    structural_slot_matches = 0
+    parameter_root_matches = 0
+    target_slot_matches = 0
+    direct_receiver_matches = 0
     safe = 0
 
     for inf in selected:
@@ -181,17 +190,41 @@ def main() -> int:
             else:
                 reasons.append("caller_classes_do_not_converge_to_inferred_class")
 
-        slot_match: bool | None = None
-        if source_kind == "structural_parameter_caller_type":
-            structural_rows += 1
-            existing_slot = normalize_slot(inf.get("dispatch_slot_offset"))
-            recovered_slot = normalize_slot(target.get("target_slot_offset")) if target else None
-            canonical = bool(target and target.get("structural_status") == "canonical_receiver")
-            slot_match = canonical and existing_slot is not None and recovered_slot == existing_slot
-            if slot_match:
-                structural_slot_matches += 1
-            else:
-                reasons.append("structural_slot_mismatch_or_noncanonical")
+        target_status = target.get("structural_status") if target else None
+        target_parameter_index = parse_int(target.get("parameter_index"), -1) if target else -1
+        target_parameter_type = target.get("parameter_type_display") if target else None
+        target_slot = normalize_slot(target.get("target_slot_offset")) if target else None
+        existing_slot = normalize_slot(inf.get("dispatch_slot_offset"))
+        target_call_address = target.get("call_address") if target else None
+        direct_present = target.get("direct_receiver_present") if target else None
+        direct_match = target.get("direct_receiver_matches_structural") if target else None
+
+        canonical = bool(target and target_status == "canonical_receiver")
+        parameter_root_match = canonical and target_parameter_index >= 0
+        slot_match = canonical and existing_slot is not None and target_slot == existing_slot
+        call_match = bool(target and target_call_address == inf.get("call_address"))
+        explicit_receiver_match = direct_present != "1" or direct_match == "1"
+
+        if target is None:
+            reasons.append("missing_target_receiver_provenance")
+        else:
+            if not canonical:
+                reasons.append("target_receiver_not_canonical")
+            if not call_match:
+                reasons.append("target_receiver_call_address_mismatch")
+            if not slot_match:
+                reasons.append("target_receiver_slot_mismatch")
+            if not parameter_root_match:
+                reasons.append("receiver_not_parameter_root")
+            if not explicit_receiver_match:
+                reasons.append("direct_receiver_structural_mismatch")
+
+        if parameter_root_match:
+            parameter_root_matches += 1
+        if slot_match:
+            target_slot_matches += 1
+        if direct_present == "1" and direct_match == "1":
+            direct_receiver_matches += 1
 
         if not reasons:
             status = "safe_caller_recovery"
@@ -215,7 +248,14 @@ def main() -> int:
             "typed_caller_calls": parse_int(comp.get("typed_caller_calls")) if comp else 0,
             "untyped_caller_calls": parse_int(comp.get("untyped_caller_calls")) if comp else 0,
             "mapped_caller_classes": sorted(mapped),
+            "target_structural_status": target_status,
+            "target_parameter_index": target_parameter_index,
+            "target_parameter_type_display": target_parameter_type,
+            "target_slot_offset": target_slot,
+            "target_call_address_match": call_match,
+            "receiver_roots_at_parameter": parameter_root_match,
             "structural_slot_match": slot_match,
+            "direct_receiver_matches_structural": direct_match,
             "reasons": reasons,
             "status": status,
             "affects_routing": False,
@@ -226,8 +266,9 @@ def main() -> int:
     print("caller-derived resolved rows:", len(selected))
     print("complete typed caller rows:", complete_typed)
     print("caller class convergence rows:", class_convergent)
-    print("structural caller rows:", structural_rows)
-    print("structural slot matches:", structural_slot_matches)
+    print("receiver parameter-root matches:", parameter_root_matches)
+    print("target slot matches:", target_slot_matches)
+    print("explicit receiver structural matches:", direct_receiver_matches)
     print("safe caller recoveries:", safe)
     print("unsafe caller recoveries:", len(selected) - safe)
     print("status counts:", dict(statuses))
@@ -242,7 +283,7 @@ def main() -> int:
             "callers=", row["direct_caller_functions"],
             "matched=", row["matched_caller_calls"],
             "typed=", row["typed_caller_calls"],
-            "untyped=", row["untyped_caller_calls"],
+            "parameter=", row["target_parameter_index"],
             "slot_match=", row["structural_slot_match"],
             "status=", row["status"],
             "reasons=", row["reasons"],
