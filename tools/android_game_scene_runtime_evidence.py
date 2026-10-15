@@ -15,6 +15,7 @@ from pathlib import Path
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+RENDERER_HEADERS = ("GameScene type-0 renderer", "GameScene static renderer")
 REQUIRED_KEYS = {
     "status",
     "timestamp_utc",
@@ -111,7 +112,8 @@ def extract_diagnostics_from_ui(xml_path: Path) -> str:
     candidates: list[str] = []
     for node in root.iter("node"):
         text = node.attrib.get("text", "")
-        if "GameScene static renderer" in text and "GameScene asset staging" in text:
+        has_renderer = any(header in text for header in RENDERER_HEADERS)
+        if has_renderer and "GameScene asset staging" in text:
             candidates.append(text)
     if len(candidates) != 1:
         raise ValueError(f"expected exactly one GameScene diagnostics node, found {len(candidates)}")
@@ -198,15 +200,15 @@ def validate_diagnostics(text: str) -> SceneProof:
         raise ValueError(f"GameScene staging is incomplete: staged={staged}, requests={requests}")
 
     renderer = _single_match(
-        r"^GameScene static renderer\n"
+        r"^GameScene (?:type-0|static) renderer\n"
         r"shader:\s*([^\n]+)\n"
         r"surface:\s*(\d+)x(\d+)\n"
         r"camera eye x:\s*([^\n]+)\n"
         r"draw attempts:\s*(\d+)\n"
         r"drawn frames:\s*(\d+)\n"
-        r"last static sprites:\s*(\d+)\s*$",
+        r"last (?:static )?sprites:\s*(\d+)\s*$",
         text,
-        "GameScene static renderer report",
+        "GameScene renderer report",
         re.MULTILINE,
     )
     shader = renderer.group(1)
