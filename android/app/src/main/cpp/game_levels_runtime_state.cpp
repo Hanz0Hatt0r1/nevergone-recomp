@@ -1,5 +1,6 @@
 #include "game_levels_runtime_state.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -101,6 +102,23 @@ void begin_attempt_locked() {
     g_state.load_attempt_count = attempts;
 }
 
+void append_enemy_record_report(
+        std::ostringstream& out,
+        std::size_t index,
+        const game_levels_global_section::EnemyRecord& record) {
+    // Preserve the exact on-disk field order while semantics are unresolved:
+    // i32, i32, f32, i32, i32, i32, i32, i32.
+    out << "global enemy[" << index << "]: "
+        << record.first_i32 << ','
+        << record.second_i32 << ','
+        << record.first_float << ','
+        << record.third_i32 << ','
+        << record.fourth_i32 << ','
+        << record.fifth_i32 << ','
+        << record.sixth_i32 << ','
+        << record.seventh_i32 << "\n";
+}
+
 }  // namespace
 
 void reset() {
@@ -167,6 +185,7 @@ bool load_file(const std::string& path, std::size_t max_bytes) {
 
     g_state.model_end_offset = parsed.end_offset;
     g_state.atlas_preload_name_count = parsed.global.strings.size();
+    g_state.global_enemy_record_count = parsed.global.enemies.size();
     g_model = std::move(parsed);
     g_state.status = LoadStatus::kReady;
     refresh_current_scene_locked();
@@ -221,6 +240,12 @@ std::vector<std::string> current_atlas_preload_names() {
     return result;
 }
 
+std::vector<game_levels_global_section::EnemyRecord> current_global_enemy_records() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_model.has_value()) return {};
+    return g_model->global.enemies;
+}
+
 game_levels_scene_navigation::Transition step(std::uint32_t requested_event_port_type) {
     std::lock_guard<std::mutex> lock(g_mutex);
     game_levels_scene_navigation::Transition result;
@@ -251,6 +276,7 @@ const char* status_name(LoadStatus status) {
 
 std::string status_report() {
     const Snapshot state = snapshot();
+    const auto enemy_records = current_global_enemy_records();
     std::ostringstream out;
     out << "GameLevels runtime model\n";
     out << "state: " << status_name(state.status) << "\n";
@@ -259,6 +285,16 @@ std::string status_report() {
     if (state.model_end_offset != 0u) out << "verified model bytes: " << state.model_end_offset << "\n";
     if (state.status == LoadStatus::kReady) {
         out << "atlas preload names: " << state.atlas_preload_name_count << "\n";
+        out << "global enemy records: " << state.global_enemy_record_count << "\n";
+        const std::size_t reported =
+            std::min(enemy_records.size(), kMaxEnemyRecordsInStatusReport);
+        for (std::size_t i = 0; i < reported; ++i) {
+            append_enemy_record_report(out, i, enemy_records[i]);
+        }
+        if (enemy_records.size() > reported) {
+            out << "global enemy records omitted: "
+                << (enemy_records.size() - reported) << "\n";
+        }
     }
     if (state.current_port_node_index.has_value()) out << "current port index: " << *state.current_port_node_index << "\n";
     if (state.current_scene_index.has_value()) out << "current scene index: " << *state.current_scene_index << "\n";

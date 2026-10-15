@@ -29,6 +29,25 @@ void append_port(std::vector<std::uint8_t>* out, const std::string& first, bool 
     append_u32(out, 3u); append_u32(out, 4u); append_u32(out, 5u);
     append_string(out, third, 0x33u);
 }
+void append_enemy_record(
+        std::vector<std::uint8_t>* out,
+        std::int32_t first,
+        std::int32_t second,
+        float first_float,
+        std::int32_t third,
+        std::int32_t fourth,
+        std::int32_t fifth,
+        std::int32_t sixth,
+        std::int32_t seventh) {
+    append_i32(out, first);
+    append_i32(out, second);
+    append_f32(out, first_float);
+    append_i32(out, third);
+    append_i32(out, fourth);
+    append_i32(out, fifth);
+    append_i32(out, sixth);
+    append_i32(out, seventh);
+}
 std::vector<std::uint8_t> fixture() {
     std::vector<std::uint8_t> out;
     append_i32(&out, 2); append_u32(&out, 2u);
@@ -39,7 +58,10 @@ std::vector<std::uint8_t> fixture() {
     append_u32(&out, 2u);
     append_string(&out, "pvp_scene_default.plist", 0x41u);
     append_string(&out, "pvp_scene_effect.plist", 0x42u);
-    append_u32(&out, 11u); append_u32(&out, 12u); append_u32(&out, 0u); append_u32(&out, 0u); append_u32(&out, 0u);
+    append_u32(&out, 11u); append_u32(&out, 12u); append_u32(&out, 0u); append_u32(&out, 0u);
+    append_u32(&out, 2u);
+    append_enemy_record(&out, -101, 202, 3.25f, -303, 404, -505, 606, -707);
+    append_enemy_record(&out, 808, -909, -10.5f, 1111, -1212, 1313, -1414, 1515);
     append_u32(&out, 2u);
     append_port(&out, "a", true, "b");
     append_port(&out, "b", false, "");
@@ -65,6 +87,7 @@ int main() {
     runtime::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
     assert(runtime::current_atlas_preload_names().empty());
+    assert(runtime::current_global_enemy_records().empty());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
@@ -75,10 +98,33 @@ int main() {
     assert(state.reader_size == bytes.size());
     assert(state.model_end_offset == bytes.size());
     assert(state.atlas_preload_name_count == 2u);
+    assert(state.global_enemy_record_count == 2u);
     const auto atlas_names = runtime::current_atlas_preload_names();
     assert(atlas_names.size() == 2u);
     assert(atlas_names[0] == "pvp_scene_default.plist");
     assert(atlas_names[1] == "pvp_scene_effect.plist");
+    const auto enemy_records = runtime::current_global_enemy_records();
+    assert(enemy_records.size() == 2u);
+    assert(enemy_records[0].first_i32 == -101);
+    assert(enemy_records[0].second_i32 == 202);
+    assert(enemy_records[0].first_float == 3.25f);
+    assert(enemy_records[0].third_i32 == -303);
+    assert(enemy_records[0].fourth_i32 == 404);
+    assert(enemy_records[0].fifth_i32 == -505);
+    assert(enemy_records[0].sixth_i32 == 606);
+    assert(enemy_records[0].seventh_i32 == -707);
+    assert(enemy_records[1].first_i32 == 808);
+    assert(enemy_records[1].second_i32 == -909);
+    assert(enemy_records[1].first_float == -10.5f);
+    assert(enemy_records[1].third_i32 == 1111);
+    assert(enemy_records[1].fourth_i32 == -1212);
+    assert(enemy_records[1].fifth_i32 == 1313);
+    assert(enemy_records[1].sixth_i32 == -1414);
+    assert(enemy_records[1].seventh_i32 == 1515);
+    const std::string report = runtime::status_report();
+    assert(report.find("global enemy records: 2\n") != std::string::npos);
+    assert(report.find("global enemy[0]: -101,202,3.25,-303,404,-505,606,-707\n") != std::string::npos);
+    assert(report.find("global enemy[1]: 808,-909,-10.5,1111,-1212,1313,-1414,1515\n") != std::string::npos);
     assert(state.current_port_node_index == 0u);
     assert(state.current_scene_index == 0u);
     assert(state.current_scene_guid == "a");
@@ -135,7 +181,9 @@ int main() {
     assert(state.current_construction_layer_count == 0u);
     assert(state.current_scene_render_queue_ready);
     assert(state.atlas_preload_name_count == 2u);
+    assert(state.global_enemy_record_count == 2u);
     assert(runtime::current_atlas_preload_names() == atlas_names);
+    assert(runtime::current_global_enemy_records().size() == 2u);
     scene = runtime::current_scene_instance();
     assert(scene.has_value());
     assert(scene->source_scene_index == 1u);
@@ -176,7 +224,9 @@ int main() {
     assert(runtime::snapshot().status == runtime::LoadStatus::kTooLarge);
     assert(runtime::snapshot().load_attempt_count == 2u);
     assert(runtime::snapshot().atlas_preload_name_count == 0u);
+    assert(runtime::snapshot().global_enemy_record_count == 0u);
     assert(runtime::current_atlas_preload_names().empty());
+    assert(runtime::current_global_enemy_records().empty());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
@@ -185,7 +235,9 @@ int main() {
     assert(!runtime::load_pvp_scene((root / "missing-root").string()));
     assert(runtime::snapshot().status == runtime::LoadStatus::kMissing);
     assert(runtime::snapshot().load_attempt_count == 3u);
+    assert(runtime::snapshot().global_enemy_record_count == 0u);
     assert(runtime::current_atlas_preload_names().empty());
+    assert(runtime::current_global_enemy_records().empty());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());
@@ -193,7 +245,9 @@ int main() {
     std::filesystem::remove_all(root);
     runtime::reset();
     assert(runtime::snapshot().status == runtime::LoadStatus::kIdle);
+    assert(runtime::snapshot().global_enemy_record_count == 0u);
     assert(runtime::current_atlas_preload_names().empty());
+    assert(runtime::current_global_enemy_records().empty());
     assert(!runtime::current_scene_instance().has_value());
     assert(!runtime::current_scene_construction_plan().has_value());
     assert(!runtime::current_scene_render_queue().has_value());

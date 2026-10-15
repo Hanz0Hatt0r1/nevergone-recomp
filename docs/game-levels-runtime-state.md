@@ -24,6 +24,28 @@ For every current scene the runtime attempts to retain:
 
 The EnterGame transition consequently distinguishes `runtime-model-ready`, `runtime-scene-instance-ready`, `runtime-scene-construction-plan-ready`, and `runtime-render-queue-ready` rather than stopping at a parser-only diagnostic.
 
+## Raw `LoadGL_Global` enemy diagnostics
+
+The final recovered array inside `HPData::LoadGL_Global` contains fixed 32-byte records in this exact physical order:
+
+```text
+i32, i32, f32, i32, i32, i32, i32, i32
+```
+
+Static evidence has not yet proven semantic names for those eight fields. In particular, the project does **not** currently claim which integer is the tutorial `enemy_id` or which integer supplies `EnemyObject::loadEnemyObjectFile()` base health.
+
+`game_levels_runtime_state` therefore exposes the parsed records without renaming fields:
+
+- `Snapshot::global_enemy_record_count` retains only the number of records;
+- `current_global_enemy_records()` returns a copy of the parser-owned records;
+- `status_report()` prints at most the first 16 records in exact on-disk field order as `global enemy[N]: ...`;
+- when more than 16 records exist, the report emits only the omitted count;
+- a failed load clears the count and makes the accessor empty, so diagnostics cannot accidentally describe a previous scene.
+
+This is intentionally a measurement boundary, not a semantic shortcut. A real `cp_lesson.glData` report can now be compared with independently recovered tutorial enemy IDs and original `GameLevelsEnemyData` consumers. Only that cross-evidence should be used to introduce `enemy_id` / `base_health` accessors and the production health resolver required by `tutorial_enemy_roster`.
+
+No proprietary scene bytes are stored by this diagnostic; values appear only in the local runtime evidence report produced from user-imported assets.
+
 ## Unresolved object-type diagnostics
 
 `GameSceneLayerObjectData + 0x14` is already proven to be the original object type code. The project still assigns construction semantics only where evidence exists, so a real scene can legitimately contain `ObjectConstructionKind::kUnresolved` entries.
@@ -44,18 +66,22 @@ This histogram is diagnostic evidence only. Seeing type code `6`, for example, d
 
 `tools/game_levels_runtime_state_smoke.cpp` builds a fully synthetic fixture, loads it through the same app-private `pvp_scene.glData` path, verifies all retained boundaries, traverses the synthetic PortNode graph, verifies stable state on an unsupported event, then exercises size-limit and missing-file failures.
 
+The fixture now also contains two synthetic global enemy records with deliberately distinctive signed integer and float values. The smoke verifies exact field preservation, bounded report formatting, retention across scene navigation, and revocation after later failed loads. These values are test sentinels only and do not claim any original-game field semantics.
+
 `tools/game_scene_construction_diagnostics_smoke.cpp` verifies deterministic grouping, exclusion of already resolved type-0 sprite/action objects, signed type-code handling, bounded reporting after 16 distinct categories, and the empty-scene case. No proprietary game data is committed.
 
 The runtime smoke also verifies that construction and render state are revoked when a later load fails.
 
 ## Next boundary
 
-P6's minimum first-scene construction boundary is present. Type-0 direct-file and sprite-frame-cache resources now have transactional Java/native staging through the static GLES renderer. Further progress is downstream:
+The tutorial enemy roster is now linked into the Android runtime, but materialization deliberately waits for real imported base health. The immediate evidence boundary is therefore the semantic mapping of the raw `LoadGL_Global` enemy record: establish the enemy identity field and the base-health field from an original consumer or equivalent high-confidence runtime evidence, then provide those accessors to `tutorial_enemy_roster`.
 
-- nonzero `GameSceneObject` construction remains semantically unresolved; real-device histograms can now identify which exact codes matter first;
+Other downstream work remains:
+
+- nonzero `GameSceneObject` construction remains semantically unresolved; real-device histograms can identify which exact codes matter first;
 - type `6` pre-construction behavior still requires its game-mode/player-state consumer evidence;
 - type-0 scene-action-pair playback remains deferred;
-- enemy/NPC creation, player spawn and gameplay state are separate later boundaries;
+- live EnemyObject damage/death wiring remains after the imported health mapping;
 - P7 still requires a real Android visual proof against user-imported original resources before it is considered complete.
 
 The runtime must not manufacture those semantics from plausible bytes. New fields should be exposed only when an original consumer or equivalent high-confidence evidence establishes their meaning.

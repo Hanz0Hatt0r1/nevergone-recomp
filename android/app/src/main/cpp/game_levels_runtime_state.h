@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "game_levels_global_section.h"
 #include "game_levels_port_node_section.h"
 #include "game_levels_scene_instance.h"
 #include "game_levels_scene_navigation.h"
@@ -15,6 +16,7 @@
 namespace nevergone::game_levels_runtime_state {
 
 constexpr std::size_t kMaxRuntimeSceneBytes = 64u * 1024u * 1024u;
+constexpr std::size_t kMaxEnemyRecordsInStatusReport = 16u;
 
 enum class LoadStatus {
     kIdle = 0,
@@ -34,6 +36,7 @@ struct Snapshot {
     std::size_t reader_size = 0;
     std::size_t model_end_offset = 0;
     std::size_t atlas_preload_name_count = 0;
+    std::size_t global_enemy_record_count = 0;
     std::optional<std::size_t> current_port_node_index;
     std::optional<std::size_t> current_scene_index;
     std::string current_scene_guid;
@@ -70,6 +73,11 @@ std::optional<game_levels_port_node_section::PortNodeRecord> current_port_node_r
 // original first-playable loader iterates GameLevels + 0x24 and passes these
 // names to CCSpriteFrameCache::addSpriteFramesWithFile().
 std::vector<std::string> current_atlas_preload_names();
+// Raw 32-byte records retained from the final LoadGL_Global enemy array. Field
+// semantics intentionally remain unnamed until original consumers prove them.
+// Returning a copy keeps diagnostics outside the runtime-state lock and avoids
+// exposing mutable parser-owned storage.
+std::vector<game_levels_global_section::EnemyRecord> current_global_enemy_records();
 game_levels_scene_navigation::Transition step(std::uint32_t requested_event_port_type);
 const char* status_name(LoadStatus status);
 std::string status_report();
