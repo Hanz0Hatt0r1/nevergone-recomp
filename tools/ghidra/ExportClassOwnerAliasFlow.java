@@ -198,7 +198,12 @@ public class ExportClassOwnerAliasFlow extends GhidraScript {
             header(out);
             for(Function fn:functions) {
                 DecompileResults dr=dec.decompileFunction(fn,60,monitor);
-                if(dr==null || !dr.decompileCompleted() || dr.getHighFunction()==null) { row(out,"summary",cls,fn,null,false,null,"-","-","-","-","-","-","-","-","-","-","-","-","-","-",0,0,0,0,0,0); continue; }
+                if(dr==null || !dr.decompileCompleted() || dr.getHighFunction()==null) {
+                    row(out,"summary",cls,fn,null,false,null,
+                        "-","-","-","-","-","-","-","-","-","-","-",
+                        0,0,0,0,0,0);
+                    continue;
+                }
                 HighFunction high=dr.getHighFunction(); boolean owner=ownerParameterProven(high,cls);
                 int stores=0,calls=0,oa=0,fv=0,ua=0,us=0;
                 Iterator<PcodeOpAST> it=high.getPcodeOps();
@@ -217,7 +222,9 @@ public class ExportClassOwnerAliasFlow extends GhidraScript {
                         }
                     }
                 }
-                row(out,"summary",cls,fn,high,owner,null,"-","-","-","-","-","-","-","-","-","-","-","-",stores,calls,oa,fv,ua,us);
+                row(out,"summary",cls,fn,high,owner,null,
+                    "-","-","-","-","-","-","-","-","-","-","-",
+                    stores,calls,oa,fv,ua,us);
             }
         } finally { dec.dispose(); }
         println("CLASS_OWNER_ALIAS_FLOW_FORMAT="+FORMAT); println("CLASS_OWNER_ALIAS_FLOW_CLASS="+cls); println("CLASS_OWNER_ALIAS_FLOW_FUNCTIONS="+functions.size()); println("CLASS_OWNER_ALIAS_FLOW_OUTPUT="+output.getAbsolutePath()); println("CLASS_OWNER_ALIAS_FLOW_AFFECTS_ROUTING=no");
