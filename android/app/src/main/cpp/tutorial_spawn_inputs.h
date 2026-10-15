@@ -26,18 +26,20 @@ enum class Status {
     kNonFinitePlayerPosition,
 };
 
-// PLAYERFACEDIR is dynamic player state, but its clean-room mapping is not yet
-// reviewed. A future evidence-backed provider must stamp the value with the
-// exact control generation from which it was resolved.
+// PLAYERFACEDIR is derived from the recovered MEPlayer +0x12c facing contract.
+// The provider stamps it with the exact control generation from which it was
+// resolved so stale facing state cannot cross input generations.
 struct ReviewedPlayerFaceDir {
     bool reviewed = false;
     std::uint64_t control_generation = 0;
     int value = 0;
 };
 
-// The original LessonLayer reads these three unsigned values from the object
-// reached through GameScene +0x238 -> +0x20. Their raw offsets/ordering remain
-// outside this contract until the scene-limit evidence probe is reviewed.
+// The original LessonLayer reads these unsigned values from the current
+// GameScenePortNodeData reached through GameScene +0x238 -> +0x20. Exact ARMv7
+// evidence maps third/fourth/fifth serialized PortNode uint32s to
+// vertical_edge_a / vertical_edge_b / right_edge_x respectively. The live
+// provider stamps those parsed values to one GameLevels load attempt and scene.
 struct ReviewedSceneLimits {
     bool reviewed = false;
     std::uint64_t runtime_load_attempt_count = 0;
@@ -58,10 +60,9 @@ struct Result {
     bool ready() const { return status == Status::kReady; }
 };
 
-// Pure generation-checked adapter between already reconstructed live state and
-// tutorial_enemy_spawn_plan::Inputs. It never supplies defaults for unresolved
-// semantic fields: PLAYERFACEDIR and scene limits must arrive as separately
-// reviewed evidence stamped to the exact live generations below.
+// Pure generation-checked adapter between reconstructed live state and
+// tutorial_enemy_spawn_plan::Inputs. It never supplies defaults: both reviewed
+// provider outputs must belong to the exact live generations below.
 Result resolve(
         const game_scene_player_spawn_state::Snapshot& spawn,
         const game_scene_player_motion_state::Snapshot& motion,
