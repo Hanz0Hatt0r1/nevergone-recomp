@@ -1,0 +1,36 @@
+name: Nevergone Production Classifier v5.4 selective verifier
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/evaluate_nevergone_selective_game_verifier_v54.py'
+      - 'tools/ml/nevergone_selective_game_verifier_v54_smoke.py'
+      - 'tools/ml/run_nevergone_selective_game_verifier_v54.sh'
+      - 'docs/ml/PRODUCTION_CLASSIFIER_V54.md'
+      - '.github/workflows/ml-production-classifier-v54-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/evaluate_nevergone_selective_game_verifier_v54.py'
+      - 'tools/ml/nevergone_selective_game_verifier_v54_smoke.py'
+      - 'tools/ml/run_nevergone_selective_game_verifier_v54.sh'
+      - 'docs/ml/PRODUCTION_CLASSIFIER_V54.md'
+      - '.github/workflows/ml-production-classifier-v54-smoke.yml'
+
+jobs:
+  production-classifier-v54:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install ML dependencies
+        run: python -m pip install -U numpy scikit-learn joblib
+      - name: Validate selective game verifier
+        run: |
+          python -m py_compile \
+            tools/ml/evaluate_nevergone_selective_game_verifier_v54.py \
+            tools/ml/nevergone_selective_game_verifier_v54_smoke.py
+          PYTHONPATH=tools/ml python tools/ml/nevergone_selective_game_verifier_v54_smoke.py
+          bash -n tools/ml/run_nevergone_selective_game_verifier_v54.sh
