@@ -167,6 +167,7 @@ add_library(nevergone_recomp SHARED
     trap_actions_prefix.cpp
     trap_actions_primary.cpp
     tutorial_gameplay_state.cpp
+    tutorial_lesson_overlay.cpp
     tutorial_loading_assets_jni.cpp
     tutorial_loading_compositor.cpp
     tutorial_scene_bootstrap.cpp
