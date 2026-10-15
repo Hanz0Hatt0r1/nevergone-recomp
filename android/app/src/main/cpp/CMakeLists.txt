@@ -48,6 +48,7 @@ add_library(nevergone_recomp SHARED
     enemy_actions_wbg_document.cpp
     enemy_actions_wbg_final_table.cpp
     enemy_actions_wbg_prefix.cpp
+    enemy_health_state.cpp
     filesystem_bindings.cpp
     fresh_role_compat_jni.cpp
     fresh_role_compat_state.cpp
@@ -167,6 +168,8 @@ add_library(nevergone_recomp SHARED
     trap_actions_prefix.cpp
     trap_actions_primary.cpp
     tutorial_dialogue_runtime.cpp
+    tutorial_enemy_roster.cpp
+    tutorial_enemy_spawn_plan.cpp
     tutorial_gameplay_state.cpp
     tutorial_lesson_overlay.cpp
     tutorial_loading_assets_jni.cpp
