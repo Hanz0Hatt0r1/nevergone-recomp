@@ -121,7 +121,27 @@ void maybe_stage_tutorial_lesson_assets(JNIEnv* env) {
 void maybe_stage_tutorial_dialogue_assets(JNIEnv* env) {
     if (env == nullptr) return;
     const auto session = nevergone::tutorial_session_state::snapshot();
-    const auto dialogue = nevergone::tutorial_dialogue_runtime::snapshot();
+    auto dialogue = nevergone::tutorial_dialogue_runtime::snapshot();
+
+    // Keep the pure tutorial_session_state host-testable. The Android frame
+    // boundary observes the exact LessonOverlay -> Dialogue transition and
+    // starts the original firstDlgCallBack equivalent here instead.
+    if (session.phase == nevergone::tutorial_session_state::Phase::kDialogue &&
+            dialogue.stage == nevergone::tutorial_dialogue_runtime::Stage::kInactive) {
+        if (!nevergone::tutorial_dialogue_runtime::begin_first_dialogue()) return;
+        dialogue = nevergone::tutorial_dialogue_runtime::snapshot();
+    }
+
+    // A new loading generation must not inherit a stale dialogue/interlude.
+    if (session.phase == nevergone::tutorial_session_state::Phase::kLoading) {
+        if (dialogue.stage != nevergone::tutorial_dialogue_runtime::Stage::kInactive) {
+            nevergone::tutorial_dialogue_runtime::reset();
+        }
+        g_last_tutorial_dialogue_asset_generation =
+            std::numeric_limits<std::uint64_t>::max();
+        return;
+    }
+
     if (session.phase != nevergone::tutorial_session_state::Phase::kDialogue ||
             dialogue.stage != nevergone::tutorial_dialogue_runtime::Stage::kFirstDialogue) {
         g_last_tutorial_dialogue_asset_generation =
@@ -163,8 +183,6 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::game_scene_action_compositor::on_surface_created();
     nevergone::game_scene_action_surface_input::cancel_all_captures();
     nevergone::controls_function_state_runtime::reset();
-    // A GLES context recreation invalidates action/tutorial textures even when
-    // the corresponding fresh-role generation is unchanged. Force restaging.
     g_last_action_asset_attempt = std::numeric_limits<std::uint64_t>::max();
     g_last_tutorial_lesson_asset_generation = std::numeric_limits<std::uint64_t>::max();
     g_last_tutorial_dialogue_asset_generation = std::numeric_limits<std::uint64_t>::max();
@@ -173,11 +191,6 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
 }
 
 void wrapped_server_draw(JNIEnv* env, jclass) {
-    // nativeOnDrawFrame() has already advanced the fixed game clock for this
-    // frame. Reproduce the shipped LoadingLayer action boundary: after the
-    // recovered 0.5 second delay, make switchNextScene eligible. cp_lesson was
-    // already resolved and parsed before tutorial-loading was entered, matching
-    // ManagementLayer::GoToGameLayer -> LoadGameLevelsWithFile -> switchScene.
     nevergone::tutorial_scene_bootstrap::tick();
 
     bool game_scene_drawn = false;
@@ -204,9 +217,6 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
 
     maybe_stage_action_assets(env);
 
-    // LessonLayer::showKeyboardPic() in the shipped tutorial immediately calls
-    // Controls::hideControls() and GameSceneUI::hideToolsUI(). Preserve that
-    // modal boundary through both recovered dialogue/interlude stages.
     const bool controls_allowed = gameplay_controls_allowed();
     if (controls_allowed) {
         (void)nevergone::controls_function_state_runtime::tick();
@@ -215,31 +225,20 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
         nevergone::game_scene_action_surface_input::cancel_all_captures();
     }
 
-    // SceneActions are world/scene children and remain visible behind tutorial
-    // overlays. The A/B/C/S gameplay controls are separate and stay hidden
-    // while the tutorial session is modal.
     (void)nevergone::scene_actions_gles_compositor::draw();
     if (controls_allowed) {
         (void)nevergone::game_scene_action_compositor::draw();
     }
 
-    // Once the recovered 0.5 s callback is due, a successful frame from the
-    // exact retained cp_lesson queue is the clean-room readiness gate for the
-    // original switchNextScene/initGameScene -> tick -> showLesson transition.
     nevergone::tutorial_scene_bootstrap::observe_scene_draw(game_scene_drawn);
 
     maybe_stage_tutorial_lesson_assets(env);
     (void)nevergone::tutorial_lesson_overlay::draw();
 
-    // LessonLayer::menuContinueCallback -> firstDlgCallBack opens the imported
-    // Guide/guide_text.plist dialogue 8. The plist itself owns autoplay and
-    // per-line appear/show-delay timing. Its callback enters a distinct
-    // lesson-interlude state; it does not unlock gameplay or fabricate ID 9.
     maybe_stage_tutorial_dialogue_assets(env);
     nevergone::tutorial_dialogue_runtime::tick();
     (void)nevergone::tutorial_dialogue_runtime::draw();
 
-    // LoadingLayer owns the complete surface until the handoff succeeds.
     maybe_stage_tutorial_loading_assets(env);
     const auto loading_route = nevergone::offline_startup_flow::snapshot();
     nevergone::tutorial_loading_compositor::draw();
@@ -257,9 +256,6 @@ void wrapped_native_touch(
         jfloat y) {
     const auto tutorial = nevergone::tutorial_session_state::snapshot();
     if (tutorial.phase == nevergone::tutorial_session_state::Phase::kLessonOverlay) {
-        // LessonOverlay owns the whole surface. Its Continue target is handled
-        // internally; every other touch is swallowed exactly at this modal
-        // boundary rather than leaking to joystick or action controls.
         (void)nevergone::tutorial_lesson_overlay::on_touch(
             static_cast<int>(action),
             static_cast<int>(pointer_id),
@@ -270,9 +266,9 @@ void wrapped_native_touch(
     }
     if (tutorial.phase == nevergone::tutorial_session_state::Phase::kLoading ||
             tutorial.phase == nevergone::tutorial_session_state::Phase::kDialogue) {
-        // The recovered guide plist is auto_play=true. Touches stay modal and
-        // are intentionally ignored until the later non-dialogue tutorial UI
-        // explicitly publishes its own callbacks.
+        // Guide dialogue 8 is auto_play=true. Touches stay modal and cannot
+        // leak to gameplay while either the dialogue or lesson interlude owns
+        // the coarse Dialogue phase.
         nevergone::game_scene_action_surface_input::cancel_all_captures();
         return;
     }
