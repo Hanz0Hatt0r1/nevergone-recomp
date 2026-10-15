@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "tutorial_attack_live_gate.h"
 #include "tutorial_dialogue_runtime.h"
 #include "tutorial_lesson_overlay.h"
 #include "tutorial_scene_bootstrap.h"
@@ -16,5 +17,6 @@ Java_org_nevergone_recomp_GameSceneAssetStagingDiagnostics_nativeTutorialBootstr
     report += nevergone::tutorial_session_state::status_report();
     report += nevergone::tutorial_lesson_overlay::status_report();
     report += nevergone::tutorial_dialogue_runtime::status_report();
+    report += nevergone::tutorial_attack_live_gate::live_status_report();
     return env->NewStringUTF(report.c_str());
 }
