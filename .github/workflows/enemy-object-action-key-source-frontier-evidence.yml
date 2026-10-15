@@ -1,0 +1,44 @@
+name: EnemyObject action key source frontier evidence
+
+on:
+  pull_request:
+    paths:
+      - 'tools/enemy_object_action_key_source_frontier.py'
+      - 'tools/enemy_object_action_key_source_frontier_smoke.py'
+      - 'tools/run_enemy_object_action_key_source_frontier.py'
+      - 'docs/enemy-object-action-key-source-frontier-evidence.md'
+      - '.github/workflows/enemy-object-action-key-source-frontier-evidence.yml'
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'tools/enemy_object_action_key_source_frontier.py'
+      - 'tools/enemy_object_action_key_source_frontier_smoke.py'
+      - 'tools/run_enemy_object_action_key_source_frontier.py'
+      - 'docs/enemy-object-action-key-source-frontier-evidence.md'
+      - '.github/workflows/enemy-object-action-key-source-frontier-evidence.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  key-source-frontier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate Python tools
+        run: |
+          python3 -m py_compile \
+            tools/enemy_object_action_key_source_frontier.py \
+            tools/enemy_object_action_key_source_frontier_smoke.py \
+            tools/run_enemy_object_action_key_source_frontier.py
+          PYTHONPATH=tools python3 tools/enemy_object_action_key_source_frontier_smoke.py
+      - name: Validate runner CLI
+        run: |
+          python3 tools/run_enemy_object_action_key_source_frontier.py \
+            --pcode /tmp/not-a-real-pcode.tsv \
+            --dry-run > /tmp/enemy-object-action-key-source-frontier.txt
+          grep -q 'enemy_object_action_key_lifetime.py plan' /tmp/enemy-object-action-key-source-frontier.txt
+          grep -q 'enemy_object_action_key_source_frontier.py' /tmp/enemy-object-action-key-source-frontier.txt
