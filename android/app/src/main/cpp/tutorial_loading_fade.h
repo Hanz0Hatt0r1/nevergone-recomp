@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "game_clock.h"
 #include "offline_startup_flow.h"
 #include "tutorial_scene_bootstrap.h"
 
@@ -54,16 +53,15 @@ inline float alpha_for_route(
 
     const std::uint64_t elapsed_ticks =
         game_tick >= state->start_tick ? game_tick - state->start_tick : 0u;
-    const double elapsed_seconds =
-        static_cast<double>(elapsed_ticks) * game_clock::kFixedStepSeconds;
-    if (elapsed_seconds >= tutorial_scene_bootstrap::kOriginalHideFadeSeconds) {
+    if (elapsed_ticks >= tutorial_scene_bootstrap::kOriginalHideFadeTicks) {
         state->active = false;
         ++state->completion_count;
         return 0.0f;
     }
 
-    const double alpha =
-        1.0 - elapsed_seconds / tutorial_scene_bootstrap::kOriginalHideFadeSeconds;
+    const double alpha = 1.0 -
+        static_cast<double>(elapsed_ticks) /
+            static_cast<double>(tutorial_scene_bootstrap::kOriginalHideFadeTicks);
     return static_cast<float>(std::clamp(alpha, 0.0, 1.0));
 }
 
