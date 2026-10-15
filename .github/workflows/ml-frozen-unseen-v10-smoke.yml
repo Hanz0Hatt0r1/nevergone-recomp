@@ -4,7 +4,9 @@ on:
   push:
     paths:
       - 'tools/ml/freeze_nevergone_unseen_corpus.py'
+      - 'tools/ml/audit_nevergone_frozen_drift_v10.py'
       - 'tools/ml/nevergone_frozen_validation_corpus_smoke.py'
+      - 'tools/ml/nevergone_frozen_drift_v10_smoke.py'
       - 'tools/ml/run_nevergone_frozen_unseen500_v10.sh'
       - 'tools/ml/select_nevergone_internal_test_corpus.py'
       - 'docs/ml/FROZEN_UNSEEN500_V10.md'
@@ -12,7 +14,9 @@ on:
   pull_request:
     paths:
       - 'tools/ml/freeze_nevergone_unseen_corpus.py'
+      - 'tools/ml/audit_nevergone_frozen_drift_v10.py'
       - 'tools/ml/nevergone_frozen_validation_corpus_smoke.py'
+      - 'tools/ml/nevergone_frozen_drift_v10_smoke.py'
       - 'tools/ml/run_nevergone_frozen_unseen500_v10.sh'
       - 'tools/ml/select_nevergone_internal_test_corpus.py'
       - 'docs/ml/FROZEN_UNSEEN500_V10.md'
@@ -33,7 +37,11 @@ jobs:
         run: |
           python -m py_compile \
             tools/ml/freeze_nevergone_unseen_corpus.py \
-            tools/ml/nevergone_frozen_validation_corpus_smoke.py
+            tools/ml/audit_nevergone_frozen_drift_v10.py \
+            tools/ml/nevergone_frozen_validation_corpus_smoke.py \
+            tools/ml/nevergone_frozen_drift_v10_smoke.py
           bash -n tools/ml/run_nevergone_frozen_unseen500_v10.sh
       - name: Run frozen validation corpus smoke
         run: python tools/ml/nevergone_frozen_validation_corpus_smoke.py
+      - name: Run frozen distribution-shift audit smoke
+        run: python tools/ml/nevergone_frozen_drift_v10_smoke.py
