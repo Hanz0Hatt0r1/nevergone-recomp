@@ -55,6 +55,37 @@ build/tutorial-scene-limit-evidence/
 
 including `tutorial-scene-limit-report.txt`.
 
+## Machine-readable candidate handoff
+
+Once the text report says `status: three-limit-candidate`, convert the same two
+LessonLayer exports into a bounded machine-readable candidate:
+
+```bash
+python3 tools/tutorial_scene_limit_candidate.py \
+  build/tutorial-scene-limit-evidence/lesson-layer-next-lesson.tsv \
+  build/tutorial-scene-limit-evidence/lesson-layer-next-lesson-state.tsv \
+  --output build/tutorial-scene-limit-evidence/tutorial-scene-limit-candidate.json
+```
+
+The JSON schema is:
+
+```text
+NEVERGONE.TutorialSceneLimitCandidate/1
+```
+
+The candidate records the exact recovered pointer-prefix offsets, one unique
+`right_edge_x_field_offset`, two sorted `vertical_field_offsets`, and the
+underlying function/load-site evidence. It deliberately carries:
+
+```text
+review_status = candidate
+vertical_order_status = unresolved
+```
+
+It therefore cannot be used directly as a production `ReviewedSceneLimits`
+provider. Incomplete or ambiguous structural evidence fails closed and no
+candidate is emitted.
+
 ## Structural acceptance rules
 
 The analyzer reconstructs pointer expressions only through bounded,
@@ -76,9 +107,9 @@ classify candidates without assigning map semantics:
   `vertical-edge-candidate`.
 
 A complete structural result requires exactly one right-edge candidate and two
-distinct vertical candidates. The report intentionally leaves the two vertical
-fields as unordered candidates; the original branch order must be recovered
-before mapping them to `vertical_edge_a` versus `vertical_edge_b`.
+distinct vertical candidates. The report and JSON candidate intentionally leave
+the two vertical fields as unordered candidates; the original branch order must
+be recovered before mapping them to `vertical_edge_a` versus `vertical_edge_b`.
 
 ## Runtime boundary
 
@@ -87,11 +118,12 @@ runtime code. After a real analyzed-library run produces a unique result, the
 remaining steps are:
 
 1. recover the first/second vertical-branch ordering;
-2. map the confirmed raw fields into a project-owned tutorial spawn-input
+2. promote the candidate only after that ordering is independently reviewed;
+3. map the confirmed raw fields into a project-owned tutorial spawn-input
    snapshot;
-3. combine them with current reconstructed player position, the already proven
-   `isFace`/`flip_x` state, and reviewed `PLAYERFACEDIR` evidence;
-4. start the Attack roster only when the reviewed enemy identity/base-HP mapping
+4. combine them with current reconstructed player position and the proven
+   `PLAYERFACEDIR` provider;
+5. start the Attack roster only when the reviewed enemy identity/base-HP mapping
    is also available.
 
 Until all of those inputs are explicit, enemy materialization remains
