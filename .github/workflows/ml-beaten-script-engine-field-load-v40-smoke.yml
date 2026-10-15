@@ -1,0 +1,40 @@
+name: Nevergone BeatenEffect script engine field load v40 smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ghidra/ExportAccessorFieldLoadConsumers.java'
+      - 'tools/ml/audit_nevergone_beaten_script_engine_field_load_v40.py'
+      - 'tools/ml/nevergone_beaten_script_engine_field_load_v40_smoke.py'
+      - 'tools/ml/run_nevergone_beaten_script_engine_field_load_v40.sh'
+      - '.github/workflows/ml-beaten-script-engine-field-load-v40-smoke.yml'
+      - 'docs/evidence/beaten-script-engine-field-load-v40.md'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ghidra/ExportAccessorFieldLoadConsumers.java'
+      - 'tools/ml/audit_nevergone_beaten_script_engine_field_load_v40.py'
+      - 'tools/ml/nevergone_beaten_script_engine_field_load_v40_smoke.py'
+      - 'tools/ml/run_nevergone_beaten_script_engine_field_load_v40.sh'
+      - '.github/workflows/ml-beaten-script-engine-field-load-v40-smoke.yml'
+      - 'docs/evidence/beaten-script-engine-field-load-v40.md'
+
+jobs:
+  beaten-script-engine-field-load-v40:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate v40 analyzer
+        run: |
+          python3 -m py_compile \
+            tools/ml/audit_nevergone_beaten_script_engine_field_load_v40.py \
+            tools/ml/nevergone_beaten_script_engine_field_load_v40_smoke.py
+          PYTHONPATH=tools/ml python3 tools/ml/nevergone_beaten_script_engine_field_load_v40_smoke.py
+          bash -n tools/ml/run_nevergone_beaten_script_engine_field_load_v40.sh
+          grep -q 'NEVERGONE.GhidraAccessorFieldLoadConsumers/1' tools/ghidra/ExportAccessorFieldLoadConsumers.java
+          grep -q 'No exact function at numeric token' tools/ghidra/ExportAccessorFieldLoadConsumers.java
+          grep -q 'cocos2d::CCScriptEngineManager::sharedManager' tools/ml/run_nevergone_beaten_script_engine_field_load_v40.sh
+          grep -q 'cocos2d::CCScriptEngineManager::purgeSharedManager' tools/ml/run_nevergone_beaten_script_engine_field_load_v40.sh
