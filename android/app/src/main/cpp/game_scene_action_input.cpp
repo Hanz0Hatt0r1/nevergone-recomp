@@ -9,6 +9,8 @@
 namespace nevergone::game_scene_action_input {
 namespace {
 
+constexpr std::uint32_t kTutorialJumpMeplayerState = 0x20u;
+
 std::mutex g_mutex;
 Snapshot g_state{};
 
@@ -16,22 +18,14 @@ bool valid(Control control, Gesture gesture) {
     return control != Control::kNone && gesture != Gesture::kNone;
 }
 
-bool publish_tutorial_event(Control control, Gesture gesture) {
+bool is_tutorial_jump_request(Control control, Gesture gesture) {
+    if (control != Control::kButtonC || gesture != Gesture::kTap) return false;
+
     const auto session = tutorial_session_state::snapshot();
     if (session.phase != tutorial_session_state::Phase::kInteractive) return false;
 
-    const auto tutorial = tutorial_gameplay_state::snapshot();
-    if (tutorial.step == tutorial_gameplay_state::Step::kJump &&
-        control == Control::kButtonC &&
-        gesture == Gesture::kTap) {
-        return tutorial_gameplay_state::observe(
-            tutorial_gameplay_state::Event::kJumpPerformed);
-    }
-
-    // Attack, Block, Counter-attack, Dodge and Air Attack intentionally do not
-    // advance here. Their tutorial steps require gameplay outcomes rather than
-    // a raw A/B/C input, so combat/player-state code must publish those events.
-    return false;
+    return tutorial_gameplay_state::snapshot().step ==
+        tutorial_gameplay_state::Step::kJump;
 }
 
 }  // namespace
@@ -48,15 +42,38 @@ bool observe(Control control, Gesture gesture) {
         return false;
     }
 
-    // Do not hold the action-input mutex while entering tutorial state: this
-    // keeps the eventual Controls/combat lock order one-way.
-    const bool tutorial_advanced = publish_tutorial_event(control, gesture);
+    // A C tap at the Jump lesson is only a request to enter the recovered live
+    // MEPLAYERSTATE 0x20. Do not mutate tutorial progression here: the original
+    // LessonLayer::nextLesson(MEPLAYERSTATE) checks the resulting state, not the
+    // raw button gesture.
+    const bool tutorial_jump_request = is_tutorial_jump_request(control, gesture);
 
     std::lock_guard<std::mutex> lock(g_mutex);
     g_state.last_control = control;
     g_state.last_gesture = gesture;
     ++g_state.accepted_input_count;
-    if (tutorial_advanced) ++g_state.tutorial_event_count;
+    if (tutorial_jump_request) ++g_state.tutorial_jump_request_count;
+    return true;
+}
+
+bool observe_live_meplayer_state(std::uint32_t meplayer_state) {
+    if (meplayer_state != kTutorialJumpMeplayerState) return false;
+
+    const auto session = tutorial_session_state::snapshot();
+    if (session.phase != tutorial_session_state::Phase::kInteractive) return false;
+
+    const auto tutorial = tutorial_gameplay_state::snapshot();
+    if (tutorial.step != tutorial_gameplay_state::Step::kJump) return false;
+
+    // Do not hold the action-input mutex while entering tutorial state. This
+    // keeps the live-action/tutorial lock order one-way and makes repeated
+    // observations of 0x20 idempotent after the first transition to Attack.
+    const bool advanced = tutorial_gameplay_state::observe(
+        tutorial_gameplay_state::Event::kJumpPerformed);
+    if (!advanced) return false;
+
+    std::lock_guard<std::mutex> lock(g_mutex);
+    ++g_state.tutorial_event_count;
     return true;
 }
 
@@ -119,6 +136,7 @@ std::string status_report() {
     out << "last gesture: " << gesture_name(state.last_gesture) << "\n";
     out << "accepted inputs: " << state.accepted_input_count << "\n";
     out << "rejected inputs: " << state.rejected_input_count << "\n";
+    out << "tutorial jump requests: " << state.tutorial_jump_request_count << "\n";
     out << "tutorial events: " << state.tutorial_event_count << "\n";
     return out.str();
 }
