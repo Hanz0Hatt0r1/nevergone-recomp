@@ -114,7 +114,9 @@ CreateCharacter dispatch succeeds
 
 `TutorialLoadingAssetLoader` reads those files only from the user's imported asset tree and uploads decoded pixels to GLES. If the frames cannot be resolved, the black loading boundary remains visible instead of leaking already-prepared gameplay through it.
 
-The original 0.2-second visual fade is now proven but is not yet reproduced as alpha interpolation by the project compositor; the route transition currently retires the clean-room loading compositor after the exact scene-readiness handoff. That remaining visual timing difference is separate from the now reconstructed loading-completion control flow.
+The original `0.2 s` hide transition is now reproduced without a wall-clock timer. A small render-thread state contract observes an actual `tutorial-loading -> game-levels` route transition, retains the loading compositor over the already prepared `cp_lesson` frame, and evaluates alpha from the same fixed 35 Hz `game_clock` used by the rest of the runtime. Seven fixed ticks therefore cover the recovered `hideLoadingLayer(0.2f)` interval exactly. The full-surface black layer and the imported loading logo use the same alpha so the prepared GameScene/LessonOverlay is progressively revealed underneath.
+
+An unrelated direct `game-levels` entry cannot synthesize the fade: the fade is armed only after the compositor has actually observed a tutorial-loading frame. Once the seven-tick interval completes it cannot restart until a new tutorial-loading route is seen. The cadence between `logo_01..03.png` remains unknown and is still deliberately not fabricated; the compositor continues to use the first available imported frame deterministically.
 
 ## Failure diagnostics
 
@@ -150,6 +152,19 @@ Absolute app-private paths are not reported.
 
 The adjacent `Tutorial session` diagnostics identify whether the lifecycle is still `Loading` or has advanced to `LessonOverlay`.
 
+## Validation
+
+`tools/tutorial_loading_fade_smoke.cpp` covers the recovered hide timing independently of GLES. It proves that:
+
+- a direct/unrelated `game-levels` route starts no fade;
+- a real tutorial-loading presentation arms the transition;
+- the first GameLevels frame remains fully covered;
+- the fixed 35 Hz clock yields the expected intermediate alpha values;
+- the loading layer reaches zero alpha on tick 7, exactly `0.2 s` later;
+- the completed GameLevels route cannot restart the fade without a new tutorial-loading presentation.
+
+The Android build remains responsible for compiling the GLES compositor itself; the host smoke isolates the transition/timing contract so renderer changes cannot silently invent a different duration.
+
 ## Next fidelity boundary
 
-The loading-completion control flow is no longer intentionally open-ended. The next boundary is the visible `LessonLayer` content itself and its later explicit completion into the already modeled post-lesson Dialogue phase. The clean-room runtime also still needs a direct semantic reconstruction of the original NPC/enemy initialization readiness instead of using a complete rendered `cp_lesson` frame as the conservative substitute.
+The loading-completion control flow and recovered hide fade are no longer intentionally open-ended. The next boundary is the remaining visible `LessonLayer` fidelity and its later explicit progression into the already modeled guide Dialogue/interlude and interactive tutorial. The clean-room runtime also still needs a direct semantic reconstruction of the original NPC/enemy initialization readiness instead of using a complete rendered `cp_lesson` frame as the conservative substitute.
