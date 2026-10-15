@@ -87,6 +87,9 @@ int main() {
     assert(state.start_game_tick == 100);
     assert(state.roster.planned_count == 3);
     assert(state.roster.materialized_count == 1);
+    assert(state.wave_generation == state.roster.generation);
+    assert(state.wave_generation != 0);
+    const std::uint64_t first_wave = state.wave_generation;
     assert(state.roster.enemies[0].request.x == expected_plan.enemies[0].x);
     assert(state.roster.enemies[0].request.y == expected_plan.enemies[0].y);
     assert(state.roster.enemies[0].request.player_face_dir == 7);
@@ -106,9 +109,9 @@ int main() {
         135, gameplay(gameplay_ns::Step::kAttack), latest_inputs, resolve_health, &health));
     assert(runtime.snapshot().roster.materialized_count == 3);
 
-    assert(runtime.set_dead(0));
-    assert(runtime.set_dead(1));
-    assert(runtime.set_dead(2));
+    assert(runtime.set_dead(0, first_wave));
+    assert(runtime.set_dead(1, first_wave));
+    assert(runtime.set_dead(2, first_wave));
     assert(runtime.tick(
         136, gameplay(gameplay_ns::Step::kAttack), latest_inputs, resolve_health, &health));
     state = runtime.snapshot();
@@ -139,14 +142,28 @@ int main() {
     assert(state.status == runtime_ns::Status::kIdle);
     assert(!state.wave_started);
     assert(!state.wave_completed);
+    assert(state.wave_generation == 0);
     assert(state.roster.planned_count == 0);
+
+    // Starting another Attack wave produces a different token. A late callback
+    // carrying the completed first-wave token cannot touch the reused slot.
+    assert(runtime.tick(
+        200, gameplay(gameplay_ns::Step::kAttack), latest_inputs, resolve_health, &health));
+    state = runtime.snapshot();
+    const std::uint64_t second_wave = state.wave_generation;
+    assert(second_wave != 0);
+    assert(second_wave != first_wave);
+    assert(!runtime.set_dead(0, first_wave));
+    assert(!runtime.apply_damage(0, 50.0f, first_wave));
+    assert(runtime.snapshot().roster.dead_count == 0);
+    assert(runtime.apply_damage(0, 50.0f, second_wave));
 
     // Fixed-clock regression fails closed and never creates a completion edge.
     runtime_ns::Runtime regression;
     assert(regression.tick(
-        200, gameplay(gameplay_ns::Step::kAttack), latest_inputs, resolve_health, &health));
+        300, gameplay(gameplay_ns::Step::kAttack), latest_inputs, resolve_health, &health));
     assert(!regression.tick(
-        199, gameplay(gameplay_ns::Step::kAttack), latest_inputs, resolve_health, &health));
+        299, gameplay(gameplay_ns::Step::kAttack), latest_inputs, resolve_health, &health));
     assert(regression.snapshot().status == runtime_ns::Status::kClockRegression);
     assert(!regression.consume_completion());
 
