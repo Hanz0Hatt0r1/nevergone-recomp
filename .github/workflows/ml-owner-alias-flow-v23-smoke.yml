@@ -8,6 +8,7 @@ on:
       - 'tools/ml/audit_nevergone_residual_receiver_candidates_v23.py'
       - 'tools/ml/nevergone_owner_alias_flow_v23_smoke.py'
       - 'tools/ml/nevergone_residual_receiver_candidates_v23_smoke.py'
+      - 'tools/ml/nevergone_owner_alias_flow_java_arity_smoke.py'
       - 'tools/ml/run_nevergone_owner_alias_flow_v23.sh'
       - '.github/workflows/ml-owner-alias-flow-v23-smoke.yml'
       - 'docs/evidence/owner-alias-flow-v23.md'
@@ -24,9 +25,12 @@ jobs:
             tools/ml/audit_nevergone_owner_alias_flow_v23.py \
             tools/ml/audit_nevergone_residual_receiver_candidates_v23.py \
             tools/ml/nevergone_owner_alias_flow_v23_smoke.py \
-            tools/ml/nevergone_residual_receiver_candidates_v23_smoke.py
+            tools/ml/nevergone_residual_receiver_candidates_v23_smoke.py \
+            tools/ml/nevergone_owner_alias_flow_java_arity_smoke.py
       - name: Check runner syntax
         run: bash -n tools/ml/run_nevergone_owner_alias_flow_v23.sh
+      - name: Check Ghidra exporter row arity
+        run: python3 tools/ml/nevergone_owner_alias_flow_java_arity_smoke.py
       - name: Run owner alias flow smoke
         run: python3 tools/ml/nevergone_owner_alias_flow_v23_smoke.py
       - name: Run residual receiver candidate smoke
