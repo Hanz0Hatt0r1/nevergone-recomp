@@ -1,0 +1,31 @@
+name: Enemy health state
+
+on:
+  pull_request:
+    paths:
+      - 'android/app/src/main/cpp/enemy_health_state.*'
+      - 'tools/enemy_health_state_smoke.cpp'
+      - '.github/workflows/enemy-health-state.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/cpp/enemy_health_state.*'
+      - 'tools/enemy_health_state_smoke.cpp'
+      - '.github/workflows/enemy-health-state.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run enemy health-state smoke
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Wpedantic -Werror \
+            tools/enemy_health_state_smoke.cpp \
+            android/app/src/main/cpp/enemy_health_state.cpp \
+            -o /tmp/enemy_health_state_smoke
+          /tmp/enemy_health_state_smoke
