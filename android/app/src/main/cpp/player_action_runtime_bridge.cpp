@@ -65,13 +65,13 @@ void sync_runtime_to_spawn(const nevergone::game_scene_player_spawn_state::Snaps
     const auto action_input = nevergone::game_scene_action_input::snapshot();
     (void)nevergone::meplayer_live_action_state::sync_spawn(
             spawn.generation,
-            action_input.tutorial_event_count);
+            action_input.tutorial_jump_request_count);
 }
 
 void observe_live_action_sources() {
     const auto input = nevergone::game_scene_action_input::snapshot();
-    (void)nevergone::meplayer_live_action_state::observe_tutorial_event_count(
-            input.tutorial_event_count);
+    (void)nevergone::meplayer_live_action_state::observe_tutorial_jump_request_count(
+            input.tutorial_jump_request_count);
 
     const auto function = nevergone::controls_function_state_runtime::snapshot();
     (void)nevergone::meplayer_live_action_state::observe_base_function_state(
@@ -166,7 +166,7 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeDesiredPlayerActionSta
 
     const auto input = nevergone::game_scene_action_input::snapshot();
     (void)nevergone::meplayer_live_action_state::sync_spawn(
-            spawn.generation, input.tutorial_event_count);
+            spawn.generation, input.tutorial_jump_request_count);
     observe_live_action_sources();
     const auto live = nevergone::meplayer_live_action_state::snapshot();
     return live.ready ? static_cast<jint>(live.desired_action_state) : -1;
@@ -176,8 +176,18 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeCommitLoadedPlayerActionState(
         JNIEnv*, jclass, jint action_state) {
     if (action_state < 0) return JNI_FALSE;
-    return nevergone::meplayer_live_action_state::commit_loaded_action(
-            static_cast<std::uint32_t>(action_state)) ? JNI_TRUE : JNI_FALSE;
+    const std::uint32_t committed_state = static_cast<std::uint32_t>(action_state);
+    if (!nevergone::meplayer_live_action_state::commit_loaded_action(committed_state)) {
+        return JNI_FALSE;
+    }
+
+    // LessonLayer::nextLesson(MEPLAYERSTATE) advances the Jump lesson only when
+    // the player has actually entered state 0x20. Publishing after the action
+    // document is committed preserves that original state gate while keeping a
+    // raw C tap as only the request that initiated this live action load.
+    (void)nevergone::game_scene_action_input::observe_live_meplayer_state(
+            committed_state);
+    return JNI_TRUE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

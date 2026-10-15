@@ -48,28 +48,46 @@ int main() {
     assert(action::snapshot().rejected_input_count == 1);
 
     // A semantic C tap outside interactive tutorial is accepted as input but
-    // cannot mutate tutorial progression.
+    // cannot request or complete the tutorial jump.
     assert(action::observe(action::Control::kButtonC, action::Gesture::kTap));
     assert(tutorial::snapshot().step == tutorial::Step::kInactive);
+    assert(action::snapshot().tutorial_jump_request_count == 0);
     assert(action::snapshot().tutorial_event_count == 0);
+    assert(!action::observe_live_meplayer_state(0x20u));
 
     enter_interactive_jump();
     action::reset();
 
-    // Wrong button/gesture must not advance the Jump lesson.
+    // Wrong button/gesture must neither request state 0x20 nor advance Jump.
     assert(action::observe(action::Control::kButtonA, action::Gesture::kTap));
     assert(tutorial::snapshot().step == tutorial::Step::kJump);
     assert(action::observe(action::Control::kButtonC, action::Gesture::kPress));
     assert(tutorial::snapshot().step == tutorial::Step::kJump);
+    assert(action::snapshot().tutorial_jump_request_count == 0);
 
-    // The observed lesson contract is "Tap C to jump". Once the recovered
-    // Controls geometry proves a C tap and calls this semantic boundary, the
-    // tutorial advances exactly once to Attack.
+    // The C tap is only the request that starts the live action load. It must
+    // not skip the recovered LessonLayer MEPLAYERSTATE == 0x20 gate.
     assert(action::observe(action::Control::kButtonC, action::Gesture::kTap));
-    assert(tutorial::snapshot().step == tutorial::Step::kAttack);
+    assert(tutorial::snapshot().step == tutorial::Step::kJump);
     auto state = action::snapshot();
-    assert(state.tutorial_event_count == 1);
+    assert(state.tutorial_jump_request_count == 1);
+    assert(state.tutorial_event_count == 0);
     assert(state.accepted_input_count == 3);
+
+    // A different committed player state cannot satisfy the Jump lesson.
+    assert(!action::observe_live_meplayer_state(0x1bu));
+    assert(tutorial::snapshot().step == tutorial::Step::kJump);
+
+    // Only the recovered live jump state advances to Attack.
+    assert(action::observe_live_meplayer_state(0x20u));
+    assert(tutorial::snapshot().step == tutorial::Step::kAttack);
+    state = action::snapshot();
+    assert(state.tutorial_jump_request_count == 1);
+    assert(state.tutorial_event_count == 1);
+
+    // Re-observing 0x20 is idempotent once Attack owns the tutorial.
+    assert(!action::observe_live_meplayer_state(0x20u));
+    assert(action::snapshot().tutorial_event_count == 1);
 
     // Attack is objective-gated. Repeated A taps are recorded but do not skip
     // the required enemy-defeat event.
@@ -81,6 +99,7 @@ int main() {
     assert(contains(status, "last control: button-a"));
     assert(contains(status, "last original Controls state: 7"));
     assert(contains(status, "last gesture: tap"));
+    assert(contains(status, "tutorial jump requests: 1"));
     assert(contains(status, "tutorial events: 1"));
     return 0;
 }

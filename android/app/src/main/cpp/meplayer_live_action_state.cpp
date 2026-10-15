@@ -26,7 +26,9 @@ void reset() {
     g_snapshot.generation = g_generation;
 }
 
-bool sync_spawn(std::uint64_t spawn_generation, std::uint64_t tutorial_event_count) {
+bool sync_spawn(
+        std::uint64_t spawn_generation,
+        std::uint64_t tutorial_jump_request_count) {
     if (spawn_generation == 0u) return false;
     std::lock_guard<std::mutex> lock(g_mutex);
     if (g_snapshot.ready && g_snapshot.spawn_generation == spawn_generation) return true;
@@ -40,17 +42,22 @@ bool sync_spawn(std::uint64_t spawn_generation, std::uint64_t tutorial_event_cou
     g_snapshot.desired_action_state = kInitialActionState;
     g_snapshot.desired_revision = 1u;
     g_snapshot.loaded_revision = 0u;
-    g_snapshot.observed_tutorial_event_count = tutorial_event_count;
+    g_snapshot.observed_tutorial_jump_request_count = tutorial_jump_request_count;
     return true;
 }
 
-bool observe_tutorial_event_count(std::uint64_t tutorial_event_count) {
+bool observe_tutorial_jump_request_count(
+        std::uint64_t tutorial_jump_request_count) {
     std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_snapshot.ready) return false;
-    if (tutorial_event_count <= g_snapshot.observed_tutorial_event_count) return false;
+    if (tutorial_jump_request_count <=
+            g_snapshot.observed_tutorial_jump_request_count) {
+        return false;
+    }
 
-    const std::uint64_t delta = tutorial_event_count - g_snapshot.observed_tutorial_event_count;
-    g_snapshot.observed_tutorial_event_count = tutorial_event_count;
+    const std::uint64_t delta = tutorial_jump_request_count -
+        g_snapshot.observed_tutorial_jump_request_count;
+    g_snapshot.observed_tutorial_jump_request_count = tutorial_jump_request_count;
 
     if (g_snapshot.current_action_state != kInitialActionState ||
         g_snapshot.desired_action_state != kInitialActionState) {
@@ -182,7 +189,8 @@ std::string status_report() {
     out << "desired action: 0x" << std::hex << state.desired_action_state << std::dec << "\n";
     out << "desired revision: " << state.desired_revision << "\n";
     out << "loaded revision: " << state.loaded_revision << "\n";
-    out << "tutorial input events observed: " << state.observed_tutorial_event_count << "\n";
+    out << "tutorial jump requests observed: "
+        << state.observed_tutorial_jump_request_count << "\n";
     out << "accepted tutorial jumps: " << state.accepted_tutorial_jump_count << "\n";
     out << "rejected tutorial jumps: " << state.rejected_tutorial_jump_count << "\n";
     out << "observed function generation: " << state.observed_function_generation << "\n";

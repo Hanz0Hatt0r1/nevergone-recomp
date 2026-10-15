@@ -17,6 +17,7 @@ int main() {
     assert(state.ready);
     assert(state.current_action_state == live::kInitialActionState);
     assert(state.desired_revision == 1u);
+    assert(state.observed_tutorial_jump_request_count == 3u);
     assert(live::commit_loaded_action(live::kInitialActionState));
 
     assert(live::observe_base_function_state(
@@ -65,12 +66,16 @@ int main() {
         0u));
     assert(live::snapshot().desired_action_state == live::kInitialActionState);
 
-    // Tutorial C/jump: current 0x20 follows the generic done path to 0x1b.
+    // Tutorial C/jump: one new accepted request queues 0x20; current 0x20 then
+    // follows the generic done path back to 0x1b.
     assert(live::sync_spawn(9u, 3u));
     assert(live::commit_loaded_action(live::kInitialActionState));
-    assert(live::observe_tutorial_event_count(4u));
+    assert(live::observe_tutorial_jump_request_count(4u));
+    assert(!live::observe_tutorial_jump_request_count(4u));
     assert(live::commit_loaded_action(live::kTutorialJumpActionState));
     state = live::snapshot();
+    assert(state.accepted_tutorial_jump_count == 1u);
+    assert(state.observed_tutorial_jump_request_count == 4u);
     assert(live::observe_action_completion(
         state.generation,
         state.loaded_revision,
@@ -81,9 +86,18 @@ int main() {
     assert(state.desired_action_state == live::kInitialActionState);
     assert(state.last_completion_target_state == live::kInitialActionState);
 
+    // Multiple request increments arriving while 0x1b is idle queue only one
+    // jump and account for the extras as rejected duplicate requests.
+    assert(live::sync_spawn(10u, 10u));
+    assert(live::commit_loaded_action(live::kInitialActionState));
+    assert(live::observe_tutorial_jump_request_count(13u));
+    state = live::snapshot();
+    assert(state.accepted_tutorial_jump_count == 1u);
+    assert(state.rejected_tutorial_jump_count == 2u);
+
     // Base A: 0x02/0x03 share the native actionState branch; current supported
     // 0x02 therefore returns to 0x1b on completion.
-    assert(live::sync_spawn(10u, 4u));
+    assert(live::sync_spawn(11u, 13u));
     assert(live::commit_loaded_action(live::kInitialActionState));
     assert(live::observe_base_function_state(
         20u, 7u, true, live::kBaseAActionState, false));
@@ -117,6 +131,7 @@ int main() {
     assert(live::snapshot().desired_revision == desired_revision);
 
     const std::string report = live::status_report();
+    assert(report.find("tutorial jump requests observed: 13") != std::string::npos);
     assert(report.find("accepted completion transitions: 1") != std::string::npos);
     assert(report.find("last completion target: 0x1b") != std::string::npos);
     return 0;
