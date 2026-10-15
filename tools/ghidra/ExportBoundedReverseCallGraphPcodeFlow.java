@@ -195,13 +195,23 @@ public class ExportBoundedReverseCallGraphPcodeFlow extends GhidraScript {
 
     public void run() throws Exception {
         String[] args = getScriptArgs();
-        if (args.length < 2 || args.length > 4) {
+        if (args.length < 2 || args.length > 5) {
             throw new IllegalArgumentException(
                 "Usage: ExportBoundedReverseCallGraphPcodeFlow.java " +
-                "<target-function-address-or-name> <output.tsv> [max-depth] [max-functions]");
+                "<target-function-address-or-name> <output.tsv> [max-depth] [max-functions] [expected-name-fragment]");
         }
 
         Function root = resolveFunction(args[0]);
+        String expectedName = args.length >= 5 ? args[4] : null;
+        if (expectedName != null && !expectedName.isEmpty() &&
+                !root.getName().contains(expectedName) &&
+                !root.getName(true).contains(expectedName)) {
+            throw new IllegalArgumentException(
+                "Resolved target identity mismatch: token " + args[0] + " -> " +
+                root.getName(true) + " at " + root.getEntryPoint() +
+                "; expected name containing " + expectedName);
+        }
+
         File output = new File(args[1]);
         int maxDepth = parseBound(args.length >= 3 ? args[2] : null, "max-depth", DEFAULT_MAX_DEPTH);
         int maxFunctions = parseBound(args.length >= 4 ? args[3] : null, "max-functions", DEFAULT_MAX_FUNCTIONS);
