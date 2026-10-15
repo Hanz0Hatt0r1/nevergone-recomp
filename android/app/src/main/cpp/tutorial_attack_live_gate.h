@@ -72,6 +72,8 @@ private:
     std::uint64_t generation_ = 0;
     std::size_t enemy_record_count_ = 0;
     std::uint64_t completion_publish_count_ = 0;
+    std::uint64_t bound_load_attempt_ = 0;
+    std::string bound_scene_guid_{};
 };
 
 // Android frame-loop instance. Evidence providers install only fields that are
