@@ -26,6 +26,61 @@ current_health / max_health * 100.0
 
 The multiplier is the original `100.0f` literal.
 
+## Base-health field consumer probe
+
+The remaining import-boundary question is which integer field in the recovered
+32-byte `LoadGL_Global` enemy record supplies that base-health value. The project
+does not infer this from plausible numbers.
+
+`tools/ghidra/ExportEnemyHealthFieldConsumer.java` decompiles one local Ghidra
+function and looks only at stores to the two already recovered object fields
+`this + 0x160` and `this + 0x164`. For each store it traces the stored value
+backwards through bounded copies/casts/conversions and reports a parameter-
+relative source `LOAD` when one is structurally recoverable. It also records
+whether the path includes `FLOAT_INT2FLOAT`, which is required by the recovered
+integer-config-to-float-object behavior.
+
+Run the bounded probe against the user's local analyzed `libcocos2dcpp.so`
+project with:
+
+```bash
+python3 tools/run_enemy_health_field_consumer_probe.py \
+  --ghidra /opt/ghidra \
+  --project-dir /path/to/ghidra/projects \
+  --project-name Nevergone \
+  --program libcocos2dcpp.so
+```
+
+The wrapper uses `loadEnemyObjectFile` as the default exact/unique partial
+function token. If that name is not present in the local Ghidra database, pass
+an independently established exact entry address with `--function` instead.
+
+The output directory defaults to `build/enemy-health-field-consumer/` and
+contains:
+
+```text
+enemy-health-field-consumer.tsv
+enemy-health-field-consumer-report.txt
+```
+
+`tools/enemy_health_field_consumer_evidence.py` accepts a raw-field candidate
+only when all of the following are simultaneously true:
+
+- exactly one recovered store targets `this + 0x160` and exactly one targets
+  `this + 0x164`;
+- both stored values are 4 bytes;
+- both traces resolve to one unique non-`this` parameter-relative 4-byte load;
+- both paths contain the recovered integer-to-float conversion;
+- both stores use the same source parameter and the same source offset;
+- that source offset coincides with an integer slot in the already recovered
+  32-byte `EnemyRecord` layout.
+
+Even then the analyzer labels the result **candidate only**. The final semantic
+mapping still requires independent record-correspondence/identity evidence such
+as the bounded real-device `LoadGL_Global` record dump and recovered tutorial
+enemy IDs. This prevents a decompiler artifact or coincidental offset match from
+silently becoming a clean-room field name.
+
 ## Ordinary hit mutation
 
 At the beginning of `EnemyObject::beaten(float, float, bool*, int)`, after a few
