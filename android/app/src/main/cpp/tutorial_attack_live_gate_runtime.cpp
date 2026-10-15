@@ -3,18 +3,21 @@
 #include <mutex>
 
 #include "game_clock.h"
+#include "tutorial_player_face_dir_provider.h"
 
 namespace nevergone::tutorial_attack_live_gate {
 namespace {
 
 std::mutex g_live_mutex;
 Gate g_live_gate;
+tutorial_player_face_dir_provider::Resolution g_last_face_dir_resolution;
 
 }  // namespace
 
 void live_reset() {
     std::lock_guard<std::mutex> lock(g_live_mutex);
     g_live_gate.reset();
+    g_last_face_dir_resolution = {};
 }
 
 void live_set_review_bundle(const ReviewBundle& review) {
@@ -30,8 +33,11 @@ bool live_tick() {
     const auto levels = game_levels_runtime_state::snapshot();
     const auto enemy_records = game_levels_runtime_state::current_global_enemy_records();
     const std::uint64_t game_tick = game_clock::tick_count();
+    const auto face_dir = tutorial_player_face_dir_provider::resolve(control);
 
     std::lock_guard<std::mutex> lock(g_live_mutex);
+    g_last_face_dir_resolution = face_dir;
+    g_live_gate.set_player_face_dir_evidence(face_dir.face_dir);
     if (!g_live_gate.tick(
             game_tick,
             gameplay,
@@ -88,7 +94,10 @@ Snapshot live_snapshot() {
 
 std::string live_status_report() {
     std::lock_guard<std::mutex> lock(g_live_mutex);
-    return g_live_gate.status_report();
+    std::string report = g_live_gate.status_report();
+    report += tutorial_player_face_dir_provider::status_report(
+        g_last_face_dir_resolution);
+    return report;
 }
 
 }  // namespace nevergone::tutorial_attack_live_gate
