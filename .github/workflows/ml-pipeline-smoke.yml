@@ -38,6 +38,7 @@ jobs:
             tools/ml/classify_nevergone_hierarchy.py \
             tools/ml/classify_nevergone_hierarchy_with_role.py \
             tools/ml/select_nevergone_internal_test_corpus.py \
+            tools/ml/freeze_nevergone_unseen_corpus.py \
             tools/ml/augment_nevergone_function_roles.py \
             tools/ml/audit_nevergone_fresh_roles.py \
             tools/ml/mine_nevergone_function_families.py \
@@ -75,6 +76,7 @@ jobs:
             tools/ml/nevergone_classification_audit_smoke.py \
             tools/ml/nevergone_function_origin_smoke.py \
             tools/ml/nevergone_internal_test_corpus_smoke.py \
+            tools/ml/nevergone_frozen_validation_corpus_smoke.py \
             tools/ml/nevergone_hierarchical_router_smoke.py \
             tools/ml/nevergone_hierarchy_with_role_smoke.py \
             tools/ml/nevergone_function_role_smoke.py \
@@ -103,6 +105,8 @@ jobs:
         run: python tools/ml/nevergone_function_origin_smoke.py
       - name: Run internal test corpus selector smoke
         run: python tools/ml/nevergone_internal_test_corpus_smoke.py
+      - name: Run frozen validation corpus smoke
+        run: python tools/ml/nevergone_frozen_validation_corpus_smoke.py
       - name: Run hierarchical router smoke
         run: python tools/ml/nevergone_hierarchical_router_smoke.py
       - name: Run hierarchy with role smoke

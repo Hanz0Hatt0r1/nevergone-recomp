@@ -1,0 +1,39 @@
+name: Nevergone frozen unseen500 v10
+
+on:
+  push:
+    paths:
+      - 'tools/ml/freeze_nevergone_unseen_corpus.py'
+      - 'tools/ml/nevergone_frozen_validation_corpus_smoke.py'
+      - 'tools/ml/run_nevergone_frozen_unseen500_v10.sh'
+      - 'tools/ml/select_nevergone_internal_test_corpus.py'
+      - 'docs/ml/FROZEN_UNSEEN500_V10.md'
+      - '.github/workflows/ml-frozen-unseen-v10-smoke.yml'
+  pull_request:
+    paths:
+      - 'tools/ml/freeze_nevergone_unseen_corpus.py'
+      - 'tools/ml/nevergone_frozen_validation_corpus_smoke.py'
+      - 'tools/ml/run_nevergone_frozen_unseen500_v10.sh'
+      - 'tools/ml/select_nevergone_internal_test_corpus.py'
+      - 'docs/ml/FROZEN_UNSEEN500_V10.md'
+      - '.github/workflows/ml-frozen-unseen-v10-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-validation-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Python and shell syntax
+        run: |
+          python -m py_compile \
+            tools/ml/freeze_nevergone_unseen_corpus.py \
+            tools/ml/nevergone_frozen_validation_corpus_smoke.py
+          bash -n tools/ml/run_nevergone_frozen_unseen500_v10.sh
+      - name: Run frozen validation corpus smoke
+        run: python tools/ml/nevergone_frozen_validation_corpus_smoke.py
