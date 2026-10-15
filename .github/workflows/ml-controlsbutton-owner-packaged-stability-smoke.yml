@@ -1,0 +1,29 @@
+name: Nevergone ControlsButton packaged owner-field stability smoke
+
+on:
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_controlsbutton_owner_packaged_stability.py'
+      - 'tools/ml/nevergone_controlsbutton_owner_packaged_stability_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_owner_packaged_stability.sh'
+      - '.github/workflows/ml-controlsbutton-owner-packaged-stability-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/ml/audit_nevergone_controlsbutton_owner_packaged_stability.py'
+      - 'tools/ml/nevergone_controlsbutton_owner_packaged_stability_smoke.py'
+      - 'tools/ml/run_nevergone_controlsbutton_owner_packaged_stability.sh'
+      - '.github/workflows/ml-controlsbutton-owner-packaged-stability-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run fail-closed smoke
+        run: python3 tools/ml/nevergone_controlsbutton_owner_packaged_stability_smoke.py
+      - name: Check runner syntax
+        run: bash -n tools/ml/run_nevergone_controlsbutton_owner_packaged_stability.sh
