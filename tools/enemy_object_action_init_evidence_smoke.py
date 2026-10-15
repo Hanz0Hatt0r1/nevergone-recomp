@@ -33,16 +33,16 @@ def main() -> int:
         root = Path(tmp)
         sample = root / "sample.tsv"
         write_tsv(sample, [
-            ["002ae000", "002ae100", "0", "COPY", "def:002ae100:0:4",
+            ["002be000", "002be100", "0", "COPY", "def:002be100:0:4",
              "input:ram:00123456:4", "-", "-"],
-            ["002ae000", "002ae110", "0", "INT_ZEXT", "def:002ae110:0:4",
+            ["002be000", "002be110", "0", "INT_ZEXT", "def:002be110:0:4",
              "const:0x3:4", "-", "-"],
-            ["002ae000", "002ae120", "0", "CALL", "-",
-             "register:r4:4;def:002ae100:0:4;def:002ae110:0:4;const:0x0:4",
-             "002adcb0", "EnemyActionsSystem::initWithFile(char const*, int, int)"],
-            ["002ae000", "002ae130", "0", "CALL", "-",
-             "register:r5:4;const:0x3:4;const:0x1c:4;def:002ae100:0:4",
-             "0028ee34", "ActionDataManager::addActionDataWithID(int, int, char const*)"],
+            ["002be000", "002be120", "0", "CALL", "-",
+             "register:r4:4;def:002be100:0:4;def:002be110:0:4;const:0x0:4",
+             "002bdcb0", "EnemyActionsSystem::initWithFile(char const*, int, int)"],
+            ["002be000", "002be130", "0", "CALL", "-",
+             "register:r5:4;const:0x3:4;const:0x1c:4;def:002be100:0:4",
+             "0029ee34", "ActionDataManager::addActionDataWithID(int, int, char const*)"],
         ])
 
         calls = collect_call_evidence(read_rows(sample))
@@ -79,7 +79,7 @@ def main() -> int:
              "input:ram:00fedcba:4", "-", "-"],
             ["002bf000", "002bf040", "0", "CALL", "-",
              "register:r6:4;def:002bf020:0:4;const:0x3:4;const:0x0:4",
-             "002adcb0", "EnemyActionsSystem::initWithFile(char const*, int, int)"],
+             "002bdcb0", "EnemyActionsSystem::initWithFile(char const*, int, int)"],
         ])
         nested_calls = collect_call_evidence(read_rows(nested))
         assert status(nested_calls) == "structural-init-call-found"
@@ -89,19 +89,21 @@ def main() -> int:
         assert nested_calls[0].arguments[1].source.constants == (3,)
 
         # Exact-entry fallback remains usable when Ghidra has no symbol name.
+        # These fixtures intentionally use Ghidra image-space addresses, not
+        # the ELF file offsets documented in native disassembly notes.
         unnamed = root / "unnamed.tsv"
         write_tsv(unnamed, [[
-            "002ae000", "002ae200", "0", "CALL", "-",
-            "register:r4:4;input:ram:00abcdef:4", "002adcb0", "-",
+            "002be000", "002be200", "0", "CALL", "-",
+            "register:r4:4;input:ram:00abcdef:4", "002bdcb0", "-",
         ]])
-        by_entry = collect_call_evidence(read_rows(unnamed), init_entry="0x002adcb0")
+        by_entry = collect_call_evidence(read_rows(unnamed), init_entry="0x002bdcb0")
         assert status(by_entry) == "structural-init-call-found"
         assert len(by_entry) == 1
         assert by_entry[0].arguments[0].source.roots == ("input:ram:00abcdef:4",)
 
         no_init = root / "no-init.tsv"
         write_tsv(no_init, [[
-            "002ae000", "002ae300", "0", "CALL", "-",
+            "002be000", "002be300", "0", "CALL", "-",
             "register:r4:4", "00100000", "SomeOtherClass::method()",
         ]])
         assert status(collect_call_evidence(read_rows(no_init))) == "no-enemy-actions-init-call"
