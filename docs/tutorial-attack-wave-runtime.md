@@ -38,12 +38,27 @@ For the first recovered Attack wave:
 
 A game-tick regression fails closed.
 
+## Enemy callback identity
+
+When the roster begins, the runtime captures its non-zero `wave_generation`.
+That token is exposed in the runtime snapshot and must be retained alongside
+any materialized EnemyObject/slot binding. Damage, explicit death, enemy-state,
+and force-no-dead callbacks are accepted only when they carry the exact active
+wave token.
+
+This prevents a delayed callback from the completed Attack wave from mutating a
+reused slot in a later wave. Resetting the runtime clears the active token while
+`tutorial_enemy_roster` advances its internal generation, so the old token can
+never become valid again. Slot indices alone are therefore not treated as
+stable enemy identities.
+
 ## Completion edge
 
 The runtime never marks the lesson complete from time or input alone. Enemy
 health/death updates flow through `tutorial_enemy_roster`, and completion is
 created only when `Roster::consume_all_defeated()` confirms that every planned
-enemy was materialized and the recovered death predicate is true.
+enemy was materialized and the recovered death predicate is true for the same
+wave generation.
 
 `consume_completion()` exposes that result as a one-shot edge. It deliberately
 does not call `tutorial_gameplay_state::observe()` itself; the outer GL frame
@@ -71,5 +86,6 @@ providers that intentionally have no defaults:
 
 Once those providers are available, the frame boundary can resolve fresh
 `tutorial_spawn_inputs`, tick this runtime with `game_clock::tick_count()`,
-forward real combat damage/death state into its roster, and publish the one-shot
-Attack completion event.
+retain its `wave_generation` on each materialized enemy binding, forward real
+combat damage/death state with that token, and publish the one-shot Attack
+completion event.
