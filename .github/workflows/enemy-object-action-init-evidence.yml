@@ -46,9 +46,12 @@ jobs:
           grep -q 'loadEnemyObjectFile' /tmp/enemy-object-action-init-probe.txt
           grep -q 'ExportBoundedCallGraphPcodeFlow.java' /tmp/enemy-object-action-init-probe.txt
           grep -q 'ExportBoundedReverseCallGraphPcodeFlow.java' /tmp/enemy-object-action-init-probe.txt
+          grep -q 'EnemyActionsSystem::initWithFile' /tmp/enemy-object-action-init-probe.txt
           grep -q 'enemy_object_action_init_evidence.py' /tmp/enemy-object-action-init-probe.txt
           grep -q -- '-recursive' /tmp/enemy-object-action-init-probe.txt
-          grep -q '002adcb0' /tmp/enemy-object-action-init-probe.txt
-          grep -q '0028ee34' /tmp/enemy-object-action-init-probe.txt
           grep -q 'fallback only when the forward analyzer returns status 2' /tmp/enemy-object-action-init-probe.txt
           grep -q ' 4 96' /tmp/enemy-object-action-init-probe.txt
+          if grep -Eq '002adcb0|0028ee34' /tmp/enemy-object-action-init-probe.txt; then
+            echo 'ELF offsets leaked into default Ghidra probe command' >&2
+            exit 1
+          fi
