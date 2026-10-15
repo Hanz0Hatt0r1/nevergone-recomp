@@ -18,6 +18,17 @@ void Gate::set_review_bundle(const ReviewBundle& review) {
     ++generation_;
 }
 
+void Gate::set_player_face_dir_evidence(
+        const tutorial_spawn_inputs::ReviewedPlayerFaceDir& player_face_dir) {
+    if (review_.player_face_dir.reviewed == player_face_dir.reviewed &&
+            review_.player_face_dir.control_generation == player_face_dir.control_generation &&
+            review_.player_face_dir.value == player_face_dir.value) {
+        return;
+    }
+    review_.player_face_dir = player_face_dir;
+    ++generation_;
+}
+
 bool Gate::tick(
         std::uint64_t game_tick,
         const tutorial_gameplay_state::Snapshot& gameplay,
