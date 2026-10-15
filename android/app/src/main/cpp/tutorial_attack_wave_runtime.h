@@ -18,6 +18,7 @@ enum class Status {
     kActive,
     kClockRegression,
     kCompletionPending,
+    kCompleted,
 };
 
 struct Snapshot {
@@ -26,6 +27,7 @@ struct Snapshot {
     std::uint64_t start_game_tick = 0;
     std::uint64_t last_game_tick = 0;
     bool wave_started = false;
+    bool wave_completed = false;
     bool completion_pending = false;
     tutorial_enemy_roster::Snapshot roster{};
 };
@@ -52,7 +54,8 @@ public:
 
     // One-shot edge for the outer LessonLayer integration. Calling this never
     // mutates tutorial_gameplay_state directly; the frame boundary may publish
-    // kTutorialEnemiesDefeated after consuming the edge.
+    // kTutorialEnemiesDefeated after consuming the edge. Completion remains
+    // latched until the gameplay step actually leaves Attack.
     bool consume_completion();
 
     Snapshot snapshot() const;
@@ -71,6 +74,7 @@ private:
     std::uint64_t start_game_tick_ = 0;
     std::uint64_t last_game_tick_ = 0;
     bool wave_started_ = false;
+    bool wave_completed_ = false;
     bool completion_pending_ = false;
 };
 
