@@ -19,7 +19,7 @@ struct Snapshot {
     std::uint32_t desired_action_state = kInitialActionState;
     std::uint64_t desired_revision = 0;
     std::uint64_t loaded_revision = 0;
-    std::uint64_t observed_tutorial_event_count = 0;
+    std::uint64_t observed_tutorial_jump_request_count = 0;
     std::uint64_t accepted_tutorial_jump_count = 0;
     std::uint64_t rejected_tutorial_jump_count = 0;
     std::uint64_t observed_function_generation = 0;
@@ -36,14 +36,17 @@ void reset();
 
 // Starts/restarts the reconstructed MEPlayer action boundary for one concrete
 // player spawn. The already recovered initial player action is state 0x1b
-// (action28 in pNN_actions.plist).
-bool sync_spawn(std::uint64_t spawn_generation, std::uint64_t tutorial_event_count);
+// (action28 in pNN_actions.plist). The request count is seeded so stale C taps
+// from a previous spawn cannot replay into the new player instance.
+bool sync_spawn(
+    std::uint64_t spawn_generation,
+    std::uint64_t tutorial_jump_request_count);
 
-// Observes semantic action-input progress. tutorial_event_count is incremented
-// by game_scene_action_input only when the interactive C/jump tap actually
-// advances the recovered tutorial Jump step, so this survives a fast tap that
-// begins and ends between rendered frames.
-bool observe_tutorial_event_count(std::uint64_t tutorial_event_count);
+// Consume accepted C/jump requests from game_scene_action_input. A new request
+// queues the recovered tutorial jump MEPLAYERSTATE 0x20 only while the currently
+// loaded action is the initial 0x1b state.
+bool observe_tutorial_jump_request_count(
+    std::uint64_t tutorial_jump_request_count);
 
 // Consumes the edge of the reconstructed Controls +0x118 function-state stream.
 bool observe_base_function_state(
