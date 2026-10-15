@@ -237,6 +237,17 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
 
     maybe_stage_tutorial_dialogue_assets(env);
     nevergone::tutorial_dialogue_runtime::tick();
+    const auto dialogue_after_tick = nevergone::tutorial_dialogue_runtime::snapshot();
+    if (dialogue_after_tick.stage ==
+                nevergone::tutorial_dialogue_runtime::Stage::kLessonInterlude &&
+            nevergone::tutorial_session_state::snapshot().phase ==
+                nevergone::tutorial_session_state::Phase::kDialogue) {
+        // Original dialogEndCallBack(1) immediately tail-calls showDialogue().
+        // That function exposes the lesson controls; dialogue 9 is scheduled
+        // much later from lesson step 12 after enemyNullCount()==0. Do not keep
+        // the entire lesson interlude trapped behind the modal Dialogue phase.
+        (void)nevergone::tutorial_session_state::on_dialogue_complete();
+    }
     (void)nevergone::tutorial_dialogue_runtime::draw();
 
     maybe_stage_tutorial_loading_assets(env);
@@ -266,9 +277,8 @@ void wrapped_native_touch(
     }
     if (tutorial.phase == nevergone::tutorial_session_state::Phase::kLoading ||
             tutorial.phase == nevergone::tutorial_session_state::Phase::kDialogue) {
-        // Guide dialogue 8 is auto_play=true. Touches stay modal and cannot
-        // leak to gameplay while either the dialogue or lesson interlude owns
-        // the coarse Dialogue phase.
+        // Guide dialogue 8 is auto_play=true. Only the actual dialogue remains
+        // modal; its callback immediately hands control to the lesson runtime.
         nevergone::game_scene_action_surface_input::cancel_all_captures();
         return;
     }

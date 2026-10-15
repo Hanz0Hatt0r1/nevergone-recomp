@@ -14,17 +14,25 @@ LessonLayer::menuContinueCallback()
   -> GameSceneUI::showDialogueUI("Guide/guide_text.plist", 8, ..., tag=1)
   -> LessonLayer::dialogEndCallBack(1)
   -> LessonLayer::showDialogue()
-  -> ... lesson interlude callbacks ...
-  -> secondDlgCallBack(...)
+  -> interactive lesson callbacks / nextLesson(...)
+  -> lesson step 12 + BattleManager::enemyNullCount()==0
+  -> scheduleOnce(secondDlgCallBack, 2.0f)
   -> GameSceneUI::showDialogueUI("Guide/guide_text.plist", 9, ..., tag=2)
   -> LessonLayer::dialogEndCallBack(2)
-  -> tutorial gameplay continuation
+  -> final tutorial continuation
 ```
 
-Consequently dialogue 8 completion is **not** the coarse tutorial Dialogue
-completion boundary. It must enter a retained lesson-interlude substate. Only
-the later dialogue 9/tag-2 callback may eventually publish
-`tutorial_session_state::on_dialogue_complete()`.
+`dialogEndCallBack(1)` is a direct tail-call into `showDialogue()`. It does not
+leave the whole lesson interlude behind a modal DialogueUI. `showDialogue()`
+selectively exposes the joystick/action controls for the recovered lesson
+steps, so completion of guide dialogue 8 is the evidence-backed boundary where
+the coarse preservation session must enter its interactive tutorial phase.
+
+Dialogue 9 is a separate late boundary. The original `nextLesson(MEPLAYERSTATE)`
+checks lesson step `12`; only when `BattleManager::enemyNullCount()` returns zero
+does it schedule `secondDlgCallBack(float)` through `CCNode::scheduleOnce()`.
+The recovered delay argument is exactly `2.0f`. This must not be replaced by an
+immediate post-dialogue-8 transition or a fabricated generic timer.
 
 ## Imported guide plist
 
@@ -51,8 +59,8 @@ localized text from the user-imported localization table; no translated string
 is embedded in project source.
 
 Dialogue 9 contains six later entries (`FGSub4` through `FGSub9`). It remains a
-separate reconstruction boundary because the original `LessonLayer::showDialogue()`
-interlude executes between ID 8 and ID 9.
+separate reconstruction boundary because the interactive `LessonLayer` sequence
+executes between ID 8 and ID 9.
 
 ## GameConversation resource and layout contract
 
@@ -95,7 +103,7 @@ to the visible width. Name/content labels use Arial 23/20; content is bounded to
 
 ## Reconstructed ID-8 runtime
 
-`tutorial_dialogue_runtime` now begins only after the recovered LessonOverlay
+`tutorial_dialogue_runtime` begins only after the recovered LessonOverlay
 Continue callback has moved the coarse session into `Dialogue`. The Android
 loader:
 
@@ -116,8 +124,18 @@ whose imported flags request them. The first functional implementation renders
 complete localized line text rather than reproducing the original progressive
 typewriter reveal; exact glyph-by-glyph timing remains a visual-fidelity task.
 
-After the third line the runtime enters `lesson-interlude` and keeps modal input
-blocked. It deliberately does not manufacture the interlude, dialogue 9, or an
-Interactive transition. Runtime diagnostics expose stage, dialogue/line index,
-asset readiness, timing and successful frame counters so the next device run
-can identify the next boundary explicitly.
+After the third line the dialogue runtime retains `lesson-interlude` as its
+fine-grained stage, but the Android frame integration immediately publishes the
+existing `tutorial_session_state::on_dialogue_complete()` transition. That
+moves the coarse session from `Dialogue` to `Interactive`, advances
+`tutorial_gameplay_state` from `Dialogue` to `Run`, and unblocks the recovered
+gameplay controls on the following frame. This mirrors the original
+`dialogEndCallBack(1) -> showDialogue()` handoff without inventing a delay.
+
+The later guide dialogue 9 is intentionally not started by this handoff. Its
+known trigger is the recovered step-12 / zero-enemy condition plus the exact
+2.0-second `scheduleOnce(secondDlgCallBack, ...)` delay. Wiring that terminal
+modal dialogue belongs with the remaining combat/tutorial outcome integration.
+Runtime diagnostics continue to expose the dialogue stage, line index, asset
+readiness, timing and successful frame counters so real-device evidence can
+identify the next boundary explicitly.
