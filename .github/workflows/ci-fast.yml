@@ -24,6 +24,9 @@ jobs:
       - name: Validate Python tools
         run: python3 -m compileall -q tools
 
+      - name: Validate GameLevels enemy record evidence extractor
+        run: python3 tools/game_levels_enemy_record_evidence_smoke.py
+
       - name: Validate local resource indexer
         run: python3 tools/resource_index_smoke.py
 
