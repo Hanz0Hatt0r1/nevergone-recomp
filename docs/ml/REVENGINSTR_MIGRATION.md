@@ -13,7 +13,8 @@ The preferred external core now owns:
 - cross-project monotone OOD guard;
 - callgraph metrics;
 - mass receiver-plan construction;
-- bounded indirect-call receiver/type acquisition.
+- bounded indirect-call receiver/type acquisition;
+- receiver class/vtable identity matching from conservative type evidence and a consumer-owned catalog.
 
 `run_nevergone_production_classifier_v51.sh` auto-detects a sibling
 `../revenginstr` clone or accepts:
@@ -22,20 +23,23 @@ The preferred external core now owns:
 export REVENGINSTR_REPO=/path/to/revenginstr
 ```
 
-When available it delegates callgraph extraction and receiver-plan creation to the
-generic package. Historical Nevergone scripts remain compatibility fallbacks while
-retained outputs are compared.
+When available it delegates callgraph extraction, receiver-plan creation and mass
+receiver identity inference to the generic package. The generic result
+`REVENGINSTR.ReceiverInference/1` is converted by a thin Nevergone compatibility
+adapter to the historical v5 evidence format. Historical Nevergone algorithms
+remain temporary fallback paths until retained-output equivalence is frozen.
 
 ## Still Nevergone-specific
 
-The following remain in this repository until their project assumptions are
-removed:
+The following remain in this repository because they are consumer data, semantic
+knowledge or experiment lineage rather than reusable mechanism:
 
 - seed-label rules and Cocos class identities;
-- static vtable catalog interpretation tied to current Nevergone formats;
-- class/vtable receiver inference compatibility layer;
+- current vtable-slot export/catalog data and Nevergone catalog format;
+- compatibility adapter for the historical receiver-inference format;
 - production classifier experiment lineage (v4/v5.x/v9/v10);
 - frozen Nevergone datasets and validation evidence.
 
-The next extraction boundary is receiver class/vtable inference, followed by
-family/grouped evaluation and generic production model packaging.
+The next extraction boundaries are shared evidence aggregation, family/grouped
+validation utilities and generic production model packaging. The Cocos/FFmpeg
+labels and Nevergone ground truth stay here.
