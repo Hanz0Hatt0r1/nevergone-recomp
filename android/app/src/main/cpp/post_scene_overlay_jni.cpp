@@ -12,6 +12,7 @@
 #include "game_scene_action_compositor.h"
 #include "game_scene_action_surface_input.h"
 #include "game_scene_direct_renderer.h"
+#include "game_scene_player_joystick_input.h"
 #include "offline_startup_flow.h"
 #include "scene_actions_gles_compositor.h"
 #include "server_selection_compositor.h"
@@ -263,6 +264,7 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     if (loading_route.route == nevergone::offline_startup_flow::Route::kTutorialLoading) {
         nevergone::tutorial_scene_bootstrap::on_loading_frame_presented();
     }
+    nevergone::game_scene_player_joystick_input::record_frame_sample(controls_allowed);
 }
 
 void wrapped_native_touch(
@@ -272,6 +274,11 @@ void wrapped_native_touch(
         jint pointer_id,
         jfloat x,
         jfloat y) {
+    if (gameplay_controls_allowed()) {
+        nevergone::game_scene_player_joystick_input::record_input_event(
+            static_cast<int>(action), static_cast<int>(pointer_id),
+            static_cast<float>(x), static_cast<float>(y));
+    }
     const auto tutorial = nevergone::tutorial_session_state::snapshot();
     if (tutorial.phase == nevergone::tutorial_session_state::Phase::kLessonOverlay) {
         (void)nevergone::tutorial_lesson_overlay::on_touch(

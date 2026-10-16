@@ -64,6 +64,10 @@ bool on_touch(
 // and the corresponding playerMoveValue() movement state are advanced together.
 void tick();
 
+// Keep bounded per-render and raw-touch history for original-client comparison.
+void record_frame_sample(bool controls_allowed);
+void record_input_event(int action, int pointer_id, float surface_x, float surface_y);
+
 // Releases the live pointer and neutralizes the joystick sample while retaining
 // facing and the native short-lived direction-combo window needed for a second
 // same-direction tap.

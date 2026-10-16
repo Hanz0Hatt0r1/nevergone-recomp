@@ -1,9 +1,13 @@
 #include "game_scene_player_joystick_input.h"
 
 #include <cmath>
+#include <atomic>
+#include <deque>
+#include <iomanip>
 #include <mutex>
 #include <sstream>
 
+#include "controls_function_state_runtime.h"
 #include "game_clock.h"
 #include "game_scene_player_motion_state.h"
 #include "minimal_runtime_save_runtime.h"
@@ -25,6 +29,11 @@ constexpr int kActionPointerUp = 6;
 
 std::mutex g_mutex;
 Snapshot g_snapshot;
+std::mutex g_trace_mutex;
+std::deque<std::string> g_trace;
+std::atomic<std::uint64_t> g_trace_frame{0};
+std::uint64_t g_trace_sequence = 0;
+constexpr std::size_t kMaxTraceRows = 512;
 
 bool finite(float value) {
     return std::isfinite(value);
@@ -144,6 +153,49 @@ void update_horizontal_combo_locked(float angle_degrees, std::uint64_t game_tick
 }
 
 }  // namespace
+
+void record_frame_sample(bool controls_allowed) {
+    if (!controls_allowed) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(g_trace_mutex);
+    const std::uint64_t render_frame =
+        g_trace_frame.fetch_add(1, std::memory_order_relaxed) + 1;
+    const std::uint64_t game_tick = game_clock::tick_count();
+    const auto motion = game_scene_player_motion_state::snapshot();
+    const Snapshot joystick = snapshot();
+    const auto control = player_control_runtime_state::snapshot();
+    const auto function = controls_function_state_runtime::snapshot();
+    const auto lesson = tutorial_gameplay_state::snapshot();
+
+    std::ostringstream row;
+    row << "U " << render_frame << ' ' << game_tick << ' '
+        << 1 << ' ' << (joystick.captured ? 1 : 0) << ' '
+        << joystick.pointer_id << " 0x" << std::hex << joystick.direction_combo_state
+        << ' ' << (joystick.direction_combo_released ? 1 : 0)
+        << " 0x" << joystick.movement_action_state << std::dec << ' '
+        << (control.primary_state.has_value()
+                ? static_cast<int>(*control.primary_state) : 0)
+        << ' ' << (control.flip_x ? 1 : 0) << " 0x" << std::hex
+        << function.function_state << std::dec << ' '
+        << motion.applied_steps << ' ' << std::setprecision(7)
+        << motion.offset_x << ' ' << motion.offset_y << ' '
+        << tutorial_gameplay_state::step_name(lesson.step);
+    g_trace.push_back(std::to_string(++g_trace_sequence) + " " + row.str());
+    if (g_trace.size() > kMaxTraceRows) g_trace.pop_front();
+}
+
+void record_input_event(int action, int pointer_id, float surface_x, float surface_y) {
+    std::lock_guard<std::mutex> lock(g_trace_mutex);
+    std::ostringstream row;
+    row << "I " << g_trace_frame.load(std::memory_order_relaxed) << ' '
+        << game_clock::tick_count() << ' '
+        << action << ' ' << pointer_id << ' ' << std::setprecision(7)
+        << surface_x << ' ' << surface_y;
+
+    g_trace.push_back(std::to_string(++g_trace_sequence) + " " + row.str());
+    if (g_trace.size() > kMaxTraceRows) g_trace.pop_front();
+}
 
 bool surface_to_design(
         int surface_width,
@@ -318,6 +370,12 @@ std::string status_report() {
     out << "movement action state: 0x" << std::hex << state.movement_action_state << std::dec << "\n";
     out << "fast reactivations: " << state.fast_reactivation_count << "\n";
     out << game_scene_player_motion_state::status_report();
+    {
+        std::lock_guard<std::mutex> lock(g_trace_mutex);
+        out << "Player tick trace (seq kind frame game_tick; U then controls_allowed captured pointer combo released move_action primary flip function steps x y lesson; I then action pointer x y)\n";
+        out << "retained rows: " << g_trace.size() << "\n";
+        for (const auto& row : g_trace) out << row << "\n";
+    }
     out << nevergone::minimal_runtime_save_runtime::status_report();
     return out.str();
 }
