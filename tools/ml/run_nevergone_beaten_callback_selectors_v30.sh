@@ -8,6 +8,8 @@ set -euo pipefail
 : "${REPO_ROOT:=$PWD}"
 : "${WORK_ROOT:=$HOME/.cache/nevergone-recomp/receiver-provenance}"
 : "${SKIP_GHIDRA_EXPORT:=0}"
+DEFAULT_REVENGINSTR="$(cd "$REPO_ROOT/.." && pwd)/revenginstr"
+REVENGINSTR_REPO=${REVENGINSTR_REPO:-$DEFAULT_REVENGINSTR}
 
 EVID="$WORK_ROOT/evidence/beaten-callback-selectors-v30"
 PCODE="$WORK_ROOT/evidence/residual-closure-v24/pcode/pcode-002a3e94.tsv"
@@ -20,10 +22,20 @@ mkdir -p "$EVID"
 
 if [[ "$SKIP_GHIDRA_EXPORT" != 1 ]]; then
   [[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }
-  "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
-    -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-    -scriptPath "$REPO_ROOT/tools/ghidra" \
-    -postScript ExportFunctionOperands.java 002a3e94 "$EVID/operands-002a3e94.tsv"
+  if [[ -f "$REVENGINSTR_REPO/ghidra/ExportGhidraFunctionOperands.java" ]]; then
+    GENERIC_OPERANDS="$EVID/generic-operands-002a3e94.jsonl"
+    "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
+      -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
+      -scriptPath "$REVENGINSTR_REPO/ghidra;$REPO_ROOT/tools/ghidra" \
+      -postScript ExportGhidraFunctionOperands.java 002a3e94 "$GENERIC_OPERANDS"
+    python3 "$REPO_ROOT/tools/ml/adapt_revenginstr_function_operands.py" \
+      "$GENERIC_OPERANDS" "$EVID/operands-002a3e94.tsv"
+  else
+    "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
+      -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
+      -scriptPath "$REPO_ROOT/tools/ghidra" \
+      -postScript ExportFunctionOperands.java 002a3e94 "$EVID/operands-002a3e94.tsv"
+  fi
   for spec in \
     'selector-addresses.tsv 0069ae6e 0069ad18 002a4178 002a4180' \
     'selector-cells.tsv 0093ede4 0093ede8' \
