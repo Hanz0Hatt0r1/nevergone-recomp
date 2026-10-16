@@ -37,6 +37,24 @@ position, and tutorial step. The fixed-clock tick can repeat across render
 updates or advance by more than one during catch-up; the trace preserves that
 fact instead of inventing intermediate states.
 
+Live parity check on the Redmi Note 8 Pro, 2026-10-16: two rightward swipes
+were sent as separate DOWN/MOVE/UP events with 50 ms spacing so the GL update
+thread could sample the stick between events. The first swipe held normal
+direction state `0x13`; after release, the next update of the second swipe
+latched direction state `0x11` and movement action `0x1`. Fast reactivation
+count became 1, control state remained `0x13`, and the run lesson advanced to
+jump. During that fast update, the player offset changed from x `234.275` to
+`334.275` across five applied updates. This matches the original capture's
+frame-195 `0x11`/action-`0x1`/`movePlayer` transition. The prior single-command
+ADB swipe queued its move events between GL samples and could not reproduce the
+original tick ordering.
+
+Touch coordinates depend on the diagnostic panel's layout. With the panel
+hidden, the GL surface measured `2264x902` and the stick center mapped to screen
+`(483,658)`; with the panel open, the surface measured `2264x541` and the same
+center mapped to `(483,395)`. Perform gameplay gestures with the panel hidden,
+then open and refresh diagnostics to read the retained trace.
+
 Save a runtime diagnostics dump with the existing Android evidence workflow,
 then extract the recomp side to CSV:
 

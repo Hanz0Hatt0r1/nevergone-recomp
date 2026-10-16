@@ -1,0 +1,10 @@
+runtime,frame,game_tick,direction_combo,control_state,action_state,joystick_captured,applied_steps,offset_x,tutorial_step,movement_evidence
+original,188,188,0x0,0x0,,,,,,first swipe joystick update
+original,189,189,0x13,0x13,0x0,,,,,one MEPlayer::movePlayer call
+original,194,194,0x13,0x0,,,,,,second swipe joystick update
+original,195,195,0x11,0x13,0x1,,,,,one MEPlayer::movePlayer call
+original,196,196,0x11,0x13,,,,,,one MEPlayer::movePlayer call
+recomp,42438,26161,0x13,0x13,0x0,yes,5,186.275,run,normal movement after first swipe
+recomp,42450,26167,0x13,0x13,0x0,no,11,234.275,run,first swipe released; combo retained
+recomp,42451,26172,0x11,0x13,0x1,yes,16,334.275,jump,fast_reactivations=1; run lesson advanced
+recomp,42452,26177,0x11,0x13,0x0,no,16,334.275,jump,fast run remains visible after release
