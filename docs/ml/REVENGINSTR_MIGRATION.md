@@ -106,9 +106,11 @@ Frozen-set **mechanism** is now generic, while Nevergone retains the actual froz
 bytes, labels/absence of labels, origin policy and experiment history.
 
 Nevergone's historical corpus format is adapted by changing only the outer P-code
-format identifier to `REVENGINSTR.PcodeCorpus/1`. Nevergone itself emits an
-eligibility trace using `nevergone_function_origin.py`, so its narrow `_INIT/_FINI`
-runtime-scaffold policy does not leak into the common validation package.
+format identifier to `REVENGINSTR.PcodeCorpus/1`. New frozen exports delegate to
+the shared Ghidra exporter and already use that format; the adapter accepts both
+versions. Nevergone itself emits an eligibility trace using
+`nevergone_function_origin.py`, so its narrow `_INIT/_FINI` runtime-scaffold policy
+does not leak into the common validation package.
 
 A new generic frozen generation is intentionally distinct from the old v10 set:
 

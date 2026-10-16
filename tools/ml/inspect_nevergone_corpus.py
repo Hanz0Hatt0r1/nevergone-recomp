@@ -29,6 +29,7 @@ def header_value(text: str, key: str) -> str:
 
 def summarize(path: Path) -> dict[str, Any]:
     stats: Counter = Counter()
+    formats: set[str] = set()
     architectures: Counter = Counter()
     callconvs: Counter = Counter()
     op_counts: list[int] = []
@@ -37,11 +38,16 @@ def summarize(path: Path) -> dict[str, Any]:
 
     for row in dataset.read_jsonl(path):
         stats["rows"] += 1
-        if row.get("format") != dataset.CORPUS_FORMAT:
+        row_format = row.get("format")
+        if (
+            not isinstance(row_format, str)
+            or row_format not in dataset.SUPPORTED_CORPUS_FORMATS
+        ):
             raise ValueError(
-                f"unsupported corpus format {row.get('format')!r}; "
-                f"expected {dataset.CORPUS_FORMAT}"
+                f"unsupported corpus format {row_format!r}; "
+                f"expected one of {sorted(dataset.SUPPORTED_CORPUS_FORMATS)}"
             )
+        formats.add(row_format)
         status = row.get("decompile_status")
         if status != "ok":
             stats["failed"] += 1
@@ -75,7 +81,10 @@ def summarize(path: Path) -> dict[str, Any]:
             stats["truncated"] += 1
 
     return {
-        "format": dataset.CORPUS_FORMAT,
+        "format": next(iter(formats))
+        if len(formats) == 1
+        else ("mixed" if formats else "unknown"),
+        "corpus_formats": sorted(formats),
         "path": str(path),
         "rows": stats["rows"],
         "ok": stats["ok"],

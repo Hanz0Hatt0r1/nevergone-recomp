@@ -16,9 +16,16 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
     path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
 
 
-def corpus_row(entry: str, name: str, *, external: bool = False, status: str = "ok") -> dict:
+def corpus_row(
+    entry: str,
+    name: str,
+    *,
+    external: bool = False,
+    status: str = "ok",
+    corpus_format: str = "NEVERGONE.MlPcodeCorpus/2",
+) -> dict:
     row = {
-        "format": "NEVERGONE.MlPcodeCorpus/2",
+        "format": corpus_format,
         "program": "libcocos2dcpp.so",
         "source_entry": entry,
         "source_name": name,
@@ -96,7 +103,7 @@ def main() -> int:
             source,
             [
                 corpus_row("00100000", "GameScene::update(float)"),
-                corpus_row("00100010", "_FINI_0"),
+                corpus_row("00100010", "_FINI_0", corpus_format="REVENGINSTR.PcodeCorpus/1"),
                 corpus_row("00100020", "<EXTERNAL>::puts", external=True),
                 corpus_row("00100030", "FUN_00100030", status="failed"),
             ],

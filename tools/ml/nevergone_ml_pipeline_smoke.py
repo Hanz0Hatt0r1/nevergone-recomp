@@ -28,10 +28,10 @@ ENGINE_TEXT = (
 )
 
 
-def write_corpus(path: Path) -> None:
+def write_corpus(path: Path, corpus_format: str = dataset.CORPUS_FORMAT) -> None:
     rows = [
         {
-            "format": "NEVERGONE.MlPcodeCorpus/2",
+            "format": corpus_format,
             "program": "libcocos2dcpp.so",
             "source_entry": "00100000",
             "source_name": "EnemyActionsData::loadWBGFile(char const*)",
@@ -67,7 +67,7 @@ def write_corpus(path: Path) -> None:
             ),
         },
         {
-            "format": "NEVERGONE.MlPcodeCorpus/2",
+            "format": corpus_format,
             "program": "libcocos2dcpp.so",
             "source_entry": "00100100",
             "source_name": "cocos2d::CCNode::visit()",
@@ -77,7 +77,7 @@ def write_corpus(path: Path) -> None:
             "model_text": ENGINE_TEXT,
         },
         {
-            "format": "NEVERGONE.MlPcodeCorpus/2",
+            "format": corpus_format,
             "program": "libcocos2dcpp.so",
             "source_entry": "00100120",
             "source_name": "cocos2d::CCNode::draw()",
@@ -87,7 +87,7 @@ def write_corpus(path: Path) -> None:
             "model_text": ENGINE_TEXT,
         },
         {
-            "format": "NEVERGONE.MlPcodeCorpus/2",
+            "format": corpus_format,
             "program": "libcocos2dcpp.so",
             "source_entry": "00100200",
             "source_name": "UnknownThing::helper()",
@@ -112,7 +112,7 @@ def write_corpus(path: Path) -> None:
             ),
         },
         {
-            "format": "NEVERGONE.MlPcodeCorpus/2",
+            "format": corpus_format,
             "program": "libcocos2dcpp.so",
             "source_entry": "00100300",
             "source_name": "Broken::function()",
@@ -144,10 +144,13 @@ def main() -> int:
         work = Path(temporary)
         functions = work / "functions.tsv.gz"
         corpus = work / "corpus.jsonl"
+        generic_corpus = work / "generic-corpus.jsonl"
         labels = work / "labels.jsonl"
         out = work / "dataset"
+        generic_out = work / "generic-dataset"
         write_functions(functions)
         write_corpus(corpus)
+        write_corpus(generic_corpus, dataset.GENERIC_CORPUS_FORMAT)
 
         seed_report = seed.generate(
             functions,
@@ -171,6 +174,12 @@ def main() -> int:
         assert report["unlabelled_usable_functions"] == 1
         assert report["policy"]["unlabelled_becomes_negative"] is False
         assert report["policy"]["split_is_deterministic_by_exact_structure"] is True
+
+        generic_report = dataset.build_dataset(generic_corpus, labels, generic_out)
+        assert generic_report["corpus_format"] == dataset.GENERIC_CORPUS_FORMAT
+        assert generic_report["corpus_formats"] == [dataset.GENERIC_CORPUS_FORMAT]
+        assert generic_report["labelled_functions"] == report["labelled_functions"]
+        assert generic_report["emitted_functions"] == report["emitted_functions"]
 
         emitted = []
         for split in ("train", "validation", "test"):

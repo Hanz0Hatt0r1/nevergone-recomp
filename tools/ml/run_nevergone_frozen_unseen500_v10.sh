@@ -40,6 +40,9 @@ DRIFT_SUMMARY="$OUT/drift-summary.json"
 VTABLE_SLOTS="$NGML/receiver-v5.1/vtable-slots.tsv.gz"
 VTABLE_CATALOG="$NGML/receiver-v5.1/static-vtable-slot-catalog.jsonl"
 LOG_DIR="$NGML/logs"
+REVENGINSTR_REPO="${REVENGINSTR_REPO:-$ROOT/../revenginstr}"
+SHARED_PCODE_RUNNER="$REVENGINSTR_REPO/scripts/run_ghidra_pcode_export.sh"
+LEGACY_PCODE_EXPORTER="$SCRIPT_PATH/ExportMlPcodeCorpus.java"
 
 for required in \
   "$TRAINING_DATASET/train.jsonl" \
@@ -53,11 +56,14 @@ for required in \
   "$ROUTER_MANIFEST" \
   "docs/ghidra/full-index/libcocos2dcpp.functions.tsv.gz" \
   "docs/ghidra/full-index/libcocos2dcpp.calls.tsv.gz" \
-  "$SCRIPT_PATH/ExportMlPcodeCorpus.java" \
   "$SCRIPT_PATH/ExportIndirectCallReceiverTypes.java"; do
   [[ -f "$required" ]] || { echo "missing: $required" >&2; exit 2; }
 done
 [[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }
+if [[ ! -f "$SHARED_PCODE_RUNNER" && ! -f "$LEGACY_PCODE_EXPORTER" ]]; then
+  echo "missing shared and legacy P-code exporters" >&2
+  exit 2
+fi
 
 mkdir -p "$OUT" "$LOG_DIR"
 
@@ -65,14 +71,23 @@ freeze_export() {
   local max_functions="$1"
   echo "== frozen unseen: export up to $max_functions functions =="
   rm -f "$SOURCE"
-  "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
-    -process "$GHIDRA_PROGRAM" \
-    -recursive \
-    -readOnly \
-    -noanalysis \
-    -scriptPath "$SCRIPT_PATH" \
-    -postScript ExportMlPcodeCorpus.java "$SOURCE" "$max_functions" \
-    2>&1 | tee "$LOG_DIR/v10-frozen-unseen-export.log"
+  if [[ -f "$SHARED_PCODE_RUNNER" ]]; then
+    echo "using revenginstr P-code exporter: $SHARED_PCODE_RUNNER"
+    GHIDRA_HOME="$GHIDRA_HOME" bash "$SHARED_PCODE_RUNNER" \
+      "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" "$GHIDRA_PROGRAM" \
+      "$SOURCE" "$max_functions" \
+      2>&1 | tee "$LOG_DIR/v10-frozen-unseen-export.log"
+  else
+    echo "using legacy local P-code exporter"
+    "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
+      -process "$GHIDRA_PROGRAM" \
+      -recursive \
+      -readOnly \
+      -noanalysis \
+      -scriptPath "$SCRIPT_PATH" \
+      -postScript ExportMlPcodeCorpus.java "$SOURCE" "$max_functions" \
+      2>&1 | tee "$LOG_DIR/v10-frozen-unseen-export.log"
+  fi
 }
 
 if [[ "$V10_REFRESH_FROZEN" == "1" ]]; then

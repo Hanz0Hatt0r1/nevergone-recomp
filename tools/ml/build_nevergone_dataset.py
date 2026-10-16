@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Build leakage-resistant ML splits from a local Nevergone P-code corpus.
+"""Build leakage-resistant ML splits from a Nevergone P-code corpus.
 
-The corpus is produced by tools/ghidra/ExportMlPcodeCorpus.java. Labels are
-explicit evidence records. Unlabelled functions are never converted into a
-negative/"other" class automatically.
+Labels are explicit evidence records. Unlabelled functions are never converted
+into a negative/"other" class automatically.
 """
 from __future__ import annotations
 
@@ -16,6 +15,8 @@ from typing import Any, Iterable
 
 FORMAT = "NEVERGONE.MlDataset/2"
 CORPUS_FORMAT = "NEVERGONE.MlPcodeCorpus/2"
+GENERIC_CORPUS_FORMAT = "REVENGINSTR.PcodeCorpus/1"
+SUPPORTED_CORPUS_FORMATS = frozenset((CORPUS_FORMAT, GENERIC_CORPUS_FORMAT))
 MAX_MODEL_OP_LINES = 256
 REQUIRED_MODEL_HEADERS = (
     "ARCH=",
@@ -117,18 +118,25 @@ def validate_model_text(row: dict[str, Any], text: str) -> None:
         )
 
 
-def load_corpus(path: Path) -> tuple[dict[tuple[str, str], dict[str, Any]], dict[tuple[str, str], list[tuple[str, str]]], Counter]:
+def load_corpus(path: Path) -> tuple[
+    dict[tuple[str, str], dict[str, Any]],
+    dict[tuple[str, str], list[tuple[str, str]]],
+    Counter,
+    set[str],
+]:
     by_entry: dict[tuple[str, str], dict[str, Any]] = {}
     by_name: dict[tuple[str, str], list[tuple[str, str]]] = defaultdict(list)
     stats: Counter = Counter()
+    formats: set[str] = set()
     for row in read_jsonl(path):
         stats["rows"] += 1
         row_format = row.get("format")
-        if row_format != CORPUS_FORMAT:
+        if not isinstance(row_format, str) or row_format not in SUPPORTED_CORPUS_FORMATS:
             raise ValueError(
-                f"unsupported corpus format {row_format!r}; expected {CORPUS_FORMAT}. "
-                "Re-export with the current ExportMlPcodeCorpus.java."
+                f"unsupported corpus format {row_format!r}; "
+                f"expected one of {sorted(SUPPORTED_CORPUS_FORMATS)}"
             )
+        formats.add(row_format)
         if row.get("decompile_status") != "ok":
             stats["decompile_failed"] += 1
             continue
@@ -149,7 +157,7 @@ def load_corpus(path: Path) -> tuple[dict[tuple[str, str], dict[str, Any]], dict
         metrics = row.get("metrics")
         if isinstance(metrics, dict) and metrics.get("truncated") is True:
             stats["truncated"] += 1
-    return by_entry, by_name, stats
+    return by_entry, by_name, stats, formats
 
 
 def resolve_label_target(
@@ -186,7 +194,7 @@ def resolve_label_target(
 
 
 def build_dataset(corpus_path: Path, labels_path: Path, output_dir: Path) -> dict[str, Any]:
-    by_entry, by_name, corpus_stats = load_corpus(corpus_path)
+    by_entry, by_name, corpus_stats, corpus_formats = load_corpus(corpus_path)
 
     labels_by_key: dict[tuple[str, str], dict[str, str]] = defaultdict(dict)
     weights_by_key: dict[tuple[str, str], dict[str, float]] = defaultdict(dict)
@@ -281,9 +289,16 @@ def build_dataset(corpus_path: Path, labels_path: Path, output_dir: Path) -> dic
             handle.close()
         trace.close()
 
+    sorted_corpus_formats = sorted(corpus_formats)
+    corpus_format = (
+        sorted_corpus_formats[0]
+        if len(sorted_corpus_formats) == 1
+        else ("mixed" if sorted_corpus_formats else CORPUS_FORMAT)
+    )
     report = {
         "format": FORMAT,
-        "corpus_format": CORPUS_FORMAT,
+        "corpus_format": corpus_format,
+        "corpus_formats": sorted_corpus_formats,
         "corpus": str(corpus_path),
         "labels": str(labels_path),
         "corpus_stats": dict(corpus_stats),

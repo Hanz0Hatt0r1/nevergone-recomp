@@ -25,8 +25,11 @@ model input.
 
 ## 1. Export canonical high P-code
 
-`tools/ghidra/ExportMlPcodeCorpus.java` writes local JSONL in format
-`NEVERGONE.MlPcodeCorpus/2`.
+New exports use the shared `revenginstr` Ghidra runner and write
+`REVENGINSTR.PcodeCorpus/1`. The Nevergone dataset builder and frozen-corpus
+selector also accept retained `NEVERGONE.MlPcodeCorpus/2` exports. When the
+shared checkout is available, `run_nevergone_frozen_unseen500_v10.sh` uses it;
+the local Java exporter remains as an offline compatibility fallback.
 
 `model_text` intentionally excludes:
 
@@ -67,19 +70,14 @@ omitted middle are represented as `def:omitted:<size>`.
 Start with a bounded smoke export from an already analyzed project:
 
 ```bash
-"$GHIDRA_HOME/support/analyzeHeadless" \
-  /path/to/project-dir project-name \
-  -process 'libcocos2dcpp.so' \
-  -recursive \
-  -noanalysis \
-  -readOnly \
-  -scriptPath "$PWD/tools/ghidra" \
-  -postScript ExportMlPcodeCorpus.java \
-    /tmp/nevergone-ml/libcocos2dcpp.sample.jsonl 250
+bash "$REVENGINSTR_REPO/scripts/run_ghidra_pcode_export.sh" \
+  /path/to/project-dir project-name libcocos2dcpp.so \
+  /tmp/nevergone-ml/libcocos2dcpp.sample.jsonl 250
 ```
 
-The optional third script argument filters by function-name substring and is
-useful for focused checks:
+The optional final runner argument filters by function-name substring and is
+useful for focused checks. The retained local exporter can still read older
+Nevergone command lines when the shared checkout is unavailable:
 
 ```text
 -postScript ExportMlPcodeCorpus.java /tmp/sample.jsonl 50 EnemyActions
@@ -90,9 +88,10 @@ three decompiler-internal features that were too noisy for training: LOAD/STORE
 address-space IDs, control-flow target operands and INDIRECT iop references.
 Those are removed by corpus format v2.
 
-Old `NEVERGONE.MlPcodeCorpus/1` files are intentionally rejected by the current
-dataset builder. Re-export them with the current Java script instead of mixing
-representations inside one experiment.
+Old `NEVERGONE.MlPcodeCorpus/1` files are intentionally rejected. Re-export them
+with the shared runner or the retained compatibility exporter instead of mixing
+representations inside one experiment. Dataset manifests record the source
+corpus format; the emitted Nevergone dataset format and labels remain unchanged.
 
 Raw corpus JSONL is local analysis data and should not be committed.
 

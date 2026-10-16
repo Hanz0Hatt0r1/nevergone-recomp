@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Freeze a deterministic identity-disjoint Nevergone validation corpus.
 
-The input is a raw MlPcodeCorpus/2 export. The tool removes every identity already
-present in a training dataset, keeps only internal functions, selects rows by the
-existing stable hash ranking, assigns deployment-friendly `program:source_entry`
-IDs, and writes immutable corpus/trace/manifest files with SHA-256 provenance.
+The input is a raw Nevergone or revenginstr P-code export. The tool removes every
+identity already present in a training dataset, keeps only internal functions,
+selects rows by the existing stable hash ranking, assigns deployment-friendly
+`program:source_entry` IDs, and writes immutable corpus/trace/manifest files with
+SHA-256 provenance.
 
 The source/name metadata remain outer audit fields only; model input is still the
 portable `model_text` representation.
@@ -99,6 +100,9 @@ def main() -> int:
         "source_corpus": {
             "path": str(args.corpus),
             "sha256": sha256_file(args.corpus),
+            "formats": sorted(
+                key.removeprefix("format_") for key in stats if key.startswith("format_")
+            ),
             "input_rows": int(stats["input_rows"]),
             "eligible_unseen_internal": int(stats["eligible_unseen_internal"]),
             "training_overlap_removed": int(stats["training_overlap"]),
