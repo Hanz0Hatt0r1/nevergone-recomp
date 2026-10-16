@@ -8,41 +8,6 @@
 namespace nevergone::login_localization_csv {
 namespace {
 
-bool parse_row(std::string_view line, std::vector<std::string>* fields) {
-    if (fields == nullptr) return false;
-    fields->clear();
-    std::string field;
-    bool quoted = false;
-
-    for (std::size_t index = 0; index < line.size(); ++index) {
-        const char ch = line[index];
-        if (quoted) {
-            if (ch == '"') {
-                if (index + 1u < line.size() && line[index + 1u] == '"') {
-                    field.push_back('"');
-                    ++index;
-                } else {
-                    quoted = false;
-                }
-            } else {
-                field.push_back(ch);
-            }
-            continue;
-        }
-        if (ch == '"' && field.empty()) {
-            quoted = true;
-        } else if (ch == ',') {
-            fields->push_back(std::move(field));
-            field.clear();
-        } else {
-            field.push_back(ch);
-        }
-    }
-    if (quoted) return false;
-    fields->push_back(std::move(field));
-    return true;
-}
-
 std::string_view strip_bom(std::string_view value) {
     if (value.size() >= 3u &&
             static_cast<unsigned char>(value[0]) == 0xefu &&
@@ -63,30 +28,49 @@ bool resolve_key(
     if (output == nullptr || key.empty()) return false;
     output->clear();
 
+    std::vector<std::string> fields;
+    std::string field;
+    bool quoted = false;
     bool first_row = true;
-    std::size_t cursor = 0;
-    while (cursor <= csv.size()) {
-        const std::size_t newline = csv.find('\n', cursor);
-        const std::size_t end = newline == std::string_view::npos ? csv.size() : newline;
-        std::string_view line = csv.substr(cursor, end - cursor);
-        if (!line.empty() && line.back() == '\r') line.remove_suffix(1u);
-        if (first_row) {
-            line = strip_bom(line);
-            first_row = false;
+    for (std::size_t index = 0; index <= csv.size(); ++index) {
+        const char ch = index == csv.size() ? '\n' : csv[index];
+        if (quoted) {
+            if (ch == '"') {
+                if (index + 1u < csv.size() && csv[index + 1u] == '"') {
+                    field.push_back('"');
+                    ++index;
+                } else {
+                    quoted = false;
+                }
+            } else if (index == csv.size()) {
+                return false;
+            } else {
+                field.push_back(ch);
+            }
+            continue;
         }
-
-        if (!line.empty()) {
-            std::vector<std::string> fields;
-            if (!parse_row(line, &fields)) return false;
-            if (fields.size() > language_column && !fields.empty() && fields[0] == key) {
+        if (ch == '"' && field.empty()) {
+            quoted = true;
+        } else if (ch == ',') {
+            fields.push_back(std::move(field));
+            field.clear();
+        } else if (ch == '\n') {
+            if (!field.empty() && field.back() == '\r') field.pop_back();
+            fields.push_back(std::move(field));
+            field.clear();
+            if (first_row && !fields.empty()) {
+                fields[0] = std::string(strip_bom(fields[0]));
+                first_row = false;
+            }
+            if (fields.size() > language_column && fields[0] == key) {
                 if (fields[language_column].empty() || fields[language_column] == "NULL") return false;
-                *output = fields[language_column];
+                *output = std::move(fields[language_column]);
                 return true;
             }
+            fields.clear();
+        } else {
+            field.push_back(ch);
         }
-
-        if (newline == std::string_view::npos) break;
-        cursor = newline + 1u;
     }
     return false;
 }

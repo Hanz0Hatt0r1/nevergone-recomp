@@ -221,6 +221,21 @@ public final class GameSceneAtlasResolverSmoke {
         assert directDuplicateResolved.getCanonicalPath().equals(
                 directRootSprite.getCanonicalPath());
 
+        // Tutorial resources live below the recovered gamescene_ui search root.
+        // Their logical names must resolve without hard-coding that physical root.
+        File lessonImage = new File(assets,
+                "gamescene_ui/lessonsUI/keyboard_lesson.png");
+        File dialogueImage = new File(assets,
+                "gamescene_ui/Dialogue_UI/dialogue_bg.png");
+        write(lessonImage, "png");
+        write(dialogueImage, "png");
+        assert GameSceneAtlasResolver.resolveResource(
+                assets, "lessonsUI/keyboard_lesson.png").getCanonicalPath().equals(
+                lessonImage.getCanonicalPath());
+        assert GameSceneAtlasResolver.resolveResource(
+                assets, "Dialogue_UI/dialogue_bg.png").getCanonicalPath().equals(
+                dialogueImage.getCanonicalPath());
+
         // Project-owned lookup stays fail-closed for missing or unsafe names.
         assert GameSceneAtlasResolver.resolveResource(assets, "missing-direct.png") == null;
         assert GameSceneAtlasResolver.resolveResource(assets, "../outside-root.png") == null;

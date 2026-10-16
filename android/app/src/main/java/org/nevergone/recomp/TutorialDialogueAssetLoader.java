@@ -69,9 +69,10 @@ final class TutorialDialogueAssetLoader {
         if (dialogueId != 8) return false;
 
         File assetRoot = new File(filesDir, "assets");
-        File guideFile = new File(assetRoot, GUIDE_PLIST);
-        File backgroundFile = new File(new File(assetRoot, DIALOGUE_DIR), BACKGROUND);
-        if (!guideFile.isFile() || !backgroundFile.isFile()) return false;
+        File guideFile = GameSceneAtlasResolver.resolveResource(assetRoot, GUIDE_PLIST);
+        File backgroundFile = GameSceneAtlasResolver.resolveResource(
+                assetRoot, DIALOGUE_DIR + "/" + BACKGROUND);
+        if (guideFile == null || backgroundFile == null) return false;
 
         Bitmap background = null;
         try {
@@ -177,13 +178,14 @@ final class TutorialDialogueAssetLoader {
     }
 
     private static File portraitFile(File assetRoot, int npc) {
-        File dialogueDir = new File(assetRoot, DIALOGUE_DIR);
         if (npc == 1) {
             int career = nativeCurrentCareer();
             if (career <= 0 || career > 99) return null;
-            return new File(dialogueDir, String.format(Locale.US, "hero_%02d.png", career));
+            return GameSceneAtlasResolver.resolveResource(assetRoot,
+                    DIALOGUE_DIR + "/" + String.format(Locale.US, "hero_%02d.png", career));
         }
-        if (npc == 7) return new File(dialogueDir, "role_07.png");
+        if (npc == 7) return GameSceneAtlasResolver.resolveResource(
+                assetRoot, DIALOGUE_DIR + "/role_07.png");
         return null;
     }
 
