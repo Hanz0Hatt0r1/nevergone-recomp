@@ -6,6 +6,7 @@
 
 #include "game_clock.h"
 #include "game_scene_player_motion_state.h"
+#include "minimal_runtime_save_runtime.h"
 #include "player_control_runtime_state.h"
 #include "player_direction_combo_contract.h"
 #include "player_motion_contract.h"
@@ -317,6 +318,7 @@ std::string status_report() {
     out << "movement action state: 0x" << std::hex << state.movement_action_state << std::dec << "\n";
     out << "fast reactivations: " << state.fast_reactivation_count << "\n";
     out << game_scene_player_motion_state::status_report();
+    out << nevergone::minimal_runtime_save_runtime::status_report();
     return out.str();
 }
 

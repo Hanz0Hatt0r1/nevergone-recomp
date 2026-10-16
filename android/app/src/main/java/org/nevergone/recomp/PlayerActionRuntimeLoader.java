@@ -39,11 +39,6 @@ final class PlayerActionRuntimeLoader {
             return false;
         }
 
-        // Refresh from the current scene/event-port/surface every frame. The
-        // operation is bounded to the current parsed scene and preserves the
-        // original ordered overwrite behavior for multiple matching markers.
-        boolean spawnReady = nativeRefreshPlayerSpawnState();
-
         int career = nativeCurrentOfflineCareer();
         if (career < 1 || career > 5) {
             if (attemptedCareer != 0 || loadedRelativePath != null || loadedActionState >= 0) {
@@ -58,10 +53,12 @@ final class PlayerActionRuntimeLoader {
             loadedActionState = -1;
             failedActionState = -1;
             nativeResetPlayerActionDocument();
-            // reset also clears spawn/action state, so restore the same live
-            // scene before asking which MEPLAYERSTATE document is desired.
-            spawnReady = nativeRefreshPlayerSpawnState();
         }
+
+        // Refresh after a career change: resetting the action document also
+        // resets spawn/motion state, and save restoration must see that spawn.
+        // Refresh every frame to retain the current scene/port/surface marker.
+        boolean spawnReady = nativeRefreshPlayerSpawnState();
 
         int desiredActionState = nativeDesiredPlayerActionState();
         if (desiredActionState < 0) return false;

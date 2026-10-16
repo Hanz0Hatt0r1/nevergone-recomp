@@ -160,8 +160,27 @@ write_report() {
   } >"$REPORT"
 }
 
-if ! refresh_and_extract "$BEFORE_DIAGNOSTICS"; then
-  echo 'Could not retain baseline GameScene diagnostics.' >&2
+baseline_ready=0
+for attempt in 1 2 3 4 5; do
+  if refresh_and_extract "$BEFORE_DIAGNOSTICS" &&
+      python3 - "$BEFORE_DIAGNOSTICS" <<'PY' >/dev/null 2>&1
+import sys
+from pathlib import Path
+sys.path.insert(0, "tools")
+from android_game_scene_runtime_evidence import validate_diagnostics
+from android_player_input_runtime_evidence import parse_snapshot
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+validate_diagnostics(text)
+parse_snapshot(text)
+PY
+  then
+    baseline_ready=1
+    break
+  fi
+  sleep 1
+done
+if (( baseline_ready == 0 )); then
+  echo 'Could not retain a stable baseline GameScene renderer/motion snapshot.' >&2
   exit 1
 fi
 
@@ -198,17 +217,24 @@ if ! capture_png "$AFTER_SCREENSHOT"; then
   exit 1
 fi
 
-if ! refresh_and_extract "$AFTER_DIAGNOSTICS"; then
-  echo 'Could not retain post-gesture GameScene diagnostics.' >&2
-  exit 1
-fi
+validated=0
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  if refresh_and_extract "$AFTER_DIAGNOSTICS" &&
+      python3 tools/android_player_input_runtime_evidence.py \
+        validate "$BEFORE_DIAGNOSTICS" "$AFTER_DIAGNOSTICS" >/dev/null 2>&1; then
+    validated=1
+    break
+  fi
+  sleep 1
+done
 
-if ! python3 tools/android_player_input_runtime_evidence.py \
-    validate "$BEFORE_DIAGNOSTICS" "$AFTER_DIAGNOSTICS"; then
+if (( validated == 0 )); then
   write_report fail "$direction" "$swipe"
-  echo "Player input/motion proof is incomplete; evidence retained in $EVIDENCE_DIR" >&2
+  echo "Player input/motion proof did not stabilize; evidence retained in $EVIDENCE_DIR" >&2
   exit 1
 fi
+python3 tools/android_player_input_runtime_evidence.py \
+  validate "$BEFORE_DIAGNOSTICS" "$AFTER_DIAGNOSTICS"
 
 write_report pass "$direction" "$swipe"
 echo "Player input/motion runtime evidence captured: $EVIDENCE_DIR"

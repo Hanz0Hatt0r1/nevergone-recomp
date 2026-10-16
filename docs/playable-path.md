@@ -38,18 +38,17 @@ A checkpoint counts as complete only when every preceding checkpoint is also com
 | P7 | Scene instantiated | A project-owned scene graph is built and rendered from imported original data. | **Done for the fresh-role tutorial route** — integrated Redmi Note 8 Pro capture on 2026-10-16 passed with 9 staged requests, 9 drawn sprites and no hidden slots; see `docs/evidence/player-clothes-frame-lookup-2026-10-16.md` |
 | P8 | Player spawned | Player entity/visual state appears at an evidence-backed spawn point. | **Done** — the player body resolves and renders at `(430, 271)` in the contiguous fresh-role scene; see `docs/evidence/player-clothes-frame-lookup-2026-10-16.md` |
 | P9 | Input visible | User input changes player state visibly in the first offline scene. | **Done** — an Android joystick gesture visibly moved the player right in that scene; device diagnostics recorded 2 accepted begins and 73 moves; see `docs/evidence/player-clothes-frame-lookup-2026-10-16.md` |
-| P10 | Minimal persistence | Save -> process restart -> restore works for the minimal vertical slice. | **Implemented, proof pending** — bounded sidecar/autosave/restart-restore runtime and host regression exist; contiguous real-device restart/restore evidence still required |
+| P10 | Minimal persistence | Save -> process restart -> restore works for the minimal vertical slice. | **Done** — the P7–P10 contiguous device harness passed; a non-zero player motion offset survived a process restart and matched the restored runtime state |
 
-The highest contiguous fresh-role checkpoint is P9 on the tested Android device. Minimal save/restore through process restart (P10) is the next contiguous checkpoint.
+The highest contiguous fresh-role checkpoint is P10 on the tested Android device.
 
 ## Current critical path
 
 The implementation bottleneck has moved beyond startup and core rendering infrastructure. The current critical path is:
 
-1. run the implemented P10 sidecar flow through a real process restart and retain restored player-motion evidence;
-2. resolve the fresh-role `CreateCharacter` callback boundary only if the chosen contiguous acceptance route requires fresh-role creation;
-3. validate the structural EnemyActions/TrapActions work against genuine user-owned data and connect the minimum first combat interaction;
-4. retain API 35/36 arm64 physical-device evidence.
+1. resolve the fresh-role `CreateCharacter` callback boundary only if the chosen contiguous acceptance route requires fresh-role creation;
+2. validate the structural EnemyActions/TrapActions work against genuine user-owned data and connect the minimum first combat interaction;
+3. retain API 35/36 arm64 physical-device evidence.
 
 SceneActions work may proceed in parallel where it directly improves the first playable scene, but unrecovered spatial trigger and global PRNG behavior must remain explicit evidence boundaries rather than guessed runtime logic.
 
