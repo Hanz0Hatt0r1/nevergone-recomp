@@ -4,7 +4,7 @@ This bundle is derived from the user's local Nevergone Ghidra project and origin
 
 ## Native programs
 
-For each of `libcocos2dcpp` and `libffmpeg`, [ExportProgramIndex.java](../../../tools/ghidra/ExportProgramIndex.java) writes five gzip-compressed UTF-8 TSV files:
+For each of `libcocos2dcpp` and `libffmpeg`, [run_nevergone_program_index.sh](../../../tools/ghidra/run_nevergone_program_index.sh) writes five gzip-compressed UTF-8 TSV files. The local [ExportProgramIndex.java](../../../tools/ghidra/ExportProgramIndex.java) remains its offline fallback.
 
 | File suffix | Contents |
 | --- | --- |
@@ -33,7 +33,18 @@ The OBB contains 41 `.plist` files that the standard plist parser could not read
 
 ## Rebuild and validate
 
-Run `ExportProgramIndex.java` as a Ghidra post-script against each program in a writable copy of the user's analyzed project. Its sole argument is the output path prefix. The script writes only metadata; it does not change the original Ghidra project. To regenerate archive metadata:
+Run `tools/ghidra/run_nevergone_program_index.sh` against each program in an analyzed Ghidra project. The wrapper uses the generic `revenginstr` exporter when the sibling checkout is available, and keeps the local exporter as a fallback. It opens the project read-only and writes only metadata. Its final argument is the output path prefix.
+
+```bash
+GHIDRA_HOME=/opt/ghidra tools/ghidra/run_nevergone_program_index.sh \
+  /path/to/project project-name libcocos2dcpp.so \
+  docs/ghidra/full-index/libcocos2dcpp
+```
+
+Run the same command for `libffmpeg.so` with prefix
+`docs/ghidra/full-index/libffmpeg`.
+
+To regenerate archive metadata:
 
 ```bash
 python3 tools/ghidra/index_archive_metadata.py \

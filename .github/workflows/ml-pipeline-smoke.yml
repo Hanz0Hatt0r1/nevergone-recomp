@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Hanz0Hatt0r1/revenginstr
-          ref: bea0240b26772580b447885926e3d15d26cbcf42
+          ref: 317e8146dd1bcd5b90a0ba26bc77c92037e9c6da
           path: revenginstr
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -133,6 +133,7 @@ jobs:
         run: |
           for script in \
             tools/ghidra/revenginstr_pcode_flow_script_path.sh \
+            tools/ghidra/run_nevergone_program_index.sh \
             tools/ml/run_nevergone_residual_receiver_closure_v24.sh \
             tools/ml/run_nevergone_protobuf_nested_receiver_recovery_v25.sh \
             tools/ml/run_nevergone_beaten_callback_alias_v29.sh \
