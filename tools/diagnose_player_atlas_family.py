@@ -17,12 +17,17 @@ import sys
 import zipfile
 from pathlib import Path
 from typing import Any
+from xml.parsers.expat import ExpatError
 
 MAX_PLIST_BYTES = 4 * 1024 * 1024
 GENERIC_RE = re.compile(r"^p(?P<player>\d+)_(?P<selector>\d+)_default\.plist$", re.IGNORECASE)
 TEXTURE_RE = re.compile(
     rb"<key>(?:textureFileName|realTextureFileName)</key>\s*<string>([^<]+)</string>",
     re.IGNORECASE,
+)
+LEGACY_PLIST_DTD = (
+    b'<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+    b'"http://www.apple.com/DTDs/PropertyList-1.0.dtd"/>'
 )
 
 
@@ -43,6 +48,9 @@ def read_bounded(zf: zipfile.ZipFile, entry: str) -> bytes:
 
 
 def plist_membership(payload: bytes, wanted_frame: str) -> tuple[bool, list[str], list[str], int, Any]:
+    # The shipped OBB contains this one malformed Apple DTD terminator.
+    # Normalize it before plistlib parses the actual frame dictionary.
+    payload = payload.replace(LEGACY_PLIST_DTD, LEGACY_PLIST_DTD[:-2] + b'>', 1)
     root = plistlib.loads(payload)
     if not isinstance(root, dict):
         raise ValueError("plist root is not a dict")
@@ -123,7 +131,7 @@ def main() -> int:
             try:
                 payload = read_bounded(zf, entry)
                 exact, casefold_matches, aliases, frame_count, fmt = plist_membership(payload, args.frame)
-            except (KeyError, ValueError, OSError, plistlib.InvalidFileException) as error:
+            except (KeyError, ValueError, OSError, ExpatError, plistlib.InvalidFileException) as error:
                 parse_failures.append(f"{entry}: {error}")
                 continue
 

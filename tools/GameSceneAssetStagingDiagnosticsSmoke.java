@@ -15,6 +15,7 @@ public final class GameSceneAssetStagingDiagnosticsSmoke {
         assert report.contains("revision: 77");
         assert report.contains("requests: 3");
         assert report.contains("staged: 2");
+        assert report.contains("missing player frames: 0");
 
         GameSceneAssetStagingDiagnostics.failed(
                 "frame-lookup-or-metadata-failed",
@@ -30,11 +31,13 @@ public final class GameSceneAssetStagingDiagnosticsSmoke {
         assert !report.contains("hero.png");
 
         GameSceneAssetStagingDiagnostics.begin(88L, 1);
+        GameSceneAssetStagingDiagnostics.missingPlayerFrame();
         GameSceneAssetStagingDiagnostics.succeeded(88L, 1);
         report = GameSceneAssetStagingDiagnostics.statusReport();
         assert report.contains("state: ready");
         assert report.contains("successes: 1");
         assert report.contains("staged: 1");
+        assert report.contains("missing player frames: 1");
         assert !report.contains("failed request index:");
 
         GameSceneAssetStagingDiagnostics.noLiveQueue();
@@ -42,6 +45,7 @@ public final class GameSceneAssetStagingDiagnosticsSmoke {
         assert report.contains("state: no-live-queue");
         assert report.contains("revision: 0");
         assert report.contains("requests: 0");
+        assert report.contains("missing player frames: 0");
         // Lifetime counters remain useful across scene transitions.
         assert report.contains("attempts: 2");
         assert report.contains("successes: 1");

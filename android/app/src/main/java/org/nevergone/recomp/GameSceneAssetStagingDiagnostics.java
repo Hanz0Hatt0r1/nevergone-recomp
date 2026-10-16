@@ -9,6 +9,7 @@ final class GameSceneAssetStagingDiagnostics {
     private static long observedRevision;
     private static int requestCount;
     private static int stagedCount;
+    private static int missingPlayerFrames;
     private static int failedRequestIndex = -1;
     private static int failedRequestKind = -1;
     private static String state = "idle";
@@ -23,6 +24,7 @@ final class GameSceneAssetStagingDiagnostics {
         observedRevision = 0L;
         requestCount = 0;
         stagedCount = 0;
+        missingPlayerFrames = 0;
         failedRequestIndex = -1;
         failedRequestKind = -1;
         state = "idle";
@@ -32,6 +34,7 @@ final class GameSceneAssetStagingDiagnostics {
         observedRevision = 0L;
         requestCount = 0;
         stagedCount = 0;
+        missingPlayerFrames = 0;
         failedRequestIndex = -1;
         failedRequestKind = -1;
         state = "no-live-queue";
@@ -42,6 +45,7 @@ final class GameSceneAssetStagingDiagnostics {
         observedRevision = revision;
         requestCount = Math.max(0, requests);
         stagedCount = 0;
+        missingPlayerFrames = 0;
         failedRequestIndex = -1;
         failedRequestKind = -1;
         state = "staging";
@@ -49,6 +53,10 @@ final class GameSceneAssetStagingDiagnostics {
 
     static synchronized void progress(int staged) {
         stagedCount = Math.max(0, Math.min(staged, requestCount));
+    }
+
+    static synchronized void missingPlayerFrame() {
+        ++missingPlayerFrames;
     }
 
     static synchronized void ready(long revision, int requests) {
@@ -88,6 +96,7 @@ final class GameSceneAssetStagingDiagnostics {
         out.append("revision: ").append(observedRevision).append('\n');
         out.append("requests: ").append(requestCount).append('\n');
         out.append("staged: ").append(stagedCount).append('\n');
+        out.append("missing player frames: ").append(missingPlayerFrames).append('\n');
         if (failedRequestIndex >= 0) {
             out.append("failed request index: ").append(failedRequestIndex).append('\n');
         }

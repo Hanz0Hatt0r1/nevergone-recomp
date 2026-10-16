@@ -266,6 +266,14 @@ def validate_transition(before_text: str, after_text: str) -> tuple[PlayerInputS
     validate_diagnostics(before_text)
     validate_diagnostics(after_text)
 
+    for label, text in (("before", before_text), ("after", after_text)):
+        missing = _single_match(
+            r"^missing player frames: (\d+)$", text,
+            f"{label} missing-player-frame count",
+        )
+        if int(missing.group(1)) != 0:
+            raise ValueError(f"{label} evidence has an unresolved player body frame")
+
     before = parse_snapshot(before_text)
     after = parse_snapshot(after_text)
 

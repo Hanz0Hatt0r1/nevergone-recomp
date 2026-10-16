@@ -42,6 +42,7 @@ successes: 1
 revision: 123456
 requests: 10
 staged: 10
+missing player frames: 0
 """
 
 
@@ -131,6 +132,7 @@ def main() -> int:
         offset_x=40.0,
     )
     parsed_before, parsed_after = module.validate_transition(before, after)
+    expect_invalid(before.replace("missing player frames: 0", "missing player frames: 1"), after)
     assert parsed_before.joystick.accepted_begins == 4
     assert parsed_after.joystick.accepted_moves == 11
     assert parsed_after.joystick.direction_combo_state == 0x13

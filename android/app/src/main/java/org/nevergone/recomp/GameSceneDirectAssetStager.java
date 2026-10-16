@@ -341,6 +341,21 @@ final class GameSceneDirectAssetStager {
                 }
                 GameSceneAtlasFrameResolver.Frame frame = frameResolver.resolve(value);
                 if (frame == null) {
+                    if (playerRequests[requestIndex]) {
+                        // The shipped action data can name a frame absent from
+                        // its selected preload family. Keep the first scene
+                        // visible without inventing a player body from another
+                        // selector's atlas; P8 remains explicitly unresolved.
+                        if (!GameSceneDirectAssetStore.uploadHidden(
+                                revision, requestIndex, spriteCommandIndex)) {
+                            return reject("store-hidden-upload-failed", revision, count,
+                                    requestIndex, kind, stagedCount);
+                        }
+                        GameSceneAssetStagingDiagnostics.missingPlayerFrame();
+                        ++stagedCount;
+                        GameSceneAssetStagingDiagnostics.progress(stagedCount);
+                        continue;
+                    }
                     if (!playerRequests[requestIndex] && safeFrameName(value)) {
                         File fallback = new File(canonicalRoot, HIDDEN_FALLBACK_ASSET)
                                 .getCanonicalFile();
