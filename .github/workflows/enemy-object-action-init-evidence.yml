@@ -20,6 +20,8 @@ on:
       - 'tools/ghidra/ExportFunctionPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedReverseCallGraphPcodeFlow.java'
+      - 'tools/ghidra/revenginstr_pcode_flow_script_path.sh'
+      - 'tools/ghidra/revenginstr_pcode_adapter_smoke.py'
       - 'tools/ghidra/ExportCallerArgumentSubtree.java'
       - 'tools/ghidra/ExportCallerFunctionIdentities.java'
       - 'tools/ghidra/ExportPcodeDefinedStrings.java'
@@ -47,6 +49,8 @@ on:
       - 'tools/ghidra/ExportFunctionPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedReverseCallGraphPcodeFlow.java'
+      - 'tools/ghidra/revenginstr_pcode_flow_script_path.sh'
+      - 'tools/ghidra/revenginstr_pcode_adapter_smoke.py'
       - 'tools/ghidra/ExportCallerArgumentSubtree.java'
       - 'tools/ghidra/ExportCallerFunctionIdentities.java'
       - 'tools/ghidra/ExportPcodeDefinedStrings.java'
@@ -62,8 +66,16 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      REVENGINSTR_REPO: ${{ github.workspace }}/revenginstr
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Hanz0Hatt0r1/revenginstr
+          ref: a75deeebb6f80f0059e0ddde281eebdb39441264
+          path: revenginstr
+          persist-credentials: false
       - name: Validate EnemyObject action-init argument tracing
         run: python3 tools/enemy_object_action_init_evidence_smoke.py
       - name: Validate EnemyActions init caller argument planning
@@ -82,6 +94,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 tools/ghidra/revenginstr_pcode_adapter_smoke.py
           python3 tools/run_enemy_object_action_init_probe.py \
             --project-dir /tmp/not-a-real-ghidra-project \
             --project-name Nevergone \
