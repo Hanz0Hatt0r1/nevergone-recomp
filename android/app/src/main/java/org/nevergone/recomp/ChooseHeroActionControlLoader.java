@@ -36,8 +36,9 @@ final class ChooseHeroActionControlLoader {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
         for (int index = 0; index < BUTTON_FILES.length; index++) {
-            Bitmap bitmap = BitmapFactory.decodeFile(
-                    new File(assetRoot, BUTTON_FILES[index]).getAbsolutePath(), options);
+            File source = GameSceneAtlasResolver.resolveResource(assetRoot, BUTTON_FILES[index]);
+            Bitmap bitmap = source == null ? null :
+                    BitmapFactory.decodeFile(source.getAbsolutePath(), options);
             if (bitmap == null || !uploadBitmap(index, bitmap, true)) {
                 if (bitmap != null) bitmap.recycle();
                 nativeClear();

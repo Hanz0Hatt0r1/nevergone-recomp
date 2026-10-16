@@ -8,13 +8,13 @@ import java.util.Arrays;
 
 final class ChooseHeroThunderAudio {
     private static final String[] RELATIVE_PATHS = {
-            "sound/SingleLogin_UI/L_thunder08-r.mp3",
-            "sound/SingleLogin_UI/L_Thunder09.mp3",
-            "sound/SingleLogin_UI/L_Thunder10.mp3",
-            "sound/SingleLogin_UI/M_thunder_norm_2.mp3",
-            "sound/SingleLogin_UI/M_thunder_norm_5.mp3",
-            "sound/SingleLogin_UI/M_Thunder04.mp3",
-            "sound/SingleLogin_UI/S_thunder_norm_1.mp3"
+            "SingleLogin_UI/L_thunder08-r.mp3",
+            "SingleLogin_UI/L_Thunder09.mp3",
+            "SingleLogin_UI/L_Thunder10.mp3",
+            "SingleLogin_UI/M_thunder_norm_2.mp3",
+            "SingleLogin_UI/M_thunder_norm_5.mp3",
+            "SingleLogin_UI/M_Thunder04.mp3",
+            "SingleLogin_UI/S_thunder_norm_1.mp3"
     };
 
     private final File assetRoot;
@@ -90,8 +90,8 @@ final class ChooseHeroThunderAudio {
 
         int requested = 0;
         for (int index = 0; index < RELATIVE_PATHS.length; index++) {
-            File source = new File(assetRoot, RELATIVE_PATHS[index]);
-            if (!source.isFile()) continue;
+            File source = GameSceneAtlasResolver.resolveResource(assetRoot, RELATIVE_PATHS[index]);
+            if (source == null) continue;
             try {
                 soundIds[index] = created.load(source.getAbsolutePath(), 1);
                 if (soundIds[index] != 0) requested++;

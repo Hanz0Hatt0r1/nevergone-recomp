@@ -40,8 +40,9 @@ final class ServerSelectionAssetLoader {
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
         boolean uploadedAny = false;
         for (int index = 0; index < FILES.length; index++) {
-            Bitmap decoded = BitmapFactory.decodeFile(
-                    new File(assetRoot, FILES[index]).getAbsolutePath(), options);
+            File source = GameSceneAtlasResolver.resolveResource(assetRoot, FILES[index]);
+            Bitmap decoded = source == null ? null :
+                    BitmapFactory.decodeFile(source.getAbsolutePath(), options);
             if (decoded == null) continue;
             try {
                 if (!upload(index, decoded)) {
