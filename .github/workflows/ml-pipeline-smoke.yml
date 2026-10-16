@@ -133,6 +133,7 @@ jobs:
         run: |
           for script in \
             tools/ghidra/revenginstr_pcode_flow_script_path.sh \
+            tools/ghidra/run_nevergone_program_index.sh \
             tools/ml/run_nevergone_residual_receiver_closure_v24.sh \
             tools/ml/run_nevergone_protobuf_nested_receiver_recovery_v25.sh \
             tools/ml/run_nevergone_beaten_callback_alias_v29.sh \
