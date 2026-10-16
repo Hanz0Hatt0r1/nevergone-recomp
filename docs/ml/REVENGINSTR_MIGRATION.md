@@ -10,6 +10,7 @@ evidence.
 The preferred external core now owns:
 
 - architecture-normalized portable high-P-code export/audit;
+- read-only ARM32 Itanium primary-vtable slot export;
 - cross-project monotone OOD guard;
 - callgraph metrics;
 - mass receiver-plan construction;
@@ -32,18 +33,19 @@ export REVENGINSTR_REPO=/path/to/revenginstr
 ```
 
 When available it delegates callgraph extraction, receiver-plan creation,
-indirect receiver/type export, receiver identity inference and feature aggregation
-to the generic package. The generic Ghidra exporter and inference consume a
-Nevergone-owned vtable catalog; no class map, address list or labels move into
-`revenginstr`. Thin adapters preserve the historical `NEVERGONE.*` receiver TSV
-and inference identifiers for audit and compatibility consumers, while shared
-aggregation reads the generic artifacts directly. The feature dictionary itself
-is not renamed or reinterpreted.
+indirect receiver/type export, ARM32 Itanium vtable-slot export, receiver identity
+inference and feature aggregation to the generic package. The generic Ghidra
+exporters and inference consume a Nevergone-owned vtable catalog; no class map,
+address list or labels move into `revenginstr`. Thin adapters preserve the
+historical `NEVERGONE.*` receiver TSV and inference identifiers for audit and
+compatibility consumers, while shared aggregation reads generic artifacts
+directly. The feature dictionary itself is not renamed or reinterpreted.
 
-`run_nevergone_frozen_unseen500_v10.sh` uses the same shared receiver exporter and
-inference when the sibling checkout is available. Its immutable corpus, receiver
-plan, vtable catalog and evidence remain Nevergone-owned. The legacy Java exporter
-and inference remain available as an offline fallback.
+`run_nevergone_frozen_unseen500_v10.sh` uses the shared receiver and ARM32 Itanium
+vtable exporters when the sibling checkout is available, plus shared receiver
+inference. Its immutable corpus, receiver plan, vtable catalog and evidence remain
+Nevergone-owned. The legacy Java exporters and inference remain available as an
+offline fallback.
 
 Before switching the runner, the shared exporter was run in read-only mode over
 the retained 500-function validation plan. Its 203 indirect-call rows matched the
@@ -52,6 +54,10 @@ The generic inference adapter likewise reproduced all 203 retained Nevergone
 inference rows exactly, including nested receiver-type format identifiers. These
 checks establish output compatibility for that corpus; they do not transfer its
 game-specific receiver or vtable knowledge into the shared package.
+
+The shared ARM32 Itanium vtable exporter also reproduced all 56,340 retained
+Nevergone pointer rows byte-for-byte after decompression. Its scanner is generic;
+the symbol names, addresses and interpreted catalog stay in Nevergone.
 
 Historical Nevergone algorithms/artifacts remain immutable reference lineage until
 retained output equivalence is frozen.
@@ -180,7 +186,7 @@ The following remain in this repository because they are consumer data, semantic
 knowledge or experiment lineage rather than reusable mechanism:
 
 - seed-label rules and Cocos class identities;
-- current vtable-slot export/catalog data and Nevergone catalog format;
+- current vtable-slot catalog data and Nevergone catalog format;
 - Nevergone function-origin/runtime-scaffold eligibility policy;
 - thin compatibility adapters for historical receiver/evidence/P-code format IDs;
 - production experiment/evaluation lineage (v5.x through v10), including the
