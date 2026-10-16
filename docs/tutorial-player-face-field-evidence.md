@@ -12,6 +12,11 @@ project-owned control runtime retains the same requested value as `flip_x`.
 `PLAYERFACEDIR` is kept separate until its storage field is structurally
 confirmed.
 
+The probe prefers revenginstr's generic parameter-store exporter when its
+sibling checkout is available. The local adapter changes only the generic format
+cell to the established Nevergone format; the existing Nevergone exporter
+remains the fallback for older shared checkouts.
+
 ## Probe
 
 Run against the analyzed original 1.0.9 `libcocos2dcpp.so` in the existing

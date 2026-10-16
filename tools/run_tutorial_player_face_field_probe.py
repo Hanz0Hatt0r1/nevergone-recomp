@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shlex
 import subprocess
 import sys
@@ -66,8 +67,24 @@ def main(argv: list[str] | None = None) -> int:
     output_dir = args.output_dir.expanduser().resolve()
     script_dir = repo_root / "tools" / "ghidra"
     analyzer = repo_root / "tools" / "tutorial_player_face_field_evidence.py"
+    adapter = script_dir / "adapt_revenginstr_parameter_store_field.py"
+    shared_repo_value = os.environ.get("REVENGINSTR_REPO")
+    shared_repo = (
+        Path(shared_repo_value).expanduser()
+        if shared_repo_value
+        else repo_root.parent / "revenginstr"
+    )
+    shared_runner = shared_repo / "scripts" / "run_ghidra_parameter_store_field.sh"
+    shared_exporter = shared_repo / "ghidra" / "ExportGhidraParameterStoreField.java"
+    use_shared_parameter_exporter = (
+        shared_runner.is_file()
+        and os.access(shared_runner, os.X_OK)
+        and shared_exporter.is_file()
+        and adapter.is_file()
+    )
     is_face_tsv = output_dir / "is-face-field.tsv"
     player_dir_tsv = output_dir / "player-face-dir-field.tsv"
+    generic_player_dir_tsv = output_dir / "player-face-dir-field.revenginstr.tsv"
     report = output_dir / "tutorial-player-face-field-report.txt"
 
     commands = [
@@ -81,7 +98,21 @@ def main(argv: list[str] | None = None) -> int:
             args.is_face_function,
             is_face_tsv,
         ),
-        ghidra_command(
+    ]
+    if use_shared_parameter_exporter:
+        commands.extend([
+            [
+                str(shared_runner),
+                str(project_dir),
+                args.project_name,
+                args.program,
+                args.player_dir_function,
+                str(generic_player_dir_tsv),
+            ],
+            [sys.executable, str(adapter), str(generic_player_dir_tsv), str(player_dir_tsv)],
+        ])
+    else:
+        commands.append(ghidra_command(
             ghidra_root,
             project_dir,
             args.project_name,
@@ -90,16 +121,15 @@ def main(argv: list[str] | None = None) -> int:
             "ExportParameterStoreField.java",
             args.player_dir_function,
             player_dir_tsv,
-        ),
-        [
-            sys.executable,
-            str(analyzer),
-            str(is_face_tsv),
-            str(player_dir_tsv),
-            "--output",
-            str(report),
-        ],
-    ]
+        ))
+    commands.append([
+        sys.executable,
+        str(analyzer),
+        str(is_face_tsv),
+        str(player_dir_tsv),
+        "--output",
+        str(report),
+    ])
 
     if args.dry_run:
         for command in commands:
@@ -113,21 +143,26 @@ def main(argv: list[str] | None = None) -> int:
     if not project_dir.is_dir():
         print(f"missing Ghidra project directory: {project_dir}", file=sys.stderr)
         return 2
-    for required in (
-        script_dir / "ExportAccessorReturnField.java",
-        script_dir / "ExportParameterStoreField.java",
-        analyzer,
-    ):
+    required_tools = [script_dir / "ExportAccessorReturnField.java", analyzer]
+    if not use_shared_parameter_exporter:
+        required_tools.append(script_dir / "ExportParameterStoreField.java")
+    else:
+        required_tools.append(adapter)
+    for required in required_tools:
         if not required.is_file():
             print(f"missing repository tool: {required}", file=sys.stderr)
             return 2
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    environment = os.environ.copy()
+    environment["GHIDRA_HOME"] = str(ghidra_root)
     for command in commands:
-        result = subprocess.run(command, check=False)
+        result = subprocess.run(command, check=False, env=environment)
         if result.returncode != 0:
             print(f"command failed with exit code {result.returncode}: {shlex.join(command)}", file=sys.stderr)
             return result.returncode or 1
+    if use_shared_parameter_exporter:
+        generic_player_dir_tsv.unlink(missing_ok=True)
 
     print(f"isFace metadata: {is_face_tsv}")
     print(f"PLAYERFACEDIR metadata: {player_dir_tsv}")
