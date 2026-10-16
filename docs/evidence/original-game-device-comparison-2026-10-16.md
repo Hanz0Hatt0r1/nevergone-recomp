@@ -25,4 +25,10 @@ The recompilation was then returned to the same imported tutorial room. The fres
 
 The fresh P7 collector did not pass its completed-live-revision gate on this rerun. Diagnostics reported 9 render requests and 9 staged requests, but only 7 scene render sprites and zero GameScene staging attempts/successes. The retained diagnostic report SHA-256 is `f28f29f720897214ea36362d8d034d74899d5ccd834397621dc1e02508d2b7a4`. The previous contiguous P7-P10 run had passed with all 9 staged/drawn sprites, so this comparison run exposes a reproducibility issue as well as a likely spawn/camera alignment gap.
 
+## Repeat after completing the recompilation onboarding
+
+The first P7 attempt from the fresh launch stopped on the opening narrative: GameLevels was still idle, there was no live render queue, and the original-story screen remained visible. Replaying the established onboarding taps reached the live scene; the render collector then passed with 9 drawn sprites, 9 staged requests and 0 hidden slots. Full P7-P10 passed again on the same device at `/tmp/nevergone-live-20261016/final-p7-p10/proof.md`; process `20869` restarted as `24570`, and the non-zero motion offset `(-125.7237, 187.6302)` was restored.
+
+The same-room comparison still shows a measurable vertical placement mismatch. In the original Run frame the character's feet are near the lower lit floor, while the recompilation's player is well above that floor. The horizontal placement is close. I am keeping this as an observed gap rather than changing the recovered `source_y + 40 - win_height/2` formula without stronger evidence about the original camera/player anchor. The original Run prompt and top HUD also remain absent from the recompilation capture.
+
 Next visual acceptance work should first make the fresh tutorial capture stable, then align the rendered player to the original lit-floor spawn and restore the matching tutorial HUD/instruction state. The prior P7-P10 result remains valid for that earlier passing run; this failed repeat is retained as a new limitation, not substituted for it.
