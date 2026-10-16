@@ -53,6 +53,8 @@ python3 tools/ghidra/summarize_field_store_candidates.py \
 
 The validator fails closed on schema errors, wrong field offsets, unsupported address opcodes, contradictory constant metadata and duplicate STORE identities.
 
+The probe wrapper prefers the shared `revenginstr` field-store exporter when its sibling checkout is available; set `REVENGINSTR_REPO` to override that path. The Nevergone wrapper keeps the function filter, field offset, and summary contract, and falls back to the local exporter for older shared checkouts.
+
 The generic candidate summary remains supporting metadata rather than semantic proof by itself. The semantic association is supplied by the bounded instruction path recorded in `docs/evidence/me-actions-initial-frame.md`: the zero stores occur in `MeActionsSystem::initWithFile()` and `MeActionsSystem::play()`, and `play()` immediately uses `+0x1a4` to select the primary frame before `updateData()`.
 
 ## Runtime consequence

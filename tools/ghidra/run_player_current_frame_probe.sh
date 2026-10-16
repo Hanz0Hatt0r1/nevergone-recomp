@@ -26,6 +26,8 @@ SCRIPT_DIR="$REPO_ROOT/tools/ghidra"
 ANALYZE_HEADLESS="$GHIDRA_HOME/support/analyzeHeadless"
 EXPORTER="$SCRIPT_DIR/ExportFieldStoreCandidates.java"
 SUMMARIZER="$SCRIPT_DIR/summarize_field_store_candidates.py"
+REVENGINSTR_REPO="${REVENGINSTR_REPO:-$REPO_ROOT/../revenginstr}"
+SHARED_RUNNER="$REVENGINSTR_REPO/scripts/run_ghidra_field_store_candidates.sh"
 
 if [[ ! -x "$ANALYZE_HEADLESS" ]]; then
   echo "Ghidra analyzeHeadless is not executable: $ANALYZE_HEADLESS" >&2
@@ -39,8 +41,12 @@ if [[ -z "$PROJECT_NAME" || -z "$PROGRAM_NAME" ]]; then
   echo 'Project name and program name must be non-empty.' >&2
   exit 2
 fi
-if [[ ! -f "$EXPORTER" || ! -f "$SUMMARIZER" ]]; then
-  echo 'Required Nevergone Ghidra probe files are missing.' >&2
+if [[ ! -f "$SUMMARIZER" ]]; then
+  echo 'Nevergone field-store summary tool is missing.' >&2
+  exit 2
+fi
+if [[ ! -x "$SHARED_RUNNER" && ! -f "$EXPORTER" ]]; then
+  echo 'Neither the shared nor local field-store exporter is available.' >&2
   exit 2
 fi
 command -v python3 >/dev/null 2>&1 || {
@@ -55,16 +61,22 @@ SUMMARY="$OUTPUT_DIR/player-current-frame-summary.txt"
 
 rm -f "$TSV" "$SUMMARY"
 
-"$ANALYZE_HEADLESS" \
-  "$PROJECT_DIR" \
-  "$PROJECT_NAME" \
-  -process "$PROGRAM_NAME" \
-  -noanalysis \
-  -scriptPath "$SCRIPT_DIR" \
-  -postScript ExportFieldStoreCandidates.java \
-    'MeActionsSystem' \
-    0x1a4 \
-    "$TSV"
+if [[ -x "$SHARED_RUNNER" ]]; then
+  GHIDRA_HOME="$GHIDRA_HOME" "$SHARED_RUNNER" \
+    "$PROJECT_DIR" "$PROJECT_NAME" "$PROGRAM_NAME" \
+    'MeActionsSystem' 0x1a4 "$TSV"
+else
+  "$ANALYZE_HEADLESS" \
+    "$PROJECT_DIR" \
+    "$PROJECT_NAME" \
+    -process "$PROGRAM_NAME" \
+    -noanalysis \
+    -scriptPath "$SCRIPT_DIR" \
+    -postScript ExportFieldStoreCandidates.java \
+      'MeActionsSystem' \
+      0x1a4 \
+      "$TSV"
+fi
 
 if [[ ! -s "$TSV" ]]; then
   echo "Probe did not produce field-store metadata: $TSV" >&2
