@@ -303,9 +303,8 @@ final class GameSceneDirectAssetStager {
                     frameResolver = playerFrameResolvers.get(playerAtlasPlist);
                     if (frameResolver == null) {
                         List<GameSceneAtlasResolver.Atlas> playerAtlases =
-                                GameSceneAtlasResolver.resolve(
-                                        canonicalRoot,
-                                        Collections.singletonList(playerAtlasPlist));
+                                PlayerActionAtlasCacheResolver.resolve(
+                                        canonicalRoot, playerAtlasPlist);
                         if (playerAtlases == null || playerAtlases.isEmpty()) {
                             return reject(
                                     "player-atlas-resolution-failed",
