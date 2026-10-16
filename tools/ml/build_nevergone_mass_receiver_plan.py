@@ -11,11 +11,30 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
 
 FORMAT = "NEVERGONE.MassReceiverPlan/1"
+
+
+def _shared_plan_builder():
+    repository = Path(
+        os.environ.get(
+            "REVENGINSTR_REPO",
+            str(Path(__file__).resolve().parents[2].parent / "revenginstr"),
+        )
+    )
+    source = repository / "src"
+    if not (source / "revenginstr/receiver/plan.py").is_file():
+        return None
+    if str(source) not in sys.path:
+        sys.path.insert(0, str(source))
+    from revenginstr.receiver.plan import build_plan
+
+    return build_plan
 
 
 def read_jsonl(path: Path) -> Iterable[dict[str, Any]]:
@@ -40,33 +59,41 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    selected: dict[str, str] = {}
-    programs = Counter()
-    trace_rows = 0
-    for row in read_jsonl(args.trace):
-        trace_rows += 1
-        program = row.get("program")
-        entry = row.get("source_entry")
-        if isinstance(program, str) and program:
-            programs[program] += 1
-        if program != args.program:
-            continue
-        if not isinstance(entry, str) or not entry:
-            continue
-        source_id = f"{program}:{entry}"
-        previous = selected.get(source_id)
-        if previous is not None and previous != entry:
-            raise ValueError(f"conflicting entry for {source_id}")
-        selected[source_id] = entry
+    shared_builder = _shared_plan_builder()
+    if shared_builder is not None:
+        selected, programs = shared_builder(args.trace, args.program)
+        trace_rows = sum(1 for _ in read_jsonl(args.trace))
+        engine = "revenginstr"
+    else:
+        selected_by_id: dict[str, str] = {}
+        programs = Counter()
+        trace_rows = 0
+        for row in read_jsonl(args.trace):
+            trace_rows += 1
+            program = row.get("program")
+            entry = row.get("source_entry")
+            if isinstance(program, str) and program:
+                programs[program] += 1
+            if program != args.program:
+                continue
+            if not isinstance(entry, str) or not entry:
+                continue
+            source_id = f"{program}:{entry}"
+            previous = selected_by_id.get(source_id)
+            if previous is not None and previous != entry:
+                raise ValueError(f"conflicting entry for {source_id}")
+            selected_by_id[source_id] = entry
+        if not selected_by_id:
+            raise SystemExit(f"no trace functions found for program {args.program}")
 
-    if not selected:
-        raise SystemExit(f"no trace functions found for program {args.program}")
+        selected = sorted(selected_by_id.items(), key=lambda item: int(item[1], 16))
+        engine = "local compatibility fallback"
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
         writer.writerow(["source_id", "source_entry", "expected_calls"])
-        for source_id, entry in sorted(selected.items(), key=lambda item: int(item[1], 16)):
+        for source_id, entry in selected:
             writer.writerow([source_id, entry, ""])
 
     print("format:", FORMAT)
@@ -74,6 +101,7 @@ def main() -> int:
     print("trace programs:", dict(sorted(programs.items())))
     print("selected program:", args.program)
     print("plan functions:", len(selected))
+    print("engine:", engine)
     print("expected CALLIND counts: discover")
     print("output:", args.output)
     return 0

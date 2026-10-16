@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -45,6 +46,20 @@ def main() -> int:
             ],
             check=True,
         )
+        fallback_plan = tmp / "fallback-plan.tsv"
+        fallback_env = os.environ.copy()
+        fallback_env["REVENGINSTR_REPO"] = str(tmp / "missing-revenginstr")
+        subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "tools/ml/build_nevergone_mass_receiver_plan.py"),
+                str(trace),
+                str(fallback_plan),
+            ],
+            check=True,
+            env=fallback_env,
+        )
+        assert fallback_plan.read_bytes() == plan.read_bytes()
         plan_rows = list(csv.DictReader(plan.open(encoding="utf-8"), delimiter="\t"))
         assert [row["source_id"] for row in plan_rows] == [
             "libcocos2dcpp.so:00100000",

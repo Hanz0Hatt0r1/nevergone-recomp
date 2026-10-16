@@ -10,11 +10,30 @@ import argparse
 import csv
 import gzip
 import json
+import os
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
 FORMAT = "NEVERGONE.CallGraphMetrics/1"
+
+
+def _shared_extractor():
+    repository = Path(
+        os.environ.get(
+            "REVENGINSTR_REPO",
+            str(Path(__file__).resolve().parents[2].parent / "revenginstr"),
+        )
+    )
+    source = repository / "src"
+    if not (source / "revenginstr/evidence/callgraph.py").is_file():
+        return None
+    if str(source) not in sys.path:
+        sys.path.insert(0, str(source))
+    from revenginstr.evidence.callgraph import FORMAT as shared_format, extract
+
+    return shared_format, extract
 
 
 def _read_jsonl(path: Path) -> Iterable[dict[str, Any]]:
@@ -152,6 +171,24 @@ def main() -> int:
     parser.add_argument("calls_tsv", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+
+    shared = _shared_extractor()
+    if shared is not None:
+        shared_format, extract = shared
+        output_rows = extract(args.corpus, args.functions_tsv, args.calls_tsv)
+        for row in output_rows:
+            if row.get("format") != shared_format:
+                raise ValueError(f"shared extractor returned unexpected format {row.get('format')!r}")
+            row["format"] = FORMAT
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w", encoding="utf-8") as handle:
+            for row in output_rows:
+                handle.write(json.dumps(row, sort_keys=True) + "\n")
+        print("format:", FORMAT)
+        print("functions:", len(output_rows))
+        print("engine: revenginstr")
+        print("output:", args.output)
+        return 0
 
     functions = load_functions(args.functions_tsv)
     outgoing_sites, incoming = load_calls(args.calls_tsv)
