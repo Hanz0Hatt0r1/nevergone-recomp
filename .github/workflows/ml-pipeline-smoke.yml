@@ -69,6 +69,7 @@ jobs:
             tools/ml/train_nevergone_production_classifier_v4.py \
             tools/ml/classify_nevergone_pcode.py \
             tools/ml/audit_nevergone_classifications.py \
+            tools/ml/audit_nevergone_revenginstr_selective_parity.py \
             tools/ml/nevergone_ml_pipeline_smoke.py \
             tools/ml/nevergone_family_miner_smoke.py \
             tools/ml/nevergone_tiny_encoder_smoke.py \
@@ -90,7 +91,8 @@ jobs:
             tools/ml/nevergone_structural_metrics_smoke.py \
             tools/ml/nevergone_callgraph_metrics_smoke.py \
             tools/ml/nevergone_suggested_analysis_method_smoke.py \
-            tools/ml/nevergone_nested_selective_metrics_smoke.py
+            tools/ml/nevergone_nested_selective_metrics_smoke.py \
+            tools/ml/nevergone_revenginstr_selective_parity_smoke.py
       - name: Run synthetic pipeline smoke
         run: python tools/ml/nevergone_ml_pipeline_smoke.py
       - name: Run function family miner smoke
@@ -135,3 +137,5 @@ jobs:
         run: python tools/ml/nevergone_suggested_analysis_method_smoke.py
       - name: Run nested selective metrics smoke
         run: python tools/ml/nevergone_nested_selective_metrics_smoke.py
+      - name: Run revenginstr selective parity audit smoke
+        run: python tools/ml/nevergone_revenginstr_selective_parity_smoke.py
