@@ -13,7 +13,9 @@ from pathlib import Path
 
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[2]
-    shared_repo = repo_root.parent / "revenginstr"
+    shared_repo = Path(
+        os.environ.get("REVENGINSTR_REPO", repo_root.parent / "revenginstr")
+    ).expanduser().resolve()
     runners = (
         "tools/run_enemy_object_init_actions_callsite.py",
         "tools/run_tutorial_scene_limit_probe.py",
