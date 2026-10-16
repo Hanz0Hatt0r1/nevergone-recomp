@@ -46,7 +46,7 @@ The highest contiguous fresh-role checkpoint is P10 on the tested Android device
 
 The implementation bottleneck has moved beyond startup and core rendering infrastructure. The current critical path is:
 
-1. resolve the fresh-role `CreateCharacter` callback boundary only if the chosen contiguous acceptance route requires fresh-role creation;
+1. make the fresh-role tutorial scene capture repeatable and align player spawn/camera plus HUD/instruction state against the original-game device capture;
 2. validate the structural EnemyActions/TrapActions work against genuine user-owned data and connect the minimum first combat interaction;
 3. retain API 35/36 arm64 physical-device evidence.
 
