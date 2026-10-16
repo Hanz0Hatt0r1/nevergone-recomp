@@ -36,6 +36,7 @@ def main() -> int:
         (generic_shared / "ghidra/ExportGhidraCallerArgumentSubtree.java").touch()
         (generic_shared / "ghidra/ExportGhidraFunctionIdentities.java").touch()
         (generic_shared / "ghidra/ExportGhidraPcodeDefinedStrings.java").touch()
+        (generic_shared / "ghidra/ExportGhidraAddressReferenceOwners.java").touch()
         for shared_path in (shared_repo, missing_shared, generic_shared):
             function_shared = (shared_path / "ghidra/ExportFunctionPcodeFlow.java").is_file()
             expected = (
@@ -215,14 +216,18 @@ def main() -> int:
         string_adapter = (repo_root / "tools/ghidra/ExportPcodeDefinedStrings.java").read_text(encoding="utf-8")
         assert 'runScript("ExportGhidraPcodeDefinedStrings.java"' in string_adapter
         assert 'runScript("ExportPcodeDefinedStringsLegacy.java"' in string_adapter
+        address_adapter = (repo_root / "tools/ghidra/ExportAddressReferenceOwners.java").read_text(encoding="utf-8")
+        assert 'runScript("ExportGhidraAddressReferenceOwners.java"' in address_adapter
+        assert 'runScript("ExportAddressReferenceOwnersLegacy.java"' in address_adapter
 
         helper = repo_root / "tools/ghidra/revenginstr_pcode_flow_script_path.sh"
         expression = 'source "$1"; "$2" "$3"'
-        for shared_path in (shared_repo, missing_shared):
+        for shared_path in (shared_repo, missing_shared, generic_shared):
             environment = os.environ.copy()
             environment["REVENGINSTR_REPO"] = str(shared_path)
             for function, exporters in (
                 ("revenginstr_pcode_flow_script_path", ("ExportFunctionPcodeFlow.java",)),
+                ("revenginstr_address_reference_script_path", ("ExportGhidraAddressReferenceOwners.java",)),
                 ("revenginstr_bounded_callgraph_script_path", (
                     "ExportBoundedCallGraphPcodeFlow.java",
                     "ExportBoundedReverseCallGraphPcodeFlow.java",

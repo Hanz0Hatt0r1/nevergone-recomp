@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Hanz0Hatt0r1/revenginstr
-          ref: a75deeebb6f80f0059e0ddde281eebdb39441264
+          ref: 65db7d562a75bd5690e50dbea46c27ecd2522048
           path: revenginstr
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -138,6 +138,8 @@ jobs:
             tools/ml/run_nevergone_beaten_script_engine_field_load_v40.sh; do
             bash -n "$script"
           done
+          bash -n tools/ml/run_nevergone_load_address_expression_fold.sh
+          bash -n tools/ml/run_nevergone_phi_default_instance_owner_audit.sh
           python -m py_compile \
             tools/run_enemy_object_init_actions_callsite.py \
             tools/run_tutorial_scene_limit_probe.py \

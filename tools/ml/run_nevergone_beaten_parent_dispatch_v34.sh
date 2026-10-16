@@ -10,6 +10,13 @@ set -euo pipefail
 : "${SKIP_GHIDRA_EXPORT:=0}"
 source "$REPO_ROOT/tools/ghidra/revenginstr_pcode_flow_script_path.sh"
 PCODE_SCRIPT_PATH=$(revenginstr_pcode_flow_script_path "$REPO_ROOT")
+ADDRESS_REFERENCE_SCRIPT_PATH=$(revenginstr_address_reference_script_path "$REPO_ROOT")
+DEFAULT_REVENGINSTR="$(cd "$REPO_ROOT/.." && pwd)/revenginstr"
+SHARED_GHIDRA_DIR="${REVENGINSTR_REPO:-$DEFAULT_REVENGINSTR}/ghidra"
+ADDRESS_REFERENCE_ARGS=()
+if [[ -f "$SHARED_GHIDRA_DIR/ExportGhidraAddressReferenceOwners.java" ]]; then
+  ADDRESS_REFERENCE_ARGS=(--shared-ghidra-script-dir "$SHARED_GHIDRA_DIR")
+fi
 
 EVID="$WORK_ROOT/evidence/beaten-getparent-v34"
 PRIOR="$WORK_ROOT/evidence/beaten-child-parent-v33"
@@ -34,8 +41,8 @@ if [[ "$SKIP_GHIDRA_EXPORT" != 1 ]]; then
     -postScript ExportAccessorReturnConsumers.java 00525d46 "$EVID/getparent-consumers.tsv"
   "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
     -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-    -scriptPath "$REPO_ROOT/tools/ghidra" \
-    -postScript ExportAddressReferenceOwners.java "$EVID/getparent-references.tsv" 00525d46
+    -scriptPath "$ADDRESS_REFERENCE_SCRIPT_PATH" \
+    -postScript ExportAddressReferenceOwners.java "$EVID/getparent-references.tsv" 00525d46 "${ADDRESS_REFERENCE_ARGS[@]}"
   for fn in 00526c1e 00525e20 00526bd4; do
     "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
       -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \

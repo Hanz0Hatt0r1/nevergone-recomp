@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'tools/ghidra/ExportAddressReferenceOwners.java'
+      - 'tools/ghidra/ExportAddressReferenceOwnersLegacy.java'
+      - 'tools/ghidra/revenginstr_pcode_flow_script_path.sh'
       - 'tools/ml/run_nevergone_phi_default_instance_owner_audit.sh'
       - '.github/workflows/ml-phi-default-instance-owner-audit-smoke.yml'
 
@@ -14,15 +16,26 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      REVENGINSTR_REPO: ${{ github.workspace }}/revenginstr
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Hanz0Hatt0r1/revenginstr
+          ref: 65db7d562a75bd5690e50dbea46c27ecd2522048
+          path: revenginstr
+          persist-credentials: false
       - name: Check runner syntax
-        run: bash -n tools/ml/run_nevergone_phi_default_instance_owner_audit.sh
+        run: |
+          bash -n tools/ml/run_nevergone_phi_default_instance_owner_audit.sh
+          bash -n tools/ghidra/revenginstr_pcode_flow_script_path.sh
       - name: Check evidence-only contract
         run: |
           grep -q 'NEVERGONE.GhidraAddressReferenceOwners/1' tools/ghidra/ExportAddressReferenceOwners.java
-          grep -q 'getReferencesTo' tools/ghidra/ExportAddressReferenceOwners.java
           grep -q 'nearby_class_evidence' tools/ghidra/ExportAddressReferenceOwners.java
+          grep -q 'REVENGINSTR.GhidraAddressReferenceOwner/1' "$REVENGINSTR_REPO/ghidra/ExportGhidraAddressReferenceOwners.java"
+          grep -q 'getReferencesTo' "$REVENGINSTR_REPO/ghidra/ExportGhidraAddressReferenceOwners.java"
           grep -q 'default_instance_' tools/ml/run_nevergone_phi_default_instance_owner_audit.sh
           grep -q 'expected exactly 2' tools/ml/run_nevergone_phi_default_instance_owner_audit.sh
           grep -q 'affects routing: no' tools/ml/run_nevergone_phi_default_instance_owner_audit.sh

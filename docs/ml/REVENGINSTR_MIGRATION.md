@@ -18,6 +18,7 @@ The preferred external core now owns:
 - bounded direct-caller argument-subtree export;
 - metadata-only Ghidra function identity export;
 - bounded P-code constant-to-defined-string resolution;
+- direct Ghidra address-reference ownership export;
 - receiver class/vtable identity matching from conservative type evidence and a consumer-owned catalog;
 - leakage-safe numeric evidence aggregation across callgraph/receiver sources;
 - deterministic structural P-code metrics and coarse numeric evidence tokenization;
@@ -86,6 +87,10 @@ exporter. Its adapter restores the historical `NEVERGONE.GhidraPcodeDefinedStrin
 format for the existing analyzer; the original local exporter remains the offline
 fallback. The shared schema contains only generic address and encoded-string
 fields, while the EnemyObject interpretation stays here.
+
+Direct address-reference enumeration is also shared. Nevergone supplies the
+addresses and its adapter adds the local `nearby_class_evidence` field; address
+classification and class-name heuristics remain in this repository.
 
 ## P-code-only selective-classifier parity
 

@@ -19,6 +19,15 @@ set -euo pipefail
 : "${OWNER_DETAILS:=$WORK_ROOT/load-effective-address-owner-audit.jsonl}"
 : "${OWNER_AUDIT_TXT:=$WORK_ROOT/load-effective-address-owner-audit.txt}"
 
+source "$REPO_ROOT/tools/ghidra/revenginstr_pcode_flow_script_path.sh"
+ADDRESS_REFERENCE_SCRIPT_PATH=$(revenginstr_address_reference_script_path "$REPO_ROOT")
+DEFAULT_REVENGINSTR="$(cd "$REPO_ROOT/.." && pwd)/revenginstr"
+SHARED_GHIDRA_DIR="${REVENGINSTR_REPO:-$DEFAULT_REVENGINSTR}/ghidra"
+ADDRESS_REFERENCE_ARGS=()
+if [[ -f "$SHARED_GHIDRA_DIR/ExportGhidraAddressReferenceOwners.java" ]]; then
+  ADDRESS_REFERENCE_ARGS=(--shared-ghidra-script-dir "$SHARED_GHIDRA_DIR")
+fi
+
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 [[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }
 for required in \
@@ -61,8 +70,8 @@ PY
 
 "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
   -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-  -scriptPath "$REPO_ROOT/tools/ghidra" \
-  -postScript ExportAddressReferenceOwners.java "$REFERENCE_OWNERS" "${EFFECTIVE_ADDRESSES[@]}"
+  -scriptPath "$ADDRESS_REFERENCE_SCRIPT_PATH" \
+  -postScript ExportAddressReferenceOwners.java "$REFERENCE_OWNERS" "${EFFECTIVE_ADDRESSES[@]}" "${ADDRESS_REFERENCE_ARGS[@]}"
 
 mapfile -t RAW_VALUES < <(python3 - "$EFFECTIVE_CLASSIFICATION" <<'PY'
 import csv, sys
