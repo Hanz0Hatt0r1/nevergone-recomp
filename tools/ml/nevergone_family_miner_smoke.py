@@ -83,10 +83,20 @@ def main() -> int:
         assert report["families"] == 2
         rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines() if line]
         by_id = {row["id"]: row for row in rows}
+        assert all(row["format"] == miner.FORMAT for row in rows)
         assert by_id["a"]["family_id"] == by_id["b"]["family_id"]
         assert by_id["a"]["family_id"] != by_id["c"]["family_id"]
         assert by_id["a"]["family_size"] == 2
         assert report["mixed_label_families"]["code_domain"] == 0
+        assert report["policy"]["hash_profile"] == "nevergone-v1"
+        assert {
+            row_id: (row["family_id"], row["portable_hash"], row["feature_count"])
+            for row_id, row in by_id.items()
+        } == {
+            "a": ("family-a5774bde8e083339f4b8", "e2ea352e57dc092618aafbda", 49),
+            "b": ("family-a5774bde8e083339f4b8", "a5774bde8e083339f4b85e60", 52),
+            "c": ("family-376d9f86503eb7eaeed4", "376d9f86503eb7eaeed4351f", 16),
+        }
 
     print("Nevergone function family miner smoke: PASS")
     return 0

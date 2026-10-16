@@ -5,15 +5,19 @@ functions from crossing split boundaries. It does not prevent near-duplicate
 wrappers, constructors, accessors or container helpers from appearing in both
 training and evaluation data.
 
-`tools/ml/mine_nevergone_function_families.py` adds a stricter evaluation layer.
-It uses only the portable P-code view: operation ordinals, exact SSA identities,
-exact small offsets and model headers are excluded. Function names, source
-addresses and labels are never used to decide family membership.
+`tools/ml/mine_nevergone_function_families.py` preserves the Nevergone command
+and output format while delegating family mining to the generic
+`revenginstr.family` package. It uses only the portable P-code view: operation
+ordinals, exact SSA identities, exact small offsets and model headers are
+excluded. Function names, source addresses and labels are never used to decide
+family membership.
 
 ## Representation
 
-`tools/ml/nevergone_pcode_features.py` implements the portable representation
-that performed best in the initial Nevergone ablation:
+The implementation lives in `revenginstr.family.features`.
+`tools/ml/nevergone_pcode_features.py` remains as a compatibility adapter for
+existing Nevergone training scripts. It supplies Nevergone's historical MinHash
+seed so existing family IDs stay stable:
 
 - `o123` becomes `OP`;
 - `v123:4` becomes `v:4`;
@@ -75,6 +79,10 @@ python tools/ml/nevergone_family_grouped_cv.py \
 `StratifiedGroupKFold` receives `family_id` as the group key, so every member of
 a mined near-duplicate family is confined to one fold. The classifier consumes
 only portable P-code.
+
+Install `revenginstr` in the active Python environment, or set
+`REVENGINSTR_REPO` to a checkout of that repository. The default local layout
+also works when both repositories are sibling directories.
 
 The family miner is a conservative structural heuristic, not semantic proof that
 two functions implement the same source-level operation. Its purpose is to make
