@@ -31,11 +31,27 @@ The preferred external core now owns:
 export REVENGINSTR_REPO=/path/to/revenginstr
 ```
 
-When available it delegates callgraph extraction, receiver-plan creation, mass
-receiver identity inference and feature aggregation to the generic package.
-`REVENGINSTR.ReceiverInference/1` and `REVENGINSTR.Evidence/1` are converted by
-thin Nevergone compatibility adapters to the historical v5 format identifiers.
-The feature dictionary itself is not renamed or reinterpreted.
+When available it delegates callgraph extraction, receiver-plan creation,
+indirect receiver/type export, receiver identity inference and feature aggregation
+to the generic package. The generic Ghidra exporter and inference consume a
+Nevergone-owned vtable catalog; no class map, address list or labels move into
+`revenginstr`. Thin adapters preserve the historical `NEVERGONE.*` receiver TSV
+and inference identifiers for audit and compatibility consumers, while shared
+aggregation reads the generic artifacts directly. The feature dictionary itself
+is not renamed or reinterpreted.
+
+`run_nevergone_frozen_unseen500_v10.sh` uses the same shared receiver exporter and
+inference when the sibling checkout is available. Its immutable corpus, receiver
+plan, vtable catalog and evidence remain Nevergone-owned. The legacy Java exporter
+and inference remain available as an offline fallback.
+
+Before switching the runner, the shared exporter was run in read-only mode over
+the retained 500-function validation plan. Its 203 indirect-call rows matched the
+local exporter field-for-field after adapting only the outer format identifier.
+The generic inference adapter likewise reproduced all 203 retained Nevergone
+inference rows exactly, including nested receiver-type format identifiers. These
+checks establish output compatibility for that corpus; they do not transfer its
+game-specific receiver or vtable knowledge into the shared package.
 
 Historical Nevergone algorithms/artifacts remain immutable reference lineage until
 retained output equivalence is frozen.
