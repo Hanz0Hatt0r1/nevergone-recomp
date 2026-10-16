@@ -3,17 +3,20 @@
 
 This tool reads a user-owned original OBB without extracting or modifying it. It
 answers one narrow reconstruction question: when an action document names a
-logical player plist such as ``p01_02_default.plist``, do the nine recovered
-``MEPlayer::createActions`` preload plists contain the requested frame already?
+logical player plist such as ``p01_02_default.plist``, do the recovered
+``MEPlayer::createActions`` preload plists contain the requested frame as an
+actual SpriteFrameCache key (or alias), rather than merely as matching bytes?
 """
 
 from __future__ import annotations
 
 import argparse
+import plistlib
 import re
 import sys
 import zipfile
 from pathlib import Path
+from typing import Any
 
 MAX_PLIST_BYTES = 4 * 1024 * 1024
 GENERIC_RE = re.compile(r"^p(?P<player>\d+)_(?P<selector>\d+)_default\.plist$", re.IGNORECASE)
@@ -37,6 +40,36 @@ def read_bounded(zf: zipfile.ZipFile, entry: str) -> bytes:
     if info.file_size <= 0 or info.file_size > MAX_PLIST_BYTES:
         raise ValueError(f"unsafe plist size for {entry}: {info.file_size}")
     return zf.read(entry)
+
+
+def plist_membership(payload: bytes, wanted_frame: str) -> tuple[bool, list[str], list[str], int, Any]:
+    root = plistlib.loads(payload)
+    if not isinstance(root, dict):
+        raise ValueError("plist root is not a dict")
+    frames = root.get("frames")
+    if not isinstance(frames, dict):
+        raise ValueError("frames is not a dict")
+
+    keys = [key for key in frames.keys() if isinstance(key, str)]
+    exact = wanted_frame in frames
+    casefold_matches = [key for key in keys if key.casefold() == wanted_frame.casefold()]
+
+    aliases: list[str] = []
+    for canonical, frame in frames.items():
+        if not isinstance(canonical, str) or not isinstance(frame, dict):
+            continue
+        raw_aliases = frame.get("aliases")
+        if not isinstance(raw_aliases, list):
+            continue
+        for alias in raw_aliases:
+            if isinstance(alias, str) and alias == wanted_frame:
+                aliases.append(canonical)
+
+    metadata = root.get("metadata")
+    fmt: Any = None
+    if isinstance(metadata, dict):
+        fmt = metadata.get("format")
+    return exact, casefold_matches, aliases, len(keys), fmt
 
 
 def main() -> int:
@@ -82,35 +115,61 @@ def main() -> int:
                 for hit in hits:
                     print(f"  {hit}")
 
-        frame_hits: list[str] = []
+        byte_hits: list[str] = []
+        exact_key_hits: list[str] = []
+        alias_hits: list[tuple[str, str]] = []
         parse_failures: list[str] = []
         for entry in family_entries:
             try:
                 payload = read_bounded(zf, entry)
-            except (KeyError, ValueError, OSError) as error:
+                exact, casefold_matches, aliases, frame_count, fmt = plist_membership(payload, args.frame)
+            except (KeyError, ValueError, OSError, plistlib.InvalidFileException) as error:
                 parse_failures.append(f"{entry}: {error}")
                 continue
+
             texture_match = TEXTURE_RE.search(payload)
-            texture = texture_match.group(1).decode("utf-8", "replace").strip() if texture_match else "<implicit .png>"
+            texture = (
+                texture_match.group(1).decode("utf-8", "replace").strip()
+                if texture_match
+                else "<implicit .png>"
+            )
             contains = frame_bytes in payload
-            print(f"family: {entry} frame={'yes' if contains else 'no'} texture={texture}")
+            print(
+                f"family: {entry} bytes={'yes' if contains else 'no'} "
+                f"frame_key={'yes' if exact else 'no'} frames={frame_count} "
+                f"format={fmt!r} texture={texture}"
+            )
+            if casefold_matches and not exact:
+                print(f"  casefold_key_matches: {casefold_matches!r}")
+            if aliases:
+                print(f"  alias_targets: {aliases!r}")
+
             if contains:
-                frame_hits.append(entry)
+                byte_hits.append(entry)
+            if exact:
+                exact_key_hits.append(entry)
+            for canonical in aliases:
+                alias_hits.append((entry, canonical))
 
         for error in parse_failures:
             print(f"parse_failure: {error}")
 
         print(f"family_resolved={len(family_entries)}/9")
-        print(f"frame_hits={len(frame_hits)}")
-        for entry in frame_hits:
-            print(f"frame_hit: {entry}")
+        print(f"byte_hits={len(byte_hits)}")
+        print(f"exact_frame_key_hits={len(exact_key_hits)}")
+        print(f"alias_hits={len(alias_hits)}")
+        for entry in exact_key_hits:
+            print(f"exact_frame_key_hit: {entry}")
+        for entry, canonical in alias_hits:
+            print(f"alias_hit: {entry} -> {canonical}")
 
-        # Exit status is intentionally evidence-oriented rather than treating a
-        # missing generic plist as an error. 0 means the recovered preload family
-        # is complete and the requested frame has deterministic membership.
+        # Keep the original strict evidence exit contract: zero means the full
+        # recovered family is present and the requested frame has deterministic
+        # exact/alias membership. Missing family members remain diagnostically
+        # visible even when the particular requested frame is already resolved.
         if parse_failures or missing_family or len(family_entries) != 9:
             return 1
-        if len(frame_hits) != 1:
+        if len(exact_key_hits) + len(alias_hits) != 1:
             return 1
         return 0
 
