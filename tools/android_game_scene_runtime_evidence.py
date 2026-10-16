@@ -160,7 +160,15 @@ def validate_diagnostics(text: str) -> SceneProof:
     )
     _single_match(r"^scene render queue: ready$", text, "ready scene render queue", re.MULTILINE)
 
-    render_sprites = _single_int(r"^render sprites:\s*(\d+)\s*$", text, "render sprite count")
+    # Tutorial bootstrap also reports a `render sprites:` counter. Bind this
+    # value to the GameLevels queue header so the retained P7 validator does not
+    # confuse the downstream tutorial observation with the reconstructed scene
+    # queue that the gate is intended to prove.
+    render_sprites = _single_int(
+        r"^scene render queue: ready\nrender sprites:\s*(\d+)\s*$",
+        text,
+        "GameLevels render sprite count",
+    )
     deferred_pairs = _single_int(
         r"^deferred scene-action pairs:\s*(\d+)\s*$",
         text,
@@ -237,13 +245,6 @@ def validate_diagnostics(text: str) -> SceneProof:
             f"drawn={drawn_sprites}, requests={requests}"
         )
 
-    # Every request belongs to the same complete transactional revision. A
-    # successful direct-renderer frame resolves every request through the native
-    # texture cache and skips only entries explicitly marked hidden by the
-    # recovered GameScene null-frame fallback. Therefore the difference between
-    # the completely staged request count and the submitted quad count is the
-    # evidence-backed hidden-slot count. Player/joystick overlays may still make
-    # the post-composition request count exceed the base GameLevels queue.
     hidden_slots = requests - drawn_sprites
     return SceneProof(
         render_sprites=render_sprites,
