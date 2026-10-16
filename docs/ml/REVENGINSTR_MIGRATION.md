@@ -17,10 +17,12 @@ The preferred external core now owns:
 - receiver class/vtable identity matching from conservative type evidence and a consumer-owned catalog;
 - leakage-safe numeric evidence aggregation across callgraph/receiver sources;
 - deterministic structural P-code metrics and coarse numeric evidence tokenization;
-- portable function-family mining with a Nevergone-compatible hash profile;
+- portable function-family mining with consumer-owned compatibility hash profiles;
 - family-grouped P-code selective classification as `REVENGINSTR.SelectiveClassifier/1`;
 - evidence-aware selective classification as `REVENGINSTR.EvidenceSelectiveClassifier/1`;
-- family-grouped accept-only correctness routing as `REVENGINSTR.AcceptErrorRouter/1`.
+- family-grouped accept-only correctness routing as `REVENGINSTR.AcceptErrorRouter/1`;
+- deterministic identity-disjoint frozen validation as `REVENGINSTR.FrozenValidation/1`;
+- unlabeled deployment-distribution diagnostics as `REVENGINSTR.DriftAudit/1`.
 
 `run_nevergone_production_classifier_v51.sh` auto-detects a sibling
 `../revenginstr` clone or accepts:
@@ -77,11 +79,76 @@ Outputs:
 ~/.local/share/nevergone-ml-v2/evidence-revenginstr-selective/evidence-v5.2-parity.json
 ```
 
-Both parity bridges use the same strict audit: identical row population,
+Both classifier parity bridges use the same strict audit: identical row population,
 predictions and routing actions plus numerically equivalent raw/calibrated
 confidence, family similarity, competing similarity, contrast margin and
 calibration/selective metrics. Downstream consumers should switch only after the
 retained local checks pass.
+
+## Accept-router production gate
+
+The promoted Nevergone v10 router remains retained reference lineage. The generic
+`REVENGINSTR.AcceptErrorRouter/1` is trained from the generic v5.2-equivalent OOF
+and evidence and compared against the retained production requirements:
+
+```bash
+bash tools/ml/run_nevergone_revenginstr_accept_router_gate.sh \
+  ~/.local/share/nevergone-ml-v2
+```
+
+The migration gate remains fail-closed at the production constraints used by the
+Nevergone promotion decision; generic packaging does not silently relax precision
+or coverage to obtain parity.
+
+## Frozen validation and drift parity
+
+Frozen-set **mechanism** is now generic, while Nevergone retains the actual frozen
+bytes, labels/absence of labels, origin policy and experiment history.
+
+Nevergone's historical corpus format is adapted by changing only the outer P-code
+format identifier to `REVENGINSTR.PcodeCorpus/1`. Nevergone itself emits an
+eligibility trace using `nevergone_function_origin.py`, so its narrow `_INIT/_FINI`
+runtime-scaffold policy does not leak into the common validation package.
+
+A new generic frozen generation is intentionally distinct from the old v10 set:
+
+```bash
+bash tools/ml/run_nevergone_revenginstr_validation_parity.sh \
+  ~/.local/share/nevergone-ml-v2
+```
+
+The runner:
+
+1. adapts the retained wide Nevergone P-code corpus to the generic outer contract;
+2. writes a Nevergone-owned semantic-model eligibility trace;
+3. excludes the current labelled dataset trace;
+4. freezes a **new** deterministic `revenginstr-unseen500-v1` population with a
+   dedicated selection salt and immutable hashes;
+5. converts retained v5.2/frozen evidence to `REVENGINSTR.Evidence/1` without
+   changing feature values;
+6. reduces historical v9 routing lineage to generic `{id, action}` baseline rows;
+7. re-runs `REVENGINSTR.DriftAudit/1` on the unchanged historical frozen-v10
+   classified/evidence files;
+8. requires strict numeric parity with the retained
+   `NEVERGONE.FrozenDriftAuditV10/1` report.
+
+Outputs:
+
+```text
+~/.local/share/nevergone-ml-v2/frozen-validation/revenginstr-unseen500-v1/
+  inputs/
+  frozen/
+    corpus.jsonl
+    trace.jsonl
+    manifest.json
+  historical-drift.revenginstr.json
+  historical-drift-parity.json
+```
+
+The new frozen generation is not presented as a byte-for-byte reconstruction of
+the historical v10 sample. The historical sample remains immutable and is used only
+for the migration parity gate. Future evidence/classification runs should target the
+new generic frozen population without tuning thresholds against it.
 
 ## Still Nevergone-specific
 
@@ -90,13 +157,14 @@ knowledge or experiment lineage rather than reusable mechanism:
 
 - seed-label rules and Cocos class identities;
 - current vtable-slot export/catalog data and Nevergone catalog format;
-- thin compatibility adapters for historical receiver/evidence format IDs;
+- Nevergone function-origin/runtime-scaffold eligibility policy;
+- thin compatibility adapters for historical receiver/evidence/P-code format IDs;
 - production experiment/evaluation lineage (v5.x through v10), including the
   exact nested policies and retained OOF result files that justified promotion;
-- frozen Nevergone datasets and validation evidence;
+- frozen Nevergone datasets and validation evidence bytes;
 - Nevergone-specific weak/gold labels and ground truth.
 
-The generic mechanisms for evidence-aware classification and accept-error
-production packaging now live in `revenginstr`; the remaining migration work is
-consumer parity, wrapper replacement and deletion of duplicated fallback
-implementations after equivalence is proven.
+The reusable algorithms for evidence-aware classification, accept-error routing,
+frozen holdout selection and deployment drift now live in `revenginstr`; remaining
+work is consumer wrapper replacement and deletion of duplicated historical fallback
+implementations after retained equivalence is proven.
