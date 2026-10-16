@@ -92,6 +92,11 @@ Direct address-reference enumeration is also shared. Nevergone supplies the
 addresses and its adapter adds the local `nearby_class_evidence` field; address
 classification and class-name heuristics remain in this repository.
 
+The full Ghidra metadata index now prefers `revenginstr` through a small runner
+wrapper. Its five gzip TSV tables retain their historical filenames and columns;
+the original exporter remains the local fallback. Stored Nevergone index rows,
+program addresses and downstream search tools stay in this repository.
+
 The bounded `CALLIND` target-expression exporter is shared as
 `REVENGINSTR.GhidraIndirectCallEvidence/1`. The analysis-plan command uses it
 when the sibling checkout contains the exporter, retains the JSONL evidence,
