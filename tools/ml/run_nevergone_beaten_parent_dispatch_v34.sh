@@ -8,6 +8,8 @@ set -euo pipefail
 : "${REPO_ROOT:=$PWD}"
 : "${WORK_ROOT:=$HOME/.cache/nevergone-recomp/receiver-provenance}"
 : "${SKIP_GHIDRA_EXPORT:=0}"
+source "$REPO_ROOT/tools/ghidra/revenginstr_pcode_flow_script_path.sh"
+PCODE_SCRIPT_PATH=$(revenginstr_pcode_flow_script_path "$REPO_ROOT")
 
 EVID="$WORK_ROOT/evidence/beaten-getparent-v34"
 PRIOR="$WORK_ROOT/evidence/beaten-child-parent-v33"
@@ -37,7 +39,7 @@ if [[ "$SKIP_GHIDRA_EXPORT" != 1 ]]; then
   for fn in 00526c1e 00525e20 00526bd4; do
     "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
       -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-      -scriptPath "$REPO_ROOT/tools/ghidra" \
+      -scriptPath "$PCODE_SCRIPT_PATH" \
       -postScript ExportFunctionPcodeFlow.java "$fn" "$EVID/pcode-$fn.tsv"
   done
 fi

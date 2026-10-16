@@ -76,6 +76,8 @@ def ghidra_runner(entries: list[dict[str, Any]], exporter: str, subdir: str, ext
         ': "${GHIDRA_PROJECT_NAME:=nevergone}"',
         ': "${GHIDRA_PROGRAM:=libcocos2dcpp.so}"',
         ': "${REPO_ROOT:=$PWD}"',
+        'source "$REPO_ROOT/tools/ghidra/revenginstr_pcode_flow_script_path.sh"',
+        'GHIDRA_SCRIPT_PATH=$(revenginstr_pcode_flow_script_path "$REPO_ROOT")',
         f'OUT_ROOT="${{1:-/tmp/nevergone-analysis-evidence}}/{subdir}"',
         'mkdir -p "$OUT_ROOT"',
         'ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"',
@@ -86,7 +88,7 @@ def ghidra_runner(entries: list[dict[str, Any]], exporter: str, subdir: str, ext
         '  [[ -n "$entry" ]] || continue',
         '  safe="${record_id//[:\\/]/_}"',
         '  echo "[$score] $record_id"',
-        f'  "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" -process "$GHIDRA_PROGRAM" -recursive -noanalysis -scriptPath "$REPO_ROOT/tools/ghidra" -postScript {exporter} "$entry" "$OUT_ROOT/$safe.{extension}"',
+        f'  "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" -process "$GHIDRA_PROGRAM" -recursive -noanalysis -scriptPath "$GHIDRA_SCRIPT_PATH" -postScript {exporter} "$entry" "$OUT_ROOT/$safe.{extension}"',
         "done <<'NEVERGONE_ANALYSIS_QUEUE'",
     ]
     for entry in entries:

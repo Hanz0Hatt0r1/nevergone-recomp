@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import shlex
 import subprocess
 import sys
@@ -27,7 +28,7 @@ def export_command(
     project_dir: Path,
     project_name: str,
     program: str,
-    script_dir: Path,
+    script_path: str,
     function: str,
     output: Path,
 ) -> list[str]:
@@ -39,7 +40,7 @@ def export_command(
         program,
         "-noanalysis",
         "-scriptPath",
-        str(script_dir),
+        script_path,
         "-postScript",
         "ExportFunctionPcodeFlow.java",
         function,
@@ -115,6 +116,14 @@ def main(argv: list[str] | None = None) -> int:
     project_dir = args.project_dir.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
     script_dir = repo_root / "tools" / "ghidra"
+    shared_script_dir = Path(
+        os.environ.get("REVENGINSTR_REPO", repo_root.parent / "revenginstr")
+    ).expanduser().resolve() / "ghidra"
+    exporter = shared_script_dir / "ExportFunctionPcodeFlow.java"
+    script_path = f"{shared_script_dir};{script_dir}"
+    if not exporter.is_file():
+        exporter = script_dir / "ExportFunctionPcodeFlow.java"
+        script_path = str(script_dir)
     analyzer = repo_root / "tools" / "tutorial_scene_limit_evidence.py"
 
     wrapper_noarg = output_dir / "gamesceneui-next-lesson.tsv"
@@ -125,11 +134,11 @@ def main(argv: list[str] | None = None) -> int:
 
     first_stage = [
         export_command(
-            ghidra_root, project_dir, args.project_name, args.program, script_dir,
+            ghidra_root, project_dir, args.project_name, args.program, script_path,
             args.next_lesson_wrapper, wrapper_noarg,
         ),
         export_command(
-            ghidra_root, project_dir, args.project_name, args.program, script_dir,
+            ghidra_root, project_dir, args.project_name, args.program, script_path,
             args.state_next_lesson_wrapper, wrapper_state,
         ),
     ]
@@ -148,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     analyze_headless = ghidra_root / "support" / "analyzeHeadless"
     required = [
         analyze_headless,
-        script_dir / "ExportFunctionPcodeFlow.java",
+        exporter,
         analyzer,
     ]
     for path in required:
@@ -171,11 +180,11 @@ def main(argv: list[str] | None = None) -> int:
 
         second_stage = [
             export_command(
-                ghidra_root, project_dir, args.project_name, args.program, script_dir,
+                ghidra_root, project_dir, args.project_name, args.program, script_path,
                 noarg_entry, target_noarg,
             ),
             export_command(
-                ghidra_root, project_dir, args.project_name, args.program, script_dir,
+                ghidra_root, project_dir, args.project_name, args.program, script_path,
                 state_entry, target_state,
             ),
         ]

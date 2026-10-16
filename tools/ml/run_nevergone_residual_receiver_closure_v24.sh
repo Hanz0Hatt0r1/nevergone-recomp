@@ -7,6 +7,8 @@ set -euo pipefail
 : "${GHIDRA_PROGRAM:=libcocos2dcpp.so}"
 : "${REPO_ROOT:=$PWD}"
 : "${WORK_ROOT:=$HOME/.cache/nevergone-recomp/receiver-provenance}"
+source "$REPO_ROOT/tools/ghidra/revenginstr_pcode_flow_script_path.sh"
+PCODE_SCRIPT_PATH=$(revenginstr_pcode_flow_script_path "$REPO_ROOT")
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 EVID="$WORK_ROOT/evidence/residual-closure-v24"
 PCODE="$EVID/pcode"
@@ -73,7 +75,7 @@ for fn in "${pcode_functions[@]}"; do
   echo "== pcode $fn =="
   "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
     -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-    -scriptPath "$REPO_ROOT/tools/ghidra" \
+    -scriptPath "$PCODE_SCRIPT_PATH" \
     -postScript ExportFunctionPcodeFlow.java "$fn" "$PCODE/pcode-$fn.tsv"
 done
 

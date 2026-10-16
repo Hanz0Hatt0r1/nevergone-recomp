@@ -103,6 +103,7 @@ def main() -> int:
         expand = out / "commands" / "run_expand_pcode.sh"
         indirect = out / "commands" / "run_indirect_call_evidence.sh"
         assert "ExportFunctionPcodeFlow.java" in expand.read_text(encoding="utf-8")
+        assert "revenginstr_pcode_flow_script_path.sh" in expand.read_text(encoding="utf-8")
         assert "ExportIndirectCallEvidence.java" in indirect.read_text(encoding="utf-8")
         subprocess.run(["bash", "-n", str(expand)], check=True)
         subprocess.run(["bash", "-n", str(indirect)], check=True)
