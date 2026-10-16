@@ -35,6 +35,7 @@ def main() -> int:
         (generic_shared / "ghidra").mkdir(parents=True)
         (generic_shared / "ghidra/ExportGhidraCallerArgumentSubtree.java").touch()
         (generic_shared / "ghidra/ExportGhidraFunctionIdentities.java").touch()
+        (generic_shared / "ghidra/ExportGhidraPcodeDefinedStrings.java").touch()
         for shared_path in (shared_repo, missing_shared, generic_shared):
             function_shared = (shared_path / "ghidra/ExportFunctionPcodeFlow.java").is_file()
             expected = (
@@ -174,6 +175,46 @@ def main() -> int:
                     raise AssertionError(f"{relative}: expected {identity_expected!r}, got {script_path!r}")
                 if (command[-1] == f"{shared_path}/ghidra") != identity_shared:
                     raise AssertionError(f"{relative}: missing shared exporter directory argument")
+
+            relative = "tools/run_enemy_object_action_dictionary_chain.py"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / relative),
+                    "--project-dir", "/tmp/revenginstr-adapter-smoke-project",
+                    "--project-name", "smoke",
+                    "--program", "sample.bin",
+                    "--dry-run",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=environment,
+            )
+            if result.returncode:
+                raise RuntimeError(f"{relative}: {result.stderr}")
+            commands = [
+                shlex.split(line)
+                for line in result.stdout.splitlines()
+                if "ExportPcodeDefinedStrings.java" in line
+            ]
+            if len(commands) != 1:
+                raise AssertionError(f"{relative}: expected one defined-string export command")
+            command = commands[0]
+            strings_shared = (shared_path / "ghidra/ExportGhidraPcodeDefinedStrings.java").is_file()
+            strings_expected = (
+                f"{shared_path}/ghidra;{repo_root}/tools/ghidra"
+                if strings_shared
+                else f"{repo_root}/tools/ghidra"
+            )
+            if command[command.index("-scriptPath") + 1] != strings_expected:
+                raise AssertionError(f"{relative}: expected script path {strings_expected!r}")
+            if (command[-1] == f"{shared_path}/ghidra") != strings_shared:
+                raise AssertionError(f"{relative}: missing shared defined-string directory argument")
+
+        string_adapter = (repo_root / "tools/ghidra/ExportPcodeDefinedStrings.java").read_text(encoding="utf-8")
+        assert 'runScript("ExportGhidraPcodeDefinedStrings.java"' in string_adapter
+        assert 'runScript("ExportPcodeDefinedStringsLegacy.java"' in string_adapter
 
         helper = repo_root / "tools/ghidra/revenginstr_pcode_flow_script_path.sh"
         expression = 'source "$1"; "$2" "$3"'

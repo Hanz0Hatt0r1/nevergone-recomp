@@ -34,11 +34,14 @@ guess.
 High-P-code TSV from the focused call-site probe. It does **not** decompile the
 function again.
 
-The runner first invokes `ExportPcodeDefinedStrings.java`. That script reads the
-constant tokens already present in the P-code TSV and asks Ghidra whether each
-constant address lies in defined String data. Only matching defined strings are
-exported, base64 encoded with their addresses. It does not enumerate unrelated
-program strings or original bytes.
+The runner first invokes `ExportPcodeDefinedStrings.java`. When the shared
+`revenginstr` checkout is available, this adapter calls its generic
+`ExportGhidraPcodeDefinedStrings.java` exporter and restores the historical
+Nevergone TSV format expected by this analyzer. The legacy local exporter remains
+the fallback. Both read only constant tokens already present in the P-code TSV
+and ask Ghidra whether each address lies in defined String data. Only matching
+defined strings are exported, base64 encoded with their addresses; unrelated
+program strings and original bytes are not exported.
 
 `tools/enemy_object_action_dictionary_chain.py` then:
 

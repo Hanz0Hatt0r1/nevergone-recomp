@@ -17,6 +17,7 @@ on:
       - 'tools/run_enemy_action_factory_call_matrix.py'
       - 'tools/run_enemy_object_init_actions_callsite.py'
       - 'tools/run_enemy_object_action_dictionary_chain.py'
+      - 'tools/ghidra/ExportPcodeDefinedStringsLegacy.java'
       - 'tools/ghidra/ExportFunctionPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedReverseCallGraphPcodeFlow.java'
@@ -48,6 +49,7 @@ on:
       - 'tools/run_enemy_action_factory_call_matrix.py'
       - 'tools/run_enemy_object_init_actions_callsite.py'
       - 'tools/run_enemy_object_action_dictionary_chain.py'
+      - 'tools/ghidra/ExportPcodeDefinedStringsLegacy.java'
       - 'tools/ghidra/ExportFunctionPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedCallGraphPcodeFlow.java'
       - 'tools/ghidra/ExportBoundedReverseCallGraphPcodeFlow.java'
@@ -77,7 +79,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Hanz0Hatt0r1/revenginstr
-          ref: fdb6581aaa96ed68b6935b7805df3ad3636be73f
+          ref: d187269f82754c1fec7be6599d08dd0de2af7154
           path: revenginstr
           persist-credentials: false
       - name: Validate EnemyObject action-init argument tracing
@@ -94,6 +96,7 @@ jobs:
         run: |
           python3 tools/enemy_object_action_dictionary_chain_smoke.py
           grep -q 'NEVERGONE.GhidraPcodeDefinedString/1' tools/ghidra/ExportPcodeDefinedStrings.java
+          grep -q 'REVENGINSTR.GhidraPcodeDefinedString/1' "$REVENGINSTR_REPO/ghidra/ExportGhidraPcodeDefinedStrings.java"
       - name: Validate probe wrapper CLI
         shell: bash
         run: |
