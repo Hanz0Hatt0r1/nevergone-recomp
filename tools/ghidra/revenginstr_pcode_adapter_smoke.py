@@ -61,23 +61,71 @@ def main() -> int:
                             f"{relative}: expected {expected!r}, got {script_path!r}"
                         )
 
-        helper = repo_root / "tools/ghidra/revenginstr_pcode_flow_script_path.sh"
-        expression = 'source "$1"; revenginstr_pcode_flow_script_path "$2"'
-        for shared_path, expected in (
-            (shared_repo, f"{shared_repo}/ghidra;{repo_root}/tools/ghidra"),
-            (missing_shared, f"{repo_root}/tools/ghidra"),
-        ):
-            environment = os.environ.copy()
-            environment["REVENGINSTR_REPO"] = str(shared_path)
             result = subprocess.run(
-                ["bash", "-c", expression, "smoke", str(helper), str(repo_root)],
-                check=True,
+                [
+                    sys.executable,
+                    str(repo_root / "tools/run_enemy_object_action_init_probe.py"),
+                    "--project-dir", "/tmp/revenginstr-adapter-smoke-project",
+                    "--project-name", "smoke",
+                    "--program", "sample.bin",
+                    "--dry-run",
+                ],
+                check=False,
                 capture_output=True,
                 text=True,
                 env=environment,
             )
-            if result.stdout != expected:
-                raise AssertionError(f"shell helper expected {expected!r}, got {result.stdout!r}")
+            if result.returncode:
+                raise RuntimeError(f"bounded call-graph adapter: {result.stderr}")
+            commands = [
+                shlex.split(line)
+                for line in result.stdout.splitlines()
+                if "ExportBounded" in line and "PcodeFlow.java" in line
+            ]
+            if len(commands) != 2:
+                raise AssertionError(f"expected both bounded exporters, got {len(commands)}")
+            bounded_shared = (
+                (shared_path / "ghidra/ExportBoundedCallGraphPcodeFlow.java").is_file()
+                and (shared_path / "ghidra/ExportBoundedReverseCallGraphPcodeFlow.java").is_file()
+            )
+            bounded_expected = expected if bounded_shared else f"{repo_root}/tools/ghidra"
+            for command in commands:
+                script_path = command[command.index("-scriptPath") + 1]
+                if script_path != bounded_expected:
+                    raise AssertionError(
+                        f"bounded call-graph adapter expected {bounded_expected!r}, got {script_path!r}"
+                    )
+                configured = any(value.startswith("--priority=") for value in command)
+                if configured != bounded_shared:
+                    raise AssertionError("bounded call-graph priorities must follow shared exporter availability")
+
+        helper = repo_root / "tools/ghidra/revenginstr_pcode_flow_script_path.sh"
+        expression = 'source "$1"; "$2" "$3"'
+        for shared_path in (shared_repo, missing_shared):
+            environment = os.environ.copy()
+            environment["REVENGINSTR_REPO"] = str(shared_path)
+            for function, exporters in (
+                ("revenginstr_pcode_flow_script_path", ("ExportFunctionPcodeFlow.java",)),
+                ("revenginstr_bounded_callgraph_script_path", (
+                    "ExportBoundedCallGraphPcodeFlow.java",
+                    "ExportBoundedReverseCallGraphPcodeFlow.java",
+                )),
+            ):
+                shared_available = all((shared_path / "ghidra" / name).is_file() for name in exporters)
+                expected = (
+                    f"{shared_path}/ghidra;{repo_root}/tools/ghidra"
+                    if shared_available
+                    else f"{repo_root}/tools/ghidra"
+                )
+                result = subprocess.run(
+                    ["bash", "-c", expression, "smoke", str(helper), function, str(repo_root)],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    env=environment,
+                )
+                if result.stdout != expected:
+                    raise AssertionError(f"{function} expected {expected!r}, got {result.stdout!r}")
 
     print("revenginstr P-code adapters shared-first and fallback: pass")
     return 0

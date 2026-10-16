@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shlex
 import subprocess
 import sys
@@ -87,8 +88,20 @@ def main(argv: list[str] | None = None) -> int:
     project_dir = args.project_dir.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
     script_dir = repo_root / "tools" / "ghidra"
-    forward_exporter = script_dir / "ExportBoundedCallGraphPcodeFlow.java"
-    reverse_exporter = script_dir / "ExportBoundedReverseCallGraphPcodeFlow.java"
+    shared_script_dir = Path(
+        os.environ.get("REVENGINSTR_REPO", repo_root.parent / "revenginstr")
+    ).expanduser().resolve() / "ghidra"
+    shared_forward_exporter = shared_script_dir / "ExportBoundedCallGraphPcodeFlow.java"
+    shared_reverse_exporter = shared_script_dir / "ExportBoundedReverseCallGraphPcodeFlow.java"
+    use_shared_exporters = shared_forward_exporter.is_file() and shared_reverse_exporter.is_file()
+    if use_shared_exporters:
+        forward_exporter = shared_forward_exporter
+        reverse_exporter = shared_reverse_exporter
+        script_path = f"{shared_script_dir};{script_dir}"
+    else:
+        forward_exporter = script_dir / "ExportBoundedCallGraphPcodeFlow.java"
+        reverse_exporter = script_dir / "ExportBoundedReverseCallGraphPcodeFlow.java"
+        script_path = str(script_dir)
     caller_subtree_exporter = script_dir / "ExportCallerArgumentSubtree.java"
     analyzer = repo_root / "tools" / "enemy_object_action_init_evidence.py"
     caller_arguments = repo_root / "tools" / "enemy_action_init_caller_arguments.py"
@@ -111,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
         "-recursive",
         "-noanalysis",
         "-scriptPath",
-        str(script_dir),
+        script_path,
         "-postScript",
     ]
     forward_export_command = common_ghidra + [
@@ -121,6 +134,19 @@ def main(argv: list[str] | None = None) -> int:
         str(args.max_depth),
         str(args.max_functions),
     ]
+    if use_shared_exporters:
+        forward_export_command.extend([
+            "--default-priority=3",
+            "--priority=0:EnemyActionsSystem",
+            "--priority=0:ActionDataManager",
+            "--priority=1:EnemyObject",
+            "--priority=1:Enemy",
+            "--priority=1:Action",
+            "--priority=2:FUN_",
+            "--priority=4:cocos2d::",
+            "--priority=4:std::",
+            "--priority=4:__gnu_cxx::",
+        ])
 
     reverse_target = args.init_entry or args.init_target
     reverse_export_command = common_ghidra + [
@@ -131,6 +157,19 @@ def main(argv: list[str] | None = None) -> int:
         str(args.max_functions),
         EXPECTED_INIT_NAME,
     ]
+    if use_shared_exporters:
+        reverse_export_command.extend([
+            "--default-priority=4",
+            "--priority=0:EnemyObject",
+            "--priority=1:EnemyActionsSystem",
+            "--priority=1:ActionDataManager",
+            "--priority=2:Enemy",
+            "--priority=2:Action",
+            "--priority=3:FUN_",
+            "--priority=5:cocos2d::",
+            "--priority=5:std::",
+            "--priority=5:__gnu_cxx::",
+        ])
 
     def analyze_command(tsv: Path) -> list[str]:
         command = [

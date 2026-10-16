@@ -46,6 +46,10 @@ P-code starting at `EnemyObject::loadEnemyObjectFile` with
 `ExportBoundedCallGraphPcodeFlow.java`, then runs
 `tools/enemy_object_action_init_evidence.py`.
 
+The bounded forward/reverse exporters are shared from `revenginstr` when the
+sibling checkout contains both scripts; this wrapper supplies the traversal
+priority fragments and retains the local exporters as fallback.
+
 Two live forward runs on 2026-10-15 established:
 
 1. `loadEnemyObjectFile` itself has no direct `EnemyActionsSystem::initWithFile`
