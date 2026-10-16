@@ -60,3 +60,8 @@ runtime proof recorded 36 joystick moves, control state `0x13`, and seven
 applied movement steps (x offset changed from `-125.724` to `-69.724`). The
 trace capacity was raised to 768 rows so touch rows survive the diagnostic
 capture interval without truncating the diagnostic text.
+
+`tools/tap_to_start_state_smoke.cpp` also stress-tests 20,000 concurrent
+input-thread/GL-thread handoffs. The GL-side observer waits for phase 5 and
+consumes the request exactly once; the test fails if it sees phase 5 without a
+pending request.

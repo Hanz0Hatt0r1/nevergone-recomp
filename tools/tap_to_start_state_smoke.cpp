@@ -1,5 +1,7 @@
 #include <cassert>
+#include <atomic>
 #include <cstdint>
+#include <thread>
 
 #include "tap_to_start_state.h"
 
@@ -71,5 +73,38 @@ int main() {
     assert(state.phase == Phase::kInactive);
     assert(state.scene_generation == 0);
     assert(state.accepted_touches == 0);
+
+    // The GL thread polls the accepted request independently of Android's
+    // input thread. It must never observe phase 5 before the request is ready.
+    constexpr unsigned kConcurrentAttempts = 20000;
+    std::atomic<unsigned> attempt{0};
+    std::atomic<unsigned> completed{0};
+    std::atomic<unsigned> missed_requests{0};
+    std::thread gl_thread([&] {
+        for (unsigned i = 1; i <= kConcurrentAttempts; ++i) {
+            while (attempt.load(std::memory_order_acquire) != i) {
+                std::this_thread::yield();
+            }
+            while (snapshot().phase != Phase::kAutoLoginPending) {
+                std::this_thread::yield();
+            }
+            if (!consume_auto_login_request()) {
+                missed_requests.fetch_add(1, std::memory_order_relaxed);
+            }
+            completed.store(i, std::memory_order_release);
+        }
+    });
+    for (unsigned i = 1; i <= kConcurrentAttempts; ++i) {
+        reset();
+        sync_scene(1, true);
+        attempt.store(i, std::memory_order_release);
+        assert(touch_began());
+        while (completed.load(std::memory_order_acquire) != i) {
+            std::this_thread::yield();
+        }
+    }
+    gl_thread.join();
+    assert(missed_requests.load(std::memory_order_relaxed) == 0);
+
     return 0;
 }
