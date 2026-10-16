@@ -22,10 +22,14 @@ Career and clothes id travel with the player render request and participate in i
 
 Host tests cover independently selected clothes/action plist families, prefixed-name precedence, unprefixed fallback, missing frames, role handoff retention, fresh-role selection and request revision changes when clothes change. The Android debug build passes for both configured ABIs.
 
-Against the complete extracted user-owned OBB, the production Java resolver loaded 8 available clothes-1 atlases and resolved the initial `P01_I01_001.png` request to `01P01_I01_001.png` in `player/Player01_Res/p01_01_01_default.plist`. This is a production-parser resource check; physical-device render acceptance is recorded separately below when available.
+Against the complete extracted user-owned OBB, the production Java resolver loaded 8 available clothes-1 atlases and resolved the initial `P01_I01_001.png` request to `01P01_I01_001.png` in `player/Player01_Res/p01_01_01_default.plist`.
 
 ## Physical device
 
-The rebuilt APK was installed with data preserved on the Redmi Note 8 Pro (Android 13, arm64). The ordinary fresh-role path rendered the player at the recovered scene point `(430, 271)` in the tutorial scene. The P7 capture at `/tmp/nevergone-clothes-p8/runtime-report.txt` passed at `2026-10-16T12:20:39Z`: 9 requests staged and 9 sprites drawn, with no hidden slots. Diagnostics SHA-256: `0351eecc7195e914ababfbe3447b3627dfde97ae3e7d0e216a321765ad46cc8f`; screenshot SHA-256: `d9e81ac9bce8cca9ecbb5e1a20d72fddfdf4766cfb62f412a28d2381acf3be4f`.
+The integrated APK (including tutorial resource/localization fixes) was installed with data preserved on the Redmi Note 8 Pro (Android 13, arm64). After entering the fresh-role tutorial and dismissing its dialogue, the player rendered at the recovered scene point `(430, 271)`. Runtime evidence at `/tmp/nevergone-integrated/runtime-report.txt` passed at `2026-10-16T12:26:44Z`: 9 sprites drawn, 9 requests staged, and no hidden slots. Diagnostics SHA-256: `c5f4800cb45352c10c23e31ef423a0e90c37b845916b13e1c4cfca9e9af4d956`; screenshot SHA-256: `e620efa569ef7879a54bd5c4c8ce2aef5bd8f7c0aa910a87fefa861a6c5a0b2e`.
 
-This capture establishes the visible P8 body at the recovered spawn point. It does not establish movement: the base branch's lesson overlay was missing its resources and blocked input. The previously reviewed tutorial lookup/localization fixes are needed for the subsequent contiguous input check. Palette recoloring, equipment layers and full visual fidelity remain outside this body-frame fix.
+### P8/P9 contiguous device proof
+
+After the tutorial dialogue was dismissed, a 1.2-second rightward joystick gesture moved the player visibly from the left side of the lit floor to its right side. Before and after screenshots are retained locally at `/tmp/nevergone-before-input.png` and `/tmp/nevergone-after-input.png`, with SHA-256 `1f3d9d657b53a94ff1851ebf91e95e1a74b5e15048b75276ed656511517ab500` and `693a335cc1db15848281756d37f23832e3d6be7b61d85dddc676badfb78c4acc`, respectively. Refreshed runtime diagnostics recorded 2 accepted joystick begins and 73 moves in the same scene. The motion counter was zero after release, so this proves visible gesture-driven movement, not persistent motion after release. The validated post-gesture scene report and screenshot remain at `/tmp/nevergone-integrated/`.
+
+Palette recoloring, equipment layers and full visual fidelity remain outside this body-frame fix.
