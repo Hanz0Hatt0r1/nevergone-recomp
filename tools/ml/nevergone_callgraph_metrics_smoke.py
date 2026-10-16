@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import gzip
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -64,6 +65,7 @@ def main() -> int:
             text=True,
         )
         row = json.loads(metrics.read_text(encoding="utf-8"))
+        assert row["format"] == "NEVERGONE.CallGraphMetrics/1"
         m = row["metrics"]
         assert row["id"] == "libcocos2dcpp.so:00100000"
         assert m["fan_in"] == 1
@@ -75,6 +77,18 @@ def main() -> int:
         assert m["corpus_indirect_call_count"] == 1
         assert abs(m["resolved_call_ratio_proxy"] - 0.5) < 1e-12
         assert abs(m["unknown_call_ratio_proxy"] - 0.5) < 1e-12
+
+        fallback_metrics = root / "fallback-metrics.jsonl"
+        fallback_env = os.environ.copy()
+        fallback_env["REVENGINSTR_REPO"] = str(root / "missing-revenginstr")
+        subprocess.run(
+            [sys.executable, str(extract), str(corpus), str(functions), str(calls), "--output", str(fallback_metrics)],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=fallback_env,
+        )
+        assert json.loads(fallback_metrics.read_text(encoding="utf-8")) == row
 
         analysis.write_text(
             json.dumps({"id": row["id"], "final_action": "review"}) + "\n",

@@ -40,6 +40,12 @@ The feature dictionary itself is not renamed or reinterpreted.
 Historical Nevergone algorithms/artifacts remain immutable reference lineage until
 retained output equivalence is frozen.
 
+The Nevergone callgraph, mass receiver-plan and structural-metrics command names
+now prefer the corresponding `revenginstr` implementations when the shared
+checkout is available. Their adapters preserve the historical Nevergone output
+formats where downstream tools still expect them; the callgraph and plan tools
+keep their offline compatibility paths.
+
 ## P-code-only selective-classifier parity
 
 Historical `NEVERGONE.ProductionClassifier/4` remains immutable reference data.

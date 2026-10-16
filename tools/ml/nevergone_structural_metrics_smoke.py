@@ -63,6 +63,8 @@ def main() -> int:
         )
         extracted_row = json.loads(extracted.read_text(encoding="utf-8"))
         assert extracted_row["id"] == "libcocos2dcpp.so:002a1234"
+        assert extracted_row["format"] == "NEVERGONE.StructuralMetrics/1"
+        assert extracted_row["metrics"] == m
         assert extracted_row["metrics"]["op_count"] == 10
 
         analysis = root / "analysis.jsonl"
