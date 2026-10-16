@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shlex
 import subprocess
 import sys
@@ -48,7 +49,14 @@ def main(argv: list[str] | None = None) -> int:
     identities = args.identities.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
     script_dir = repo_root / "tools" / "ghidra"
-    exporter = script_dir / "ExportFunctionPcodeFlow.java"
+    shared_script_dir = Path(
+        os.environ.get("REVENGINSTR_REPO", repo_root.parent / "revenginstr")
+    ).expanduser().resolve() / "ghidra"
+    exporter = shared_script_dir / "ExportFunctionPcodeFlow.java"
+    script_path = f"{shared_script_dir};{script_dir}"
+    if not exporter.is_file():
+        exporter = script_dir / "ExportFunctionPcodeFlow.java"
+        script_path = str(script_dir)
     analyzer = repo_root / "tools" / "enemy_object_init_actions_callsite.py"
     pcode = output_dir / "enemy-object-init-actions-system-pcode.tsv"
     report = output_dir / "enemy-object-init-actions-callsite-report.txt"
@@ -62,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         "-recursive",
         "-noanalysis",
         "-scriptPath",
-        str(script_dir),
+        script_path,
         "-postScript",
         "ExportFunctionPcodeFlow.java",
         args.function,

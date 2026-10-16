@@ -4,12 +4,20 @@ on:
   push:
     paths:
       - 'tools/ml/**'
+      - 'tools/ghidra/**'
+      - 'tools/run_enemy_object_init_actions_callsite.py'
+      - 'tools/run_tutorial_scene_limit_probe.py'
+      - 'tools/run_player_face_dir_call_probe.py'
       - 'tools/ghidra/ExportMlPcodeCorpus.java'
       - 'docs/ml/**'
       - '.github/workflows/ml-pipeline-smoke.yml'
   pull_request:
     paths:
       - 'tools/ml/**'
+      - 'tools/ghidra/**'
+      - 'tools/run_enemy_object_init_actions_callsite.py'
+      - 'tools/run_tutorial_scene_limit_probe.py'
+      - 'tools/run_player_face_dir_call_probe.py'
       - 'tools/ghidra/ExportMlPcodeCorpus.java'
       - 'docs/ml/**'
       - '.github/workflows/ml-pipeline-smoke.yml'
@@ -115,6 +123,28 @@ jobs:
             tools/ml/nevergone_revenginstr_receiver_adapter_smoke.py
       - name: Validate validation migration runner syntax
         run: bash -n tools/ml/run_nevergone_revenginstr_validation_parity.sh
+      - name: Validate shared High P-code adapters
+        run: |
+          for script in \
+            tools/ghidra/revenginstr_pcode_flow_script_path.sh \
+            tools/ml/run_nevergone_residual_receiver_closure_v24.sh \
+            tools/ml/run_nevergone_protobuf_nested_receiver_recovery_v25.sh \
+            tools/ml/run_nevergone_beaten_callback_alias_v29.sh \
+            tools/ml/run_nevergone_beaten_inherited_owner_v32.sh \
+            tools/ml/run_nevergone_beaten_child_parent_reads_v33.sh \
+            tools/ml/run_nevergone_beaten_parent_dispatch_v34.sh \
+            tools/ml/run_nevergone_beaten_child_dispatch_v35.sh \
+            tools/ml/run_nevergone_beaten_child_lifecycle_v36.sh \
+            tools/ml/run_nevergone_beaten_script_engine_field_load_v40.sh; do
+            bash -n "$script"
+          done
+          python -m py_compile \
+            tools/run_enemy_object_init_actions_callsite.py \
+            tools/run_tutorial_scene_limit_probe.py \
+            tools/run_player_face_dir_call_probe.py \
+            tools/ml/build_nevergone_analysis_plan.py \
+            tools/ghidra/revenginstr_pcode_adapter_smoke.py
+          python tools/ghidra/revenginstr_pcode_adapter_smoke.py
       - name: Validate frozen corpus runner syntax
         run: bash -n tools/ml/run_nevergone_frozen_unseen500_v10.sh
       - name: Validate production classifier runner syntax

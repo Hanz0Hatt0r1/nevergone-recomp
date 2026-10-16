@@ -7,6 +7,8 @@ set -euo pipefail
 : "${GHIDRA_PROGRAM:=libcocos2dcpp.so}"
 : "${REPO_ROOT:=$PWD}"
 : "${WORK_ROOT:=$HOME/.cache/nevergone-recomp/receiver-provenance}"
+source "$REPO_ROOT/tools/ghidra/revenginstr_pcode_flow_script_path.sh"
+PCODE_SCRIPT_PATH=$(revenginstr_pcode_flow_script_path "$REPO_ROOT")
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 
 V39="$WORK_ROOT/beaten-script-engine-manager-v39.json"
@@ -66,16 +68,22 @@ run_ghidra() {
     -scriptPath "$REPO_ROOT/tools/ghidra" "$@"
 }
 
+run_pcode_flow() {
+  "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
+    -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
+    -scriptPath "$PCODE_SCRIPT_PATH" "$@"
+}
+
 echo "== sharedManager engine-field load consumers =="
 run_ghidra -postScript ExportAccessorFieldLoadConsumers.java \
   "cocos2d::CCScriptEngineManager::sharedManager" "$EXPORT"
 
 echo "== sharedManager p-code for backing-cell follow-up =="
-run_ghidra -postScript ExportFunctionPcodeFlow.java \
+run_pcode_flow -postScript ExportFunctionPcodeFlow.java \
   "cocos2d::CCScriptEngineManager::sharedManager" "$SHARED_PCODE"
 
 echo "== purgeSharedManager p-code for backing-cell follow-up =="
-run_ghidra -postScript ExportFunctionPcodeFlow.java \
+run_pcode_flow -postScript ExportFunctionPcodeFlow.java \
   "cocos2d::CCScriptEngineManager::purgeSharedManager" "$PURGE_PCODE"
 
 echo "== v40 engine-field load audit =="

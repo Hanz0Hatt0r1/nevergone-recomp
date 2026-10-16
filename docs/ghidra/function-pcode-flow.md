@@ -23,6 +23,12 @@ Run inside the user's analyzed Ghidra project:
 ExportFunctionPcodeFlow.java <function-address-or-name> <output.tsv>
 ```
 
+The project-neutral implementation and TSV row schema now live in the sibling
+`revenginstr` repository as `REVENGINSTR.GhidraFunctionPcodeFlow/1`. The runners
+for this exporter prefer that shared script when it is available and retain
+this local copy as fallback. Both implementations keep the legacy header and
+are checked for byte-for-byte parity on the same analyzed project.
+
 For the current player-start boundary:
 
 ```text

@@ -7,6 +7,8 @@ set -euo pipefail
 : "${GHIDRA_PROGRAM:=libcocos2dcpp.so}"
 : "${REPO_ROOT:=$PWD}"
 : "${WORK_ROOT:=$HOME/.cache/nevergone-recomp/receiver-provenance}"
+source "$REPO_ROOT/tools/ghidra/revenginstr_pcode_flow_script_path.sh"
+PCODE_SCRIPT_PATH=$(revenginstr_pcode_flow_script_path "$REPO_ROOT")
 
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 IN="$WORK_ROOT/static-receiver-vtable-inference-v20.jsonl"
@@ -106,7 +108,7 @@ echo "== targeted BeatenEffect remaining-field p-code =="
 for fn in 002a3a20 002a3c74; do
   "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
     -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-    -scriptPath "$REPO_ROOT/tools/ghidra" \
+    -scriptPath "$PCODE_SCRIPT_PATH" \
     -postScript ExportFunctionPcodeFlow.java "$fn" "$EVID25/pcode-$fn.tsv"
 done
 
