@@ -12,11 +12,13 @@ on:
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAssetStagingDiagnostics.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetRequests.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionAtlasCacheResolver.java'
       - 'tools/GameSceneAtlasResolverSmoke.java'
       - 'tools/ImportedPlistXmlSmoke.java'
       - 'tools/GameSceneAtlasFrameResolverSmoke.java'
       - 'tools/GameSceneAtlasFramePixelsSmoke.java'
       - 'tools/GameSceneAssetStagingDiagnosticsSmoke.java'
+      - 'tools/PlayerActionAtlasCacheResolverSmoke.java'
       - '.github/workflows/game-scene-atlas-resolution.yml'
   pull_request:
     paths:
@@ -28,11 +30,13 @@ on:
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneAssetStagingDiagnostics.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetRequests.java'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetStager.java'
+      - 'android/app/src/main/java/org/nevergone/recomp/PlayerActionAtlasCacheResolver.java'
       - 'tools/GameSceneAtlasResolverSmoke.java'
       - 'tools/ImportedPlistXmlSmoke.java'
       - 'tools/GameSceneAtlasFrameResolverSmoke.java'
       - 'tools/GameSceneAtlasFramePixelsSmoke.java'
       - 'tools/GameSceneAssetStagingDiagnosticsSmoke.java'
+      - 'tools/PlayerActionAtlasCacheResolverSmoke.java'
       - '.github/workflows/game-scene-atlas-resolution.yml'
 
 jobs:
@@ -57,11 +61,13 @@ jobs:
             android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasFramePixels.java \
             android/app/src/main/java/org/nevergone/recomp/GameSceneAssetStagingDiagnostics.java \
             android/app/src/main/java/org/nevergone/recomp/GameSceneDirectAssetRequests.java \
+            android/app/src/main/java/org/nevergone/recomp/PlayerActionAtlasCacheResolver.java \
             tools/GameSceneAtlasResolverSmoke.java \
             tools/ImportedPlistXmlSmoke.java \
             tools/GameSceneAtlasFrameResolverSmoke.java \
             tools/GameSceneAtlasFramePixelsSmoke.java \
-            tools/GameSceneAssetStagingDiagnosticsSmoke.java
+            tools/GameSceneAssetStagingDiagnosticsSmoke.java \
+            tools/PlayerActionAtlasCacheResolverSmoke.java
           java -ea -cp /tmp/nevergone-atlas-resolver-classes \
             org.nevergone.recomp.GameSceneAtlasResolverSmoke
           java -ea -cp /tmp/nevergone-atlas-resolver-classes \
@@ -72,3 +78,5 @@ jobs:
             org.nevergone.recomp.GameSceneAtlasFramePixelsSmoke
           java -ea -cp /tmp/nevergone-atlas-resolver-classes \
             org.nevergone.recomp.GameSceneAssetStagingDiagnosticsSmoke
+          java -ea -cp /tmp/nevergone-atlas-resolver-classes \
+            org.nevergone.recomp.PlayerActionAtlasCacheResolverSmoke
