@@ -1,7 +1,9 @@
 package org.nevergone.recomp;
 
-/** Thread-safe, resource-name-free diagnostics for GameScene pixel staging. */
+/** Thread-safe GameScene pixel-staging diagnostics with bounded on-device request detail. */
 final class GameSceneAssetStagingDiagnostics {
+    private static final int MAX_DIAGNOSTIC_VALUE_LENGTH = 512;
+
     private static long attemptCount;
     private static long successCount;
     private static long observedRevision;
@@ -95,6 +97,8 @@ final class GameSceneAssetStagingDiagnostics {
                     .append('\n');
         }
 
+        appendFailedRequestDetail(out);
+
         // Host-only Java smokes do not load the Android native library. Keep
         // the existing diagnostics independently testable there, while a real
         // Android process appends the native tutorial bootstrap/session state.
@@ -107,6 +111,47 @@ final class GameSceneAssetStagingDiagnostics {
             // Expected outside the Android runtime.
         }
         return out.toString();
+    }
+
+    private static void appendFailedRequestDetail(StringBuilder out) {
+        if (failedRequestIndex < 0) return;
+        try {
+            String value = GameSceneDirectAssetRequests.valueAt(failedRequestIndex);
+            if (value != null) {
+                out.append("failed request value: ")
+                        .append(diagnosticValue(value))
+                        .append('\n');
+                out.append("failed request value length: ")
+                        .append(value.length())
+                        .append('\n');
+            }
+
+            boolean playerBody = GameSceneDirectAssetRequests.isPlayerBodyAt(failedRequestIndex);
+            out.append("failed request player body: ")
+                    .append(playerBody ? "yes" : "no")
+                    .append('\n');
+            if (playerBody) {
+                String atlas = GameSceneDirectAssetRequests.playerAtlasPlistAt(failedRequestIndex);
+                if (atlas != null) {
+                    out.append("failed request player atlas: ")
+                            .append(diagnosticValue(atlas))
+                            .append('\n');
+                }
+            }
+        } catch (UnsatisfiedLinkError ignored) {
+            // Expected in host-side Java smoke tests.
+        }
+    }
+
+    private static String diagnosticValue(String value) {
+        int length = Math.min(value.length(), MAX_DIAGNOSTIC_VALUE_LENGTH);
+        StringBuilder safe = new StringBuilder(length + 3);
+        for (int index = 0; index < length; ++index) {
+            char c = value.charAt(index);
+            safe.append(c >= 0x20 && c != 0x7f ? c : '?');
+        }
+        if (value.length() > length) safe.append("...");
+        return safe.toString();
     }
 
     private static String kindName(int kind) {
