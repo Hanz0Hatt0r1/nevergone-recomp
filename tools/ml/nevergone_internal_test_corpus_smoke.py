@@ -15,9 +15,13 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
             handle.write(json.dumps(row) + "\n")
 
 
-def corpus_row(entry: str, name: str) -> dict:
+def corpus_row(entry: str, name: str, *, generic: bool = False) -> dict:
     return {
-        "format": "NEVERGONE.MlPcodeCorpus/2",
+        "format": (
+            "REVENGINSTR.PcodeCorpus/1"
+            if generic
+            else "NEVERGONE.MlPcodeCorpus/2"
+        ),
         "program": "libcocos2dcpp.so",
         "source_entry": entry,
         "source_name": name,
@@ -42,7 +46,7 @@ def main() -> int:
                 corpus_row("00020000", "_FINI_0"),
                 corpus_row(overlap_entry, "FUN_00100000"),
                 corpus_row("00110000", "FUN_00110000"),
-                corpus_row("00120000", "GameScene::update(float)"),
+                corpus_row("00120000", "GameScene::update(float)", generic=True),
             ],
         )
 

@@ -21,7 +21,7 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
 
 def corpus_row(entry: str, name: str) -> dict:
     return {
-        "format": "NEVERGONE.MlPcodeCorpus/2",
+        "format": "REVENGINSTR.PcodeCorpus/1",
         "program": "libcocos2dcpp.so",
         "source_entry": entry,
         "source_name": name,
@@ -78,6 +78,7 @@ def main() -> int:
         rows = [json.loads(line) for line in (frozen / "corpus.jsonl").read_text(encoding="utf-8").splitlines()]
         assert len(rows) == 3
         assert all(row["id"] == f"{row['program']}:{row['source_entry']}" for row in rows)
+        assert all(row["format"] == "REVENGINSTR.PcodeCorpus/1" for row in rows)
         assert overlap_entry not in {row["source_entry"] for row in rows}
 
         trace = [json.loads(line) for line in (frozen / "trace.jsonl").read_text(encoding="utf-8").splitlines()]

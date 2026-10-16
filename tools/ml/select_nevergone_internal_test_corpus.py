@@ -18,6 +18,8 @@ from typing import Any, Iterable
 from nevergone_function_origin import classify_function_origin
 
 CORPUS_FORMAT = "NEVERGONE.MlPcodeCorpus/2"
+GENERIC_CORPUS_FORMAT = "REVENGINSTR.PcodeCorpus/1"
+SUPPORTED_CORPUS_FORMATS = frozenset((CORPUS_FORMAT, GENERIC_CORPUS_FORMAT))
 SPLITS = ("train", "validation", "test")
 
 
@@ -62,8 +64,10 @@ def select_rows(corpus: Path, dataset_dir: Path, limit: int) -> tuple[list[dict[
 
     for row in read_jsonl(corpus):
         stats["input_rows"] += 1
-        if row.get("format") != CORPUS_FORMAT:
+        row_format = row.get("format")
+        if not isinstance(row_format, str) or row_format not in SUPPORTED_CORPUS_FORMATS:
             raise ValueError(f"unsupported corpus format: {row.get('format')!r}")
+        stats[f"format_{row_format}"] += 1
         if row.get("decompile_status") != "ok":
             stats["decompile_failed"] += 1
             continue

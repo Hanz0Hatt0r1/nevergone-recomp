@@ -3,8 +3,8 @@
 
 This adapter keeps project policy in Nevergone:
 
-- historical `NEVERGONE.MlPcodeCorpus/2` rows are copied to the generic outer
-  `REVENGINSTR.PcodeCorpus/1` contract without changing model_text/metrics;
+- historical `NEVERGONE.MlPcodeCorpus/2` rows are adapted to the generic outer
+  `REVENGINSTR.PcodeCorpus/1` contract; generic rows are passed through;
 - the eligibility trace uses Nevergone's origin policy, including its narrow
   runtime-scaffold exclusion;
 - optional historical routing OOF is reduced to `{id, action}` using the retained
@@ -23,6 +23,7 @@ from nevergone_function_origin import classify_function_origin
 
 SOURCE_CORPUS_FORMAT = "NEVERGONE.MlPcodeCorpus/2"
 TARGET_CORPUS_FORMAT = "REVENGINSTR.PcodeCorpus/1"
+SUPPORTED_SOURCE_CORPUS_FORMATS = frozenset((SOURCE_CORPUS_FORMAT, TARGET_CORPUS_FORMAT))
 
 
 def read_jsonl(path: Path) -> Iterable[tuple[int, dict[str, Any]]]:
@@ -55,10 +56,16 @@ def adapt_corpus(
 
     for line_no, row in read_jsonl(source):
         stats["rows"] += 1
-        if row.get("format") != SOURCE_CORPUS_FORMAT:
+        row_format = row.get("format")
+        if (
+            not isinstance(row_format, str)
+            or row_format not in SUPPORTED_SOURCE_CORPUS_FORMATS
+        ):
             raise ValueError(
-                f"{source}:{line_no}: expected {SOURCE_CORPUS_FORMAT}, got {row.get('format')!r}"
+                f"{source}:{line_no}: expected one of {sorted(SUPPORTED_SOURCE_CORPUS_FORMATS)}, "
+                f"got {row_format!r}"
             )
+        stats[f"source_format_{row_format}"] += 1
         program = row.get("program")
         entry = row.get("source_entry")
         source_name = row.get("source_name")
@@ -133,7 +140,7 @@ def main() -> int:
         parser.error("--routing-oof and --reference-actions-output must be supplied together")
 
     stats = adapt_corpus(args.corpus, args.generic_corpus, args.eligibility_trace)
-    print("source format:", SOURCE_CORPUS_FORMAT)
+    print("source formats:", sorted(SUPPORTED_SOURCE_CORPUS_FORMATS))
     print("target format:", TARGET_CORPUS_FORMAT)
     print("corpus rows:", stats["rows"])
     print("generic rows:", stats["generic_rows"])

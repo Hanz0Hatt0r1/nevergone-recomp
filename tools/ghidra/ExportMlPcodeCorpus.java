@@ -21,7 +21,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-// Bulk clean-room high-P-code exporter intended for local ML dataset generation.
+// Legacy Nevergone-format exporter retained for offline and CLI compatibility.
+// New exports use the shared revenginstr Ghidra runner; 2000-function parity
+// confirmed identical identities, metrics, statuses, names, and model_text.
 //
 // The model_text field deliberately excludes:
 //   * absolute function/instruction addresses;
