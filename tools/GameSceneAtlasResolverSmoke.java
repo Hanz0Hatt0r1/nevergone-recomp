@@ -236,6 +236,19 @@ public final class GameSceneAtlasResolverSmoke {
                 assets, "Dialogue_UI/dialogue_bg.png").getCanonicalPath().equals(
                 dialogueImage.getCanonicalPath());
 
+        File commonButton = new File(assets,
+                "gamescene_ui/Common/btn_standard_a.png");
+        File loginThunder = new File(assets,
+                "gamescene_ui/SingleLogin_UI/L_thunder08-r.mp3");
+        write(commonButton, "png");
+        write(loginThunder, "mp3");
+        assert GameSceneAtlasResolver.resolveResource(
+                assets, "Common/btn_standard_a.png").getCanonicalPath().equals(
+                commonButton.getCanonicalPath());
+        assert GameSceneAtlasResolver.resolveResource(
+                assets, "SingleLogin_UI/L_thunder08-r.mp3").getCanonicalPath().equals(
+                loginThunder.getCanonicalPath());
+
         // Project-owned lookup stays fail-closed for missing or unsafe names.
         assert GameSceneAtlasResolver.resolveResource(assets, "missing-direct.png") == null;
         assert GameSceneAtlasResolver.resolveResource(assets, "../outside-root.png") == null;
