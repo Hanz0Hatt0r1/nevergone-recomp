@@ -5,20 +5,26 @@ on:
     paths:
       - 'tools/ml/build_nevergone_mass_receiver_plan.py'
       - 'tools/ml/infer_nevergone_mass_receiver_vtables.py'
+      - 'tools/ml/adapt_revenginstr_receiver_inference.py'
+      - 'tools/ml/nevergone_revenginstr_receiver_adapter_smoke.py'
       - 'tools/ml/audit_nevergone_v51_evidence_coverage.py'
       - 'tools/ml/nevergone_production_classifier_v51_smoke.py'
       - 'tools/ml/run_nevergone_production_classifier_v51.sh'
       - 'docs/ml/PRODUCTION_CLASSIFIER_V51.md'
+      - 'docs/ml/REVENGINSTR_MIGRATION.md'
       - '.github/workflows/ml-production-classifier-v51-smoke.yml'
   push:
     branches: [main]
     paths:
       - 'tools/ml/build_nevergone_mass_receiver_plan.py'
       - 'tools/ml/infer_nevergone_mass_receiver_vtables.py'
+      - 'tools/ml/adapt_revenginstr_receiver_inference.py'
+      - 'tools/ml/nevergone_revenginstr_receiver_adapter_smoke.py'
       - 'tools/ml/audit_nevergone_v51_evidence_coverage.py'
       - 'tools/ml/nevergone_production_classifier_v51_smoke.py'
       - 'tools/ml/run_nevergone_production_classifier_v51.sh'
       - 'docs/ml/PRODUCTION_CLASSIFIER_V51.md'
+      - 'docs/ml/REVENGINSTR_MIGRATION.md'
       - '.github/workflows/ml-production-classifier-v51-smoke.yml'
 
 jobs:
@@ -34,7 +40,10 @@ jobs:
           python -m py_compile \
             tools/ml/build_nevergone_mass_receiver_plan.py \
             tools/ml/infer_nevergone_mass_receiver_vtables.py \
+            tools/ml/adapt_revenginstr_receiver_inference.py \
+            tools/ml/nevergone_revenginstr_receiver_adapter_smoke.py \
             tools/ml/audit_nevergone_v51_evidence_coverage.py \
             tools/ml/nevergone_production_classifier_v51_smoke.py
           PYTHONPATH=tools/ml python tools/ml/nevergone_production_classifier_v51_smoke.py
+          python tools/ml/nevergone_revenginstr_receiver_adapter_smoke.py
           bash -n tools/ml/run_nevergone_production_classifier_v51.sh
