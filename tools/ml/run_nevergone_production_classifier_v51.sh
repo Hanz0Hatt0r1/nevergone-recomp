@@ -20,7 +20,8 @@ if [[ -n "$REVENGINSTR_REPO" \
    && -f "$REVENGINSTR_REPO/src/revenginstr/evidence/callgraph.py" \
    && -f "$REVENGINSTR_REPO/src/revenginstr/evidence/aggregate.py" \
    && -f "$REVENGINSTR_REPO/src/revenginstr/receiver/plan.py" \
-   && -f "$REVENGINSTR_REPO/src/revenginstr/receiver/infer.py" ]]; then
+   && -f "$REVENGINSTR_REPO/src/revenginstr/receiver/infer.py" \
+   && -f "$REVENGINSTR_REPO/ghidra/ExportIndirectCallReceiverTypes.java" ]]; then
   USE_REVENGINSTR=1
   export PYTHONPATH="$REVENGINSTR_REPO/src${PYTHONPATH:+:$PYTHONPATH}"
 fi
@@ -36,6 +37,7 @@ PLAN="$MASS_DIR/receiver-plan.tsv"
 VTABLE_SLOTS="$MASS_DIR/vtable-slots.tsv.gz"
 CATALOG="$MASS_DIR/static-vtable-slot-catalog.jsonl"
 RECEIVER_TYPES="$MASS_DIR/indirect-receiver-types.tsv"
+GENERIC_RECEIVER_TYPES="$MASS_DIR/revenginstr-indirect-receiver-types.tsv"
 REVENGINSTR_RECEIVER_INFERENCE="$MASS_DIR/revenginstr-receiver-inference.jsonl"
 RECEIVER_INFERENCE="$MASS_DIR/static-receiver-vtable-inference-mass.jsonl"
 REVENGINSTR_EVIDENCE="$EVIDENCE_DIR/revenginstr-evidence.jsonl"
@@ -50,10 +52,15 @@ for required in \
   "docs/ghidra/full-index/libcocos2dcpp.calls.tsv.gz" \
   "docs/ghidra/full-index/libffmpeg.functions.tsv.gz" \
   "docs/ghidra/full-index/libffmpeg.calls.tsv.gz" \
-  "$SCRIPT_PATH/ExportVtableSlots.java" \
-  "$SCRIPT_PATH/ExportIndirectCallReceiverTypes.java"; do
+  "$SCRIPT_PATH/ExportVtableSlots.java"; do
   [[ -f "$required" ]] || { echo "missing: $required" >&2; exit 2; }
 done
+if [[ "$USE_REVENGINSTR" != "1" ]]; then
+  [[ -f "$SCRIPT_PATH/ExportIndirectCallReceiverTypes.java" ]] || {
+    echo "missing local receiver exporter: $SCRIPT_PATH/ExportIndirectCallReceiverTypes.java" >&2
+    exit 2
+  }
+fi
 [[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }
 
 mkdir -p "$MASS_DIR" "$EVIDENCE_DIR" "$NGML/logs" "$NGML/models"
@@ -80,15 +87,26 @@ fi
 
 echo
 echo "== v5.1: mass Ghidra receiver/type export =="
+RECEIVER_SCRIPT_PATH="$SCRIPT_PATH"
+RECEIVER_OUTPUT="$RECEIVER_TYPES"
+if [[ "$USE_REVENGINSTR" == "1" ]]; then
+  RECEIVER_SCRIPT_PATH="$REVENGINSTR_REPO/ghidra;$SCRIPT_PATH"
+  RECEIVER_OUTPUT="$GENERIC_RECEIVER_TYPES"
+fi
 "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
   -process "$GHIDRA_PROGRAM" \
   -recursive \
   -readOnly \
   -noanalysis \
-  -scriptPath "$SCRIPT_PATH" \
+  -scriptPath "$RECEIVER_SCRIPT_PATH" \
   -postScript ExportVtableSlots.java "$VTABLE_SLOTS" \
-  -postScript ExportIndirectCallReceiverTypes.java "$PLAN" "$RECEIVER_TYPES" \
+  -postScript ExportIndirectCallReceiverTypes.java "$PLAN" "$RECEIVER_OUTPUT" \
   2>&1 | tee "$NGML/logs/v51-receiver-export.log"
+if [[ "$USE_REVENGINSTR" == "1" ]]; then
+  python3 tools/ml/adapt_revenginstr_receiver_types.py \
+    "$GENERIC_RECEIVER_TYPES" --output "$RECEIVER_TYPES" \
+    | tee "$NGML/logs/v51-receiver-types-adapter.log"
+fi
 
 echo
 echo "== v5.1: build static vtable catalog =="
@@ -100,7 +118,7 @@ echo
 echo "== v5.1: mass receiver identity/vtable inference =="
 if [[ "$USE_REVENGINSTR" == "1" ]]; then
   python3 -m revenginstr.receiver.infer \
-    "$RECEIVER_TYPES" "$CATALOG" \
+    "$GENERIC_RECEIVER_TYPES" "$CATALOG" \
     --output "$REVENGINSTR_RECEIVER_INFERENCE" \
     | tee "$NGML/logs/v51-revenginstr-receiver-inference.log"
   python3 tools/ml/adapt_revenginstr_receiver_inference.py \
@@ -157,7 +175,7 @@ if [[ "$USE_REVENGINSTR" == "1" ]]; then
     "$DATASET/trace.jsonl" \
     --callgraph-metrics "$EVIDENCE_DIR/libcocos2dcpp.callgraph.jsonl" \
     --callgraph-metrics "$EVIDENCE_DIR/libffmpeg.callgraph.jsonl" \
-    --receiver-types "$RECEIVER_TYPES" \
+    --receiver-types "$GENERIC_RECEIVER_TYPES" \
     --receiver-inference "$REVENGINSTR_RECEIVER_INFERENCE" \
     --output "$REVENGINSTR_EVIDENCE" \
     | tee "$NGML/logs/v51-revenginstr-evidence.log"

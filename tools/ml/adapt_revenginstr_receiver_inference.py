@@ -15,6 +15,8 @@ from typing import Any
 INPUT_FORMAT = "REVENGINSTR.ReceiverInference/1"
 OUTPUT_FORMAT = "NEVERGONE.StaticReceiverVtableInference/1"
 MASS_FORMAT = "NEVERGONE.MassReceiverVtableInference/1"
+GENERIC_RECEIVER_TYPE_FORMAT = "REVENGINSTR.GhidraIndirectReceiverType/1"
+LEGACY_RECEIVER_TYPE_FORMAT = "NEVERGONE.GhidraIndirectReceiverType/2"
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -36,6 +38,8 @@ def adapt(row: dict[str, Any]) -> dict[str, Any]:
     out = dict(row)
     out["format"] = OUTPUT_FORMAT
     out["mass_inference_format"] = MASS_FORMAT
+    if out.get("receiver_type_format") == GENERIC_RECEIVER_TYPE_FORMAT:
+        out["receiver_type_format"] = LEGACY_RECEIVER_TYPE_FORMAT
     out.setdefault("runtime_validation_status", "runtime_unobserved")
     out.setdefault("parameter_provenance_present", False)
     out.setdefault("structural_parameter_provenance_present", False)

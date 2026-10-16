@@ -30,7 +30,9 @@ TRACE="$OUT/trace.jsonl"
 FREEZE_MANIFEST="$OUT/manifest.json"
 PLAN="$OUT/receiver-plan.tsv"
 RECEIVER_TYPES="$OUT/indirect-receiver-types.tsv"
+GENERIC_RECEIVER_TYPES="$OUT/revenginstr-indirect-receiver-types.tsv"
 RECEIVER_INFERENCE="$OUT/static-receiver-vtable-inference.jsonl"
+REVENGINSTR_RECEIVER_INFERENCE="$OUT/revenginstr-static-receiver-vtable-inference.jsonl"
 CALLGRAPH="$OUT/callgraph.jsonl"
 EVIDENCE_BASE="$OUT/evidence-base.jsonl"
 EVIDENCE="$OUT/evidence.jsonl"
@@ -43,6 +45,12 @@ LOG_DIR="$NGML/logs"
 REVENGINSTR_REPO="${REVENGINSTR_REPO:-$ROOT/../revenginstr}"
 SHARED_PCODE_RUNNER="$REVENGINSTR_REPO/scripts/run_ghidra_pcode_export.sh"
 LEGACY_PCODE_EXPORTER="$SCRIPT_PATH/ExportMlPcodeCorpus.java"
+USE_REVENGINSTR_RECEIVER=0
+if [[ -f "$REVENGINSTR_REPO/ghidra/ExportIndirectCallReceiverTypes.java" \
+   && -f "$REVENGINSTR_REPO/src/revenginstr/receiver/infer.py" ]]; then
+  USE_REVENGINSTR_RECEIVER=1
+  export PYTHONPATH="$REVENGINSTR_REPO/src${PYTHONPATH:+:$PYTHONPATH}"
+fi
 
 for required in \
   "$TRAINING_DATASET/train.jsonl" \
@@ -55,10 +63,15 @@ for required in \
   "$ROUTER_DIR/accept_error_router.joblib" \
   "$ROUTER_MANIFEST" \
   "docs/ghidra/full-index/libcocos2dcpp.functions.tsv.gz" \
-  "docs/ghidra/full-index/libcocos2dcpp.calls.tsv.gz" \
-  "$SCRIPT_PATH/ExportIndirectCallReceiverTypes.java"; do
+  "docs/ghidra/full-index/libcocos2dcpp.calls.tsv.gz"; do
   [[ -f "$required" ]] || { echo "missing: $required" >&2; exit 2; }
 done
+if [[ "$USE_REVENGINSTR_RECEIVER" != "1" ]]; then
+  [[ -f "$SCRIPT_PATH/ExportIndirectCallReceiverTypes.java" ]] || {
+    echo "missing local receiver exporter: $SCRIPT_PATH/ExportIndirectCallReceiverTypes.java" >&2
+    exit 2
+  }
+fi
 [[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }
 if [[ ! -f "$SHARED_PCODE_RUNNER" && ! -f "$LEGACY_PCODE_EXPORTER" ]]; then
   echo "missing shared and legacy P-code exporters" >&2
@@ -157,18 +170,34 @@ fi
 
 echo
 echo "== frozen unseen: receiver/type evidence =="
+RECEIVER_SCRIPT_PATH="$SCRIPT_PATH"
+RECEIVER_OUTPUT="$RECEIVER_TYPES"
+if [[ "$USE_REVENGINSTR_RECEIVER" == "1" ]]; then
+  RECEIVER_SCRIPT_PATH="$REVENGINSTR_REPO/ghidra;$SCRIPT_PATH"
+  RECEIVER_OUTPUT="$GENERIC_RECEIVER_TYPES"
+fi
 "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
   -process "$GHIDRA_PROGRAM" \
   -recursive \
   -readOnly \
   -noanalysis \
-  -scriptPath "$SCRIPT_PATH" \
-  -postScript ExportIndirectCallReceiverTypes.java "$PLAN" "$RECEIVER_TYPES" \
+  -scriptPath "$RECEIVER_SCRIPT_PATH" \
+  -postScript ExportIndirectCallReceiverTypes.java "$PLAN" "$RECEIVER_OUTPUT" \
   2>&1 | tee "$LOG_DIR/v10-frozen-unseen-receivers.log"
 
-python3 tools/ml/infer_nevergone_mass_receiver_vtables.py \
-  "$RECEIVER_TYPES" "$VTABLE_CATALOG" \
-  --output "$RECEIVER_INFERENCE"
+if [[ "$USE_REVENGINSTR_RECEIVER" == "1" ]]; then
+  python3 tools/ml/adapt_revenginstr_receiver_types.py \
+    "$GENERIC_RECEIVER_TYPES" --output "$RECEIVER_TYPES"
+  python3 -m revenginstr.receiver.infer \
+    "$GENERIC_RECEIVER_TYPES" "$VTABLE_CATALOG" \
+    --output "$REVENGINSTR_RECEIVER_INFERENCE"
+  python3 tools/ml/adapt_revenginstr_receiver_inference.py \
+    "$REVENGINSTR_RECEIVER_INFERENCE" --output "$RECEIVER_INFERENCE"
+else
+  python3 tools/ml/infer_nevergone_mass_receiver_vtables.py \
+    "$RECEIVER_TYPES" "$VTABLE_CATALOG" \
+    --output "$RECEIVER_INFERENCE"
+fi
 
 echo
 echo "== frozen unseen: aggregate v5.2 evidence =="

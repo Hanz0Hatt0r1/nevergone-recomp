@@ -27,6 +27,7 @@ def main() -> int:
             "class_name": "SyntheticThing",
             "class_match_kind": "exact_catalog_class_name",
             "class_evidence_source": "direct_receiver_type",
+            "receiver_type_format": "REVENGINSTR.GhidraIndirectReceiverType/1",
             "candidate_receiver_class_names": ["SyntheticThing"],
             "candidate_receiver_vtable_ids": ["lib.so:00900000"],
             "receiver_vtable_id": "lib.so:00900000",
@@ -53,6 +54,30 @@ def main() -> int:
         assert adapted["parameter_provenance_present"] is False
         assert adapted["structural_parameter_provenance_present"] is False
         assert adapted["affects_routing"] is False
+        assert adapted["receiver_type_format"] == "NEVERGONE.GhidraIndirectReceiverType/2"
+
+        generic_types = tmp / "generic-receiver-types.tsv"
+        legacy_types = tmp / "legacy-receiver-types.tsv"
+        generic_types.write_bytes(
+            b'format\tsource_id\tclass_name\tclass_evidence\n'
+            b'REVENGINSTR.GhidraIndirectReceiverType/1\tlib.so:00100000\tSyntheticThing\t{"name":"Thing","quote":"\\"x\\""}\n'
+        )
+        subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "tools/ml/adapt_revenginstr_receiver_types.py"),
+                str(generic_types),
+                "--output",
+                str(legacy_types),
+            ],
+            check=True,
+        )
+        adapted_types = legacy_types.read_bytes()
+        assert adapted_types == generic_types.read_bytes().replace(
+            b"REVENGINSTR.GhidraIndirectReceiverType/1",
+            b"NEVERGONE.GhidraIndirectReceiverType/2",
+            1,
+        )
 
         generic_evidence = tmp / "generic-evidence.jsonl"
         legacy_evidence = tmp / "legacy-evidence.jsonl"
