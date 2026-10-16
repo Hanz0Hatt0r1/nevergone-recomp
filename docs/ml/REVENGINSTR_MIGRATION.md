@@ -16,6 +16,7 @@ The preferred external core now owns:
 - mass receiver-plan construction;
 - bounded indirect-call receiver/type acquisition;
 - bounded direct-caller argument-subtree export;
+- metadata-only Ghidra function identity export;
 - receiver class/vtable identity matching from conservative type evidence and a consumer-owned catalog;
 - leakage-safe numeric evidence aggregation across callgraph/receiver sources;
 - deterministic structural P-code metrics and coarse numeric evidence tokenization;
@@ -73,6 +74,11 @@ The bounded caller-argument SSA walk now uses the generic Ghidra exporter when
 the shared checkout is available. Nevergone keeps the source plan, coverage
 expectations, format identifier and TSV shape in its adapter; the previous local
 exporter remains the offline fallback.
+
+The caller-name/signature exporters use the shared function-identity exporter
+with local plans and compatibility adapters. The `exact` versus `containing`
+address policy remains explicit in the generic plan so callers retain their
+previous resolution behavior.
 
 ## P-code-only selective-classifier parity
 

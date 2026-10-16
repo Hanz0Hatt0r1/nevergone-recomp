@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shlex
 import subprocess
 import sys
@@ -37,6 +38,11 @@ def main(argv: list[str] | None = None) -> int:
     pcode = args.pcode.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
     script_dir = repo_root / "tools" / "ghidra"
+    shared_script_dir = Path(
+        os.environ.get("REVENGINSTR_REPO", repo_root.parent / "revenginstr")
+    ).expanduser().resolve() / "ghidra"
+    shared_identity_exporter = shared_script_dir / "ExportGhidraFunctionIdentities.java"
+    use_shared_identity_exporter = shared_identity_exporter.is_file()
     analyzer = repo_root / "tools" / "enemy_object_action_key_lifetime.py"
     exporter = script_dir / "ExportActionKeyLifetimeFunctionIdentities.java"
     plan = output_dir / "enemy-object-action-key-lifetime-plan.tsv"
@@ -53,12 +59,14 @@ def main(argv: list[str] | None = None) -> int:
         "-recursive",
         "-noanalysis",
         "-scriptPath",
-        str(script_dir),
+        f"{shared_script_dir};{script_dir}" if use_shared_identity_exporter else str(script_dir),
         "-postScript",
         "ExportActionKeyLifetimeFunctionIdentities.java",
         str(plan),
         str(identities),
     ]
+    if use_shared_identity_exporter:
+        export_command.append(str(shared_script_dir))
     report_command = [
         sys.executable,
         str(analyzer),
