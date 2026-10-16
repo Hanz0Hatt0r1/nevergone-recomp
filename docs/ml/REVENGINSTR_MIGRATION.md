@@ -17,6 +17,7 @@ The preferred external core now owns:
 - bounded indirect-call receiver/type acquisition;
 - bounded direct-caller argument-subtree export;
 - metadata-only Ghidra function identity export;
+- bounded P-code constant-to-defined-string resolution;
 - receiver class/vtable identity matching from conservative type evidence and a consumer-owned catalog;
 - leakage-safe numeric evidence aggregation across callgraph/receiver sources;
 - deterministic structural P-code metrics and coarse numeric evidence tokenization;
@@ -79,6 +80,12 @@ The caller-name/signature exporters use the shared function-identity exporter
 with local plans and compatibility adapters. The `exact` versus `containing`
 address policy remains explicit in the generic plan so callers retain their
 previous resolution behavior.
+
+The action dictionary string probe now uses revenginstr's generic defined-string
+exporter. Its adapter restores the historical `NEVERGONE.GhidraPcodeDefinedString/1`
+format for the existing analyzer; the original local exporter remains the offline
+fallback. The shared schema contains only generic address and encoded-string
+fields, while the EnemyObject interpretation stays here.
 
 ## P-code-only selective-classifier parity
 

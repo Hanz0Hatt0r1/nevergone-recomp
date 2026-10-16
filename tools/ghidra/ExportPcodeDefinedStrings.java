@@ -1,6 +1,4 @@
 import ghidra.app.script.GhidraScript;
-import ghidra.program.model.address.Address;
-import ghidra.program.model.listing.Data;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -10,90 +8,66 @@ import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-// Resolve only constant tokens already present in a metadata-only P-code TSV to
-// defined String data in the analyzed program. This exports bounded literal
-// metadata, never program bytes, decompiler text, or unrelated strings.
+// Nevergone adapter: use revenginstr's defined-string exporter while keeping
+// the historical TSV format. The original exporter remains the fallback.
 public class ExportPcodeDefinedStrings extends GhidraScript {
     private static final String FORMAT = "NEVERGONE.GhidraPcodeDefinedString/1";
-    private static final Pattern CONSTANT = Pattern.compile("const:0x([0-9a-fA-F]+):[0-9]+");
+    private static final String GENERIC_FORMAT = "REVENGINSTR.GhidraPcodeDefinedString/1";
+    private static final String HEADER =
+        "format\tconstant_address\tdata_address\tbyte_offset\tutf8_base64\tlength";
 
-    private String cell(Object value) {
-        if (value == null) return "-";
-        return String.valueOf(value).replace('\t', ' ').replace('\n', ' ').replace('\r', ' ');
-    }
-
-    private Set<Long> readConstantAddresses(File input) throws Exception {
-        LinkedHashSet<Long> result = new LinkedHashSet<Long>();
+    private void writeLegacy(File generic, File output) throws Exception {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(
-                new FileInputStream(input), StandardCharsets.UTF_8))) {
+                    new FileInputStream(generic), StandardCharsets.UTF_8));
+             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(
+                    new FileOutputStream(output), StandardCharsets.UTF_8))) {
+            if (!HEADER.equals(in.readLine())) {
+                throw new IllegalArgumentException("Unexpected shared defined-string header");
+            }
+            out.write(HEADER);
+            out.newLine();
             String line;
             while ((line = in.readLine()) != null) {
-                Matcher matcher = CONSTANT.matcher(line);
-                while (matcher.find()) {
-                    try {
-                        result.add(Long.parseUnsignedLong(matcher.group(1), 16));
-                    } catch (NumberFormatException ignored) {
-                        // Ignore malformed/out-of-range constants; no guessing.
-                    }
+                if (line.isEmpty()) continue;
+                String[] values = line.split("\\t", -1);
+                if (values.length != 6 || !GENERIC_FORMAT.equals(values[0])) {
+                    throw new IllegalArgumentException("Invalid shared defined-string row");
                 }
+                values[0] = FORMAT;
+                out.write(String.join("\t", values));
+                out.newLine();
             }
         }
-        return result;
     }
 
     public void run() throws Exception {
         String[] args = getScriptArgs();
-        if (args.length != 2) {
+        if (args.length != 2 && args.length != 3) {
             throw new IllegalArgumentException(
-                "Usage: ExportPcodeDefinedStrings.java <pcode.tsv> <output.tsv>");
+                "Usage: ExportPcodeDefinedStrings.java <pcode.tsv> <output.tsv> [shared-ghidra-script-dir]");
         }
-        File input = new File(args[0]);
         File output = new File(args[1]);
-        File parent = output.getParentFile();
+        File parent = output.getAbsoluteFile().getParentFile();
         if (parent != null) parent.mkdirs();
 
-        Set<Long> constants = readConstantAddresses(input);
-        int resolved = 0;
-        try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(
-                new FileOutputStream(output), StandardCharsets.UTF_8))) {
-            out.write("format\tconstant_address\tdata_address\tbyte_offset\tutf8_base64\tlength");
-            out.newLine();
-            for (Long value : constants) {
-                if (monitor.isCancelled()) break;
-                Address address;
-                try {
-                    address = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(value.longValue());
-                } catch (Exception ignored) {
-                    continue;
-                }
-                Data data = currentProgram.getListing().getDefinedDataContaining(address);
-                if (data == null || !(data.getValue() instanceof String)) continue;
-                String text = (String)data.getValue();
-                long offset;
-                try {
-                    offset = address.subtract(data.getAddress());
-                } catch (Exception ignored) {
-                    continue;
-                }
-                String encoded = Base64.getEncoder().encodeToString(text.getBytes(StandardCharsets.UTF_8));
-                out.write(String.join("\t",
-                    FORMAT,
-                    "0x" + Long.toUnsignedString(value.longValue(), 16),
-                    cell(data.getAddress()),
-                    "0x" + Long.toHexString(offset),
-                    encoded,
-                    Integer.toString(text.length())));
-                out.newLine();
-                resolved++;
-            }
+        File shared = args.length == 3
+            ? new File(args[2], "ExportGhidraPcodeDefinedStrings.java")
+            : null;
+        if (shared == null || !shared.isFile()) {
+            runScript("ExportPcodeDefinedStringsLegacy.java", new String[] {args[0], args[1]});
+            return;
         }
-        println("Resolved " + resolved + " defined strings from " + constants.size() +
-            " P-code constants -> " + output);
+
+        File generic = File.createTempFile("defined-strings-", ".tsv", parent);
+        try {
+            runScript("ExportGhidraPcodeDefinedStrings.java", new String[] {
+                args[0], generic.getAbsolutePath()
+            });
+            writeLegacy(generic, output);
+        } finally {
+            generic.delete();
+        }
+        println("Exported generic defined strings in the historical Nevergone TSV format -> " + output);
     }
 }

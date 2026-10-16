@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shlex
 import subprocess
 import sys
@@ -37,7 +38,15 @@ def main(argv: list[str] | None = None) -> int:
     pcode = args.pcode.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
     script_dir = repo_root / "tools" / "ghidra"
-    exporter = script_dir / "ExportPcodeDefinedStrings.java"
+    shared_script_dir = Path(
+        os.environ.get("REVENGINSTR_REPO", repo_root.parent / "revenginstr")
+    ).expanduser().resolve() / "ghidra"
+    generic_exporter = shared_script_dir / "ExportGhidraPcodeDefinedStrings.java"
+    shared_available = generic_exporter.is_file()
+    exporter = generic_exporter if shared_available else script_dir / "ExportPcodeDefinedStringsLegacy.java"
+    script_path = (
+        f"{shared_script_dir};{script_dir}" if shared_available else str(script_dir)
+    )
     analyzer = repo_root / "tools" / "enemy_object_action_dictionary_chain.py"
     strings = output_dir / "enemy-object-init-actions-defined-strings.tsv"
     report = output_dir / "enemy-object-action-dictionary-chain-report.txt"
@@ -51,12 +60,14 @@ def main(argv: list[str] | None = None) -> int:
         "-recursive",
         "-noanalysis",
         "-scriptPath",
-        str(script_dir),
+        script_path,
         "-postScript",
         "ExportPcodeDefinedStrings.java",
         str(pcode),
         str(strings),
     ]
+    if shared_available:
+        export_command.append(str(shared_script_dir))
     analyze_command = [
         sys.executable,
         str(analyzer),
@@ -73,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
 
     required = [
         ghidra_root / "support" / "analyzeHeadless",
+        script_dir / "ExportPcodeDefinedStrings.java",
         exporter,
         analyzer,
         pcode,
