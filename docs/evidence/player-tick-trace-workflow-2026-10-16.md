@@ -55,6 +55,12 @@ hidden, the GL surface measured `2264x902` and the stick center mapped to screen
 center mapped to `(483,395)`. Perform gameplay gestures with the panel hidden,
 then open and refresh diagnostics to read the retained trace.
 
+After this Run parity check, tapping the visible C control advanced Jump into
+Attack. The live gate had valid player-facing and scene-limit evidence, but the
+wave correctly stayed `waiting-for-base-health`: the loaded global section
+contains zero enemy records. No enemy roster was fabricated. Enemy data source
+and actor materialization are the next runtime boundary.
+
 Save a runtime diagnostics dump with the existing Android evidence workflow,
 then extract the recomp side to CSV:
 
