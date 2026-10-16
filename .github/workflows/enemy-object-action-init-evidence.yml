@@ -73,7 +73,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Hanz0Hatt0r1/revenginstr
-          ref: a75deeebb6f80f0059e0ddde281eebdb39441264
+          ref: dd84b554d4b7ca1652091e0b3d4c9350271df8d7
           path: revenginstr
           persist-credentials: false
       - name: Validate EnemyObject action-init argument tracing
@@ -103,6 +103,10 @@ jobs:
           grep -q 'loadEnemyObjectFile' /tmp/enemy-object-action-init-probe.txt
           grep -q 'ExportBoundedCallGraphPcodeFlow.java' /tmp/enemy-object-action-init-probe.txt
           grep -q 'ExportBoundedReverseCallGraphPcodeFlow.java' /tmp/enemy-object-action-init-probe.txt
+          grep -q 'revenginstr/ghidra;' /tmp/enemy-object-action-init-probe.txt
+          grep -q -- '--priority=0:EnemyActionsSystem' /tmp/enemy-object-action-init-probe.txt
+          grep -q -- '--priority=0:ActionDataManager' /tmp/enemy-object-action-init-probe.txt
+          grep -q -- '--default-priority=4' /tmp/enemy-object-action-init-probe.txt
           grep -q 'ExportCallerArgumentSubtree.java' /tmp/enemy-object-action-init-probe.txt
           grep -q 'EnemyActionsSystem::initWithFile' /tmp/enemy-object-action-init-probe.txt
           grep -q 'enemy_object_action_init_evidence.py' /tmp/enemy-object-action-init-probe.txt
