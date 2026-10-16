@@ -51,7 +51,8 @@ final class TutorialDialogueAssetLoader {
             int[] namePixels,
             int textWidth,
             int textHeight,
-            int[] textPixels);
+            int[] textPixels,
+            int textCharacterCount);
     private static native boolean nativeFinishAssets();
     private static native String nativeLocalizedString(
             String filesDir, String key, int languageColumn);
@@ -130,11 +131,12 @@ final class TutorialDialogueAssetLoader {
 
                 Bitmap portrait = null;
                 Bitmap nameBitmap = null;
-                Bitmap textBitmap = null;
+                RenderedText renderedText = null;
                 try {
                     portrait = decodeArgb(portraitFile);
                     nameBitmap = renderSingleLine(name, 23.0f);
-                    textBitmap = renderWrapped(text, 20.0f, CONTENT_WIDTH);
+                    renderedText = renderWrapped(text, 20.0f, CONTENT_WIDTH);
+                    Bitmap textBitmap = renderedText == null ? null : renderedText.bitmap;
                     if (portrait == null || nameBitmap == null || textBitmap == null) return false;
                     if (!nativeUploadLine(
                             zeroIndex,
@@ -152,13 +154,14 @@ final class TutorialDialogueAssetLoader {
                             pixels(nameBitmap),
                             textBitmap.getWidth(),
                             textBitmap.getHeight(),
-                            pixels(textBitmap))) {
+                            pixels(textBitmap),
+                            renderedText.characterCount)) {
                         return false;
                     }
                 } finally {
                     recycle(portrait);
                     recycle(nameBitmap);
-                    recycle(textBitmap);
+                    recycle(renderedText == null ? null : renderedText.bitmap);
                 }
             }
 
@@ -224,8 +227,20 @@ final class TutorialDialogueAssetLoader {
         return bitmap;
     }
 
-    private static Bitmap renderWrapped(String text, float size, int width) {
+    private static final class RenderedText {
+        final Bitmap bitmap;
+        final int characterCount;
+
+        RenderedText(Bitmap bitmap, int characterCount) {
+            this.bitmap = bitmap;
+            this.characterCount = characterCount;
+        }
+    }
+
+    private static RenderedText renderWrapped(String text, float size, int width) {
         if (text == null || text.isEmpty() || width <= 0) return null;
+        final int characterCount = text.codePointCount(0, text.length());
+        if (characterCount <= 0 || characterCount > 65535) return null;
         TextPaint paint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(Color.WHITE);
         paint.setTextSize(size);
@@ -239,7 +254,32 @@ final class TutorialDialogueAssetLoader {
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         layout.draw(canvas);
-        return bitmap;
+        int[] rankedPixels = pixels(bitmap);
+        int utf16Offset = 0;
+        for (int character = 1; character <= characterCount; character++) {
+            final int codePoint = text.codePointAt(utf16Offset);
+            final int nextOffset = utf16Offset + Character.charCount(codePoint);
+            final int line = layout.getLineForOffset(utf16Offset);
+            final float firstX = layout.getPrimaryHorizontal(utf16Offset);
+            final float nextX = layout.getPrimaryHorizontal(nextOffset);
+            final int left = Math.max(0, (int) Math.floor(Math.min(firstX, nextX)));
+            final int right = Math.min(width, (int) Math.ceil(Math.max(firstX, nextX)));
+            final int top = Math.max(0, layout.getLineTop(line));
+            final int bottom = Math.min(height, layout.getLineBottom(line));
+            final int low = character & 0xff;
+            final int high = (character >>> 8) & 0xff;
+            final int encoded = (low << 16) | (high << 8) | 0xff;
+            for (int y = top; y < bottom; y++) {
+                for (int x = left; x < right; x++) {
+                    int pixelIndex = y * width + x;
+                    int alpha = rankedPixels[pixelIndex] & 0xff000000;
+                    if (alpha != 0) rankedPixels[pixelIndex] = alpha | encoded;
+                }
+            }
+            utf16Offset = nextOffset;
+        }
+        bitmap.setPixels(rankedPixels, 0, width, 0, 0, width, height);
+        return new RenderedText(bitmap, characterCount);
     }
 
     private static int[] pixels(Bitmap bitmap) {

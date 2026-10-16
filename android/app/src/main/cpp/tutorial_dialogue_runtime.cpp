@@ -19,6 +19,7 @@
 #include "game_clock.h"
 #include "login_localization_csv.h"
 #include "tutorial_session_state.h"
+#include "tutorial_typewriter_reveal.h"
 
 namespace nevergone::tutorial_dialogue_runtime {
 namespace {
@@ -44,6 +45,7 @@ struct LineAsset {
     BitmapAsset portrait;
     BitmapAsset name;
     BitmapAsset text;
+    int text_character_count = 0;
     bool uploaded = false;
 };
 
@@ -82,6 +84,9 @@ std::atomic<int> g_surface_height{0};
 GLuint g_program = 0;
 GLint g_sampler = -1;
 GLint g_alpha = -1;
+GLint g_reveal_high = -1;
+GLint g_reveal_low = -1;
+GLint g_reveal_enabled = -1;
 GLuint g_background_texture = 0;
 GLuint g_portrait_texture = 0;
 GLuint g_name_texture = 0;
@@ -163,9 +168,19 @@ precision mediump float;
 varying vec2 vTexCoord;
 uniform sampler2D uTexture;
 uniform float uAlpha;
+uniform float uRevealHigh;
+uniform float uRevealLow;
+uniform float uRevealEnabled;
 void main() {
     vec4 color = texture2D(uTexture, vTexCoord);
-    gl_FragColor = vec4(color.rgb, color.a * uAlpha);
+    float orderLow = floor(color.r * 255.0 + 0.5);
+    float orderHigh = floor(color.g * 255.0 + 0.5);
+    bool hidden = orderHigh > uRevealHigh ||
+        (orderHigh == uRevealHigh && orderLow > uRevealLow);
+    float revealAlpha = hidden ? 0.0 : color.a;
+    float alpha = mix(color.a, revealAlpha, uRevealEnabled);
+    vec3 rgb = mix(color.rgb, vec3(1.0), uRevealEnabled);
+    gl_FragColor = vec4(rgb, alpha * uAlpha);
 }
 )GLSL";
 
@@ -317,7 +332,9 @@ void draw_rect(
         float bottom,
         float width,
         float height,
-        float alpha) {
+        float alpha,
+        float reveal_characters = 65535.0f,
+        bool typewriter_text = false) {
     if (texture == 0 || width <= 0.0f || height <= 0.0f || alpha <= 0.0f) return;
     const float right = left + width;
     const float top = bottom + height;
@@ -345,6 +362,11 @@ void draw_rect(
     };
 
     glUniform1f(g_alpha, std::clamp(alpha, 0.0f, 1.0f));
+    const float reveal_high = std::floor(reveal_characters / 256.0f);
+    const float reveal_low = reveal_characters - reveal_high * 256.0f;
+    glUniform1f(g_reveal_high, reveal_high);
+    glUniform1f(g_reveal_low, reveal_low);
+    glUniform1f(g_reveal_enabled, typewriter_text ? 1.0f : 0.0f);
     glBindTexture(GL_TEXTURE_2D, texture);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, kTexCoords);
@@ -442,6 +464,10 @@ void on_surface_created() {
     g_program = build_program();
     g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
     g_alpha = g_program != 0 ? glGetUniformLocation(g_program, "uAlpha") : -1;
+    g_reveal_high = g_program != 0 ? glGetUniformLocation(g_program, "uRevealHigh") : -1;
+    g_reveal_low = g_program != 0 ? glGetUniformLocation(g_program, "uRevealLow") : -1;
+    g_reveal_enabled = g_program != 0
+        ? glGetUniformLocation(g_program, "uRevealEnabled") : -1;
 }
 
 void on_surface_changed(int width, int height) {
@@ -461,6 +487,7 @@ bool draw() {
     int name_height = 0;
     int text_width = 0;
     int text_height = 0;
+    int text_character_count = 0;
     int background_height = 0;
     double fade_in_seconds = 0.0;
     double fade_out_seconds = 0.0;
@@ -482,6 +509,7 @@ bool draw() {
         name_height = line.name.height;
         text_width = line.text.width;
         text_height = line.text.height;
+        text_character_count = line.text_character_count;
         background_height = g_state.background.height;
         fade_in_seconds = g_state.fade_in_seconds;
         fade_out_seconds = g_state.fade_out_seconds;
@@ -494,13 +522,20 @@ bool draw() {
             ? now - g_state.line_started_tick : 0;
     }
 
-    if (g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
+    if (g_program == 0 || g_sampler < 0 || g_alpha < 0 || g_reveal_high < 0 ||
+            g_reveal_low < 0 ||
+            g_reveal_enabled < 0 ||
             !current_surface(&surface) || !ensure_textures()) {
         return false;
     }
 
     const float alpha = current_line_alpha(
         timing, fade_in_seconds, fade_out_seconds, elapsed_ticks);
+    const std::size_t visible_characters = tutorial_typewriter_reveal::visible_characters(
+        static_cast<std::size_t>(text_character_count),
+        elapsed_ticks,
+        timing.appear_seconds,
+        game_clock::kFixedStepSeconds);
 
     while (glGetError() != GL_NO_ERROR) {
     }
@@ -560,7 +595,9 @@ bool draw() {
         150.0f - static_cast<float>(text_height) * 0.5f,
         static_cast<float>(text_width),
         static_cast<float>(text_height),
-        alpha);
+        alpha,
+        static_cast<float>(visible_characters),
+        true);
 
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(0);
@@ -639,9 +676,11 @@ bool upload_line(
         int text_width,
         int text_height,
         const std::uint32_t* text_argb,
-        std::size_t text_count) {
+        std::size_t text_count,
+        int text_character_count) {
     if (line_index < 0 || npc <= 0 || (npc_position != 0 && npc_position != 1) ||
-            !finite_nonnegative(appear_seconds) || !finite_nonnegative(show_delay_seconds)) {
+            !finite_nonnegative(appear_seconds) || !finite_nonnegative(show_delay_seconds) ||
+            text_character_count <= 0 || text_character_count > 65535) {
         return false;
     }
     LineAsset line;
@@ -651,6 +690,7 @@ bool upload_line(
     line.show_delay_seconds = show_delay_seconds;
     line.fade_in = fade_in;
     line.fade_out = fade_out;
+    line.text_character_count = text_character_count;
     if (!make_bitmap(
             portrait_width, portrait_height, portrait_argb, portrait_count, &line.portrait) ||
             !make_bitmap(name_width, name_height, name_argb, name_count, &line.name) ||
@@ -695,6 +735,18 @@ Snapshot snapshot() {
     result.dialogue_id = g_state.dialogue_id;
     result.line_index = g_state.line_index;
     result.line_count = static_cast<int>(g_state.lines.size());
+    if (g_state.line_index >= 0 &&
+            g_state.line_index < static_cast<int>(g_state.lines.size())) {
+        const LineAsset& line = g_state.lines[static_cast<std::size_t>(g_state.line_index)];
+        result.current_text_character_count = line.text_character_count;
+        const std::uint64_t now = game_clock::tick_count();
+        result.visible_text_characters = static_cast<int>(
+            tutorial_typewriter_reveal::visible_characters(
+                static_cast<std::size_t>(line.text_character_count),
+                now >= g_state.line_started_tick ? now - g_state.line_started_tick : 0,
+                line.appear_seconds,
+                game_clock::kFixedStepSeconds));
+    }
     result.assets_ready = g_state.assets_ready;
     result.auto_play = g_state.auto_play;
     result.fade_in_seconds = g_state.fade_in_seconds;
@@ -727,6 +779,8 @@ std::string status_report() {
     out << "assets ready: " << (state.assets_ready ? "yes" : "no") << "\n";
     out << "auto play: " << (state.auto_play ? "yes" : "no") << "\n";
     out << "line: " << state.line_index << "/" << state.line_count << "\n";
+    out << "text characters: " << state.visible_text_characters << "/"
+        << state.current_text_character_count << "\n";
     out << "line started tick: " << state.line_started_tick << "\n";
     out << "fade seconds: " << state.fade_in_seconds << "/" << state.fade_out_seconds << "\n";
     out << "first dialogue completions: " << state.first_dialogue_completion_count << "\n";
@@ -836,7 +890,8 @@ Java_org_nevergone_recomp_TutorialDialogueAssetLoader_nativeUploadLine(
         jintArray name_pixels,
         jint text_width,
         jint text_height,
-        jintArray text_pixels) {
+        jintArray text_pixels,
+        jint text_character_count) {
     std::vector<std::uint32_t> portrait;
     std::vector<std::uint32_t> name;
     std::vector<std::uint32_t> text;
@@ -864,7 +919,8 @@ Java_org_nevergone_recomp_TutorialDialogueAssetLoader_nativeUploadLine(
         static_cast<int>(text_width),
         static_cast<int>(text_height),
         text.data(),
-        text.size()) ? JNI_TRUE : JNI_FALSE;
+        text.size(),
+        static_cast<int>(text_character_count)) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
