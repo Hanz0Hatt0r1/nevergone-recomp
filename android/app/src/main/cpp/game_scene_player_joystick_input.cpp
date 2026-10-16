@@ -33,7 +33,7 @@ std::mutex g_trace_mutex;
 std::deque<std::string> g_trace;
 std::atomic<std::uint64_t> g_trace_frame{0};
 std::uint64_t g_trace_sequence = 0;
-constexpr std::size_t kMaxTraceRows = 512;
+constexpr std::size_t kMaxTraceRows = 768;
 
 bool finite(float value) {
     return std::isfinite(value);

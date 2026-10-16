@@ -47,6 +47,16 @@ python3 tools/extract_player_tick_trace.py \
 ```
 
 Touch events and update samples share a monotonically increasing sequence
-number. At most 512 rows are retained, so capture diagnostics shortly after the
-input sequence. The current device session is still at the startup route; the
-gameplay input proof cannot run until the offline route reaches GameLevels.
+number. At most 768 rows are retained (about 12 seconds at the normal render
+rate). This keeps recent input and state changes available while keeping the
+diagnostics within Android's accessibility text limit.
+
+The 2026-10-16 device run found and fixed a race in TapToStart: the touch phase
+was published before its pending auto-login request, allowing the GL thread to
+miss the request. The state is now updated under one mutex. On the Redmi Note 8
+Pro, a clean launch reached `game-levels` after one accepted touch; the bounded
+trace retained 512 rows in the first verification run. The input
+runtime proof recorded 36 joystick moves, control state `0x13`, and seven
+applied movement steps (x offset changed from `-125.724` to `-69.724`). The
+trace capacity was raised to 768 rows so touch rows survive the diagnostic
+capture interval without truncating the diagnostic text.
