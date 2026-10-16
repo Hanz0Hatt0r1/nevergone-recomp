@@ -10,6 +10,19 @@ NGML="${1:-$HOME/.local/share/nevergone-ml-v2}"
 : "${GHIDRA_PROJECT_NAME:=nevergone}"
 : "${GHIDRA_PROGRAM:=libcocos2dcpp.so}"
 
+DEFAULT_REVENGINSTR="$(cd "$ROOT/.." && pwd)/revenginstr"
+REVENGINSTR_REPO=${REVENGINSTR_REPO:-}
+if [[ -z "$REVENGINSTR_REPO" && -f "$DEFAULT_REVENGINSTR/pyproject.toml" ]]; then
+  REVENGINSTR_REPO="$DEFAULT_REVENGINSTR"
+fi
+USE_REVENGINSTR=0
+if [[ -n "$REVENGINSTR_REPO" \
+   && -f "$REVENGINSTR_REPO/src/revenginstr/evidence/callgraph.py" \
+   && -f "$REVENGINSTR_REPO/src/revenginstr/receiver/plan.py" ]]; then
+  USE_REVENGINSTR=1
+  export PYTHONPATH="$REVENGINSTR_REPO/src${PYTHONPATH:+:$PYTHONPATH}"
+fi
+
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 SCRIPT_PATH="$ROOT/tools/ghidra"
 DATASET="$NGML/dataset-4class"
@@ -40,15 +53,30 @@ done
 
 mkdir -p "$MASS_DIR" "$EVIDENCE_DIR" "$NGML/logs" "$NGML/models"
 
+if [[ "$USE_REVENGINSTR" == "1" ]]; then
+  echo "== generic evidence core: revenginstr =="
+  echo "revenginstr: $REVENGINSTR_REPO"
+else
+  echo "== generic evidence core: Nevergone compatibility fallback =="
+  echo "warning: clone revenginstr next to this repo or set REVENGINSTR_REPO" >&2
+fi
+
+echo
 echo "== v5.1: build mass receiver plan =="
-python3 tools/ml/build_nevergone_mass_receiver_plan.py \
-  "$DATASET/trace.jsonl" \
-  "$PLAN" \
-  --program "$GHIDRA_PROGRAM" \
-  | tee "$NGML/logs/v51-receiver-plan.log"
+if [[ "$USE_REVENGINSTR" == "1" ]]; then
+  python3 -m revenginstr.receiver.plan \
+    "$DATASET/trace.jsonl" "$PLAN" --program "$GHIDRA_PROGRAM" \
+    | tee "$NGML/logs/v51-receiver-plan.log"
+else
+  python3 tools/ml/build_nevergone_mass_receiver_plan.py \
+    "$DATASET/trace.jsonl" "$PLAN" --program "$GHIDRA_PROGRAM" \
+    | tee "$NGML/logs/v51-receiver-plan.log"
+fi
 
 echo
 echo "== v5.1: mass Ghidra receiver/type export =="
+# Receiver class/vtable inference is still Nevergone-specific in this migration
+# slice, so the existing compatibility exporter/format remains authoritative here.
 "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
   -process "$GHIDRA_PROGRAM" \
   -recursive \
@@ -62,31 +90,40 @@ echo "== v5.1: mass Ghidra receiver/type export =="
 echo
 echo "== v5.1: build static vtable catalog =="
 python3 tools/ml/build_nevergone_static_vtable_slot_catalog_from_export.py \
-  "$VTABLE_SLOTS" \
-  --output "$CATALOG" \
+  "$VTABLE_SLOTS" --output "$CATALOG" \
   | tee "$NGML/logs/v51-vtable-catalog.log"
 
 echo
 echo "== v5.1: mass receiver identity/vtable inference =="
 python3 tools/ml/infer_nevergone_mass_receiver_vtables.py \
-  "$RECEIVER_TYPES" \
-  "$CATALOG" \
-  --output "$RECEIVER_INFERENCE" \
+  "$RECEIVER_TYPES" "$CATALOG" --output "$RECEIVER_INFERENCE" \
   | tee "$NGML/logs/v51-receiver-inference.log"
 
 echo
 echo "== v5.1: callgraph evidence =="
-python3 tools/ml/extract_nevergone_callgraph_metrics.py \
-  "$NGML/corpus/libcocos2dcpp.jsonl" \
-  docs/ghidra/full-index/libcocos2dcpp.functions.tsv.gz \
-  docs/ghidra/full-index/libcocos2dcpp.calls.tsv.gz \
-  --output "$EVIDENCE_DIR/libcocos2dcpp.callgraph.jsonl"
-
-python3 tools/ml/extract_nevergone_callgraph_metrics.py \
-  "$NGML/corpus/libffmpeg.jsonl" \
-  docs/ghidra/full-index/libffmpeg.functions.tsv.gz \
-  docs/ghidra/full-index/libffmpeg.calls.tsv.gz \
-  --output "$EVIDENCE_DIR/libffmpeg.callgraph.jsonl"
+if [[ "$USE_REVENGINSTR" == "1" ]]; then
+  python3 -m revenginstr.evidence.callgraph \
+    "$NGML/corpus/libcocos2dcpp.jsonl" \
+    docs/ghidra/full-index/libcocos2dcpp.functions.tsv.gz \
+    docs/ghidra/full-index/libcocos2dcpp.calls.tsv.gz \
+    --output "$EVIDENCE_DIR/libcocos2dcpp.callgraph.jsonl"
+  python3 -m revenginstr.evidence.callgraph \
+    "$NGML/corpus/libffmpeg.jsonl" \
+    docs/ghidra/full-index/libffmpeg.functions.tsv.gz \
+    docs/ghidra/full-index/libffmpeg.calls.tsv.gz \
+    --output "$EVIDENCE_DIR/libffmpeg.callgraph.jsonl"
+else
+  python3 tools/ml/extract_nevergone_callgraph_metrics.py \
+    "$NGML/corpus/libcocos2dcpp.jsonl" \
+    docs/ghidra/full-index/libcocos2dcpp.functions.tsv.gz \
+    docs/ghidra/full-index/libcocos2dcpp.calls.tsv.gz \
+    --output "$EVIDENCE_DIR/libcocos2dcpp.callgraph.jsonl"
+  python3 tools/ml/extract_nevergone_callgraph_metrics.py \
+    "$NGML/corpus/libffmpeg.jsonl" \
+    docs/ghidra/full-index/libffmpeg.functions.tsv.gz \
+    docs/ghidra/full-index/libffmpeg.calls.tsv.gz \
+    --output "$EVIDENCE_DIR/libffmpeg.callgraph.jsonl"
+fi
 
 echo
 echo "== v5.1: evidence coverage audit =="
@@ -114,9 +151,7 @@ echo
 echo "== v5.1: train =="
 rm -rf "$MODEL_DIR"
 python3 tools/ml/train_nevergone_production_classifier_v5.py \
-  "$DATASET" \
-  "$FAMILIES" \
-  "$MODEL_DIR" \
+  "$DATASET" "$FAMILIES" "$MODEL_DIR" \
   --evidence "$EVIDENCE_DIR/evidence.jsonl" \
   --classes game engine runtime_library media_library \
   | tee "$NGML/logs/v51-train.log"
@@ -131,13 +166,11 @@ import json
 import sys
 from pathlib import Path
 
-
 def load(path):
     p = Path(path)
     if not p.exists():
         return None
     return json.loads(p.read_text(encoding="utf-8"))
-
 
 for name, path in zip(("v4", "v5", "v5.1"), sys.argv[1:]):
     payload = load(path)
