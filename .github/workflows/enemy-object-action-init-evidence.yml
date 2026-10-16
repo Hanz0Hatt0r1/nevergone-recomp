@@ -77,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Hanz0Hatt0r1/revenginstr
-          ref: a4ce57afcb3f39cc07291aba588a397f54c0e29c
+          ref: fdb6581970da0ea7a52fe75e45a945b4576c71cc
           path: revenginstr
           persist-credentials: false
       - name: Validate EnemyObject action-init argument tracing
