@@ -42,10 +42,20 @@ if [[ "$SKIP_GHIDRA_EXPORT" != 1 ]]; then
     'callback-targets.tsv 002a3a20 002a3c74'; do
     read -r -a parts <<< "$spec"
     output="${parts[0]}"
-    "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
-      -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-      -scriptPath "$REPO_ROOT/tools/ghidra" \
-      -postScript ExportAddressClassification.java "$EVID/$output" "${parts[@]:1}"
+    if [[ -f "$REVENGINSTR_REPO/ghidra/ExportGhidraAddressMetadata.java" ]]; then
+      GENERIC_OUTPUT="$EVID/${output%.tsv}.jsonl"
+      "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
+        -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
+        -scriptPath "$REVENGINSTR_REPO/ghidra;$REPO_ROOT/tools/ghidra" \
+        -postScript ExportGhidraAddressMetadata.java "$GENERIC_OUTPUT" "${parts[@]:1}"
+      python3 "$REPO_ROOT/tools/ml/adapt_revenginstr_address_metadata.py" \
+        "$GENERIC_OUTPUT" "$EVID/$output"
+    else
+      "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
+        -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
+        -scriptPath "$REPO_ROOT/tools/ghidra" \
+        -postScript ExportAddressClassification.java "$EVID/$output" "${parts[@]:1}"
+    fi
   done
 fi
 
