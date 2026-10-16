@@ -22,3 +22,7 @@ revenginstr_bounded_callgraph_script_path() {
     ExportBoundedCallGraphPcodeFlow.java \
     ExportBoundedReverseCallGraphPcodeFlow.java
 }
+
+revenginstr_address_reference_script_path() {
+  revenginstr_ghidra_script_path "$1" ExportGhidraAddressReferenceOwners.java
+}

@@ -6,4 +6,4 @@ The earlier address-root classification stops at the terminal literal leaf. That
 
 `tools/ml/audit_nevergone_load_address_expression_fold.py` evaluates only the bounded address-input subtree of the canonical receiver `LOAD`. Memory reads are permitted only when an exact classified `raw_u32` word is available. Unsupported operations, missing memory words, cycles, and divergent PHIs fail closed.
 
-When an exact effective address is folded, the runner classifies that address and its raw value with Ghidra and collects direct xref owners using `ExportAddressReferenceOwners.java`. These artifacts remain evidence-only and do not infer a receiver class, emit a receiver query, or affect routing.
+When an exact effective address is folded, the runner classifies that address and its raw value with Ghidra and collects direct xref owners using `ExportAddressReferenceOwners.java`. The adapter uses revenginstr's generic address-reference exporter when available, then adds the Nevergone-only nearby class evidence expected by this audit. These artifacts remain evidence-only and do not infer a receiver class, emit a receiver query, or affect routing.

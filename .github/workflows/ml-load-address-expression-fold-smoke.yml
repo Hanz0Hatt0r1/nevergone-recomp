@@ -6,6 +6,9 @@ on:
       - 'tools/ml/audit_nevergone_load_address_expression_fold.py'
       - 'tools/ml/audit_nevergone_load_effective_address_owners.py'
       - 'tools/ml/run_nevergone_load_address_expression_fold.sh'
+      - 'tools/ghidra/ExportAddressReferenceOwners.java'
+      - 'tools/ghidra/ExportAddressReferenceOwnersLegacy.java'
+      - 'tools/ghidra/revenginstr_pcode_flow_script_path.sh'
       - 'tools/ml/nevergone_load_address_expression_fold_smoke.py'
       - '.github/workflows/ml-load-address-expression-fold-smoke.yml'
   workflow_dispatch:

@@ -10,6 +10,15 @@ set -euo pipefail
 : "${TARGET_CLASSIFICATION:=$WORK_ROOT/phi-secondary-got-target-classification.tsv}"
 : "${OUT:=$WORK_ROOT/phi-default-instance-owner-references.tsv}"
 
+source "$REPO_ROOT/tools/ghidra/revenginstr_pcode_flow_script_path.sh"
+ADDRESS_REFERENCE_SCRIPT_PATH=$(revenginstr_address_reference_script_path "$REPO_ROOT")
+DEFAULT_REVENGINSTR="$(cd "$REPO_ROOT/.." && pwd)/revenginstr"
+SHARED_GHIDRA_DIR="${REVENGINSTR_REPO:-$DEFAULT_REVENGINSTR}/ghidra"
+ADDRESS_REFERENCE_ARGS=()
+if [[ -f "$SHARED_GHIDRA_DIR/ExportGhidraAddressReferenceOwners.java" ]]; then
+  ADDRESS_REFERENCE_ARGS=(--shared-ghidra-script-dir "$SHARED_GHIDRA_DIR")
+fi
+
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 [[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }
 [[ -f "$TARGET_CLASSIFICATION" ]] || { echo "missing GOT target classification: $TARGET_CLASSIFICATION" >&2; exit 2; }
@@ -48,8 +57,8 @@ mkdir -p "$(dirname "$OUT")"
   -recursive \
   -readOnly \
   -noanalysis \
-  -scriptPath "$REPO_ROOT/tools/ghidra" \
-  -postScript ExportAddressReferenceOwners.java "$OUT" "${TARGETS[@]}"
+  -scriptPath "$ADDRESS_REFERENCE_SCRIPT_PATH" \
+  -postScript ExportAddressReferenceOwners.java "$OUT" "${TARGETS[@]}" "${ADDRESS_REFERENCE_ARGS[@]}"
 
 printf '\n== PHI default-instance owner references ==\n'
 cat "$OUT"
