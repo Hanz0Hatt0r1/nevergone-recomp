@@ -51,6 +51,10 @@ if [[ -f "$REVENGINSTR_REPO/ghidra/ExportIndirectCallReceiverTypes.java" \
   USE_REVENGINSTR_RECEIVER=1
   export PYTHONPATH="$REVENGINSTR_REPO/src${PYTHONPATH:+:$PYTHONPATH}"
 fi
+USE_REVENGINSTR_VTABLE=0
+if [[ -f "$REVENGINSTR_REPO/ghidra/ExportArm32ItaniumVtableSlots.java" ]]; then
+  USE_REVENGINSTR_VTABLE=1
+fi
 
 for required in \
   "$TRAINING_DATASET/train.jsonl" \
@@ -69,6 +73,12 @@ done
 if [[ "$USE_REVENGINSTR_RECEIVER" != "1" ]]; then
   [[ -f "$SCRIPT_PATH/ExportIndirectCallReceiverTypes.java" ]] || {
     echo "missing local receiver exporter: $SCRIPT_PATH/ExportIndirectCallReceiverTypes.java" >&2
+    exit 2
+  }
+fi
+if [[ "$USE_REVENGINSTR_VTABLE" != "1" ]]; then
+  [[ -f "$SCRIPT_PATH/ExportVtableSlots.java" ]] || {
+    echo "missing local vtable exporter: $SCRIPT_PATH/ExportVtableSlots.java" >&2
     exit 2
   }
 fi
@@ -156,13 +166,19 @@ python3 tools/ml/build_nevergone_mass_receiver_plan.py \
 if [[ ! -f "$VTABLE_CATALOG" ]]; then
   echo
   echo "== frozen unseen: rebuild vtable catalog =="
+  VTABLE_SCRIPT_PATH="$SCRIPT_PATH"
+  VTABLE_SCRIPT="ExportVtableSlots.java"
+  if [[ "$USE_REVENGINSTR_VTABLE" == "1" ]]; then
+    VTABLE_SCRIPT_PATH="$REVENGINSTR_REPO/ghidra;$SCRIPT_PATH"
+    VTABLE_SCRIPT="ExportArm32ItaniumVtableSlots.java"
+  fi
   "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
     -process "$GHIDRA_PROGRAM" \
     -recursive \
     -readOnly \
     -noanalysis \
-    -scriptPath "$SCRIPT_PATH" \
-    -postScript ExportVtableSlots.java "$VTABLE_SLOTS" \
+    -scriptPath "$VTABLE_SCRIPT_PATH" \
+    -postScript "$VTABLE_SCRIPT" "$VTABLE_SLOTS" \
     2>&1 | tee "$LOG_DIR/v10-frozen-unseen-vtables.log"
   python3 tools/ml/build_nevergone_static_vtable_slot_catalog_from_export.py \
     "$VTABLE_SLOTS" --output "$VTABLE_CATALOG"

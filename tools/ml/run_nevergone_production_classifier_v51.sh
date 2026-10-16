@@ -25,6 +25,11 @@ if [[ -n "$REVENGINSTR_REPO" \
   USE_REVENGINSTR=1
   export PYTHONPATH="$REVENGINSTR_REPO/src${PYTHONPATH:+:$PYTHONPATH}"
 fi
+USE_REVENGINSTR_VTABLE=0
+if [[ -n "$REVENGINSTR_REPO" \
+   && -f "$REVENGINSTR_REPO/ghidra/ExportArm32ItaniumVtableSlots.java" ]]; then
+  USE_REVENGINSTR_VTABLE=1
+fi
 
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 SCRIPT_PATH="$ROOT/tools/ghidra"
@@ -51,10 +56,15 @@ for required in \
   "docs/ghidra/full-index/libcocos2dcpp.functions.tsv.gz" \
   "docs/ghidra/full-index/libcocos2dcpp.calls.tsv.gz" \
   "docs/ghidra/full-index/libffmpeg.functions.tsv.gz" \
-  "docs/ghidra/full-index/libffmpeg.calls.tsv.gz" \
-  "$SCRIPT_PATH/ExportVtableSlots.java"; do
+  "docs/ghidra/full-index/libffmpeg.calls.tsv.gz"; do
   [[ -f "$required" ]] || { echo "missing: $required" >&2; exit 2; }
 done
+if [[ "$USE_REVENGINSTR_VTABLE" != "1" ]]; then
+  [[ -f "$SCRIPT_PATH/ExportVtableSlots.java" ]] || {
+    echo "missing local vtable exporter: $SCRIPT_PATH/ExportVtableSlots.java" >&2
+    exit 2
+  }
+fi
 if [[ "$USE_REVENGINSTR" != "1" ]]; then
   [[ -f "$SCRIPT_PATH/ExportIndirectCallReceiverTypes.java" ]] || {
     echo "missing local receiver exporter: $SCRIPT_PATH/ExportIndirectCallReceiverTypes.java" >&2
@@ -89,9 +99,15 @@ echo
 echo "== v5.1: mass Ghidra receiver/type export =="
 RECEIVER_SCRIPT_PATH="$SCRIPT_PATH"
 RECEIVER_OUTPUT="$RECEIVER_TYPES"
+VTABLE_SCRIPT="ExportVtableSlots.java"
+if [[ "$USE_REVENGINSTR_VTABLE" == "1" ]]; then
+  VTABLE_SCRIPT="ExportArm32ItaniumVtableSlots.java"
+fi
 if [[ "$USE_REVENGINSTR" == "1" ]]; then
   RECEIVER_SCRIPT_PATH="$REVENGINSTR_REPO/ghidra;$SCRIPT_PATH"
   RECEIVER_OUTPUT="$GENERIC_RECEIVER_TYPES"
+elif [[ "$USE_REVENGINSTR_VTABLE" == "1" ]]; then
+  RECEIVER_SCRIPT_PATH="$REVENGINSTR_REPO/ghidra;$SCRIPT_PATH"
 fi
 "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
   -process "$GHIDRA_PROGRAM" \
@@ -99,7 +115,7 @@ fi
   -readOnly \
   -noanalysis \
   -scriptPath "$RECEIVER_SCRIPT_PATH" \
-  -postScript ExportVtableSlots.java "$VTABLE_SLOTS" \
+  -postScript "$VTABLE_SCRIPT" "$VTABLE_SLOTS" \
   -postScript ExportIndirectCallReceiverTypes.java "$PLAN" "$RECEIVER_OUTPUT" \
   2>&1 | tee "$NGML/logs/v51-receiver-export.log"
 if [[ "$USE_REVENGINSTR" == "1" ]]; then
