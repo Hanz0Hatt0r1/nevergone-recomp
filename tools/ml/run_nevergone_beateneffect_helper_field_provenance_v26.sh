@@ -7,6 +7,7 @@ set -euo pipefail
 : "${GHIDRA_PROGRAM:=libcocos2dcpp.so}"
 : "${REPO_ROOT:=$PWD}"
 : "${WORK_ROOT:=$HOME/.cache/nevergone-recomp/receiver-provenance}"
+: "${REVENGINSTR_REPO:=$(cd -- "$REPO_ROOT/.." && pwd)/revenginstr}"
 
 ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"
 EVID="$WORK_ROOT/evidence/beateneffect-helper-provenance-v26"
@@ -63,10 +64,16 @@ python3 "$REPO_ROOT/tools/ml/plan_nevergone_beateneffect_helper_callers_v26.py" 
   --output "$PLAN"
 
 echo "== all direct caller argument subtrees for helper destination parameters =="
+CALLER_SCRIPT_PATH="$REPO_ROOT/tools/ghidra"
+CALLER_SCRIPT_ARGS=("$PLAN" "$CALLERS")
+if [[ -f "$REVENGINSTR_REPO/ghidra/ExportGhidraCallerArgumentSubtree.java" ]]; then
+  CALLER_SCRIPT_PATH="$REVENGINSTR_REPO/ghidra;$CALLER_SCRIPT_PATH"
+  CALLER_SCRIPT_ARGS+=("$REVENGINSTR_REPO/ghidra")
+fi
 "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
   -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis \
-  -scriptPath "$REPO_ROOT/tools/ghidra" \
-  -postScript ExportCallerArgumentSubtree.java "$PLAN" "$CALLERS"
+  -scriptPath "$CALLER_SCRIPT_PATH" \
+  -postScript ExportCallerArgumentSubtree.java "${CALLER_SCRIPT_ARGS[@]}"
 
 echo "== exact stores through known whole-owner callees =="
 for fn in 00526124 005353f8 00535204 00525dac 0051f3c8; do

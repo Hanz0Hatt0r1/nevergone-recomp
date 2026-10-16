@@ -93,10 +93,15 @@ def main(argv: list[str] | None = None) -> int:
     ).expanduser().resolve() / "ghidra"
     shared_forward_exporter = shared_script_dir / "ExportBoundedCallGraphPcodeFlow.java"
     shared_reverse_exporter = shared_script_dir / "ExportBoundedReverseCallGraphPcodeFlow.java"
+    shared_caller_subtree_exporter = shared_script_dir / "ExportGhidraCallerArgumentSubtree.java"
     use_shared_exporters = shared_forward_exporter.is_file() and shared_reverse_exporter.is_file()
     if use_shared_exporters:
         forward_exporter = shared_forward_exporter
         reverse_exporter = shared_reverse_exporter
+        script_path = f"{shared_script_dir};{script_dir}"
+    elif shared_caller_subtree_exporter.is_file():
+        forward_exporter = script_dir / "ExportBoundedCallGraphPcodeFlow.java"
+        reverse_exporter = script_dir / "ExportBoundedReverseCallGraphPcodeFlow.java"
         script_path = f"{shared_script_dir};{script_dir}"
     else:
         forward_exporter = script_dir / "ExportBoundedCallGraphPcodeFlow.java"
@@ -208,6 +213,8 @@ def main(argv: list[str] | None = None) -> int:
         str(caller_plan),
         str(caller_subtrees),
     ]
+    if shared_caller_subtree_exporter.is_file():
+        caller_subtree_export_command.append(str(shared_script_dir))
     caller_report_command = [
         sys.executable,
         str(caller_arguments),
@@ -221,6 +228,8 @@ def main(argv: list[str] | None = None) -> int:
         str(factory_plan),
         str(factory_subtrees),
     ]
+    if shared_caller_subtree_exporter.is_file():
+        factory_subtree_export_command.append(str(shared_script_dir))
     factory_report_command = [
         sys.executable,
         str(caller_arguments),

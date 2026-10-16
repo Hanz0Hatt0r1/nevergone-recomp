@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'tools/ghidra/ExportCallerArgumentSubtree.java'
+      - 'tools/ghidra/ExportCallerArgumentSubtreeLegacy.java'
       - 'tools/ml/plan_nevergone_caller_argument_subtrees.py'
       - 'tools/ml/audit_nevergone_caller_argument_subtrees.py'
       - 'tools/ml/run_nevergone_caller_argument_subtree_probe.sh'
@@ -21,7 +22,9 @@ jobs:
           python3 -m py_compile tools/ml/audit_nevergone_caller_argument_subtrees.py
           bash -n tools/ml/run_nevergone_caller_argument_subtree_probe.sh
           grep -q 'NEVERGONE.GhidraCallerArgumentSubtree/1' tools/ghidra/ExportCallerArgumentSubtree.java
-          grep -q 'load_address' tools/ghidra/ExportCallerArgumentSubtree.java
-          grep -q 'complete_caller_argument_subtrees' tools/ghidra/ExportCallerArgumentSubtree.java
+          grep -q 'runScript("ExportGhidraCallerArgumentSubtree.java"' tools/ghidra/ExportCallerArgumentSubtree.java
+          grep -q 'caller_coverage_changed' tools/ghidra/ExportCallerArgumentSubtree.java
+          grep -q 'load_address' tools/ghidra/ExportCallerArgumentSubtreeLegacy.java
+          grep -q 'complete_caller_argument_subtrees' tools/ghidra/ExportCallerArgumentSubtreeLegacy.java
           grep -q 'caller_argument_requires_nontransparent_provenance' tools/ml/audit_nevergone_caller_argument_subtrees.py
           grep -q 'affects routing: no' tools/ml/run_nevergone_caller_argument_subtree_probe.sh

@@ -15,6 +15,7 @@ The preferred external core now owns:
 - callgraph metrics;
 - mass receiver-plan construction;
 - bounded indirect-call receiver/type acquisition;
+- bounded direct-caller argument-subtree export;
 - receiver class/vtable identity matching from conservative type evidence and a consumer-owned catalog;
 - leakage-safe numeric evidence aggregation across callgraph/receiver sources;
 - deterministic structural P-code metrics and coarse numeric evidence tokenization;
@@ -67,6 +68,11 @@ now prefer the corresponding `revenginstr` implementations when the shared
 checkout is available. Their adapters preserve the historical Nevergone output
 formats where downstream tools still expect them; the callgraph and plan tools
 keep their offline compatibility paths.
+
+The bounded caller-argument SSA walk now uses the generic Ghidra exporter when
+the shared checkout is available. Nevergone keeps the source plan, coverage
+expectations, format identifier and TSV shape in its adapter; the previous local
+exporter remains the offline fallback.
 
 ## P-code-only selective-classifier parity
 

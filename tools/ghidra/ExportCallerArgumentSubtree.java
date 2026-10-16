@@ -1,280 +1,157 @@
-import ghidra.app.decompiler.DecompInterface;
-import ghidra.app.decompiler.DecompileResults;
 import ghidra.app.script.GhidraScript;
-import ghidra.program.model.address.Address;
-import ghidra.program.model.data.DataType;
-import ghidra.program.model.data.Pointer;
-import ghidra.program.model.data.TypeDef;
-import ghidra.program.model.listing.Function;
-import ghidra.program.model.listing.FunctionManager;
-import ghidra.program.model.pcode.HighVariable;
-import ghidra.program.model.pcode.PcodeOp;
-import ghidra.program.model.pcode.PcodeOpAST;
-import ghidra.program.model.pcode.SequenceNumber;
-import ghidra.program.model.pcode.Varnode;
-import ghidra.program.model.symbol.Reference;
-import ghidra.program.model.symbol.ReferenceIterator;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-// Evidence-only bounded SSA exporter for actual arguments at direct caller sites.
-// Edge labels distinguish value-preserving flow from LOAD-address/base/offset flow;
-// downstream analysis must not treat address/base types as receiver-value classes.
+// Nevergone adapter for the generic REVENGINSTR caller-argument exporter.
+// Keeps the historical plan and TSV contract; the legacy exporter remains the
+// fallback when the shared checkout is not on the Ghidra script path.
 public class ExportCallerArgumentSubtree extends GhidraScript {
     private static final String FORMAT = "NEVERGONE.GhidraCallerArgumentSubtree/1";
-    private static final int MAX_DEPTH = 12;
-    private static final int MAX_NODES = 96;
-    private static final int MAX_CALLERS = 128;
+    private static final String LEGACY_HEADER = "format\trow_type\tsource_id\tsource_call_index\tsource_entry\tparameter_index\tdispatch_slot_offset\t" +
+        "expected_direct_caller_functions\texpected_matched_caller_calls\tdirect_caller_functions\t" +
+        "caller_functions_decompiled\tcaller_functions_failed\tcallers_with_matched_calls\tmatched_caller_calls\t" +
+        "caller_entry\tcaller_name\tcaller_call_site\tnode_id\tparent_node_id\tinput_index\tdepth\tedge_kind\t" +
+        "node_token\ttype_display\tpointer_depth\tpointee_type_display\tconstant_value\tdefining_opcode\t" +
+        "defining_address\tdefining_time\tcall_target_entry\tcall_target_name\ttruncation\tstatus";
+    private static final String GENERIC_HEADER = "format\trow_type\tplan_id\tcallee_entry\tparameter_index\tdirect_caller_functions\t" +
+        "caller_functions_decompiled\tcaller_functions_failed\tcallers_with_matched_calls\tmatched_caller_calls\t" +
+        "caller_entry\tcaller_name\tcaller_call_site\tnode_id\tparent_node_id\tinput_index\tdepth\tedge_kind\t" +
+        "node_token\ttype_display\tpointer_depth\tpointee_type_display\tconstant_value\tdefining_opcode\t" +
+        "defining_address\tdefining_time\tcall_target_entry\tcall_target_name\ttruncation\tstatus";
 
     private static class PlanRow {
-        String sourceId;
-        String sourceEntry;
-        int sourceCallIndex;
-        int parameterIndex;
-        String dispatchSlotOffset;
-        int expectedCallerFunctions;
-        int expectedMatchedCalls;
+        final String[] cells;
+        PlanRow(String[] values) { cells = values; }
     }
 
-    private static class TypeInfo {
-        int depth;
-        DataType pointee;
-        TypeInfo(int d, DataType p) { depth = d; pointee = p; }
-    }
-
-    private String cell(Object v) {
-        if (v == null) return "-";
-        return String.valueOf(v).replace('\t', ' ').replace('\n', ' ').replace('\r', ' ');
-    }
-
-    private DataType unwrap(DataType t) {
-        DataType c = t;
-        int guard = 0;
-        while (c instanceof TypeDef && guard++ < 8) {
-            DataType n = ((TypeDef)c).getBaseDataType();
-            if (n == null || n == c) break;
-            c = n;
-        }
-        return c;
-    }
-
-    private TypeInfo inspect(DataType t) {
-        DataType c = unwrap(t);
-        int depth = 0;
-        DataType pointee = null;
-        while (c instanceof Pointer) {
-            depth++;
-            DataType n = unwrap(((Pointer)c).getDataType());
-            if (depth == 1) pointee = n;
-            if (n == null || n == c) break;
-            c = n;
-        }
-        return new TypeInfo(depth, pointee);
-    }
-
-    private DataType highType(Varnode n) {
-        HighVariable h = n == null ? null : n.getHigh();
-        return h == null ? null : h.getDataType();
-    }
-
-    private String token(Varnode n) {
-        if (n == null) return "-";
-        if (n.isConstant()) return "const:0x" + Long.toUnsignedString(n.getOffset(), 16) + ":" + n.getSize();
-        PcodeOp def = n.getDef();
-        if (def != null) {
-            SequenceNumber s = def.getSeqnum();
-            return "def:" + def.getMnemonic() + "@" + cell(s.getTarget()) + ":" + s.getTime() + ":" + n.getSize();
-        }
-        String kind = n.isRegister() ? "register" : n.isUnique() ? "unique" : n.isAddress() ? "address" : "input";
-        return kind + ":" + cell(n.getAddress()) + ":" + n.getSize();
-    }
-
-    private Address callTargetAddress(PcodeOp op) {
-        if (op == null || op.getOpcode() != PcodeOp.CALL || op.getNumInputs() < 1) return null;
-        Varnode target = op.getInput(0);
-        if (target == null) return null;
-        if (!target.isConstant()) return target.getAddress();
-        try { return currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(target.getOffset()); }
-        catch (Exception ignored) { return null; }
-    }
-
-    private Function resolveCallTarget(PcodeOp op) {
-        Address a = callTargetAddress(op);
-        if (a == null) return null;
-        FunctionManager fm = currentProgram.getFunctionManager();
-        Function f = fm.getFunctionAt(a);
-        if (f != null) return f;
-        long off = a.getOffset();
-        if ((off & 1L) == 0L) return null;
-        try { return fm.getFunctionAt(a.getAddressSpace().getAddress(off & ~1L)); }
-        catch (Exception ignored) { return null; }
-    }
-
-    private Set<Function> directCallers(Function callee) {
-        LinkedHashSet<Function> out = new LinkedHashSet<Function>();
-        ReferenceIterator refs = currentProgram.getReferenceManager().getReferencesTo(callee.getEntryPoint());
-        FunctionManager fm = currentProgram.getFunctionManager();
-        while (refs.hasNext() && out.size() < MAX_CALLERS) {
-            Reference ref = refs.next();
-            if (ref == null || ref.getFromAddress() == null) continue;
-            Function f = fm.getFunctionContaining(ref.getFromAddress());
-            if (f != null && !f.equals(callee)) out.add(f);
-        }
-        return out;
-    }
-
-    private Function resolveFunction(String token) throws Exception {
-        Address a = toAddr(token);
-        Function f = currentProgram.getFunctionManager().getFunctionAt(a);
-        if (f == null) f = currentProgram.getFunctionManager().getFunctionContaining(a);
-        if (f == null) throw new IllegalArgumentException("Function not found: " + token);
-        return f;
+    private String cell(String value) {
+        return value.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ');
     }
 
     private List<PlanRow> readPlan(File file) throws Exception {
         ArrayList<PlanRow> rows = new ArrayList<PlanRow>();
         try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
-            String line; boolean first = true;
+            String line;
+            boolean first = true;
             while ((line = in.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
-                String[] c = line.split("\\t", -1);
-                if (first && c.length >= 7 && "source_id".equals(c[0])) { first = false; continue; }
+                String[] values = line.split("\\t", -1);
+                if (first && values.length >= 7 && "source_id".equals(values[0])) {
+                    first = false;
+                    continue;
+                }
                 first = false;
-                if (c.length < 7) throw new IllegalArgumentException("Invalid plan row: " + line);
-                PlanRow r = new PlanRow();
-                r.sourceId = c[0]; r.sourceEntry = c[1]; r.sourceCallIndex = Integer.parseInt(c[2]);
-                r.parameterIndex = Integer.parseInt(c[3]); r.dispatchSlotOffset = c[4];
-                r.expectedCallerFunctions = Integer.parseInt(c[5]); r.expectedMatchedCalls = Integer.parseInt(c[6]);
-                rows.add(r);
+                if (values.length < 7) throw new IllegalArgumentException("Invalid plan row: " + line);
+                Integer.parseInt(values[2]);
+                if (Integer.parseInt(values[3]) < 0) throw new IllegalArgumentException("Negative parameter index: " + line);
+                Integer.parseInt(values[5]);
+                Integer.parseInt(values[6]);
+                rows.add(new PlanRow(values));
             }
         }
         return rows;
     }
 
-    private void writeHeader(BufferedWriter out) throws Exception {
-        out.write("format\trow_type\tsource_id\tsource_call_index\tsource_entry\tparameter_index\tdispatch_slot_offset\t" +
-            "expected_direct_caller_functions\texpected_matched_caller_calls\tdirect_caller_functions\t" +
-            "caller_functions_decompiled\tcaller_functions_failed\tcallers_with_matched_calls\tmatched_caller_calls\t" +
-            "caller_entry\tcaller_name\tcaller_call_site\tnode_id\tparent_node_id\tinput_index\tdepth\tedge_kind\t" +
-            "node_token\ttype_display\tpointer_depth\tpointee_type_display\tconstant_value\tdefining_opcode\t" +
-            "defining_address\tdefining_time\tcall_target_entry\tcall_target_name\ttruncation\tstatus");
-        out.newLine();
+    private Map<String, Integer> headerIndex(String header, String expected) {
+        if (!expected.equals(header)) throw new IllegalArgumentException("Unexpected shared caller subtree header");
+        String[] names = header.split("\\t", -1);
+        HashMap<String, Integer> indexes = new HashMap<String, Integer>();
+        for (int i = 0; i < names.length; i++) indexes.put(names[i], i);
+        return indexes;
     }
 
-    private void writeNode(BufferedWriter out, PlanRow p, Function caller, Address callSite, Varnode node,
-            int nodeId, int parentId, int inputIndex, int depth, String edge, String truncation) throws Exception {
-        DataType type = highType(node);
-        TypeInfo ti = inspect(type);
-        PcodeOp def = node == null ? null : node.getDef();
-        String op = def == null ? "-" : def.getMnemonic();
-        String defAddr = def == null ? "-" : cell(def.getSeqnum().getTarget());
-        String defTime = def == null ? "-" : Integer.toString(def.getSeqnum().getTime());
-        Function target = def == null ? null : resolveCallTarget(def);
-        String constant = node != null && node.isConstant() ? "0x" + Long.toUnsignedString(node.getOffset(), 16) : "-";
-        out.write(String.join("\t",
-            FORMAT, "node", cell(p.sourceId), Integer.toString(p.sourceCallIndex), cell(p.sourceEntry),
-            Integer.toString(p.parameterIndex), cell(p.dispatchSlotOffset), Integer.toString(p.expectedCallerFunctions),
-            Integer.toString(p.expectedMatchedCalls), "-", "-", "-", "-", "-", cell(caller.getEntryPoint()),
-            cell(caller.getName()), cell(callSite), Integer.toString(nodeId), Integer.toString(parentId),
-            Integer.toString(inputIndex), Integer.toString(depth), cell(edge), token(node),
-            cell(type == null ? null : type.getDisplayName()), Integer.toString(ti.depth),
-            cell(ti.pointee == null ? null : ti.pointee.getDisplayName()), constant, op, defAddr, defTime,
-            cell(target == null ? null : target.getEntryPoint()), cell(target == null ? null : target.getName()),
-            cell(truncation), "-"));
-        out.newLine();
+    private int number(String[] row, Map<String, Integer> indexes, String name) {
+        return Integer.parseInt(row[indexes.get(name)]);
     }
 
-    private int walk(BufferedWriter out, PlanRow p, Function caller, Address callSite, Varnode node,
-            int parentId, int inputIndex, int depth, String edge, int[] nextId, int[] budget, Set<Varnode> path) throws Exception {
-        if (node == null || budget[0] >= MAX_NODES) return -1;
-        int id = nextId[0]++;
-        budget[0]++;
-        String trunc = "-";
-        if (depth >= MAX_DEPTH) trunc = "depth";
-        else if (path.contains(node)) trunc = "cycle";
-        writeNode(out, p, caller, callSite, node, id, parentId, inputIndex, depth, edge, trunc);
-        if (!"-".equals(trunc)) return id;
-        PcodeOp def = node.getDef();
-        if (def == null || def.getOpcode() == PcodeOp.CALL || def.getOpcode() == PcodeOp.CALLIND) return id;
-
-        HashSet<Varnode> nextPath = new HashSet<Varnode>(path); nextPath.add(node);
-        int opcode = def.getOpcode();
-        if ((opcode == PcodeOp.COPY || opcode == PcodeOp.CAST || opcode == PcodeOp.INDIRECT) && def.getNumInputs() >= 1) {
-            walk(out, p, caller, callSite, def.getInput(0), id, 0, depth + 1, "value", nextId, budget, nextPath);
-        } else if (opcode == PcodeOp.MULTIEQUAL) {
-            for (int i = 0; i < def.getNumInputs() && budget[0] < MAX_NODES; i++)
-                walk(out, p, caller, callSite, def.getInput(i), id, i, depth + 1, "value", nextId, budget, nextPath);
-        } else if (opcode == PcodeOp.LOAD && def.getNumInputs() >= 2) {
-            walk(out, p, caller, callSite, def.getInput(1), id, 1, depth + 1, "load_address", nextId, budget, nextPath);
-        } else if (opcode == PcodeOp.PTRSUB || opcode == PcodeOp.INT_ADD || opcode == PcodeOp.INT_SUB) {
-            for (int i = 0; i < def.getNumInputs() && budget[0] < MAX_NODES; i++)
-                walk(out, p, caller, callSite, def.getInput(i), id, i, depth + 1, i == 0 ? "base" : "offset", nextId, budget, nextPath);
-        } else if (opcode == PcodeOp.PTRADD) {
-            String[] edges = {"base", "offset_index", "offset_scale"};
-            for (int i = 0; i < def.getNumInputs() && budget[0] < MAX_NODES; i++)
-                walk(out, p, caller, callSite, def.getInput(i), id, i, depth + 1, i < edges.length ? edges[i] : "offset", nextId, budget, nextPath);
-        } else {
-            for (int i = 0; i < def.getNumInputs() && budget[0] < MAX_NODES; i++)
-                walk(out, p, caller, callSite, def.getInput(i), id, i, depth + 1, "other_input", nextId, budget, nextPath);
+    private void writeGenericPlan(File file, List<PlanRow> plan) throws Exception {
+        try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))) {
+            out.write("plan_id\tcallee_entry\tparameter_index");
+            out.newLine();
+            for (int i = 0; i < plan.size(); i++) {
+                String[] c = plan.get(i).cells;
+                out.write(i + "\t" + cell(c[1]) + "\t" + cell(c[3]));
+                out.newLine();
+            }
         }
-        return id;
     }
 
-    private void writeSummary(BufferedWriter out, PlanRow p, int direct, int decompiled, int failed,
-            int callersWithMatched, int matched, String status) throws Exception {
-        out.write(String.join("\t",
-            FORMAT, "summary", cell(p.sourceId), Integer.toString(p.sourceCallIndex), cell(p.sourceEntry),
-            Integer.toString(p.parameterIndex), cell(p.dispatchSlotOffset), Integer.toString(p.expectedCallerFunctions),
-            Integer.toString(p.expectedMatchedCalls), Integer.toString(direct), Integer.toString(decompiled),
-            Integer.toString(failed), Integer.toString(callersWithMatched), Integer.toString(matched),
-            "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", cell(status)));
-        out.newLine();
+    private void writeLegacy(File genericOutput, File output, List<PlanRow> plan) throws Exception {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(genericOutput), StandardCharsets.UTF_8));
+             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(output), StandardCharsets.UTF_8))) {
+            String header = in.readLine();
+            Map<String, Integer> indexes = headerIndex(header, GENERIC_HEADER);
+            out.write(LEGACY_HEADER);
+            out.newLine();
+            String line;
+            while ((line = in.readLine()) != null) {
+                if (line.isEmpty()) continue;
+                String[] generic = line.split("\\t", -1);
+                if (generic.length != GENERIC_HEADER.split("\\t", -1).length)
+                    throw new IllegalArgumentException("Invalid shared caller subtree row");
+                int planIndex = Integer.parseInt(generic[indexes.get("plan_id")]);
+                if (planIndex < 0 || planIndex >= plan.size()) throw new IllegalArgumentException("Unknown plan id: " + planIndex);
+                String[] local = plan.get(planIndex).cells;
+                String[] legacy = new String[34];
+                legacy[0] = FORMAT;
+                legacy[1] = generic[indexes.get("row_type")];
+                legacy[2] = cell(local[0]);
+                legacy[3] = cell(local[2]);
+                legacy[4] = cell(local[1]);
+                legacy[5] = cell(local[3]);
+                legacy[6] = cell(local[4]);
+                legacy[7] = cell(local[5]);
+                legacy[8] = cell(local[6]);
+                for (int i = 5; i < generic.length; i++) legacy[i + 4] = generic[i];
+                if ("summary".equals(legacy[1]) && "complete_caller_argument_subtrees".equals(legacy[33]) &&
+                    (number(generic, indexes, "direct_caller_functions") != Integer.parseInt(local[5]) ||
+                     number(generic, indexes, "matched_caller_calls") != Integer.parseInt(local[6]))) {
+                    legacy[33] = "caller_coverage_changed";
+                }
+                out.write(String.join("\t", legacy));
+                out.newLine();
+            }
+        }
     }
 
     public void run() throws Exception {
         String[] args = getScriptArgs();
-        if (args.length != 2) throw new IllegalArgumentException("Usage: ExportCallerArgumentSubtree.java <plan.tsv> <output.tsv>");
+        if (args.length != 2 && args.length != 3)
+            throw new IllegalArgumentException("Usage: ExportCallerArgumentSubtree.java <plan.tsv> <output.tsv> [shared-ghidra-script-dir]");
+        File output = new File(args[1]);
+        File parent = output.getAbsoluteFile().getParentFile();
+        if (parent != null) parent.mkdirs();
+
+        File sharedScript = args.length == 3
+            ? new File(args[2], "ExportGhidraCallerArgumentSubtree.java")
+            : null;
+        if (sharedScript == null || !sharedScript.isFile()) {
+            runScript("ExportCallerArgumentSubtreeLegacy.java", new String[] {args[0], args[1]});
+            return;
+        }
+
         List<PlanRow> plan = readPlan(new File(args[0]));
-        File output = new File(args[1]); File parent = output.getParentFile(); if (parent != null) parent.mkdirs();
-        DecompInterface decompiler = new DecompInterface();
-        if (!decompiler.openProgram(currentProgram)) throw new IllegalStateException("Could not open current program");
-        try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(output), StandardCharsets.UTF_8))) {
-            writeHeader(out);
-            for (PlanRow p : plan) {
-                if (monitor.isCancelled()) break;
-                Function callee = resolveFunction(p.sourceEntry);
-                Set<Function> callers = directCallers(callee);
-                int decompiled = 0, failed = 0, callersWithMatched = 0, matched = 0;
-                for (Function caller : callers) {
-                    DecompileResults results = decompiler.decompileFunction(caller, 60, monitor);
-                    if (results == null || !results.decompileCompleted() || results.getHighFunction() == null) { failed++; continue; }
-                    decompiled++;
-                    boolean callerMatched = false;
-                    Iterator<PcodeOpAST> ops = results.getHighFunction().getPcodeOps();
-                    while (ops.hasNext() && !monitor.isCancelled()) {
-                        PcodeOpAST op = ops.next();
-                        if (op.getOpcode() != PcodeOp.CALL) continue;
-                        Function target = resolveCallTarget(op);
-                        if (target == null || !target.getEntryPoint().equals(callee.getEntryPoint())) continue;
-                        int arg = p.parameterIndex + 1;
-                        if (op.getNumInputs() <= arg) continue;
-                        callerMatched = true; matched++;
-                        int[] nextId = {0}; int[] budget = {0};
-                        walk(out, p, caller, op.getSeqnum().getTarget(), op.getInput(arg), -1, -1, 0, "root", nextId, budget, new HashSet<Varnode>());
-                    }
-                    if (callerMatched) callersWithMatched++;
-                }
-                String status;
-                if (callers.isEmpty()) status = "no_direct_callers";
-                else if (failed != 0) status = "caller_decompile_incomplete";
-                else if (callersWithMatched != callers.size()) status = "caller_function_without_matched_call";
-                else if (matched != p.expectedMatchedCalls || callers.size() != p.expectedCallerFunctions) status = "caller_coverage_changed";
-                else status = "complete_caller_argument_subtrees";
-                writeSummary(out, p, callers.size(), decompiled, failed, callersWithMatched, matched, status);
-            }
-        } finally { decompiler.dispose(); }
+        File genericPlan = File.createTempFile("caller-subtree-plan-", ".tsv", parent);
+        File genericOutput = File.createTempFile("caller-subtree-output-", ".tsv", parent);
+        try {
+            writeGenericPlan(genericPlan, plan);
+            runScript("ExportGhidraCallerArgumentSubtree.java", new String[] {genericPlan.getAbsolutePath(), genericOutput.getAbsolutePath()});
+            writeLegacy(genericOutput, output, plan);
+        } finally {
+            genericPlan.delete();
+            genericOutput.delete();
+        }
         println("CALLER_ARGUMENT_SUBTREE_FORMAT=" + FORMAT);
         println("CALLER_ARGUMENT_SUBTREE_ROWS=" + plan.size());
         println("CALLER_ARGUMENT_SUBTREE_OUTPUT=" + output.getAbsolutePath());
