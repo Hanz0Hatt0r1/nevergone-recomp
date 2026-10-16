@@ -17,12 +17,24 @@ import sys
 import zipfile
 from pathlib import Path
 from typing import Any
+from xml.parsers.expat import ExpatError
 
 MAX_PLIST_BYTES = 4 * 1024 * 1024
 GENERIC_RE = re.compile(r"^p(?P<player>\d+)_(?P<selector>\d+)_default\.plist$", re.IGNORECASE)
 TEXTURE_RE = re.compile(
     rb"<key>(?:textureFileName|realTextureFileName)</key>\s*<string>([^<]+)</string>",
     re.IGNORECASE,
+)
+
+# Keep this byte-for-byte aligned with ImportedPlistXml.java. Some shipped
+# TexturePacker player atlases use the non-XML '/>' ending on a DOCTYPE. The
+# Android runtime accepts only these exact historical declarations, strips the
+# declaration before parsing, and rejects every other DOCTYPE.
+KNOWN_APPLE_DTDS = (
+    b'<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    b'<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    b'<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"/>',
+    b'<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"/>',
 )
 
 
@@ -42,8 +54,33 @@ def read_bounded(zf: zipfile.ZipFile, entry: str) -> bytes:
     return zf.read(entry)
 
 
-def plist_membership(payload: bytes, wanted_frame: str) -> tuple[bool, list[str], list[str], int, Any]:
-    root = plistlib.loads(payload)
+def normalize_shipped_plist_xml(payload: bytes) -> tuple[bytes, str]:
+    dtd = payload.find(b"<!DOCTYPE")
+    if dtd < 0:
+        return payload, "none"
+    if dtd > 512:
+        raise ValueError("DOCTYPE appears after the bounded header window")
+
+    matched: bytes | None = None
+    for candidate in KNOWN_APPLE_DTDS:
+        if payload.startswith(candidate, dtd):
+            matched = candidate
+            break
+    if matched is None:
+        raise ValueError("unsupported DOCTYPE")
+
+    normalized = payload[:dtd] + payload[dtd + len(matched) :]
+    if b"<!DOCTYPE" in normalized:
+        raise ValueError("multiple DOCTYPE declarations")
+    mode = "texturepacker" if matched.endswith(b'/>') else "apple"
+    return normalized, mode
+
+
+def plist_membership(
+    payload: bytes, wanted_frame: str
+) -> tuple[bool, list[str], list[str], int, Any, str]:
+    normalized, parse_mode = normalize_shipped_plist_xml(payload)
+    root = plistlib.loads(normalized)
     if not isinstance(root, dict):
         raise ValueError("plist root is not a dict")
     frames = root.get("frames")
@@ -69,7 +106,7 @@ def plist_membership(payload: bytes, wanted_frame: str) -> tuple[bool, list[str]
     fmt: Any = None
     if isinstance(metadata, dict):
         fmt = metadata.get("format")
-    return exact, casefold_matches, aliases, len(keys), fmt
+    return exact, casefold_matches, aliases, len(keys), fmt, parse_mode
 
 
 def main() -> int:
@@ -122,8 +159,10 @@ def main() -> int:
         for entry in family_entries:
             try:
                 payload = read_bounded(zf, entry)
-                exact, casefold_matches, aliases, frame_count, fmt = plist_membership(payload, args.frame)
-            except (KeyError, ValueError, OSError, plistlib.InvalidFileException) as error:
+                exact, casefold_matches, aliases, frame_count, fmt, parse_mode = plist_membership(
+                    payload, args.frame
+                )
+            except (KeyError, ValueError, OSError, plistlib.InvalidFileException, ExpatError) as error:
                 parse_failures.append(f"{entry}: {error}")
                 continue
 
@@ -137,7 +176,7 @@ def main() -> int:
             print(
                 f"family: {entry} bytes={'yes' if contains else 'no'} "
                 f"frame_key={'yes' if exact else 'no'} frames={frame_count} "
-                f"format={fmt!r} texture={texture}"
+                f"format={fmt!r} texture={texture} dtd={parse_mode}"
             )
             if casefold_matches and not exact:
                 print(f"  casefold_key_matches: {casefold_matches!r}")
