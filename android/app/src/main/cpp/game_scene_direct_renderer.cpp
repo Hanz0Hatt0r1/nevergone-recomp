@@ -18,6 +18,7 @@
 #include "game_scene_player_render_queue.h"
 #include "game_scene_player_spawn_state.h"
 #include "game_scene_type0_animation.h"
+#include "tutorial_enemy_action_document_store.h"
 
 namespace nevergone::game_scene_direct_renderer {
 namespace {
@@ -42,6 +43,7 @@ std::atomic<std::uint64_t> g_draw_attempt_count{0};
 std::atomic<std::uint64_t> g_drawn_frame_count{0};
 std::atomic<std::size_t> g_last_drawn_sprite_count{0};
 std::atomic<std::size_t> g_last_animated_sprite_count{0};
+std::atomic<std::size_t> g_tutorial_enemy_action_sprite_count{0};
 std::atomic<std::uint8_t> g_last_min_opacity{255u};
 std::atomic<float> g_last_camera_eye_x{0.0f};
 GLuint g_program = 0;
@@ -208,6 +210,7 @@ void on_surface_created() {
     g_last_drawn_sprite_count.store(0u, std::memory_order_relaxed);
     g_last_camera_eye_x.store(0.0f, std::memory_order_relaxed);
     reset_animation_runtime();
+    g_tutorial_enemy_action_sprite_count.store(0u, std::memory_order_relaxed);
 
     g_program = build_program();
     if (g_program == 0) return;
@@ -248,9 +251,11 @@ bool draw() {
 
     const auto spawn = game_scene_player_spawn_state::snapshot();
     const float camera_eye_x =
-            game_scene_player_render_queue::current_initial_camera_eye_x(spawn);
+            game_scene_player_render_queue::current_camera_eye_x(spawn);
     g_last_camera_eye_x.store(camera_eye_x, std::memory_order_relaxed);
     *queue = game_scene_player_render_queue::current(std::move(*queue));
+    g_tutorial_enemy_action_sprite_count.store(
+            queue->tutorial_enemy_action_sprite_count, std::memory_order_relaxed);
 
     const auto requests = game_scene_direct_asset_requests::build(*queue);
     const auto order = game_scene_direct_geometry::ordered_texture_sprite_indices(*queue);
@@ -283,10 +288,15 @@ bool draw() {
         const auto animated = animation_sample(sprite_command_index, tick);
         game_scene_direct_geometry::Quad quad;
         const auto& command = queue->sprites[sprite_command_index];
-        const bool geometry_ready = command.player_body_transform.has_value()
+        const auto* action_frame_transform = command.player_body_transform.has_value()
+                ? &*command.player_body_transform
+                : (command.action_frame_transform.has_value()
+                        ? &*command.action_frame_transform
+                        : nullptr);
+        const bool geometry_ready = action_frame_transform != nullptr
             ? game_scene_direct_geometry::build_player_quad(
                     command.transform,
-                    *command.player_body_transform,
+                    *action_frame_transform,
                     texture.width,
                     texture.height,
                     surface_width,
@@ -302,8 +312,13 @@ bool draw() {
                     &quad);
         if (!geometry_ready) return false;
 
-        min_opacity = std::min(min_opacity, animated.opacity);
-        prepared.push_back({texture, quad, static_cast<float>(animated.opacity) / 255.0f});
+        const std::uint8_t opacity = command.action_frame_transform.has_value()
+                ? static_cast<std::uint8_t>(
+                        (static_cast<unsigned>(animated.opacity) *
+                         static_cast<unsigned>(command.action_frame_opacity)) / 255u)
+                : animated.opacity;
+        min_opacity = std::min(min_opacity, opacity);
+        prepared.push_back({texture, quad, static_cast<float>(opacity) / 255.0f});
     }
     if (prepared.empty()) return false;
 
@@ -348,6 +363,8 @@ Snapshot snapshot() {
     state.drawn_frame_count = g_drawn_frame_count.load(std::memory_order_relaxed);
     state.last_drawn_sprite_count = g_last_drawn_sprite_count.load(std::memory_order_relaxed);
     state.last_animated_sprite_count = g_last_animated_sprite_count.load(std::memory_order_relaxed);
+    state.tutorial_enemy_action_sprite_count =
+            g_tutorial_enemy_action_sprite_count.load(std::memory_order_relaxed);
     state.last_min_opacity = g_last_min_opacity.load(std::memory_order_relaxed);
     state.last_camera_eye_x = g_last_camera_eye_x.load(std::memory_order_relaxed);
     return state;
@@ -364,7 +381,10 @@ std::string status_report() {
     out << "drawn frames: " << state.drawn_frame_count << "\n";
     out << "last sprites: " << state.last_drawn_sprite_count << "\n";
     out << "post-init animated sprites: " << state.last_animated_sprite_count << "\n";
+    out << "tutorial enemy action sprites: "
+        << state.tutorial_enemy_action_sprite_count << "\n";
     out << "last minimum opacity: " << static_cast<unsigned int>(state.last_min_opacity) << "\n";
+    out << tutorial_enemy_action_document_store::status_report();
     return out.str();
 }
 

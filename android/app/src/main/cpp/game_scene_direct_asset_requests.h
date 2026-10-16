@@ -22,6 +22,7 @@ struct Request {
     std::string frame_name;
     bool player_body = false;
     std::string player_atlas_plist;
+    std::string action_frame_atlas_plist;
     int player_career = 0;
     int player_clothes_id = -1;
 };
@@ -86,6 +87,10 @@ inline Snapshot build(const game_scene_render_queue::Queue& queue) {
             if (request.player_body && command.player_body_atlas_plist.has_value()) {
                 request.player_atlas_plist = *command.player_body_atlas_plist;
             }
+            if (command.action_frame_transform.has_value() &&
+                command.action_frame_atlas_plist.has_value()) {
+                request.action_frame_atlas_plist = *command.action_frame_atlas_plist;
+            }
             snapshot.requests.push_back(std::move(request));
         }
     }
@@ -101,6 +106,7 @@ inline Snapshot build(const game_scene_render_queue::Queue& queue) {
         detail::hash_string(&hash, request.frame_name);
         detail::hash_byte(&hash, request.player_body ? 1u : 0u);
         detail::hash_string(&hash, request.player_atlas_plist);
+        detail::hash_string(&hash, request.action_frame_atlas_plist);
         detail::hash_size(&hash, static_cast<std::size_t>(request.player_career));
         detail::hash_size(&hash, static_cast<std::size_t>(request.player_clothes_id));
     }

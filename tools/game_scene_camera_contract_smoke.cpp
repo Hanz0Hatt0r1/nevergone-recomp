@@ -37,6 +37,15 @@ int main() {
     assert(eye.has_value());
     assert(near(*eye, 0.0f));
 
+    // Live movement advances the camera once the player crosses the same
+    // 62%-of-view focus point used by loadingTex().
+    eye = camera::follow_eye_x(704.0f, 2000.0f);
+    assert(eye.has_value() && near(*eye, 0.0f));
+    eye = camera::follow_eye_x(800.0f, 2000.0f);
+    assert(eye.has_value() && near(*eye, 95.68f));
+    eye = camera::follow_eye_x(2000.0f, 900.0f);
+    assert(eye.has_value() && near(*eye, 332.0f));
+
     assert(!camera::initial_eye_x(NAN, 2000.0f).has_value());
     assert(!camera::initial_eye_x(800.0f, 2000.0f, 0.0f).has_value());
 

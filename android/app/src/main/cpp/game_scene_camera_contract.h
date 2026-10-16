@@ -11,25 +11,38 @@ constexpr float kDesignWidth = 1136.0f;
 constexpr float kCameraLeadFraction = 0.12f;
 constexpr std::size_t kFixedClassLayerSourceIndex = 7u;
 
-// GameScene::loadingTex() starts horizontal camera displacement once the
-// matching type-6 entry marker passes 0.5 + 0.12 of the Cocos win width. The
-// displacement is capped by GameScenePortNodeData +0x4b4 minus half the win
-// width, then clamped to zero.
-inline std::optional<float> initial_eye_x(
-        float marker_source_x,
+// GameScene::loadingTex() and the first live-follow slice share the same focus
+// point: 0.5 + 0.12 of the Cocos win width. Clamp the eye to the recovered
+// horizontal scene interval.
+inline std::optional<float> eye_x_for_focus(
+        float focus_x,
         float scene_extent_x,
         float design_width = kDesignWidth) {
-    if (!std::isfinite(marker_source_x) || !std::isfinite(scene_extent_x) ||
+    if (!std::isfinite(focus_x) || !std::isfinite(scene_extent_x) ||
         !std::isfinite(design_width) || design_width <= 0.0f) {
         return std::nullopt;
     }
 
     const float threshold = design_width * (0.5f + kCameraLeadFraction);
     const float maximum = scene_extent_x - design_width * 0.5f;
-    float displacement = marker_source_x - threshold;
+    float displacement = focus_x - threshold;
     if (displacement > maximum) displacement = maximum;
     if (displacement < 0.0f) displacement = 0.0f;
     return displacement;
+}
+
+inline std::optional<float> initial_eye_x(
+        float marker_source_x,
+        float scene_extent_x,
+        float design_width = kDesignWidth) {
+    return eye_x_for_focus(marker_source_x, scene_extent_x, design_width);
+}
+
+inline std::optional<float> follow_eye_x(
+        float player_world_x,
+        float scene_extent_x,
+        float design_width = kDesignWidth) {
+    return eye_x_for_focus(player_world_x, scene_extent_x, design_width);
 }
 
 // updateCameraTrack() forwards cameraEyeX to every recovered class layer.

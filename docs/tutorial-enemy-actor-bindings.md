@@ -69,18 +69,37 @@ to distinguish:
 - materialized roster enemies;
 - published actor identities.
 
+## Enemy 3 action selection
+
+The imported original `enemy/enemy03/enemy_actions_1_03.plist` closes the first
+Attack-wave actor's startup mapping: `start=47`, action 47 is the non-looping
+`e03_e_born02b.actData` appearance clip, and looping action 21 is the
+`e03_e_i01.actData` idle clip. The original table sets `go_fps=30`.
+`tutorial_enemy_action_selection` records this mapping for enemy ID 3 and fails
+closed for IDs without reviewed data.
+
+## Enemy 3 action rendering
+
+The visual path now connects each materialized ID 3 slot to the reviewed
+original action documents. It loads the appearance and idle documents from the
+imported asset tree, offsets each slot's local timeline by the recovered wave
+spawn delay, and selects the appearance frame before transitioning to the
+looping idle frames. The frame's own atlas name, original sprite key, spawn
+position, and scene camera translation are passed through the existing direct
+renderer. Unsupported enemy IDs and invalid/missing action documents fail
+closed instead of drawing a guessed sprite.
+
+This is the first rendered enemy actor slice; it does not yet reproduce the
+native `EnemyActionsSystem` tick boundary or full AI/combat behavior. Device
+verification of the enemy appearing in the tutorial wave is still required.
+
 ## Remaining actor work
 
-This boundary intentionally stops before visual or behavioral invention. The
-next reconstruction slice is to connect each active binding to the already
-recovered EnemyActions pipeline:
+Next, verify the appearance-to-idle sequence in the live tutorial, then recover
+and connect the original actor behavior:
 
-1. recover the original enemy-ID -> action/resource data selection used by
-   `EnemyObject::loadEnemyObjectFile()` / EnemyActions setup;
-2. load the corresponding imported EnemyActions document;
-3. produce a renderer-facing current frame/transform at the binding spawn
-   position;
-4. route evidence-backed hit/damage/death outcomes back through the same
+1. match native action timing and facing/movement transitions;
+2. route evidence-backed hit/damage/death outcomes through the same
    `(wave_generation, slot)` binding.
 
 The tutorial still cannot advance Attack -> Block merely because three bindings

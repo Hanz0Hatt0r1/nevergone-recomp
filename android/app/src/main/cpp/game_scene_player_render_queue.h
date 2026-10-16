@@ -8,6 +8,7 @@
 #include "game_levels_runtime_state.h"
 #include "game_scene_camera_contract.h"
 #include "game_scene_camera_render_queue.h"
+#include "game_scene_enemy_render_queue.h"
 #include "game_scene_player_frame_request.h"
 #include "game_scene_player_joystick_render_queue.h"
 #include "game_scene_player_motion_state.h"
@@ -107,7 +108,7 @@ inline game_scene_render_queue::Queue with_initial_player(
         camera_eye_x);
 }
 
-inline float current_initial_camera_eye_x(
+inline float current_camera_eye_x(
         const game_scene_player_spawn_state::Snapshot& spawn) {
     if (spawn.status != game_scene_player_spawn_state::Status::kReady) return 0.0f;
     const auto port = game_levels_runtime_state::current_port_node_record();
@@ -115,18 +116,23 @@ inline float current_initial_camera_eye_x(
 
     const float scene_extent_x = static_cast<float>(
             static_cast<std::int32_t>(port->fifth_u32));
-    const auto eye = game_scene_camera_contract::initial_eye_x(
-            spawn.source_x, scene_extent_x);
+    const auto motion = game_scene_player_motion_state::snapshot();
+    const float player_world_x = spawn.player_x +
+            (motion.ready && motion.spawn_generation == spawn.generation
+                    ? motion.offset_x : 0.0f);
+    const auto eye = game_scene_camera_contract::follow_eye_x(
+            player_world_x, scene_extent_x);
     return eye.value_or(0.0f);
 }
 
 inline game_scene_render_queue::Queue current(game_scene_render_queue::Queue queue) {
     const auto document = player_action_document_store::current_document();
     const auto spawn = game_scene_player_spawn_state::snapshot();
-    const float camera_eye_x = current_initial_camera_eye_x(spawn);
+    const float camera_eye_x = current_camera_eye_x(spawn);
 
     queue = game_scene_camera_render_queue::apply_static_world_camera(
             std::move(queue), camera_eye_x);
+    queue = game_scene_enemy_render_queue::current(std::move(queue), camera_eye_x);
 
     me_actions_runtime_state::State runtime = me_actions_runtime_state::initial_play_state();
     if (document.has_value()) {

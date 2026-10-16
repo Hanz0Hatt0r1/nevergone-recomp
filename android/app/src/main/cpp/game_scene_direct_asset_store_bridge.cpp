@@ -4,11 +4,13 @@
 #include <limits>
 
 #include "game_scene_direct_asset_store.h"
+#include "tutorial_enemy_action_document_store.h"
 
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSceneDirectAssetStore_nativeClear(
         JNIEnv*, jclass) {
     nevergone::game_scene_direct_asset_store::clear();
+    nevergone::tutorial_enemy_action_document_store::reset();
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

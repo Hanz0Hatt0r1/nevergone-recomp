@@ -2,6 +2,10 @@ package org.nevergone.recomp;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Typeface;
 
 import java.io.File;
 
@@ -103,6 +107,8 @@ final class SingleLoginAtlasComposer {
     static final class SceneAssets {
         final AtlasLayer[] backgrounds;
         final AtlasTexture[] clouds;
+        final AtlasLayer titleLogo;
+        final AtlasTexture tapToStartPrompt;
         final AtlasLayer[] buildings;
         final AtlasLayer[] lights;
         final AtlasLayer[] sways;
@@ -112,6 +118,8 @@ final class SingleLoginAtlasComposer {
         SceneAssets(
                 AtlasLayer[] backgrounds,
                 AtlasTexture[] clouds,
+                AtlasLayer titleLogo,
+                AtlasTexture tapToStartPrompt,
                 AtlasLayer[] buildings,
                 AtlasLayer[] lights,
                 AtlasLayer[] sways,
@@ -119,6 +127,8 @@ final class SingleLoginAtlasComposer {
                 AtlasLayer[] illumination) {
             this.backgrounds = backgrounds;
             this.clouds = clouds;
+            this.titleLogo = titleLogo;
+            this.tapToStartPrompt = tapToStartPrompt;
             this.buildings = buildings;
             this.lights = lights;
             this.sways = sways;
@@ -132,12 +142,14 @@ final class SingleLoginAtlasComposer {
     static SceneAssets composeScene(File plistFile, File atlasFile) throws Exception {
         TexturePackerPlist.Frame[] backgroundFrames = readFrames(plistFile, BACKGROUND_STACK);
         TexturePackerPlist.Frame[] cloudFrames = readFrames(plistFile, CLOUD_STACK);
+        TexturePackerPlist.Frame[] titleLogoFrames = readFrames(
+                plistFile, new String[] {"zjmbiaoti-1.png"});
         TexturePackerPlist.Frame[] buildingFrames = readFrames(plistFile, BUILDING_STACK);
         TexturePackerPlist.Frame[] lightFrames = readFrames(plistFile, LIGHT_STACK);
         TexturePackerPlist.Frame[] swayFrames = readFrames(plistFile, SWAY_STACK);
         TexturePackerPlist.Frame[] lightningFrames = readFrames(plistFile, LIGHTNING_STACK);
         TexturePackerPlist.Frame[] illuminationFrames = readFrames(plistFile, ILLUMINATION_STACK);
-        if (backgroundFrames == null || cloudFrames == null || buildingFrames == null ||
+        if (backgroundFrames == null || cloudFrames == null || titleLogoFrames == null || buildingFrames == null ||
                 lightFrames == null || swayFrames == null || lightningFrames == null ||
                 illuminationFrames == null) return null;
 
@@ -163,18 +175,51 @@ final class SingleLoginAtlasComposer {
         try {
             AtlasLayer[] backgrounds = extractLayers(backgroundFrames, atlas, sourceWidth, sourceHeight);
             AtlasTexture[] clouds = extractTextures(cloudFrames, atlas);
+            AtlasLayer titleLogo = centeredTitleLogo(
+                    extractSpriteLayers(titleLogoFrames, atlas)[0], sourceWidth, sourceHeight);
+            AtlasTexture tapToStartPrompt = composeTapToStartPrompt(sourceWidth, sourceHeight);
             AtlasLayer[] buildings = extractLayers(buildingFrames, atlas, sourceWidth, sourceHeight);
             AtlasLayer[] lights = extractLayers(lightFrames, atlas, sourceWidth, sourceHeight);
             AtlasLayer[] sways = extractSpriteLayers(swayFrames, atlas);
             AtlasLayer[] lightning = extractLayers(lightningFrames, atlas, sourceWidth, sourceHeight);
             AtlasLayer[] illumination = extractLayers(illuminationFrames, atlas, sourceWidth, sourceHeight);
-            if (backgrounds == null || clouds == null || buildings == null ||
-                    lights == null || sways == null || lightning == null || illumination == null) return null;
+            if (backgrounds == null || clouds == null || titleLogo == null || tapToStartPrompt == null || buildings == null ||
+                lights == null || sways == null || lightning == null || illumination == null) return null;
             return new SceneAssets(
-                    backgrounds, clouds, buildings, lights, sways, lightning, illumination);
+                    backgrounds, clouds, titleLogo, tapToStartPrompt,
+                    buildings, lights, sways, lightning, illumination);
         } finally {
             atlas.recycle();
         }
+    }
+
+    private static AtlasLayer centeredTitleLogo(
+            AtlasLayer sprite, int sourceWidth, int sourceHeight) {
+        if (sprite == null || sprite.sourceWidth <= 0 || sprite.sourceHeight <= 0) return null;
+        int top = Math.round(sourceHeight * 0.277f - sprite.sourceHeight * 0.5f) + sprite.top;
+        int left = (sourceWidth - sprite.sourceWidth) / 2 + sprite.left;
+        return new AtlasLayer(
+                sprite.width, sprite.height, left, top,
+                sourceWidth, sourceHeight, sprite.pixels);
+    }
+
+    private static AtlasTexture composeTapToStartPrompt(int width, int height) {
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(Color.rgb(198, 198, 198));
+        paint.setTextSize(35.0f);
+        paint.setTypeface(Typeface.create("Arial", Typeface.NORMAL));
+        paint.setTextAlign(Paint.Align.CENTER);
+        Paint.FontMetricsInt metrics = paint.getFontMetricsInt();
+        float centerY = height * (1.0f - 0.15f);
+        float baseline = centerY - (metrics.top + metrics.bottom) * 0.5f;
+        canvas.drawText("Tap to start", width * 0.5f, baseline, paint);
+
+        int[] pixels = new int[width * height];
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
+        bitmap.recycle();
+        return new AtlasTexture(width, height, pixels);
     }
 
     private static AtlasLayer[] extractLayers(

@@ -16,6 +16,7 @@ final class GameSceneDirectAssetRequests {
     private static native int nativeSpriteCommandIndexAt(int requestIndex);
     private static native boolean nativeIsPlayerBodyAt(int requestIndex);
     private static native String nativePlayerAtlasPlistAt(int requestIndex);
+    private static native String nativeActionFrameAtlasPlistAt(int requestIndex);
     static native int nativePlayerCareerAt(int requestIndex);
     static native int nativePlayerClothesIdAt(int requestIndex);
 
@@ -61,5 +62,9 @@ final class GameSceneDirectAssetRequests {
 
     static String playerAtlasPlistAt(int requestIndex) {
         return nativePlayerAtlasPlistAt(requestIndex);
+    }
+
+    static String actionFrameAtlasPlistAt(int requestIndex) {
+        return nativeActionFrameAtlasPlistAt(requestIndex);
     }
 }

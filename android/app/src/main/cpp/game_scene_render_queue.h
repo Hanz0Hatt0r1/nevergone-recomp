@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
@@ -24,6 +25,9 @@ struct SpriteCommand {
     float layer_camera_factor = 0.0f;
     std::optional<me_actions_initial_sprite_transform::Plan> player_body_transform;
     std::optional<std::string> player_body_atlas_plist;
+    std::optional<me_actions_initial_sprite_transform::Plan> action_frame_transform;
+    std::optional<std::string> action_frame_atlas_plist;
+    std::uint8_t action_frame_opacity = 255u;
     int player_career = 0;
     int player_clothes_id = -1;
 };
@@ -51,6 +55,7 @@ struct Queue {
     std::size_t direct_file_count = 0;
     std::size_t scene_action_pair_count = 0;
     std::size_t unresolved_object_count = 0;
+    std::size_t tutorial_enemy_action_sprite_count = 0;
 };
 
 inline Queue build(const game_scene_construction_plan::ScenePlan& plan) {

@@ -73,6 +73,19 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
     private static native boolean nativeUploadSingleLoginCloud(
             int cloudFrameIndex, int width, int height, int[] argbPixels);
     private static native void nativeClearSingleLoginBuildings();
+    private static native void nativeClearSingleLoginTitleLogo();
+    private static native boolean nativeUploadSingleLoginTitleLogo(
+            int layerIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
+    private static native void nativeClearSingleLoginTapToStartPrompt();
+    private static native boolean nativeUploadSingleLoginTapToStartPrompt(
+            int width, int height, int[] argbPixels);
     private static native boolean nativeUploadSingleLoginBuilding(
             int buildingIndex,
             int width,
@@ -338,6 +351,8 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
         nativeClearSingleLoginBackgrounds();
         nativeClearSingleLoginClouds();
         nativeClearSingleLoginBuildings();
+        nativeClearSingleLoginTitleLogo();
+        nativeClearSingleLoginTapToStartPrompt();
         nativeClearSingleLoginLights();
         nativeClearSingleLoginSways();
         nativeClearSingleLoginLightning();
@@ -358,6 +373,8 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
                     SingleLoginAtlasComposer.composeScene(plist, atlasFile);
             if (scene == null || scene.backgrounds == null || scene.backgrounds.length != 3 ||
                     scene.clouds == null || scene.clouds.length != 2 ||
+                    scene.titleLogo == null ||
+                    scene.tapToStartPrompt == null ||
                     scene.sways == null || scene.sways.length != 9 ||
                     scene.lightning == null || scene.lightning.length != 7 ||
                     scene.illumination == null || scene.illumination.length != 4) {
@@ -387,6 +404,28 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
                     clearSingleLoginSceneOnGlThread();
                     return;
                 }
+            }
+
+            SingleLoginAtlasComposer.AtlasLayer titleLogo = scene.titleLogo;
+            if (!nativeUploadSingleLoginTitleLogo(
+                    0,
+                    titleLogo.width,
+                    titleLogo.height,
+                    titleLogo.left,
+                    titleLogo.top,
+                    titleLogo.sourceWidth,
+                    titleLogo.sourceHeight,
+                    titleLogo.pixels)) {
+                clearSingleLoginSceneOnGlThread();
+                return;
+            }
+
+            if (!nativeUploadSingleLoginTapToStartPrompt(
+                    scene.tapToStartPrompt.width,
+                    scene.tapToStartPrompt.height,
+                    scene.tapToStartPrompt.pixels)) {
+                clearSingleLoginSceneOnGlThread();
+                return;
             }
 
             for (int index = 0; index < scene.buildings.length; index++) {

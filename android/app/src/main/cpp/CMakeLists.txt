@@ -172,6 +172,8 @@ add_library(nevergone_recomp SHARED
     tutorial_attack_live_gate_runtime.cpp
     tutorial_attack_wave_runtime.cpp
     tutorial_dialogue_runtime.cpp
+    tutorial_enemy_action_animation.cpp
+    tutorial_enemy_action_document_store.cpp
     tutorial_enemy_roster.cpp
     tutorial_enemy_spawn_plan.cpp
     tutorial_gameplay_state.cpp
