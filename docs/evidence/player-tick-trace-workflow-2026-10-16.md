@@ -47,9 +47,10 @@ python3 tools/extract_player_tick_trace.py \
 ```
 
 Touch events and update samples share a monotonically increasing sequence
-number. At most 768 rows are retained (about 12 seconds at the normal render
-rate). This keeps recent input and state changes available while keeping the
-diagnostics within Android's accessibility text limit.
+number. The trace keeps 128 pre-input update rows, then records the input and
+the next 384 updates before freezing. That preserves the causal window while
+the diagnostics panel is opened. A new gesture starts a fresh window; the
+512-row cap also keeps the report within Android's accessibility text limit.
 
 The 2026-10-16 device run found and fixed a race in TapToStart: the touch phase
 was published before its pending auto-login request, allowing the GL thread to
@@ -58,8 +59,8 @@ Pro, a clean launch reached `game-levels` after one accepted touch; the bounded
 trace retained 512 rows in the first verification run. The input
 runtime proof recorded 36 joystick moves, control state `0x13`, and seven
 applied movement steps (x offset changed from `-125.724` to `-69.724`). The
-trace capacity was raised to 768 rows so touch rows survive the diagnostic
-capture interval without truncating the diagnostic text.
+trace now freezes after 384 post-input updates so the touch rows remain
+available while diagnostics are collected.
 
 `tools/tap_to_start_state_smoke.cpp` also stress-tests 20,000 concurrent
 input-thread/GL-thread handoffs. The GL-side observer waits for phase 5 and

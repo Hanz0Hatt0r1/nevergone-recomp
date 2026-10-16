@@ -1,11 +1,13 @@
 #include "game_scene_player_joystick_input.h"
 
+#include <algorithm>
 #include <cmath>
 #include <atomic>
 #include <deque>
 #include <iomanip>
 #include <mutex>
 #include <sstream>
+#include <utility>
 
 #include "controls_function_state_runtime.h"
 #include "game_clock.h"
@@ -33,7 +35,12 @@ std::mutex g_trace_mutex;
 std::deque<std::string> g_trace;
 std::atomic<std::uint64_t> g_trace_frame{0};
 std::uint64_t g_trace_sequence = 0;
-constexpr std::size_t kMaxTraceRows = 768;
+std::size_t g_post_input_updates = 0;
+bool g_capture_active = false;
+bool g_capture_frozen = false;
+constexpr std::size_t kMaxTraceRows = 512;
+constexpr std::size_t kPreInputRows = 128;
+constexpr std::size_t kPostInputRows = kMaxTraceRows - kPreInputRows;
 
 bool finite(float value) {
     return std::isfinite(value);
@@ -73,6 +80,27 @@ void release_capture_locked(std::uint64_t game_tick) {
     g_snapshot.design_y = kCenterY;
     g_snapshot.power = 0.0f;
     g_snapshot.angle_degrees = 0.0f;
+}
+
+void push_trace_row(std::string row) {
+    g_trace.push_back(std::move(row));
+    if (g_trace.size() > kMaxTraceRows) g_trace.pop_front();
+}
+
+void keep_pre_input_window() {
+    std::size_t updates = 0;
+    for (auto it = g_trace.rbegin(); it != g_trace.rend(); ++it) {
+        if (it->find(" U ") != std::string::npos) ++updates;
+        if (updates > kPreInputRows) {
+            g_trace.erase(g_trace.begin(), it.base());
+            break;
+        }
+    }
+    g_trace.erase(
+        std::remove_if(g_trace.begin(), g_trace.end(), [](const std::string& row) {
+            return row.find(" I ") != std::string::npos;
+        }),
+        g_trace.end());
 }
 
 bool update_sample_locked(float design_x, float design_y, bool count_move) {
@@ -161,6 +189,12 @@ void record_frame_sample(bool controls_allowed) {
     std::lock_guard<std::mutex> lock(g_trace_mutex);
     const std::uint64_t render_frame =
         g_trace_frame.fetch_add(1, std::memory_order_relaxed) + 1;
+    if (g_capture_frozen) return;
+    if (g_capture_active && g_post_input_updates >= kPostInputRows) {
+        g_capture_active = false;
+        g_capture_frozen = true;
+        return;
+    }
     const std::uint64_t game_tick = game_clock::tick_count();
     const auto motion = game_scene_player_motion_state::snapshot();
     const Snapshot joystick = snapshot();
@@ -181,20 +215,42 @@ void record_frame_sample(bool controls_allowed) {
         << motion.applied_steps << ' ' << std::setprecision(7)
         << motion.offset_x << ' ' << motion.offset_y << ' '
         << tutorial_gameplay_state::step_name(lesson.step);
-    g_trace.push_back(std::to_string(++g_trace_sequence) + " " + row.str());
-    if (g_trace.size() > kMaxTraceRows) g_trace.pop_front();
+    push_trace_row(std::to_string(++g_trace_sequence) + " " + row.str());
+    if (g_capture_active) {
+        ++g_post_input_updates;
+        if (g_post_input_updates >= kPostInputRows) {
+            g_capture_active = false;
+            g_capture_frozen = true;
+        }
+    } else {
+        std::size_t updates = 0;
+        for (const auto& trace_row : g_trace) {
+            if (trace_row.find(" U ") != std::string::npos) ++updates;
+        }
+        while (updates > kPreInputRows && !g_trace.empty()) {
+            const bool was_update = g_trace.front().find(" U ") != std::string::npos;
+            g_trace.pop_front();
+            if (was_update) --updates;
+        }
+    }
 }
 
 void record_input_event(int action, int pointer_id, float surface_x, float surface_y) {
     std::lock_guard<std::mutex> lock(g_trace_mutex);
+    if (!g_capture_active) keep_pre_input_window();
     std::ostringstream row;
     row << "I " << g_trace_frame.load(std::memory_order_relaxed) << ' '
         << game_clock::tick_count() << ' '
         << action << ' ' << pointer_id << ' ' << std::setprecision(7)
         << surface_x << ' ' << surface_y;
 
-    g_trace.push_back(std::to_string(++g_trace_sequence) + " " + row.str());
-    if (g_trace.size() > kMaxTraceRows) g_trace.pop_front();
+    push_trace_row(std::to_string(++g_trace_sequence) + " " + row.str());
+    if (action == kActionDown || action == kActionUp || action == kActionMove ||
+            action == kActionCancel) {
+        g_capture_active = true;
+        g_capture_frozen = false;
+        g_post_input_updates = 0;
+    }
 }
 
 bool surface_to_design(
