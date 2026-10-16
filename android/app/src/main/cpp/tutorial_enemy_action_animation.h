@@ -9,7 +9,7 @@ namespace nevergone::tutorial_enemy_action_animation {
 
 enum class Phase : std::uint8_t {
     kAppearance = 0,
-    kIdle,
+    kStateAction,
 };
 
 struct Sample {
@@ -20,12 +20,14 @@ struct Sample {
 };
 
 // Selects an action frame from the original per-frame durations. The initial
-// non-looping clip hands its remaining elapsed time to the looping idle clip.
+// non-looping clip hands its remaining elapsed time to the actor's state clip.
 Sample sample(
     const enemy_actions_wbg_document::Document& appearance,
     unsigned appearance_action_id,
-    const enemy_actions_wbg_document::Document& idle,
-    unsigned idle_action_id,
+    bool appearance_loops,
+    const enemy_actions_wbg_document::Document& state_action,
+    unsigned state_action_id,
+    bool state_action_loops,
     double elapsed_seconds);
 
 }  // namespace nevergone::tutorial_enemy_action_animation

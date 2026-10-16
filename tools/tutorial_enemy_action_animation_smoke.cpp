@@ -20,30 +20,36 @@ nevergone::enemy_actions_wbg_document::Document clip(
 
 int main() {
     const auto appearance = clip({0.1f, 0.2f});
-    const auto idle = clip({0.25f, 0.5f});
+    const auto state_action = clip({0.25f, 0.5f});
 
     auto sample = nevergone::tutorial_enemy_action_animation::sample(
-            appearance, 47u, idle, 21u, 0.05);
+            appearance, 47u, false, state_action, 28u, true, 0.05);
     assert(sample.document == &appearance);
     assert(sample.action_id == 47u && sample.frame_index == 0u);
 
     sample = nevergone::tutorial_enemy_action_animation::sample(
-            appearance, 47u, idle, 21u, 0.11);
+            appearance, 47u, false, state_action, 28u, true, 0.11);
     assert(sample.document == &appearance);
     assert(sample.frame_index == 1u);
 
     sample = nevergone::tutorial_enemy_action_animation::sample(
-            appearance, 47u, idle, 21u, 0.31);
-    assert(sample.document == &idle);
-    assert(sample.action_id == 21u && sample.frame_index == 0u);
+            appearance, 47u, false, state_action, 28u, true, 0.31);
+    assert(sample.document == &state_action);
+    assert(sample.action_id == 28u && sample.frame_index == 0u);
 
     sample = nevergone::tutorial_enemy_action_animation::sample(
-            appearance, 47u, idle, 21u, 0.56);
-    assert(sample.document == &idle && sample.frame_index == 1u);
+            appearance, 47u, false, state_action, 28u, true, 0.56);
+    assert(sample.document == &state_action && sample.frame_index == 1u);
 
     sample = nevergone::tutorial_enemy_action_animation::sample(
-            appearance, 47u, idle, 21u, 1.10);
-    assert(sample.document == &idle && sample.frame_index == 0u);
+            appearance, 47u, false, state_action, 28u, true, 1.10);
+    assert(sample.document == &state_action && sample.frame_index == 0u);
+
+    // A non-looping state action is allowed to finish without reusing its last
+    // frame after the clip duration has passed.
+    sample = nevergone::tutorial_enemy_action_animation::sample(
+            appearance, 47u, false, state_action, 28u, false, 1.06);
+    assert(sample.document == nullptr);
 
     return 0;
 }

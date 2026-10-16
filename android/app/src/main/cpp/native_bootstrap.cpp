@@ -19,6 +19,8 @@
 #include "client_callback_bridge.h"
 #include "game_levels_asset_probe.h"
 #include "game_levels_enter_transition.h"
+#include "game_scene_action_compositor.h"
+#include "game_scene_action_surface_input.h"
 #include "game_scene_direct_renderer.h"
 #include "game_scene_player_joystick_input.h"
 #include "game_scene_player_spawn_state.h"
@@ -33,6 +35,7 @@
 #include "single_select_hero_state.h"
 #include "standalone_hero_save_metadata.h"
 #include "startup_contract.h"
+#include "tutorial_gameplay_state.h"
 
 namespace {
 
@@ -180,6 +183,9 @@ std::string bootstrap_info() {
     out << nevergone::game_scene_direct_renderer::status_report();
     out << nevergone::game_scene_player_spawn_state::status_report();
     out << nevergone::game_scene_player_joystick_input::status_report();
+    out << nevergone::tutorial_gameplay_state::status_report();
+    out << nevergone::game_scene_action_surface_input::status_report();
+    out << nevergone::game_scene_action_compositor::status_report();
     out << nevergone::player_control_runtime_state::status_report();
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();

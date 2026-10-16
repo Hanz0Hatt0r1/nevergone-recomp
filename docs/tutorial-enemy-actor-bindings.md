@@ -73,30 +73,38 @@ to distinguish:
 
 The imported original `enemy/enemy03/enemy_actions_1_03.plist` closes the first
 Attack-wave actor's startup mapping: `start=47`, action 47 is the non-looping
-`e03_e_born02b.actData` appearance clip, and looping action 21 is the
-`e03_e_i01.actData` idle clip. The original table sets `go_fps=30`.
+`e03_e_born02b.actData` appearance clip, and action 28 is the looping
+`e03_e_w01_back.actData` state clip. The tutorial roster requests state `0x1c`
+(28); `EnemyObject::onlineEnemyState` selects the action associated with its
+requested state. The current implementation treats state `0x1c` as action
+index 28, which is a candidate mapping: the table confirms the clip, but the
+direct native state-to-action index lookup has not yet been traced. The original
+table sets `go_fps=30`.
 `tutorial_enemy_action_selection` records this mapping for enemy ID 3 and fails
 closed for IDs without reviewed data.
 
 ## Enemy 3 action rendering
 
 The visual path now connects each materialized ID 3 slot to the reviewed
-original action documents. It loads the appearance and idle documents from the
-imported asset tree, offsets each slot's local timeline by the recovered wave
-spawn delay, and selects the appearance frame before transitioning to the
-looping idle frames. The frame's own atlas name, original sprite key, spawn
-position, and scene camera translation are passed through the existing direct
-renderer. Unsupported enemy IDs and invalid/missing action documents fail
-closed instead of drawing a guessed sprite.
+original action documents. It loads the appearance and state-action documents
+from the imported asset tree, offsets each slot's local timeline by the
+recovered wave spawn delay, and selects the appearance frame before
+transitioning to the looping action for its initial state. The frame's own
+atlas name, original sprite key, spawn position, and scene camera translation
+are passed through the existing direct renderer. Unsupported enemy IDs,
+unmapped states, and invalid/missing action documents fail closed instead of
+drawing a guessed sprite.
 
-This is the first rendered enemy actor slice; it does not yet reproduce the
-native `EnemyActionsSystem` tick boundary or full AI/combat behavior. Device
-verification of the enemy appearing in the tutorial wave is still required.
+This renders the recovered startup/state animation, but it does not yet
+reproduce the native `EnemyActionsSystem` tick boundary or full AI/combat
+behavior. Device verification of the action transition in the tutorial wave is
+still required.
 
 ## Remaining actor work
 
-Next, verify the appearance-to-idle sequence in the live tutorial, then recover
-and connect the original actor behavior:
+Next, confirm the state-to-action index against a live original trace, compare
+the appearance-to-state-action sequence, then recover and connect the original
+actor behavior:
 
 1. match native action timing and facing/movement transitions;
 2. route evidence-backed hit/damage/death outcomes through the same

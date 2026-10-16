@@ -50,15 +50,18 @@ bool frame_at_time(
 Sample sample(
         const enemy_actions_wbg_document::Document& appearance,
         unsigned appearance_action_id,
-        const enemy_actions_wbg_document::Document& idle,
-        unsigned idle_action_id,
+        bool appearance_loops,
+        const enemy_actions_wbg_document::Document& state_action,
+        unsigned state_action_id,
+        bool state_action_loops,
         double elapsed_seconds) {
     Sample result;
     if (!std::isfinite(elapsed_seconds) || elapsed_seconds < 0.0) return result;
 
     std::size_t frame_index = 0;
     double remainder = 0.0;
-    if (frame_at_time(appearance, elapsed_seconds, false, &frame_index, &remainder)) {
+    if (frame_at_time(
+                appearance, elapsed_seconds, appearance_loops, &frame_index, &remainder)) {
         result.phase = Phase::kAppearance;
         result.action_id = appearance_action_id;
         result.frame_index = frame_index;
@@ -76,12 +79,15 @@ Sample sample(
         return result;
     }
 
-    const double idle_elapsed = elapsed_seconds - appearance_duration;
-    if (!frame_at_time(idle, idle_elapsed, true, &frame_index, &remainder)) return result;
-    result.phase = Phase::kIdle;
-    result.action_id = idle_action_id;
+    const double state_elapsed = elapsed_seconds - appearance_duration;
+    if (!frame_at_time(
+                state_action, state_elapsed, state_action_loops, &frame_index, &remainder)) {
+        return result;
+    }
+    result.phase = Phase::kStateAction;
+    result.action_id = state_action_id;
     result.frame_index = frame_index;
-    result.document = &idle;
+    result.document = &state_action;
     return result;
 }
 

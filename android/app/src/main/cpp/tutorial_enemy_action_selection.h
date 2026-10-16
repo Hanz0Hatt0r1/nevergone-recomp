@@ -9,15 +9,16 @@ struct Selection {
     const char* start_action_data = nullptr;
     const char* start_action_atlas = nullptr;
     bool start_action_loops = false;
-    unsigned idle_action_id = 0;
-    const char* idle_action_data = nullptr;
-    const char* idle_action_atlas = nullptr;
-    bool idle_action_loops = false;
+    unsigned state_action_id = 0;
+    const char* state_action_data = nullptr;
+    const char* state_action_atlas = nullptr;
+    bool state_action_loops = false;
     unsigned frames_per_second = 0;
 };
 
-// The original enemy03 action table sets start=47, maps action47 to the
-// non-looping born02b clip, and maps looping action21 to its idle clip.
+// The original enemy03 action table sets start=47 and contains looping action
+// 28. The tutorial requests state 0x1c; treating that state as action index 28
+// is the current candidate mapping, pending a direct runtime index trace.
 inline const Selection* for_enemy(unsigned enemy_id) {
     static constexpr Selection kTutorialEnemy3{
         3,
@@ -26,8 +27,8 @@ inline const Selection* for_enemy(unsigned enemy_id) {
         "enemy/enemy03/adata/e03_e_born02b.actData",
         "e03_02_default.plist",
         false,
-        21,
-        "enemy/enemy03/adata/e03_e_i01.actData",
+        28,
+        "enemy/enemy03/adata/e03_e_w01_back.actData",
         "e03_default.plist",
         true,
         30,

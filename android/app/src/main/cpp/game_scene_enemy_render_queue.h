@@ -43,7 +43,10 @@ inline game_scene_render_queue::Queue with_live_enemies(
             binding.slot >= live.attack.roster.enemies.size()) {
             continue;
         }
-        if (binding.enemy_id != documents->enemy_id) continue;
+        if (binding.enemy_id != documents->enemy_id ||
+            binding.initial_enemy_state != static_cast<int>(selection->state_action_id)) {
+            continue;
+        }
 
         const auto& slot = live.attack.roster.enemies[binding.slot];
         if (!slot.materialized) continue;
@@ -53,8 +56,10 @@ inline game_scene_render_queue::Queue with_live_enemies(
         const auto animation = tutorial_enemy_action_animation::sample(
                 documents->appearance,
                 selection->start_action_id,
-                documents->idle,
-                selection->idle_action_id,
+                selection->start_action_loops,
+                documents->state_action,
+                selection->state_action_id,
+                selection->state_action_loops,
                 actor_elapsed);
         if (animation.document == nullptr ||
             animation.frame_index >= animation.document->primary_records.size()) {

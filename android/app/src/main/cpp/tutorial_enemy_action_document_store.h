@@ -10,7 +10,7 @@ namespace nevergone::tutorial_enemy_action_document_store {
 struct Documents {
     unsigned enemy_id = 0;
     enemy_actions_wbg_document::Document appearance;
-    enemy_actions_wbg_document::Document idle;
+    enemy_actions_wbg_document::Document state_action;
 };
 
 // Loads only action files selected by reviewed tutorial enemy mappings.
