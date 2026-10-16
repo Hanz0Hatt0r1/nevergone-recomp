@@ -104,7 +104,11 @@ def main() -> int:
         indirect = out / "commands" / "run_indirect_call_evidence.sh"
         assert "ExportFunctionPcodeFlow.java" in expand.read_text(encoding="utf-8")
         assert "revenginstr_pcode_flow_script_path.sh" in expand.read_text(encoding="utf-8")
-        assert "ExportIndirectCallEvidence.java" in indirect.read_text(encoding="utf-8")
+        indirect_text = indirect.read_text(encoding="utf-8")
+        assert "ExportGhidraIndirectCallEvidence.java" in indirect_text
+        assert "adapt_revenginstr_indirect_call_evidence.py" in indirect_text
+        assert "ExportIndirectCallEvidence.java" in indirect_text
+        assert "if [[ -f \"$REVENGINSTR_REPO/ghidra/ExportGhidraIndirectCallEvidence.java\" ]]" in indirect_text
         subprocess.run(["bash", "-n", str(expand)], check=True)
         subprocess.run(["bash", "-n", str(indirect)], check=True)
 

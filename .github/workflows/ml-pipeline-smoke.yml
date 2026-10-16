@@ -124,6 +124,8 @@ jobs:
             tools/ml/nevergone_revenginstr_function_operands_adapter_smoke.py \
             tools/ml/adapt_revenginstr_address_metadata.py \
             tools/ml/nevergone_revenginstr_address_metadata_adapter_smoke.py \
+            tools/ml/adapt_revenginstr_indirect_call_evidence.py \
+            tools/ml/nevergone_revenginstr_indirect_call_adapter_smoke.py \
             tools/ml/nevergone_revenginstr_receiver_adapter_smoke.py
       - name: Validate validation migration runner syntax
         run: bash -n tools/ml/run_nevergone_revenginstr_validation_parity.sh
@@ -161,6 +163,8 @@ jobs:
         run: python tools/ml/nevergone_revenginstr_function_operands_adapter_smoke.py
       - name: Run shared address metadata adapter smoke
         run: python tools/ml/nevergone_revenginstr_address_metadata_adapter_smoke.py
+      - name: Run shared indirect-call evidence adapter smoke
+        run: python tools/ml/nevergone_revenginstr_indirect_call_adapter_smoke.py
       - name: Validate shared exporter runner syntax
         run: |
           bash -n tools/ml/run_nevergone_beaten_callback_selectors_v30.sh
