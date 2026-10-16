@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Hanz0Hatt0r1/revenginstr
-          ref: 65db7d562a75bd5690e50dbea46c27ecd2522048
+          ref: 4c0fe045c729c7f51c6f53cb9ffa8f2778cf6f55
           path: revenginstr
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -120,6 +120,8 @@ jobs:
             tools/ml/nevergone_revenginstr_validation_parity_smoke.py \
             tools/ml/adapt_revenginstr_receiver_types.py \
             tools/ml/adapt_revenginstr_receiver_inference.py \
+            tools/ml/adapt_revenginstr_function_operands.py \
+            tools/ml/nevergone_revenginstr_function_operands_adapter_smoke.py \
             tools/ml/nevergone_revenginstr_receiver_adapter_smoke.py
       - name: Validate validation migration runner syntax
         run: bash -n tools/ml/run_nevergone_revenginstr_validation_parity.sh
@@ -153,6 +155,10 @@ jobs:
         run: bash -n tools/ml/run_nevergone_production_classifier_v51.sh
       - name: Run shared receiver adapter smoke
         run: python tools/ml/nevergone_revenginstr_receiver_adapter_smoke.py
+      - name: Run shared function operand adapter smoke
+        run: python tools/ml/nevergone_revenginstr_function_operands_adapter_smoke.py
+      - name: Validate shared function operand runner syntax
+        run: bash -n tools/ml/run_nevergone_beaten_callback_selectors_v30.sh
       - name: Run synthetic pipeline smoke
         run: python tools/ml/nevergone_ml_pipeline_smoke.py
       - name: Run function family miner smoke
