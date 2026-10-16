@@ -72,6 +72,31 @@ bool observe_tutorial_jump_request_count(
     return queued;
 }
 
+bool observe_movement_action_state(
+        std::uint32_t movement_action_state,
+        bool moving) {
+    if (moving && movement_action_state != kWalkActionState &&
+            movement_action_state != kRunActionState) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_snapshot.ready) return false;
+    const auto is_locomotion_or_idle = [](std::uint32_t state) {
+        return state == kInitialActionState || state == kWalkActionState ||
+            state == kRunActionState;
+    };
+    if (!is_locomotion_or_idle(g_snapshot.current_action_state) ||
+            !is_locomotion_or_idle(g_snapshot.desired_action_state)) {
+        return false;
+    }
+
+    const std::uint32_t target = moving
+        ? movement_action_state : kInitialActionState;
+    if (g_snapshot.desired_action_state == target) return true;
+    return queue_desired_action_locked(target);
+}
+
 bool observe_base_function_state(
         std::uint64_t function_generation,
         std::uint32_t function_state,

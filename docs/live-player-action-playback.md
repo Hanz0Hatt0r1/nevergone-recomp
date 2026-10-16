@@ -47,6 +47,17 @@ For the project-supported `play(int,float)` path, native explicitly zeros `MeAct
 
 Facing remains overridden by the already reconstructed live `player_control_runtime_state`, matching the player-control route rather than freezing the initial frame's facing bit.
 
+## Locomotion actions
+
+The shipped `pNN_actions.plist` maps movement action state `0` to `action01`
+(`pNN_w01.actData`, looping) and fast state `1` to `action02`
+(`pNN_r01.actData`, looping). The recovered horizontal joystick path now queues
+those states while walking or running and returns to the initial idle state
+`0x1b` when the stick is released. The loader reuses its existing direct
+state-to-action-data resolver, so each transition also selects the original
+frame sequence and its matching atlas. Active jump/attack actions retain control
+until their existing completion transition returns to idle.
+
 ## Remaining transform boundary
 
 The renderer still does not synthesize unsupported mutable MeActions state such as non-zero action-local offsets, cut/H-point cropping, attachment transforms, ghosting, or alternate `play(float,float,float)` offset parameters. Those paths remain fail-closed/separate evidence work.

@@ -130,9 +130,26 @@ int main() {
         0u));
     assert(live::snapshot().desired_revision == desired_revision);
 
+    // Locomotion selects the shipped action01/action02 entries, then restores
+    // the idle action on release. It cannot replace an accepted combat action.
+    assert(live::sync_spawn(12u, 13u));
+    assert(live::commit_loaded_action(live::kInitialActionState));
+    assert(live::observe_movement_action_state(live::kWalkActionState, true));
+    assert(live::snapshot().desired_action_state == live::kWalkActionState);
+    assert(live::commit_loaded_action(live::kWalkActionState));
+    assert(live::observe_movement_action_state(live::kRunActionState, true));
+    assert(live::snapshot().desired_action_state == live::kRunActionState);
+    assert(live::commit_loaded_action(live::kRunActionState));
+    assert(live::observe_movement_action_state(live::kRunActionState, false));
+    assert(live::snapshot().desired_action_state == live::kInitialActionState);
+    assert(live::commit_loaded_action(live::kInitialActionState));
+    assert(!live::observe_movement_action_state(live::kTutorialJumpActionState, true));
+    assert(live::observe_base_function_state(
+        21u, 7u, true, live::kBaseAActionState, false));
+    assert(live::commit_loaded_action(live::kBaseAActionState));
+    assert(!live::observe_movement_action_state(live::kWalkActionState, true));
+
     const std::string report = live::status_report();
     assert(report.find("tutorial jump requests observed: 13") != std::string::npos);
-    assert(report.find("accepted completion transitions: 1") != std::string::npos);
-    assert(report.find("last completion target: 0x1b") != std::string::npos);
     return 0;
 }

@@ -13,6 +13,7 @@
 #include "game_clock.h"
 #include "game_scene_player_motion_state.h"
 #include "minimal_runtime_save_runtime.h"
+#include "meplayer_live_action_state.h"
 #include "player_control_runtime_state.h"
 #include "player_direction_combo_contract.h"
 #include "player_motion_contract.h"
@@ -378,6 +379,16 @@ void tick() {
         // Runtime capture proves Controls +0x168 is the normalized direction and
         // +0x160 is the separate activity sample used by the 0.05 threshold.
         active = player_control_runtime_state::apply_horizontal_sample(power, angle);
+        if (active) {
+            (void)meplayer_live_action_state::observe_movement_action_state(
+                movement_action_state, true);
+        } else if (power <= 0.05f) {
+            (void)meplayer_live_action_state::observe_movement_action_state(
+                player_motion_contract::kNormalMoveActionState, false);
+        }
+    } else {
+        (void)meplayer_live_action_state::observe_movement_action_state(
+            player_motion_contract::kNormalMoveActionState, false);
     }
     (void)game_scene_player_motion_state::advance_sample(
             game_tick,

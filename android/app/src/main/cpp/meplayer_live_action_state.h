@@ -6,6 +6,8 @@
 namespace nevergone::meplayer_live_action_state {
 
 constexpr std::uint32_t kInitialActionState = 0x1bu;
+constexpr std::uint32_t kWalkActionState = 0x00u;
+constexpr std::uint32_t kRunActionState = 0x01u;
 constexpr std::uint32_t kTutorialJumpActionState = 0x20u;
 constexpr std::uint32_t kBaseAActionState = 0x02u;
 constexpr std::uint32_t kBaselineBActionState = 0x1du;
@@ -47,6 +49,12 @@ bool sync_spawn(
 // loaded action is the initial 0x1b state.
 bool observe_tutorial_jump_request_count(
     std::uint64_t tutorial_jump_request_count);
+
+// Maps horizontal Controls movement to action01 walk/action02 run, then returns
+// to idle on release. Other active actions retain control until completion.
+bool observe_movement_action_state(
+    std::uint32_t movement_action_state,
+    bool moving);
 
 // Consumes the edge of the reconstructed Controls +0x118 function-state stream.
 bool observe_base_function_state(
