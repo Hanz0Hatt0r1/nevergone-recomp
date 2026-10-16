@@ -7,6 +7,9 @@ on:
       - 'tools/enemy_object_action_key_lifetime_smoke.py'
       - 'tools/run_enemy_object_action_key_lifetime.py'
       - 'tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java'
+      - 'tools/ghidra/ExportActionKeyLifetimeFunctionIdentitiesLegacy.java'
+      - 'tools/ghidra/ExportCallerFunctionIdentitiesLegacy.java'
+      - 'tools/ghidra/ExportCallerFunctionIdentities.java'
       - '.github/workflows/enemy-object-action-key-lifetime-evidence.yml'
       - 'docs/enemy-object-action-key-lifetime-evidence.md'
   push:
@@ -16,6 +19,9 @@ on:
       - 'tools/enemy_object_action_key_lifetime_smoke.py'
       - 'tools/run_enemy_object_action_key_lifetime.py'
       - 'tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java'
+      - 'tools/ghidra/ExportActionKeyLifetimeFunctionIdentitiesLegacy.java'
+      - 'tools/ghidra/ExportCallerFunctionIdentitiesLegacy.java'
+      - 'tools/ghidra/ExportCallerFunctionIdentities.java'
       - '.github/workflows/enemy-object-action-key-lifetime-evidence.yml'
       - 'docs/enemy-object-action-key-lifetime-evidence.md'
 
@@ -25,8 +31,16 @@ permissions:
 jobs:
   key-lifetime-evidence:
     runs-on: ubuntu-latest
+    env:
+      REVENGINSTR_REPO: ${{ github.workspace }}/revenginstr
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Hanz0Hatt0r1/revenginstr
+          ref: a4ce57afcb3f39cc07291aba588a397f54c0e29c
+          path: revenginstr
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -41,7 +55,8 @@ jobs:
         run: |
           grep -q 'NEVERGONE.EnemyObjectActionKeyLifetimePlan/1' tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java
           grep -q 'NEVERGONE.GhidraFunctionIdentity/1' tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java
-          grep -q 'getFunctionAt' tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java
+          grep -q 'exact' tools/ghidra/ExportActionKeyLifetimeFunctionIdentities.java
+          grep -q 'getFunctionAt' "$REVENGINSTR_REPO/ghidra/ExportGhidraFunctionIdentities.java"
       - name: Validate runner CLI
         run: |
           python3 tools/run_enemy_object_action_key_lifetime.py \

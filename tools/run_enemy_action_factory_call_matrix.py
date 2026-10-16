@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shlex
 import subprocess
 import sys
@@ -37,6 +38,11 @@ def main(argv: list[str] | None = None) -> int:
     subtrees = args.subtrees.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
     script_dir = repo_root / "tools" / "ghidra"
+    shared_script_dir = Path(
+        os.environ.get("REVENGINSTR_REPO", repo_root.parent / "revenginstr")
+    ).expanduser().resolve() / "ghidra"
+    shared_identity_exporter = shared_script_dir / "ExportGhidraFunctionIdentities.java"
+    use_shared_identity_exporter = shared_identity_exporter.is_file()
     identity_exporter = script_dir / "ExportCallerFunctionIdentities.java"
     matrix_tool = repo_root / "tools" / "enemy_action_factory_call_matrix.py"
     identities = output_dir / "enemy-actions-create-with-file-caller-identities.tsv"
@@ -51,12 +57,14 @@ def main(argv: list[str] | None = None) -> int:
         "-recursive",
         "-noanalysis",
         "-scriptPath",
-        str(script_dir),
+        f"{shared_script_dir};{script_dir}" if use_shared_identity_exporter else str(script_dir),
         "-postScript",
         "ExportCallerFunctionIdentities.java",
         str(subtrees),
         str(identities),
     ]
+    if use_shared_identity_exporter:
+        identity_command.append(str(shared_script_dir))
     report_command = [
         sys.executable,
         str(matrix_tool),

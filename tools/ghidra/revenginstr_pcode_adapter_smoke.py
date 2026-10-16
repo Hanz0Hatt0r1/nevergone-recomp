@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that High P-code adapters prefer the shared exporter and keep fallback."""
+"""Check that Ghidra adapters prefer shared exporters and keep fallbacks."""
 
 from __future__ import annotations
 
@@ -34,6 +34,7 @@ def main() -> int:
         generic_shared = Path(temp) / "generic-revenginstr"
         (generic_shared / "ghidra").mkdir(parents=True)
         (generic_shared / "ghidra/ExportGhidraCallerArgumentSubtree.java").touch()
+        (generic_shared / "ghidra/ExportGhidraFunctionIdentities.java").touch()
         for shared_path in (shared_repo, missing_shared, generic_shared):
             function_shared = (shared_path / "ghidra/ExportFunctionPcodeFlow.java").is_file()
             expected = (
@@ -125,6 +126,55 @@ def main() -> int:
                 if shared_argument != caller_shared:
                     raise AssertionError("caller subtree adapter must receive the shared script directory when available")
 
+            for relative, script_name, extra in (
+                (
+                    "tools/run_enemy_action_factory_call_matrix.py",
+                    "ExportCallerFunctionIdentities.java",
+                    ("--subtrees", "/tmp/subtrees.tsv"),
+                ),
+                (
+                    "tools/run_enemy_object_action_key_lifetime.py",
+                    "ExportActionKeyLifetimeFunctionIdentities.java",
+                    ("--pcode", "/tmp/pcode.tsv"),
+                ),
+            ):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(repo_root / relative),
+                        "--project-dir", "/tmp/revenginstr-adapter-smoke-project",
+                        "--project-name", "smoke",
+                        "--program", "sample.bin",
+                        *extra,
+                        "--dry-run",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env=environment,
+                )
+                if result.returncode:
+                    raise RuntimeError(f"{relative}: {result.stderr}")
+                commands = [
+                    shlex.split(line)
+                    for line in result.stdout.splitlines()
+                    if script_name in line
+                ]
+                if len(commands) != 1:
+                    raise AssertionError(f"{relative}: expected one identity export command")
+                identity_shared = (shared_path / "ghidra/ExportGhidraFunctionIdentities.java").is_file()
+                identity_expected = (
+                    f"{shared_path}/ghidra;{repo_root}/tools/ghidra"
+                    if identity_shared
+                    else f"{repo_root}/tools/ghidra"
+                )
+                command = commands[0]
+                script_path = command[command.index("-scriptPath") + 1]
+                if script_path != identity_expected:
+                    raise AssertionError(f"{relative}: expected {identity_expected!r}, got {script_path!r}")
+                if (command[-1] == f"{shared_path}/ghidra") != identity_shared:
+                    raise AssertionError(f"{relative}: missing shared exporter directory argument")
+
         helper = repo_root / "tools/ghidra/revenginstr_pcode_flow_script_path.sh"
         expression = 'source "$1"; "$2" "$3"'
         for shared_path in (shared_repo, missing_shared):
@@ -153,7 +203,7 @@ def main() -> int:
                 if result.stdout != expected:
                     raise AssertionError(f"{function} expected {expected!r}, got {result.stdout!r}")
 
-    print("revenginstr P-code adapters shared-first and fallback: pass")
+    print("revenginstr Ghidra adapters shared-first and fallback: pass")
     return 0
 
 

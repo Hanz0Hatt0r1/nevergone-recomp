@@ -25,6 +25,7 @@ on:
       - 'tools/ghidra/ExportCallerArgumentSubtree.java'
       - 'tools/ghidra/ExportCallerArgumentSubtreeLegacy.java'
       - 'tools/ghidra/ExportCallerFunctionIdentities.java'
+      - 'tools/ghidra/ExportCallerFunctionIdentitiesLegacy.java'
       - 'tools/ghidra/ExportPcodeDefinedStrings.java'
       - '.github/workflows/enemy-object-action-init-evidence.yml'
       - 'docs/enemy-object-action-init-evidence.md'
@@ -55,6 +56,7 @@ on:
       - 'tools/ghidra/ExportCallerArgumentSubtree.java'
       - 'tools/ghidra/ExportCallerArgumentSubtreeLegacy.java'
       - 'tools/ghidra/ExportCallerFunctionIdentities.java'
+      - 'tools/ghidra/ExportCallerFunctionIdentitiesLegacy.java'
       - 'tools/ghidra/ExportPcodeDefinedStrings.java'
       - '.github/workflows/enemy-object-action-init-evidence.yml'
       - 'docs/enemy-object-action-init-evidence.md'
@@ -85,7 +87,7 @@ jobs:
       - name: Validate createWithFile per-call matrix
         run: |
           python3 tools/enemy_action_factory_call_matrix_smoke.py
-          grep -q 'getName(true)' tools/ghidra/ExportCallerFunctionIdentities.java
+          grep -q 'getName(true)' "$REVENGINSTR_REPO/ghidra/ExportGhidraFunctionIdentities.java"
       - name: Validate focused EnemyObject initActionsSystem call site
         run: python3 tools/enemy_object_init_actions_callsite_smoke.py
       - name: Validate EnemyObject action dictionary chain
