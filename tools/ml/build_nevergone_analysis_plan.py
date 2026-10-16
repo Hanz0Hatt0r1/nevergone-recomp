@@ -97,6 +97,44 @@ def ghidra_runner(entries: list[dict[str, Any]], exporter: str, subdir: str, ext
     return "\n".join(lines)
 
 
+def indirect_call_ghidra_runner(entries: list[dict[str, Any]]) -> str:
+    lines = [
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        ': "${GHIDRA_HOME:=/opt/ghidra}"',
+        ': "${GHIDRA_PROJECT_DIR:=/home/pes/ghidra_projects/nevergone}"',
+        ': "${GHIDRA_PROJECT_NAME:=nevergone}"',
+        ': "${GHIDRA_PROGRAM:=libcocos2dcpp.so}"',
+        ': "${REPO_ROOT:=$PWD}"',
+        'source "$REPO_ROOT/tools/ghidra/revenginstr_pcode_flow_script_path.sh"',
+        'GHIDRA_SCRIPT_PATH=$(revenginstr_pcode_flow_script_path "$REPO_ROOT")',
+        ': "${REVENGINSTR_REPO:=$REPO_ROOT/../revenginstr}"',
+        'OUT_ROOT="${1:-/tmp/nevergone-analysis-evidence}/indirect-calls"',
+        'mkdir -p "$OUT_ROOT"',
+        'ANALYZE="$GHIDRA_HOME/support/analyzeHeadless"',
+        '[[ -x "$ANALYZE" ]] || { echo "missing analyzeHeadless: $ANALYZE" >&2; exit 2; }',
+        '[[ -f "$REPO_ROOT/tools/ghidra/ExportIndirectCallEvidence.java" ]] || { echo "missing local fallback exporter" >&2; exit 2; }',
+        '[[ -f "$REPO_ROOT/tools/ml/adapt_revenginstr_indirect_call_evidence.py" ]] || { echo "missing shared evidence adapter" >&2; exit 2; }',
+        "",
+        "while IFS=$'\\t' read -r entry record_id score; do",
+        '  [[ -n "$entry" ]] || continue',
+        '  safe="${record_id//[:\\/]/_}"',
+        '  echo "[$score] $record_id"',
+        '  if [[ -f "$REVENGINSTR_REPO/ghidra/ExportGhidraIndirectCallEvidence.java" ]]; then',
+        '    generic="$OUT_ROOT/$safe.jsonl"',
+        '    "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" -process "$GHIDRA_PROGRAM" -recursive -readOnly -noanalysis -scriptPath "$REVENGINSTR_REPO/ghidra;$REPO_ROOT/tools/ghidra" -postScript ExportGhidraIndirectCallEvidence.java "$entry" "$generic"',
+        '    python3 "$REPO_ROOT/tools/ml/adapt_revenginstr_indirect_call_evidence.py" "$generic" "$OUT_ROOT/$safe.tsv"',
+        "  else",
+        '    "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" -process "$GHIDRA_PROGRAM" -recursive -noanalysis -scriptPath "$GHIDRA_SCRIPT_PATH" -postScript ExportIndirectCallEvidence.java "$entry" "$OUT_ROOT/$safe.tsv"',
+        "  fi",
+        "done <<'NEVERGONE_ANALYSIS_QUEUE'",
+    ]
+    for entry in entries:
+        lines.append(f"{entry['source_entry']}\t{entry['id']}\t{entry['score']}")
+    lines.extend(["NEVERGONE_ANALYSIS_QUEUE", ""])
+    return "\n".join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("analysis", type=Path)
@@ -195,7 +233,7 @@ def main() -> int:
         encoding="utf-8",
     )
     indirect_script.write_text(
-        ghidra_runner(indirect_entries, "ExportIndirectCallEvidence.java", "indirect-calls", "tsv"),
+        indirect_call_ghidra_runner(indirect_entries),
         encoding="utf-8",
     )
     os.chmod(expand_script, 0o755)

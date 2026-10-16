@@ -92,6 +92,13 @@ Direct address-reference enumeration is also shared. Nevergone supplies the
 addresses and its adapter adds the local `nearby_class_evidence` field; address
 classification and class-name heuristics remain in this repository.
 
+The bounded `CALLIND` target-expression exporter is shared as
+`REVENGINSTR.GhidraIndirectCallEvidence/1`. The analysis-plan command uses it
+when the sibling checkout contains the exporter, retains the JSONL evidence,
+and adapts the six historical TSV columns for existing Nevergone consumers.
+The original Nevergone exporter remains the offline fallback; its function
+plans and any game interpretation remain here.
+
 ## P-code-only selective-classifier parity
 
 Historical `NEVERGONE.ProductionClassifier/4` remains immutable reference data.
