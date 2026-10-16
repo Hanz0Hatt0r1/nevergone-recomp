@@ -18,7 +18,8 @@ fi
 USE_REVENGINSTR=0
 if [[ -n "$REVENGINSTR_REPO" \
    && -f "$REVENGINSTR_REPO/src/revenginstr/evidence/callgraph.py" \
-   && -f "$REVENGINSTR_REPO/src/revenginstr/receiver/plan.py" ]]; then
+   && -f "$REVENGINSTR_REPO/src/revenginstr/receiver/plan.py" \
+   && -f "$REVENGINSTR_REPO/src/revenginstr/receiver/infer.py" ]]; then
   USE_REVENGINSTR=1
   export PYTHONPATH="$REVENGINSTR_REPO/src${PYTHONPATH:+:$PYTHONPATH}"
 fi
@@ -34,6 +35,7 @@ PLAN="$MASS_DIR/receiver-plan.tsv"
 VTABLE_SLOTS="$MASS_DIR/vtable-slots.tsv.gz"
 CATALOG="$MASS_DIR/static-vtable-slot-catalog.jsonl"
 RECEIVER_TYPES="$MASS_DIR/indirect-receiver-types.tsv"
+REVENGINSTR_RECEIVER_INFERENCE="$MASS_DIR/revenginstr-receiver-inference.jsonl"
 RECEIVER_INFERENCE="$MASS_DIR/static-receiver-vtable-inference-mass.jsonl"
 
 for required in \
@@ -58,7 +60,7 @@ if [[ "$USE_REVENGINSTR" == "1" ]]; then
   echo "revenginstr: $REVENGINSTR_REPO"
 else
   echo "== generic evidence core: Nevergone compatibility fallback =="
-  echo "warning: clone revenginstr next to this repo or set REVENGINSTR_REPO" >&2
+  echo "warning: clone/update revenginstr next to this repo or set REVENGINSTR_REPO" >&2
 fi
 
 echo
@@ -75,8 +77,8 @@ fi
 
 echo
 echo "== v5.1: mass Ghidra receiver/type export =="
-# Receiver class/vtable inference is still Nevergone-specific in this migration
-# slice, so the existing compatibility exporter/format remains authoritative here.
+# The vtable slot exporter/catalog are still Nevergone-owned data acquisition.
+# Receiver identity matching itself is delegated to revenginstr below.
 "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
   -process "$GHIDRA_PROGRAM" \
   -recursive \
@@ -95,9 +97,20 @@ python3 tools/ml/build_nevergone_static_vtable_slot_catalog_from_export.py \
 
 echo
 echo "== v5.1: mass receiver identity/vtable inference =="
-python3 tools/ml/infer_nevergone_mass_receiver_vtables.py \
-  "$RECEIVER_TYPES" "$CATALOG" --output "$RECEIVER_INFERENCE" \
-  | tee "$NGML/logs/v51-receiver-inference.log"
+if [[ "$USE_REVENGINSTR" == "1" ]]; then
+  python3 -m revenginstr.receiver.infer \
+    "$RECEIVER_TYPES" "$CATALOG" \
+    --output "$REVENGINSTR_RECEIVER_INFERENCE" \
+    | tee "$NGML/logs/v51-revenginstr-receiver-inference.log"
+  python3 tools/ml/adapt_revenginstr_receiver_inference.py \
+    "$REVENGINSTR_RECEIVER_INFERENCE" \
+    --output "$RECEIVER_INFERENCE" \
+    | tee "$NGML/logs/v51-receiver-inference.log"
+else
+  python3 tools/ml/infer_nevergone_mass_receiver_vtables.py \
+    "$RECEIVER_TYPES" "$CATALOG" --output "$RECEIVER_INFERENCE" \
+    | tee "$NGML/logs/v51-receiver-inference.log"
+fi
 
 echo
 echo "== v5.1: callgraph evidence =="
@@ -190,6 +203,9 @@ PY
 
 echo
 echo "receiver types: $RECEIVER_TYPES"
-echo "receiver inference: $RECEIVER_INFERENCE"
+if [[ -f "$REVENGINSTR_RECEIVER_INFERENCE" ]]; then
+  echo "generic receiver inference: $REVENGINSTR_RECEIVER_INFERENCE"
+fi
+echo "receiver inference compatibility output: $RECEIVER_INFERENCE"
 echo "evidence: $EVIDENCE_DIR/evidence.jsonl"
 echo "model: $MODEL_DIR"
