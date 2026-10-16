@@ -23,6 +23,7 @@ int main() {
     resolved = career::resolve(role, name);
     assert(resolved.ready());
     assert(resolved.career == 1);
+    assert(resolved.clothes_id == 1);
     assert(resolved.source == career::Source::kFreshRoleCompletion);
     assert(std::string(career::source_name(resolved.source)) == "fresh-role-completion");
 
@@ -42,9 +43,15 @@ int main() {
     name.career = 1;
     role.enter_dispatch_committed = true;
     role.dispatched_career = 3;
+    role.dispatched_clothes_id = 4;
     resolved = career::resolve(role, name);
     assert(resolved.ready());
     assert(resolved.career == 3);
+    assert(resolved.clothes_id == 4);
+    role.dispatched_clothes_id = 0;
+    assert(career::resolve(role, name).clothes_id == -1);
+    role.dispatched_clothes_id = 65536;
+    assert(career::resolve(role, name).clothes_id == -1);
     assert(resolved.source == career::Source::kExistingRoleDispatch);
     assert(std::string(career::source_name(resolved.source)) == "existing-role-dispatch");
 

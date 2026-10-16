@@ -16,6 +16,8 @@ final class GameSceneDirectAssetRequests {
     private static native int nativeSpriteCommandIndexAt(int requestIndex);
     private static native boolean nativeIsPlayerBodyAt(int requestIndex);
     private static native String nativePlayerAtlasPlistAt(int requestIndex);
+    static native int nativePlayerCareerAt(int requestIndex);
+    static native int nativePlayerClothesIdAt(int requestIndex);
 
     // Refresh atomically captures the current native request snapshot together
     // with the retained GameLevels atlas-preload list. All accessors below read

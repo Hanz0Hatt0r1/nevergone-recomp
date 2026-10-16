@@ -14,6 +14,7 @@ struct EnterRoleRequest {
     std::int64_t character_id = 0;
     std::int64_t career = 0;
     std::string character_name;
+    std::int64_t clothes_id = 0;
 };
 
 struct CreateRoleRequest {
@@ -42,6 +43,7 @@ struct Snapshot {
     std::int64_t dispatched_character_id = 0;
     std::int64_t dispatched_career = 0;
     std::string dispatched_character_name;
+    std::int64_t dispatched_clothes_id = 0;
 };
 
 void reset();

@@ -170,3 +170,19 @@ Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativePlayerAtlasPlistAt(
     }
     return env->NewStringUTF(request->player_atlas_plist.c_str());
 }
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativePlayerCareerAt(
+        JNIEnv*, jclass, jint request_index) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const auto* request = request_at(request_index);
+    return request != nullptr && request->player_body ? request->player_career : 0;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_nevergone_recomp_GameSceneDirectAssetRequests_nativePlayerClothesIdAt(
+        JNIEnv*, jclass, jint request_index) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    const auto* request = request_at(request_index);
+    return request != nullptr && request->player_body ? request->player_clothes_id : -1;
+}

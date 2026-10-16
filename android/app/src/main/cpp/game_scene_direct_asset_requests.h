@@ -22,6 +22,8 @@ struct Request {
     std::string frame_name;
     bool player_body = false;
     std::string player_atlas_plist;
+    int player_career = 0;
+    int player_clothes_id = -1;
 };
 
 struct Snapshot {
@@ -77,6 +79,10 @@ inline Snapshot build(const game_scene_render_queue::Queue& queue) {
             request.sprite_command_index = command_index;
             request.frame_name = command.resource.resource_name;
             request.player_body = command.player_body_transform.has_value();
+            if (request.player_body) {
+                request.player_career = command.player_career;
+                request.player_clothes_id = command.player_clothes_id;
+            }
             if (request.player_body && command.player_body_atlas_plist.has_value()) {
                 request.player_atlas_plist = *command.player_body_atlas_plist;
             }
@@ -95,6 +101,8 @@ inline Snapshot build(const game_scene_render_queue::Queue& queue) {
         detail::hash_string(&hash, request.frame_name);
         detail::hash_byte(&hash, request.player_body ? 1u : 0u);
         detail::hash_string(&hash, request.player_atlas_plist);
+        detail::hash_size(&hash, static_cast<std::size_t>(request.player_career));
+        detail::hash_size(&hash, static_cast<std::size_t>(request.player_clothes_id));
     }
     // Java receives this as a signed long. Keep the revision positive and
     // reserve zero for "no live render queue" at the JNI boundary.

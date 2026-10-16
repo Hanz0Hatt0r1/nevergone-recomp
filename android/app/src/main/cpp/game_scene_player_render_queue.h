@@ -18,6 +18,7 @@
 #include "meplayer_live_action_state.h"
 #include "player_action_document_store.h"
 #include "player_control_runtime_state.h"
+#include "player_offline_career.h"
 
 namespace nevergone::game_scene_player_render_queue {
 
@@ -26,7 +27,9 @@ inline game_scene_render_queue::Queue with_live_player(
         const game_scene_player_spawn_state::Snapshot& spawn,
         const enemy_actions_wbg_document::Document* document,
         me_actions_runtime_state::State runtime,
-        float camera_eye_x = 0.0f) {
+        float camera_eye_x = 0.0f,
+        int player_career = 0,
+        int player_clothes_id = -1) {
     if (spawn.status != game_scene_player_spawn_state::Status::kReady ||
         spawn.source_scene_index != queue.source_scene_index ||
         spawn.scene_guid != queue.guid || document == nullptr ||
@@ -72,6 +75,8 @@ inline game_scene_render_queue::Queue with_live_player(
         transform.flip_x = control.flip_x;
     }
     player.player_body_transform = transform;
+    player.player_career = player_career;
+    player.player_clothes_id = player_clothes_id;
 
     if (!selected_frame.first_string.empty()) {
         player.player_body_atlas_plist = selected_frame.first_string;
@@ -149,12 +154,15 @@ inline game_scene_render_queue::Queue current(game_scene_render_queue::Queue que
         }
     }
 
+    const auto appearance = player_offline_career::current();
     queue = with_live_player(
             std::move(queue),
             spawn,
             document ? &*document : nullptr,
             runtime,
-            camera_eye_x);
+            camera_eye_x,
+            static_cast<int>(appearance.career),
+            appearance.clothes_id);
 
     return game_scene_player_joystick_render_queue::current(std::move(queue));
 }

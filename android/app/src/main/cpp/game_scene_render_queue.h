@@ -24,6 +24,8 @@ struct SpriteCommand {
     float layer_camera_factor = 0.0f;
     std::optional<me_actions_initial_sprite_transform::Plan> player_body_transform;
     std::optional<std::string> player_body_atlas_plist;
+    int player_career = 0;
+    int player_clothes_id = -1;
 };
 
 // Runtime handoff for the exact type-0 klhuo-1.png branch. The original does
