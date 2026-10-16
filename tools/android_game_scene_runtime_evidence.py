@@ -160,7 +160,11 @@ def validate_diagnostics(text: str) -> SceneProof:
     )
     _single_match(r"^scene render queue: ready$", text, "ready scene render queue", re.MULTILINE)
 
-    render_sprites = _single_int(r"^render sprites:\s*(\d+)\s*$", text, "render sprite count")
+    render_sprites = _single_int(
+        r"^scene render queue: ready\nrender sprites:\s*(\d+)\s*$",
+        text,
+        "render sprite count",
+    )
     deferred_pairs = _single_int(
         r"^deferred scene-action pairs:\s*(\d+)\s*$",
         text,

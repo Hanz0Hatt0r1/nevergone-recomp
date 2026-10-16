@@ -128,6 +128,14 @@ def main() -> int:
         assert proof.unresolved_render_objects == 1
         assert proof.deferred_pairs == 1
 
+        # Tutorial bootstrap also reports this count after the scene has drawn.
+        # Only the count beside the live render queue belongs to this proof.
+        report = write_report(
+            root,
+            diagnostics=DIAGNOSTICS + "Tutorial scene bootstrap\nrender sprites: 12\n",
+        )
+        assert module.validate(module.parse_report(report)) is not None
+
         # The runtime model exposes the base GameLevels queue while the direct
         # renderer stages a live queue after player/joystick composition. A
         # composed overlay may therefore make requests/drawn exceed the base.

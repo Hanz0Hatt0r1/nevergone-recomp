@@ -14,8 +14,12 @@ The reconstruction must not require the action-specific plist before consulting 
 
 The original diagnostic script used Python `plistlib`, which rejected the shipped legacy Apple DTD terminator before checking keys. It now normalizes only that exact terminator, then compares parsed frame keys and aliases. A raw substring hit was not evidence of SpriteFrameCache membership.
 
-The Android staging path now publishes a hidden entry for this unresolved player-body request while continuing to stage the scene's other sprites. Its runtime report counts `missing player frames` so this bounded P7 scene-render attempt cannot be mistaken for a visible P8 player. The P8/P9 device-proof validator rejects any nonzero count. A fresh contiguous device capture is still required before P7 can be marked accepted; the exact player-frame source remains unresolved.
+The Android staging path now publishes a hidden entry for this unresolved player-body request while continuing to stage the scene's other sprites. Its runtime report counts `missing player frames` so this bounded P7 scene-render attempt cannot be mistaken for a visible P8 player. The P8/P9 device-proof validator rejects any nonzero count. The exact player-frame source remains unresolved.
 
 The rebuilt debug APK installed and launched on the Redmi Note 8 Pro through REA. The immediate post-install capture stayed at the fresh-role name-entry route (`GameLevels` boundary idle), so it does not verify scene rendering or change the P7 acceptance state. Build, parser, and validator smoke checks passed.
+
+A later contiguous fresh-role capture on the same device did reach and render `cp_lesson.glData`. The retained local report `/tmp/nevergone-post-csv-complete/runtime-report.txt` has `status=pass`, timestamp `2026-10-16T01:43:00Z`, diagnostics SHA-256 `bf9c9effcce65bc963335dc9f0c60accd6a7dc7a8a0604e21b928bfb09a0cfbf` and screenshot SHA-256 `2349f35e621410525d6770c08bf526f6244f758f917ed61f3c34163034b0107f`. Diagnostics show all 9 requests staged, 8 sprites drawn, one missing player frame, visible imported lesson art, and the first dialogue completed (`line: 3/3`, interactive session, modal input unblocked). This accepts P7 for the fresh-role route while leaving P8 open.
+
+The P7 validator previously rejected this real report because the tutorial bootstrap repeats the `render sprites` count. It now reads the count attached to `scene render queue: ready`; a regression fixture includes the second occurrence.
 
 No original asset bytes are stored in the repository; only derived names and membership observations are retained here.

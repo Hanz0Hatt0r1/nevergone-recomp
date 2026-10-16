@@ -36,10 +36,11 @@ final class TutorialLessonOverlayAssetLoader {
         if (filesDir == null || filesDir.isEmpty()) return false;
 
         File root = new File(filesDir, "assets");
-        File lessonDir = new File(root, LESSON_DIR);
-        File keyboardFile = new File(lessonDir, KEYBOARD_NAME);
-        File lessonTextFile = new File(lessonDir, LESSON_TEXT_NAME);
-        if (!keyboardFile.isFile() || !lessonTextFile.isFile() ||
+        File keyboardFile = GameSceneAtlasResolver.resolveResource(
+                root, LESSON_DIR + "/" + KEYBOARD_NAME);
+        File lessonTextFile = GameSceneAtlasResolver.resolveResource(
+                root, LESSON_DIR + "/" + LESSON_TEXT_NAME);
+        if (keyboardFile == null || lessonTextFile == null ||
                 !hasRecoveredLessonKeys(lessonTextFile)) {
             return false;
         }
