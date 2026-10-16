@@ -18,6 +18,7 @@ fi
 USE_REVENGINSTR=0
 if [[ -n "$REVENGINSTR_REPO" \
    && -f "$REVENGINSTR_REPO/src/revenginstr/evidence/callgraph.py" \
+   && -f "$REVENGINSTR_REPO/src/revenginstr/evidence/aggregate.py" \
    && -f "$REVENGINSTR_REPO/src/revenginstr/receiver/plan.py" \
    && -f "$REVENGINSTR_REPO/src/revenginstr/receiver/infer.py" ]]; then
   USE_REVENGINSTR=1
@@ -37,6 +38,8 @@ CATALOG="$MASS_DIR/static-vtable-slot-catalog.jsonl"
 RECEIVER_TYPES="$MASS_DIR/indirect-receiver-types.tsv"
 REVENGINSTR_RECEIVER_INFERENCE="$MASS_DIR/revenginstr-receiver-inference.jsonl"
 RECEIVER_INFERENCE="$MASS_DIR/static-receiver-vtable-inference-mass.jsonl"
+REVENGINSTR_EVIDENCE="$EVIDENCE_DIR/revenginstr-evidence.jsonl"
+EVIDENCE="$EVIDENCE_DIR/evidence.jsonl"
 
 for required in \
   "$DATASET/trace.jsonl" \
@@ -77,8 +80,6 @@ fi
 
 echo
 echo "== v5.1: mass Ghidra receiver/type export =="
-# The vtable slot exporter/catalog are still Nevergone-owned data acquisition.
-# Receiver identity matching itself is delegated to revenginstr below.
 "$ANALYZE" "$GHIDRA_PROJECT_DIR" "$GHIDRA_PROJECT_NAME" \
   -process "$GHIDRA_PROGRAM" \
   -recursive \
@@ -151,21 +152,35 @@ python3 tools/ml/audit_nevergone_v51_evidence_coverage.py \
 
 echo
 echo "== v5.1: aggregate external evidence =="
-python3 tools/ml/build_nevergone_v5_evidence.py \
-  "$DATASET/trace.jsonl" \
-  --callgraph-metrics "$EVIDENCE_DIR/libcocos2dcpp.callgraph.jsonl" \
-  --callgraph-metrics "$EVIDENCE_DIR/libffmpeg.callgraph.jsonl" \
-  --receiver-types "$RECEIVER_TYPES" \
-  --receiver-inference "$RECEIVER_INFERENCE" \
-  --output "$EVIDENCE_DIR/evidence.jsonl" \
-  | tee "$NGML/logs/v51-evidence.log"
+if [[ "$USE_REVENGINSTR" == "1" ]]; then
+  python3 -m revenginstr.evidence.aggregate \
+    "$DATASET/trace.jsonl" \
+    --callgraph-metrics "$EVIDENCE_DIR/libcocos2dcpp.callgraph.jsonl" \
+    --callgraph-metrics "$EVIDENCE_DIR/libffmpeg.callgraph.jsonl" \
+    --receiver-types "$RECEIVER_TYPES" \
+    --receiver-inference "$REVENGINSTR_RECEIVER_INFERENCE" \
+    --output "$REVENGINSTR_EVIDENCE" \
+    | tee "$NGML/logs/v51-revenginstr-evidence.log"
+  python3 tools/ml/adapt_revenginstr_evidence.py \
+    "$REVENGINSTR_EVIDENCE" --output "$EVIDENCE" \
+    | tee "$NGML/logs/v51-evidence.log"
+else
+  python3 tools/ml/build_nevergone_v5_evidence.py \
+    "$DATASET/trace.jsonl" \
+    --callgraph-metrics "$EVIDENCE_DIR/libcocos2dcpp.callgraph.jsonl" \
+    --callgraph-metrics "$EVIDENCE_DIR/libffmpeg.callgraph.jsonl" \
+    --receiver-types "$RECEIVER_TYPES" \
+    --receiver-inference "$RECEIVER_INFERENCE" \
+    --output "$EVIDENCE" \
+    | tee "$NGML/logs/v51-evidence.log"
+fi
 
 echo
 echo "== v5.1: train =="
 rm -rf "$MODEL_DIR"
 python3 tools/ml/train_nevergone_production_classifier_v5.py \
   "$DATASET" "$FAMILIES" "$MODEL_DIR" \
-  --evidence "$EVIDENCE_DIR/evidence.jsonl" \
+  --evidence "$EVIDENCE" \
   --classes game engine runtime_library media_library \
   | tee "$NGML/logs/v51-train.log"
 
@@ -207,5 +222,8 @@ if [[ -f "$REVENGINSTR_RECEIVER_INFERENCE" ]]; then
   echo "generic receiver inference: $REVENGINSTR_RECEIVER_INFERENCE"
 fi
 echo "receiver inference compatibility output: $RECEIVER_INFERENCE"
-echo "evidence: $EVIDENCE_DIR/evidence.jsonl"
+if [[ -f "$REVENGINSTR_EVIDENCE" ]]; then
+  echo "generic evidence: $REVENGINSTR_EVIDENCE"
+fi
+echo "evidence compatibility output: $EVIDENCE"
 echo "model: $MODEL_DIR"
