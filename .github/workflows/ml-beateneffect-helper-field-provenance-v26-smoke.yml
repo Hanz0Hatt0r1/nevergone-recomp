@@ -7,6 +7,8 @@ on:
       - 'tools/ml/audit_nevergone_beateneffect_helper_field_provenance_v26.py'
       - 'tools/ml/nevergone_beateneffect_helper_field_provenance_v26_smoke.py'
       - 'tools/ml/run_nevergone_beateneffect_helper_field_provenance_v26.sh'
+      - 'tools/ghidra/ExportCallerArgumentSubtree.java'
+      - 'tools/ghidra/ExportCallerArgumentSubtreeLegacy.java'
       - '.github/workflows/ml-beateneffect-helper-field-provenance-v26-smoke.yml'
   pull_request:
     paths:
@@ -14,6 +16,8 @@ on:
       - 'tools/ml/audit_nevergone_beateneffect_helper_field_provenance_v26.py'
       - 'tools/ml/nevergone_beateneffect_helper_field_provenance_v26_smoke.py'
       - 'tools/ml/run_nevergone_beateneffect_helper_field_provenance_v26.sh'
+      - 'tools/ghidra/ExportCallerArgumentSubtree.java'
+      - 'tools/ghidra/ExportCallerArgumentSubtreeLegacy.java'
       - '.github/workflows/ml-beateneffect-helper-field-provenance-v26-smoke.yml'
 
 jobs:

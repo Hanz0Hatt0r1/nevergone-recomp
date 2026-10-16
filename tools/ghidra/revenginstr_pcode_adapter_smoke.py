@@ -31,10 +31,16 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="revenginstr-adapter-smoke-") as temp:
         missing_shared = Path(temp) / "missing-revenginstr"
-        for shared_path, expected in (
-            (shared_repo, f"{shared_repo}/ghidra;{repo_root}/tools/ghidra"),
-            (missing_shared, f"{repo_root}/tools/ghidra"),
-        ):
+        generic_shared = Path(temp) / "generic-revenginstr"
+        (generic_shared / "ghidra").mkdir(parents=True)
+        (generic_shared / "ghidra/ExportGhidraCallerArgumentSubtree.java").touch()
+        for shared_path in (shared_repo, missing_shared, generic_shared):
+            function_shared = (shared_path / "ghidra/ExportFunctionPcodeFlow.java").is_file()
+            expected = (
+                f"{shared_path}/ghidra;{repo_root}/tools/ghidra"
+                if function_shared
+                else f"{repo_root}/tools/ghidra"
+            )
             environment = os.environ.copy()
             environment["REVENGINSTR_REPO"] = str(shared_path)
             for relative in runners:
@@ -88,7 +94,12 @@ def main() -> int:
                 (shared_path / "ghidra/ExportBoundedCallGraphPcodeFlow.java").is_file()
                 and (shared_path / "ghidra/ExportBoundedReverseCallGraphPcodeFlow.java").is_file()
             )
-            bounded_expected = expected if bounded_shared else f"{repo_root}/tools/ghidra"
+            caller_shared = (shared_path / "ghidra/ExportGhidraCallerArgumentSubtree.java").is_file()
+            bounded_expected = (
+                f"{shared_path}/ghidra;{repo_root}/tools/ghidra"
+                if bounded_shared or caller_shared
+                else f"{repo_root}/tools/ghidra"
+            )
             for command in commands:
                 script_path = command[command.index("-scriptPath") + 1]
                 if script_path != bounded_expected:
@@ -98,6 +109,21 @@ def main() -> int:
                 configured = any(value.startswith("--priority=") for value in command)
                 if configured != bounded_shared:
                     raise AssertionError("bounded call-graph priorities must follow shared exporter availability")
+            caller_commands = [
+                shlex.split(line)
+                for line in result.stdout.splitlines()
+                if "ExportCallerArgumentSubtree.java" in line
+            ]
+            if len(caller_commands) != 2:
+                raise AssertionError(f"expected both caller subtree exports, got {len(caller_commands)}")
+            for command in caller_commands:
+                script_path = command[command.index("-scriptPath") + 1]
+                expected_path = bounded_expected
+                if script_path != expected_path:
+                    raise AssertionError(f"caller subtree expected script path {expected_path!r}, got {script_path!r}")
+                shared_argument = command[-1] == f"{shared_path}/ghidra"
+                if shared_argument != caller_shared:
+                    raise AssertionError("caller subtree adapter must receive the shared script directory when available")
 
         helper = repo_root / "tools/ghidra/revenginstr_pcode_flow_script_path.sh"
         expression = 'source "$1"; "$2" "$3"'
