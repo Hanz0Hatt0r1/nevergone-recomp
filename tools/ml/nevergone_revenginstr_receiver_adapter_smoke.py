@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parents[2]
 def main() -> int:
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
-        source = tmp / "generic.jsonl"
-        output = tmp / "legacy.jsonl"
+        source = tmp / "generic-inference.jsonl"
+        output = tmp / "legacy-inference.jsonl"
         row = {
             "format": "REVENGINSTR.ReceiverInference/1",
             "source_id": "libcocos2dcpp.so:00100000",
@@ -53,7 +53,37 @@ def main() -> int:
         assert adapted["parameter_provenance_present"] is False
         assert adapted["structural_parameter_provenance_present"] is False
         assert adapted["affects_routing"] is False
-    print("revenginstr receiver compatibility adapter smoke: OK")
+
+        generic_evidence = tmp / "generic-evidence.jsonl"
+        legacy_evidence = tmp / "legacy-evidence.jsonl"
+        features = {
+            "has_callgraph": 1.0,
+            "receiver.resolved_count": 1.0,
+            "receiver.evidence_direct_receiver_type_count": 1.0,
+        }
+        generic_evidence.write_text(
+            json.dumps({
+                "format": "REVENGINSTR.Evidence/1",
+                "id": "f1",
+                "features": features,
+            }) + "\n",
+            encoding="utf-8",
+        )
+        subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "tools/ml/adapt_revenginstr_evidence.py"),
+                str(generic_evidence),
+                "--output",
+                str(legacy_evidence),
+            ],
+            check=True,
+        )
+        adapted_evidence = json.loads(legacy_evidence.read_text(encoding="utf-8"))
+        assert adapted_evidence["format"] == "NEVERGONE.ProductionEvidence/1"
+        assert adapted_evidence["id"] == "f1"
+        assert adapted_evidence["features"] == features
+    print("revenginstr receiver/evidence compatibility adapters smoke: OK")
     return 0
 
 
