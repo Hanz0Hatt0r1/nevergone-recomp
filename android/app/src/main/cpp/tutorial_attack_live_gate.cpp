@@ -213,6 +213,20 @@ std::optional<enemy_attack_value_contract::CombatFrameValues> Gate::resolve_comb
         slot, current_frame, action, expected_wave_generation);
 }
 
+std::optional<enemy_hitpoint_contract::HitPoint> Gate::resolve_hitpoint(
+        std::size_t slot,
+        std::int32_t current_frame,
+        std::int32_t frame_ordinal,
+        const enemy_actions_wbg_document::Document& action,
+        std::optional<enemy_hitpoint_contract::Point> sprite_bounds_origin,
+        float enemy_offset_118,
+        float enemy_offset_284,
+        std::uint64_t expected_wave_generation) const {
+    return enemy_bindings_.resolve_hitpoint(
+        slot, current_frame, frame_ordinal, action, sprite_bounds_origin,
+        enemy_offset_118, enemy_offset_284, expected_wave_generation);
+}
+
 bool Gate::consume_completion_after_publish() {
     if (!attack_.consume_completion()) return false;
     ++completion_publish_count_;

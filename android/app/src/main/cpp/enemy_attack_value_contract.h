@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <optional>
+#include <vector>
 
+#include "action_hitpoint_record_contract.h"
 #include "enemy_actions_wbg_document.h"
 
 namespace nevergone::enemy_attack_value_contract {
@@ -10,6 +12,7 @@ namespace nevergone::enemy_attack_value_contract {
 struct CombatFrameValues {
     float input_attack_value = 0.0f;
     std::int32_t frame_power = 1;
+    std::vector<action_hitpoint_record_contract::RecordRef> current_frame_hitpoints;
 };
 
 // EnemyObject::loadEnemyObjectFile(): GameLevelsEnemyData+0x20 is converted
@@ -39,6 +42,6 @@ std::int32_t resolve_frame_power(
 std::optional<CombatFrameValues> resolve_combat_frame(
     std::uint32_t value_2bc,
     const enemy_actions_wbg_document::Document& action,
-    std::int32_t current_frame) noexcept;
+    std::int32_t current_frame);
 
 }  // namespace nevergone::enemy_attack_value_contract

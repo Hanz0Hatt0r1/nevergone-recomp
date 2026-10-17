@@ -23,19 +23,20 @@ decompilation confirm the following data path:
    number of records for the current frame.
 3. `MeActionsSystem::curFrameHitPoint()` matches both fields and uses the
    selected array index to fetch a parallel object from `MeActionsSystem
-   +0x198`, then asks that sprite for its bounding box. `MEPlayer::
-   curActionHitPointCount()` delegates to the active system at `MEPlayer
-   +0x234`.
+   +0x198`, sets its position, and obtains its transformed `CCRect` through
+   `CCSprite::sprBoundingBox()`. The method copies the rectangle origin into a
+   `CCPoint`; `MEPlayer::curActionHitPointCount()` delegates to the active
+   system at `MEPlayer +0x234`.
 
 The Sections A-G document parser already retains the same Section-E records
-for player action files. `player_action_hitpoint_contract` now exposes the
-current frame's source record indices and matching ordinals. The player's
-frame-lookup result carries these references alongside the existing sprite
-frame lookup.
+for player action files. `action_hitpoint_record_contract` exposes the current
+frame's source record indices and matching ordinals. The player's frame-lookup
+result carries these references alongside the existing sprite frame lookup.
 
 This restores the data-backed count/ordinal/index selection stage. It does not
 create the native `+0x198` sprite objects, reproduce their position updates,
-calculate `sprBoundingBox()`, or perform point-versus-box collision. Those
+calculate the transformed `sprBoundingBox()` origin, or perform the later
+point comparisons. Those
 remaining operations sit at the boundary of `MEPlayer::beatHitPoint()` and
 the large `BattleManager::{playerHitEnemy,enemyHitPlayer}` routines.
 

@@ -59,13 +59,15 @@ std::int32_t resolve_frame_power(
 std::optional<CombatFrameValues> resolve_combat_frame(
         std::uint32_t value_2bc,
         const enemy_actions_wbg_document::Document& action,
-        std::int32_t current_frame) noexcept {
+        std::int32_t current_frame) {
     const auto input_attack_value = resolve_at_frame(value_2bc, action, current_frame);
     if (!input_attack_value.has_value()) return std::nullopt;
 
     CombatFrameValues values;
     values.input_attack_value = *input_attack_value;
     values.frame_power = resolve_frame_power(action, current_frame);
+    values.current_frame_hitpoints =
+            action_hitpoint_record_contract::records_for_frame(action, current_frame);
     return values;
 }
 

@@ -1,6 +1,6 @@
-#include "player_action_hitpoint_contract.h"
+#include "action_hitpoint_record_contract.h"
 
-namespace nevergone::player_action_hitpoint_contract {
+namespace nevergone::action_hitpoint_record_contract {
 
 std::vector<RecordRef> records_for_frame(
         const enemy_actions_wbg_document::Document& document,
@@ -11,6 +11,16 @@ std::vector<RecordRef> records_for_frame(
          ++index) {
         if (document.fixed_tail_block.records[index].first_i32 != current_frame) continue;
         result.push_back(RecordRef{index, result.size()});
+    }
+    return result;
+}
+
+std::size_t count_for_frame(
+        const enemy_actions_wbg_document::Document& document,
+        std::int32_t current_frame) noexcept {
+    std::size_t result = 0;
+    for (const auto& record : document.fixed_tail_block.records) {
+        if (record.first_i32 == current_frame) ++result;
     }
     return result;
 }
@@ -34,4 +44,4 @@ std::optional<RecordRef> select_record(
     return std::nullopt;
 }
 
-}  // namespace nevergone::player_action_hitpoint_contract
+}  // namespace nevergone::action_hitpoint_record_contract

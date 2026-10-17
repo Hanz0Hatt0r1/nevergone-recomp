@@ -9,6 +9,7 @@
 #include <string>
 
 #include "enemy_attack_value_contract.h"
+#include "enemy_hitpoint_contract.h"
 #include "game_levels_enemy_record_mapping.h"
 #include "tutorial_attack_wave_runtime.h"
 
@@ -166,6 +167,21 @@ public:
         if (!accepts(slot, expected_wave_generation)) return std::nullopt;
         return enemy_attack_value_contract::resolve_combat_frame(
             bindings_[slot].input_value_2bc, action, current_frame);
+    }
+
+    std::optional<enemy_hitpoint_contract::HitPoint> resolve_hitpoint(
+            std::size_t slot,
+            std::int32_t current_frame,
+            std::int32_t frame_ordinal,
+            const enemy_actions_wbg_document::Document& action,
+            std::optional<enemy_hitpoint_contract::Point> sprite_bounds_origin,
+            float enemy_offset_118,
+            float enemy_offset_284,
+            std::uint64_t expected_wave_generation) const {
+        if (!accepts(slot, expected_wave_generation)) return std::nullopt;
+        return enemy_hitpoint_contract::resolve(
+            action, current_frame, frame_ordinal, sprite_bounds_origin,
+            enemy_offset_118, enemy_offset_284);
     }
 
     Snapshot snapshot() const {

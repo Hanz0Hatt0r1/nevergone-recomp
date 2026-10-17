@@ -110,7 +110,8 @@ add_library(nevergone_recomp SHARED
     player_hit_window_contract.cpp
     player_health_contract.cpp
     player_combat_stat_contract.cpp
-    player_action_hitpoint_contract.cpp
+    action_hitpoint_record_contract.cpp
+    enemy_hitpoint_contract.cpp
     meplayer_function_gate_contract.cpp
     meplayer_live_action_state.cpp
     minimal_runtime_save.cpp

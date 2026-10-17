@@ -8,6 +8,7 @@
 
 #include "enemy_attack_value_contract.h"
 #include "enemy_actions_wbg_document.h"
+#include "enemy_hitpoint_contract.h"
 #include "game_levels_enemy_record_mapping.h"
 #include "game_levels_runtime_state.h"
 #include "game_scene_player_motion_state.h"
@@ -77,6 +78,15 @@ public:
         std::int32_t current_frame,
         const enemy_actions_wbg_document::Document& action,
         std::uint64_t expected_wave_generation) const;
+    std::optional<enemy_hitpoint_contract::HitPoint> resolve_hitpoint(
+        std::size_t slot,
+        std::int32_t current_frame,
+        std::int32_t frame_ordinal,
+        const enemy_actions_wbg_document::Document& action,
+        std::optional<enemy_hitpoint_contract::Point> sprite_bounds_origin,
+        float enemy_offset_118,
+        float enemy_offset_284,
+        std::uint64_t expected_wave_generation) const;
 
     // Consume only after the caller has successfully published
     // kTutorialEnemiesDefeated to tutorial_gameplay_state.
@@ -119,6 +129,15 @@ std::optional<enemy_attack_value_contract::CombatFrameValues> live_resolve_comba
     std::size_t slot,
     std::int32_t current_frame,
     const enemy_actions_wbg_document::Document& action,
+    std::uint64_t expected_wave_generation);
+std::optional<enemy_hitpoint_contract::HitPoint> live_resolve_hitpoint(
+    std::size_t slot,
+    std::int32_t current_frame,
+    std::int32_t frame_ordinal,
+    const enemy_actions_wbg_document::Document& action,
+    std::optional<enemy_hitpoint_contract::Point> sprite_bounds_origin,
+    float enemy_offset_118,
+    float enemy_offset_284,
     std::uint64_t expected_wave_generation);
 Snapshot live_snapshot();
 std::string live_status_report();
