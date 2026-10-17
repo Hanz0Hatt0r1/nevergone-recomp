@@ -93,8 +93,18 @@ int main() {
     assert(state.completed_action_count == 1u);
     assert(state.cursor.current_frame_1a4 == 0);
     assert(!state.cursor.timing.done_220);
+    assert(!state.cursor.timing.reset_accumulator_1bc);
     assert(live::sync_and_tick(2, 1, 0x1b, true, document, 206));
     assert(live::snapshot().completed_action_count == 1u);
+    // A delayed render crosses another loop boundary. Each skipped game tick
+    // still runs step() separately, so the restarted cycle gets its later ticks.
+    assert(live::sync_and_tick(2, 1, 0x1b, true, document, 212));
+    state = live::snapshot();
+    assert(state.completed_action_count == 2u);
+    assert(state.cursor.current_frame_1a4 == 0);
+    assert(!state.cursor.timing.reset_accumulator_1bc);
+    assert(live::sync_and_tick(2, 1, 0x1b, true, document, 213));
+    assert(live::snapshot().cursor.current_frame_1a4 == 1);
 
     // A non-looping jump keeps the original terminal state for MEPlayer's
     // completion transition back to idle.

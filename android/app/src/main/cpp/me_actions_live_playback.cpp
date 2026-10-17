@@ -88,25 +88,34 @@ bool sync_and_tick(
 
     const std::uint64_t elapsed_ticks = game_tick - g_snapshot.last_game_tick;
     g_snapshot.last_game_tick = game_tick;
-    const float delta_seconds = static_cast<float>(
-        static_cast<double>(elapsed_ticks) * game_clock::kFixedStepSeconds);
+    const float delta_seconds = static_cast<float>(game_clock::kFixedStepSeconds);
 
-    const std::int32_t previous_frame = g_snapshot.cursor.current_frame_1a4;
-    const bool was_done = g_snapshot.cursor.timing.done_220;
-    const auto update = me_actions_playback_timing::apply_wa_update_playback(
-        document, g_boundaries, delta_seconds, g_snapshot.cursor);
-    if (!update.valid_projection) return false;
+    // Preserve native step() boundaries when rendering skips logical ticks:
+    // a completed loop restarts before the next elapsed tick is processed.
+    for (std::uint64_t tick = 0; tick < elapsed_ticks; ++tick) {
+        if (g_snapshot.cursor.timing.done_220) break;
+        const std::int32_t previous_frame = g_snapshot.cursor.current_frame_1a4;
+        const bool was_done = g_snapshot.cursor.timing.done_220;
+        const auto update = me_actions_playback_timing::apply_wa_update_playback(
+            document, g_boundaries, delta_seconds, g_snapshot.cursor);
+        if (!update.valid_projection) return false;
 
-    g_snapshot.cursor = update.cursor;
-    ++g_snapshot.update_count;
-    if (g_snapshot.cursor.current_frame_1a4 != previous_frame || update.frames_advanced > 0u) {
-        ++g_snapshot.frame_revision;
-    }
-    if (!was_done && g_snapshot.cursor.timing.done_220) {
-        ++g_snapshot.completed_action_count;
-        if (g_snapshot.looping) {
-            g_snapshot.cursor = me_actions_playback_timing::initial_cursor();
+        g_snapshot.cursor = update.cursor;
+        ++g_snapshot.update_count;
+        if (g_snapshot.cursor.current_frame_1a4 != previous_frame ||
+            update.frames_advanced > 0u) {
             ++g_snapshot.frame_revision;
+        }
+        if (!was_done && g_snapshot.cursor.timing.done_220) {
+            ++g_snapshot.completed_action_count;
+            if (g_snapshot.looping) {
+                g_snapshot.cursor = me_actions_playback_timing::initial_cursor();
+                // Native step() immediately calls play() + waStep() after a
+                // loop completes, clearing the reset flag in the same tick.
+                g_snapshot.cursor.timing.reset_accumulator_1bc = false;
+                ++g_snapshot.update_count;
+                ++g_snapshot.frame_revision;
+            }
         }
     }
     return true;

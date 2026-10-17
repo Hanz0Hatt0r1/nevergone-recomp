@@ -15,13 +15,15 @@ The player render queue consumes the complete currently loaded action document a
 
 When any of those changes, the cursor restarts with the recovered `MeActionsSystem::play()` initialization. This matches the point at which `PlayerActionRuntimeLoader` has successfully loaded the new imported `.actData` document and committed the desired MEPLAYERSTATE.
 
-The state is advanced from `game_clock::tick_count()` using the existing fixed 35 Hz logical clock. A render queue may be queried more than once during one logical tick; repeated queries at the same tick are intentionally idempotent and cannot accelerate animation. If several logical ticks elapse between queries, their elapsed fixed-step time is accumulated in one `waUpdate()` call, which can itself advance several frames through the recovered retained-accumulator loop.
+The state is advanced from `game_clock::tick_count()` using the existing fixed 35 Hz logical clock. A render queue may be queried more than once during one logical tick; repeated queries at the same tick are intentionally idempotent and cannot accelerate animation. If several logical ticks elapse between queries, playback calls `waUpdate()` once per elapsed tick so an action completion and loop restart happen at the same boundary as native `step()`; each call can still advance multiple frames through the recovered retained-accumulator loop.
 
 When the action reaches its recovered terminal frame, entries marked
 `looping=true` restart from `MeActionsSystem::play()` frame zero. This keeps
 idle (`action28`), walk (`action01`), run (`action02`) and other looping poses
 animated. Non-looping attacks, jumps and the first block action still expose
-their completion to the MEPlayer state transition.
+their completion to the MEPlayer state transition. The loop restart also
+mirrors the original `step()` path, which immediately runs `play()` and
+`waStep()` in the completion tick before continuing the next cycle.
 
 A game-clock reset (for example GL surface recreation) moves only the tick baseline and cannot underflow elapsed time or jump the action cursor.
 
