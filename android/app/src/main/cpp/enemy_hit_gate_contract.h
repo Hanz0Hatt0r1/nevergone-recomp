@@ -49,6 +49,29 @@ inline bool check_input_state_is_beaten(
     return is_beaten_state(input_state, suppress_states_5_6_22a);
 }
 
+// EnemyObject input-state classifiers retain the native unsigned 32-bit
+// subtraction comparisons, including their wraparound below each range.
+inline bool check_input_state_is_skill(std::uint32_t input_state) noexcept {
+    return input_state == 0x1au || input_state - 0x1cu <= 0xdu ||
+        input_state == 0x2eu;
+}
+
+inline bool check_input_state_is_attack(std::uint32_t input_state) noexcept {
+    const bool outside_attack_ranges = input_state - 2u > 2u &&
+        input_state - 0x1du > 6u && input_state - 0x25u > 4u &&
+        input_state - 0x18u > 2u && input_state - 0xdu > 1u &&
+        input_state - 0x12u > 1u;
+    return !outside_attack_ranges || input_state == 0x16u;
+}
+
+inline bool check_input_state_be_fly_and_be_down(
+        std::uint32_t input_state) noexcept {
+    const bool outside_fly_or_down_states = input_state - 9u > 3u &&
+        input_state != 0x0fu && input_state != 0x11u &&
+        input_state - 0x2cu > 1u;
+    return !outside_fly_or_down_states || input_state == 0x34u;
+}
+
 struct ForceBeatenFlags {
     std::uint8_t field_19c = 0;
     std::uint8_t field_19d = 0;
