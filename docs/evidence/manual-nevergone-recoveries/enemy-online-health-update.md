@@ -29,11 +29,14 @@ and update type in `r2`.
   an increase sends zero.
 - Other types leave health unchanged and send zero physical damage.
 - After any type, a current health value that is not positive is clamped to
-  zero and requests `onlineEnemyState(0x15, true)`. Since that call is made
-  with non-positive health and its force parameter set, the recovered state
-  field becomes `0x15` when it differs. That transition clears the modeled
-  no-death flag; if the enemy is already in `0x15`, the native handoff returns
-  early and leaves the flag unchanged. Other handoff side effects remain open.
+  zero and requests `onlineEnemyState(0x15, true)`. The recovered transition
+  gates now model this forced request: it bypasses attack-miss checks, applies
+  no health gate from ordinary states at zero health, and leaves the no-death
+  flag unchanged on the same-state early return. The update result reports the
+  global enemy-state flag clear request for an accepted `0x15`/`0x16` state;
+  the actual `AppParameters +0x1f8` byte write remains outside this model.
+  Other handoff side effects remain open; see
+  `enemy-online-state-transition.md`.
 - Every path calls `EnemyPhysical::updatePhysicalState()` with the computed
   damage amount. The generation-checked roster now feeds this amount into its
   configured physical-state sequence and reports whether a state advanced.
@@ -44,9 +47,9 @@ contract; callers receive the physical damage value and whether the death
 state was requested.
 
 `onlineEnemyState()` has 350 P-code operations and its corpus row is truncated
-to 256, so this reconstruction does not claim to restore its complete action,
-sprite, sound, and physics side effects. Gold labels are in
-`enemy-online-health-update-labels.jsonl`. Local RevEngInstr dataset v32 has
-9,181 labelled functions, 6,889 structural groups, and 9,786 gold label rows
-(train 7,375, test 814, validation 992); generated corpus and splits remain
+to 256; the complete state gates are reconstructed separately, while its
+action, sprite, sound, and physics side effects remain open. Gold labels are in
+`enemy-online-health-update-labels.jsonl`. Local RevEngInstr dataset v33 has
+9,182 labelled functions, 6,890 structural groups, and 9,788 gold label rows
+(train 7,375, test 815, validation 992); generated corpus and splits remain
 outside Git.

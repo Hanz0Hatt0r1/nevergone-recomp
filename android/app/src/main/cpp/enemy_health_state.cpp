@@ -1,5 +1,7 @@
 #include "enemy_health_state.h"
 
+#include "enemy_online_state_contract.h"
+
 namespace nevergone::enemy_health_state {
 
 bool initialize(int base_health, State* out) {
@@ -45,8 +47,16 @@ OnlineHealthUpdateResult apply_online_health_update(
     if (!(state->current_health > 0.0f)) {
         state->current_health = 0.0f;
         result.death_state_requested = true;
-        if (state->enemy_state != 0x15) {
-            state->enemy_state = 0x15;
+        enemy_online_state_contract::State online_state;
+        online_state.current_state = static_cast<std::uint32_t>(state->enemy_state);
+        online_state.health = state->current_health;
+        const auto transition = enemy_online_state_contract::request_state(
+                &online_state,
+                {0x15u, true, 0, true});
+        result.clear_global_enemy_state_flag_requested =
+                transition.clear_global_enemy_state_flag;
+        if (transition.outcome == enemy_online_state_contract::Outcome::kApplied) {
+            state->enemy_state = static_cast<int>(online_state.current_state);
             state->force_action_state_no_dead = false;
         }
     }

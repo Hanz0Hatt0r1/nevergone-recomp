@@ -14,6 +14,7 @@ struct OnlineHealthUpdateResult {
     float physical_damage = 0.0f;
     bool physical_state_advanced = false;
     bool death_state_requested = false;
+    bool clear_global_enemy_state_flag_requested = false;
 };
 
 // EnemyObject::loadEnemyObjectFile copies GameLevelsEnemyData health into both
