@@ -19,6 +19,10 @@ struct PlayerStatusInfoState {
     float cloth_add_strength_13c = 0.0f;
     float cloth_add_damage_absorb_140 = 0.0f;
     float cloth_add_attack_144 = 0.0f;
+    float eat_property_148 = 0.0f;
+    float eat_property_14c = 0.0f;
+    float eat_property_150 = 0.0f;
+    float eat_property_154 = 0.0f;
 };
 
 struct AttackTerms {
@@ -209,6 +213,20 @@ void add_cloth_damage_absorb_value(
 
 // Mirrors resetPlayerStatusClothAddData() at +0x138, +0x13c, +0x140, +0x144.
 void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept;
+
+struct EatPropertyTerms {
+    std::int32_t property_type = 0;
+    float addition = 0.0f;
+    // Result of MRGetHeroEatAttribute(type, current level) for this property.
+    float current_computed_bonus = 0.0f;
+    bool management_gate_nonzero = false;
+};
+
+// Mirrors PlayerStatusInfo::add_EatProperty(); MRGetHeroEatAttribute remains
+// an explicit data-derived input, while the type, management, and cap gates
+// are exact.
+void add_eat_property(
+        PlayerStatusInfoState* status, const EatPropertyTerms& terms) noexcept;
 
 // MEPlayer::setEquipAddAttack() writes the argument to +0x114.
 void set_equipment_add_attack(State* state, float value) noexcept;

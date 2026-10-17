@@ -222,6 +222,37 @@ void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept {
     status->cloth_add_attack_144 = 0.0f;
 }
 
+void add_eat_property(
+        PlayerStatusInfoState* status, const EatPropertyTerms& terms) noexcept {
+    if (status == nullptr || terms.management_gate_nonzero) return;
+
+    float* target = nullptr;
+    float limit = 0.0f;
+    switch (terms.property_type) {
+        case 1:
+            target = &status->eat_property_148;
+            limit = 2000.0f;
+            break;
+        case 2:
+            target = &status->eat_property_154;
+            limit = 2000.0f;
+            break;
+        case 4:
+            target = &status->eat_property_14c;
+            limit = 200.0f;
+            break;
+        case 5:
+            target = &status->eat_property_150;
+            limit = 200.0f;
+            break;
+        default:
+            return;
+    }
+    if (terms.current_computed_bonus < limit) {
+        *target = *target + terms.addition;
+    }
+}
+
 void set_equipment_add_attack(State* state, float value) noexcept {
     if (state == nullptr) return;
     state->equipment_add_attack_114 = value;

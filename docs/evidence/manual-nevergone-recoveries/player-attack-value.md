@@ -26,8 +26,9 @@ Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256
 | `PlayerStatusInfo::add_C_HealthValue` | `0x003275cc` | 14 | 1 | 1 | 2 | 1 |
 | `PlayerStatusInfo::add_C_StrengthValue` | `0x003275f4` | 14 | 1 | 1 | 2 | 1 |
 | `PlayerStatusInfo::add_C_DamageAbsorbValue` | `0x0032761c` | 14 | 1 | 1 | 2 | 1 |
+| `PlayerStatusInfo::add_EatProperty` | `0x003273f0` | 121 | 5 | 9 | 9 | 4 |
 
-All fourteen rows are complete. The original decompilation and ARM instructions
+All fifteen rows are complete. The original decompilation and ARM instructions
 establish this order for `MEPlayer::getAttack()`:
 
 1. `MEEquip::equipAtIdx(..., 0)` selects weapon-array entry zero from the
@@ -61,6 +62,14 @@ add their arguments at `+0x138`, `+0x13c`, and `+0x140`, respectively. Their
 contracts update the corresponding status fields; `+0x138` feeds the final
 additive term of `resolve_max_health()`, and `+0x140` is an input to
 `resolve_damage_absorb()`.
+
+`PlayerStatusInfo::add_EatProperty()` ignores additions while
+`ManagementLayer +0x744` is nonzero. It accepts property ids `1`, `2`, `4`,
+and `5`, checks the corresponding current `MRGetHeroEatAttribute()` result,
+and adds to `+0x148`, `+0x154`, `+0x14c`, or `+0x150` only while that result is
+below `2000.0f` for ids `1`/`2` or `200.0f` for ids `4`/`5`. The native helper
+receives the nonnegative integer level derived from the stored float; its
+database-backed result remains an explicit input to `add_eat_property()`.
 
 `WeaponsItemData::getFinalAddBase_atk()` gates the hole contribution on a
 nonzero byte at `ManagementLayer +0x744`, gates the temper contribution on
@@ -105,9 +114,9 @@ from nested entries. Virtual getter results and string comparisons are
 decoded inputs, and the contract preserves the top-level and nested order of
 float additions.
 
-Gold subsystem and function-role labels for these fourteen functions are
-recorded in `player-attack-value-labels.jsonl`. Adding the six labels for
-the three sibling cloth writers to manual-restoration v38 and rebuilding as
-v39 produced 9,191 labelled functions, 6,899 structural groups, 9,806 gold
-label rows, and splits of 7,382 train / 992 validation / 817 test. The
-generated corpus and dataset remain outside Git.
+Gold subsystem and function-role labels for these fifteen functions are
+recorded in `player-attack-value-labels.jsonl`. Adding two labels for
+`add_EatProperty()` to manual-restoration v39 and rebuilding as v40 produced
+9,192 labelled functions, 6,900 structural groups, 9,808 gold label rows, and
+splits of 7,383 train / 992 validation / 817 test. The generated corpus and
+dataset remain outside Git.
