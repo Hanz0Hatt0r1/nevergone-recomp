@@ -109,6 +109,7 @@ add_library(nevergone_recomp SHARED
     me_actions_playback_timing.cpp
     player_hit_window_contract.cpp
     player_health_contract.cpp
+    player_combat_stat_contract.cpp
     meplayer_function_gate_contract.cpp
     meplayer_live_action_state.cpp
     minimal_runtime_save.cpp
