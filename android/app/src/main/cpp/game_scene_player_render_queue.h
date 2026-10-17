@@ -78,6 +78,7 @@ inline game_scene_render_queue::Queue with_live_player(
     player.player_body_transform = transform;
     player.player_career = player_career;
     player.player_clothes_id = player_clothes_id;
+    player.player_name = spawn.player_name;
 
     if (!selected_frame.first_string.empty()) {
         player.player_body_atlas_plist = selected_frame.first_string;

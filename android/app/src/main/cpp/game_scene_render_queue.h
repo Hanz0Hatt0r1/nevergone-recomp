@@ -41,6 +41,7 @@ struct SpriteCommand {
     std::uint8_t action_frame_opacity = 255u;
     int player_career = 0;
     int player_clothes_id = -1;
+    std::string player_name;
 };
 
 // Runtime handoff for the exact type-0 klhuo-1.png branch. The original does

@@ -22,6 +22,7 @@ void begin_refresh_locked(
     g_state.generation = generation;
     g_state.source_scene_index = scene.source_scene_index;
     g_state.scene_guid = scene.guid;
+    g_state.player_name = game_scene_player_bootstrap::player_name();
     g_state.event_port_type = event_port_type;
     g_state.surface_width = surface_width;
     g_state.surface_height = surface_height;
@@ -146,6 +147,9 @@ std::string status_report() {
     out << "GameScene player spawn state\n";
     out << "state: " << status_name(state.status) << "\n";
     out << "generation: " << state.generation << "\n";
+    if (!state.player_name.empty()) {
+        out << "player name: " << state.player_name << "\n";
+    }
     if (!state.scene_guid.empty()) {
         out << "scene: " << state.source_scene_index << " (" << state.scene_guid << ")\n";
     }

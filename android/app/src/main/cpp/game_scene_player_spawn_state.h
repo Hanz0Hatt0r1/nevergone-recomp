@@ -28,6 +28,7 @@ struct Snapshot {
     std::uint64_t generation = 0;
     std::size_t source_scene_index = 0;
     std::string scene_guid;
+    std::string player_name;
     std::uint32_t event_port_type = 0;
     int surface_width = 0;
     int surface_height = 0;

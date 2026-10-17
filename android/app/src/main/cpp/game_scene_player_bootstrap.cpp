@@ -4,6 +4,9 @@
 #include <cstdio>
 #include <limits>
 
+#include "character_name_state.h"
+#include "role_selection_state.h"
+
 namespace nevergone::game_scene_player_bootstrap {
 namespace {
 
@@ -69,6 +72,19 @@ std::optional<std::string> action_entry_key(std::uint32_t state_index) {
     const auto key = format_name("action%02u", state_index + 1u);
     if (key.empty()) return std::nullopt;
     return key;
+}
+
+std::string player_name() {
+    const auto selected_role = role_selection_state::snapshot();
+    if (selected_role.enter_dispatch_committed &&
+            !selected_role.dispatched_character_name.empty()) {
+        return selected_role.dispatched_character_name;
+    }
+
+    const auto created_role = character_name_state::snapshot();
+    if (!created_role.role_name.empty()) return created_role.role_name;
+
+    return "SELF";
 }
 
 }  // namespace nevergone::game_scene_player_bootstrap
