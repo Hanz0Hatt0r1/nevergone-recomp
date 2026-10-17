@@ -172,6 +172,14 @@ final class GameSceneControlSettingsLoader {
         return reloadFromFilesDir(filesDir);
     }
 
+    static boolean resetCurrentLayout(String filesDir) throws IOException {
+        if (!nativeApply(false, 204.0f, 173.0f, 1040.0f, 90.0f, 949.0f, 154.0f,
+                1136.0f, 640.0f, 1136.0f, 640.0f)) {
+            throw new IOException("Could not restore default control positions");
+        }
+        return saveCurrentLayout(filesDir);
+    }
+
     private static String floatPreference(String key, float value) {
         return "  <float name=\"" + key + "\" value=\"" + Float.toString(value) + "\" />\n";
     }

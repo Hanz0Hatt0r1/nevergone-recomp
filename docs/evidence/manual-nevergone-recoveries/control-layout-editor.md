@@ -18,6 +18,10 @@ The default positions are the visible-size point. The function uses the shared
 `controls_settings` flag. `SetControlPosition::savePositionData @ 0x002aaba4`
 stores that flag plus ten float values, applies the three gameplay-control
 points to `Controls`, updates `ToolsQuickUseUI`, and closes the editor.
+`SetControlPosition::resetAllBtnPosition @ 0x002aacd8` restores the five
+positions captured when the editor layer was initialized, then repositions
+the preview sprites. Those initial preview points come from the visible-size
+point when there is no saved layout, or from saved positions when one exists.
 
 ## Reconstructed subset
 
@@ -31,6 +35,11 @@ format. Leaving the activity also saves an active edit. Edits use a small
 override file beside the imported preference XML so the source import and its
 unrelated preferences remain intact.
 
+The panel's **Restore shipped defaults** action resets the recovered
+`Controls::init()` positions and saves that layout. This is an app-level reset
+to shipped controls; the original editor reset restores its captured preview
+positions.
+
 This implementation restores control placement, not the quick-use item's
 inventory icons, cooldowns, or activation actions. The original collision
 rejection and editor decorations are also outstanding. The source-function
@@ -40,7 +49,8 @@ parity.
 ## Corpus label
 
 [`control-layout-editor-labels.jsonl`](control-layout-editor-labels.jsonl)
-adds gold `function_role` labels for `ccTouchMoved` and
-`ToolsQuickUseUI::setHandleActived`. Ghidra's recovered branches directly show
-sprite selection state, bounded position updates, intersection checks,
-preference reads, and Cocos sprite-position updates.
+adds gold `function_role` labels for `ccTouchMoved`,
+`ToolsQuickUseUI::setHandleActived`, and `resetAllBtnPosition`. Ghidra's
+recovered functions directly show sprite selection state, bounded position
+updates, intersection checks, preference reads, and Cocos sprite-position
+updates.

@@ -34,6 +34,7 @@ public final class MainActivity extends Activity {
     private Button importObbButton;
     private Button importControlSettingsButton;
     private Button editControlLayoutButton;
+    private Button resetControlLayoutButton;
     private Button developerToolsButton;
     private ScrollView technicalPanel;
     private GameSurfaceView gameSurface;
@@ -142,6 +143,14 @@ public final class MainActivity extends Activity {
         editControlLayoutButton.setText("Adjust action controls");
         editControlLayoutButton.setOnClickListener(view -> toggleControlLayoutEditing());
         content.addView(editControlLayoutButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        resetControlLayoutButton = new Button(this);
+        resetControlLayoutButton.setText("Restore shipped defaults");
+        resetControlLayoutButton.setVisibility(View.GONE);
+        resetControlLayoutButton.setOnClickListener(view -> resetControlLayoutToDefaults());
+        content.addView(resetControlLayoutButton, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -280,6 +289,7 @@ public final class MainActivity extends Activity {
             controlLayoutEditing = true;
             GameSceneControlSettingsLoader.setEditMode(true);
             editControlLayoutButton.setText("Save control layout");
+            resetControlLayoutButton.setVisibility(View.VISIBLE);
             status.setText(buildStatusText(
                     "Drag the joystick, action buttons, or quick-use slots on the game surface."));
             return;
@@ -292,6 +302,7 @@ public final class MainActivity extends Activity {
         GameSceneControlSettingsLoader.setEditMode(false);
         controlLayoutEditing = false;
         if (editControlLayoutButton != null) editControlLayoutButton.setText("Adjust action controls");
+        if (resetControlLayoutButton != null) resetControlLayoutButton.setVisibility(View.GONE);
         try {
             GameSceneControlSettingsLoader.saveCurrentLayout(getFilesDir().getAbsolutePath());
             if (status != null) status.setText(buildStatusText("Saved control layout."));
@@ -302,11 +313,24 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void resetControlLayoutToDefaults() {
+        if (!controlLayoutEditing) return;
+        try {
+            GameSceneControlSettingsLoader.resetCurrentLayout(getFilesDir().getAbsolutePath());
+            if (status != null) status.setText(buildStatusText("Restored shipped default positions."));
+        } catch (java.io.IOException error) {
+            if (status != null) {
+                status.setText(buildStatusText("Could not reset control layout: " + error.getMessage()));
+            }
+        }
+    }
+
     private void setImportButtonsEnabled(boolean enabled) {
         importButton.setEnabled(enabled);
         importObbButton.setEnabled(enabled);
         importControlSettingsButton.setEnabled(enabled);
         editControlLayoutButton.setEnabled(enabled);
+        resetControlLayoutButton.setEnabled(enabled);
     }
 
     private boolean originalApkAssetsReady() {
