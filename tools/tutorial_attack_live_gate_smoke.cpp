@@ -114,6 +114,13 @@ int main() {
     assert(state.enemy_bindings.bindings[0].spawn_x == 500.0f);
     assert(state.enemy_bindings.bindings[0].spawn_y == 100.0f);
 
+    assert(gate.set_enemy_state(0, 3, wave));
+    state = gate.snapshot();
+    assert(state.enemy_bindings.bindings[0].initial_enemy_state == 0x1c);
+    assert(state.enemy_bindings.bindings[0].current_enemy_state == 3);
+    assert(state.enemy_bindings.bindings[0].state_started_game_tick == 100);
+    assert(state.enemy_bindings.bindings[0].state_changed);
+
     // A callback for a planned but not-yet-materialized slot is rejected even
     // when it carries the correct wave token.
     assert(!gate.set_dead(1, wave));

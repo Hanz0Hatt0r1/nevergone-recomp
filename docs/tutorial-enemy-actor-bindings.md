@@ -74,37 +74,43 @@ to distinguish:
 The imported original `enemy/enemy03/enemy_actions_1_03.plist` closes the first
 Attack-wave actor's startup mapping: `start=47`, action 47 is the non-looping
 `e03_e_born02b.actData` appearance clip, and action 28 is the looping
-`e03_e_w01_back.actData` state clip. The tutorial roster requests state `0x1c`
-(28); `EnemyObject::onlineEnemyState` selects the action associated with its
-requested state. The current implementation treats state `0x1c` as action
-index 28, which is a candidate mapping: the table confirms the clip, but the
-direct native state-to-action index lookup has not yet been traced. The original
-table sets `go_fps=30`.
+`e03_e_w01_back.actData` state clip. RevEngInstr's export of
+`EnemyObject::onlineEnemyState` confirms that the native
+`CCArray::objectAtIndex` receives the state stored at `EnemyObject+0x274`.
+State `0x1c` therefore selects action index 28. The same verified map now
+supports enemy03 states 1 (walk), 2 (run), 3/4 (attack clips), 21 (idle), and
+28 (backward walk); unsupported states fail closed. The original table sets
+`go_fps=30`. See
+[`online-enemy-action-index-2026-10-17.md`](evidence/online-enemy-action-index-2026-10-17.md)
+for the native lookup evidence.
 `tutorial_enemy_action_selection` records this mapping for enemy ID 3 and fails
 closed for IDs without reviewed data.
 
 ## Enemy 3 action rendering
 
-The visual path now connects each materialized ID 3 slot to the reviewed
-original action documents. It loads the appearance and state-action documents
-from the imported asset tree, offsets each slot's local timeline by the
-recovered wave spawn delay, and selects the appearance frame before
-transitioning to the looping action for its initial state. The frame's own
-atlas name, original sprite key, spawn position, and scene camera translation
-are passed through the existing direct renderer. Unsupported enemy IDs,
-unmapped states, and invalid/missing action documents fail closed instead of
-drawing a guessed sprite.
+The visual path connects each materialized ID 3 slot to the reviewed original
+action documents. It loads the appearance and current-state action documents
+from the imported asset tree, offsets the startup timeline by the recovered
+wave spawn delay, and starts a newly selected state action at its state-change
+tick. The frame's own atlas name, original sprite key, spawn position, and scene
+camera translation are passed through the existing direct renderer.
+Unsupported enemy IDs/states and invalid or missing action documents fail
+closed instead of drawing a guessed sprite.
 
-This renders the recovered startup/state animation, but it does not yet
-reproduce the native `EnemyActionsSystem` tick boundary or full AI/combat
-behavior. Device verification of the action transition in the tutorial wave is
-still required.
+The live actor binding now tracks state changes independently of the immutable
+spawn state. The `live_set_enemy_state` route can therefore select a new clip
+and restart its local action clock. The tutorial still does not generate AI or
+combat state changes itself, and the new transition path needs device
+verification. One-shot state clips stop rendering when their recovered clip
+duration ends; exact terminal-frame behavior remains open.
+
+This still does not reproduce the native `EnemyActionsSystem` frame-tick
+boundary or full AI/combat behavior.
 
 ## Remaining actor work
 
-Next, confirm the state-to-action index against a live original trace, compare
-the appearance-to-state-action sequence, then recover and connect the original
-actor behavior:
+Next, drive the recovered action-state route from native-backed movement and
+combat transitions, then recover and connect the original actor behavior:
 
 1. match native action timing and facing/movement transitions;
 2. route evidence-backed hit/damage/death outcomes through the same

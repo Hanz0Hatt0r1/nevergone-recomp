@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <cmath>
+#include <map>
 #include <mutex>
 #include <string>
 #include <system_error>
@@ -18,8 +19,9 @@ namespace {
 
 constexpr std::uint64_t kMaxActionBytes = 64u * 1024u * 1024u;
 std::mutex g_mutex;
-std::optional<Documents> g_documents;
+std::map<std::pair<unsigned, unsigned>, std::shared_ptr<const Documents>> g_documents;
 unsigned g_attempted_enemy_id = 0;
+unsigned g_attempted_state_id = 0;
 std::uint64_t g_load_attempt_count = 0;
 std::string g_status = "idle";
 std::string g_appearance_path;
@@ -87,22 +89,26 @@ bool load_document(
     return true;
 }
 
-std::optional<Documents> load(unsigned enemy_id) {
+std::shared_ptr<const Documents> load(unsigned enemy_id, unsigned state_id) {
     const auto* selection = tutorial_enemy_action_selection::for_enemy(enemy_id);
-    if (selection == nullptr) return std::nullopt;
+    const auto* state_action =
+            tutorial_enemy_action_selection::for_enemy_state(enemy_id, state_id);
+    if (selection == nullptr || state_action == nullptr) return {};
 
     const std::string& files_dir = startup::config().files_dir;
-    if (files_dir.empty()) return std::nullopt;
+    if (files_dir.empty()) return {};
 
     std::error_code error;
     const auto root = std::filesystem::canonical(
             std::filesystem::path(files_dir) / "assets", error);
     if (error || !std::filesystem::is_directory(root, error) || error) {
-        return std::nullopt;
+        return {};
     }
 
     Documents documents;
     documents.enemy_id = enemy_id;
+    documents.state_action_id = state_action->action_id;
+    documents.state_action_loops = state_action->loops;
     if (!load_document(
                 root,
                 selection->start_action_data,
@@ -110,35 +116,43 @@ std::optional<Documents> load(unsigned enemy_id) {
                 &documents.appearance) ||
         !load_document(
                 root,
-                selection->state_action_data,
-                selection->state_action_atlas,
+                state_action->action_data,
+                state_action->atlas,
                 &documents.state_action)) {
-        return std::nullopt;
+        return {};
     }
-    return documents;
+    return std::make_shared<const Documents>(std::move(documents));
 }
 
 }  // namespace
 
-std::optional<Documents> current(unsigned enemy_id) {
+std::shared_ptr<const Documents> current(unsigned enemy_id, int state_id) {
+    if (state_id < 0) return {};
+    const auto key = std::make_pair(enemy_id, static_cast<unsigned>(state_id));
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_attempted_enemy_id != enemy_id) {
+    auto found = g_documents.find(key);
+    if (found == g_documents.end()) {
         g_attempted_enemy_id = enemy_id;
+        g_attempted_state_id = key.second;
         ++g_load_attempt_count;
         const auto* selection = tutorial_enemy_action_selection::for_enemy(enemy_id);
+        const auto* state_action =
+                tutorial_enemy_action_selection::for_enemy_state(enemy_id, state_id);
         g_appearance_path = selection != nullptr ? selection->start_action_data : "";
-        g_state_action_path = selection != nullptr ? selection->state_action_data : "";
-        g_status = selection != nullptr ? "loading" : "unsupported-enemy";
-        g_documents = load(enemy_id);
-        g_status = g_documents.has_value() ? "ready" : "load-failed";
+        g_state_action_path = state_action != nullptr ? state_action->action_data : "";
+        const bool supported = selection != nullptr && state_action != nullptr;
+        g_status = supported ? "loading" : "unsupported-enemy-state";
+        found = g_documents.emplace(key, load(enemy_id, key.second)).first;
+        if (supported) g_status = found->second ? "ready" : "load-failed";
     }
-    return g_documents;
+    return found->second;
 }
 
 void reset() {
     std::lock_guard<std::mutex> lock(g_mutex);
-    g_documents.reset();
+    g_documents.clear();
     g_attempted_enemy_id = 0;
+    g_attempted_state_id = 0;
     g_status = "idle";
     g_appearance_path.clear();
     g_state_action_path.clear();
@@ -149,16 +163,19 @@ std::string status_report() {
     std::string report = "Tutorial enemy action documents\n";
     report += "state: " + g_status + "\n";
     report += "enemy: " + std::to_string(g_attempted_enemy_id) + "\n";
+    report += "state id: " + std::to_string(g_attempted_state_id) + "\n";
     report += "load attempts: " + std::to_string(g_load_attempt_count) + "\n";
     if (!g_appearance_path.empty()) report += "appearance: " + g_appearance_path + "\n";
     if (!g_state_action_path.empty()) {
         report += "state action: " + g_state_action_path + "\n";
     }
-    if (g_documents.has_value()) {
+    const auto found = g_documents.find(
+            std::make_pair(g_attempted_enemy_id, g_attempted_state_id));
+    if (found != g_documents.end() && found->second) {
         report += "appearance frames: " +
-                std::to_string(g_documents->appearance.primary_records.size()) + "\n";
+                std::to_string(found->second->appearance.primary_records.size()) + "\n";
         report += "state action frames: " +
-                std::to_string(g_documents->state_action.primary_records.size()) + "\n";
+                std::to_string(found->second->state_action.primary_records.size()) + "\n";
     }
     return report;
 }

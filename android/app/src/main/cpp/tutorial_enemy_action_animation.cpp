@@ -91,4 +91,23 @@ Sample sample(
     return result;
 }
 
+Sample sample_action(
+        const enemy_actions_wbg_document::Document& action,
+        unsigned action_id,
+        bool loops,
+        double elapsed_seconds) {
+    Sample result;
+    std::size_t frame_index = 0;
+    double remainder = 0.0;
+    if (!frame_at_time(
+                action, elapsed_seconds, loops, &frame_index, &remainder)) {
+        return result;
+    }
+    result.phase = Phase::kStateAction;
+    result.action_id = action_id;
+    result.frame_index = frame_index;
+    result.document = &action;
+    return result;
+}
+
 }  // namespace nevergone::tutorial_enemy_action_animation

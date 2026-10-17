@@ -133,7 +133,7 @@ bool Gate::tick(
     // Publish actor identities only after the underlying roster slots have
     // materialized with imported HP. This boundary is intentionally earlier
     // than sprite/AI creation and later than the recovered spawn plan.
-    if (!enemy_bindings_.sync(attack_state)) return false;
+    if (!enemy_bindings_.sync(attack_state, game_tick)) return false;
 
     if (attack_state.wave_started && bound_load_attempt_ == 0) {
         bound_load_attempt_ = levels.load_attempt_count;
@@ -170,7 +170,11 @@ bool Gate::set_enemy_state(
     if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return false;
     const bool result = attack_.set_enemy_state(
         slot, enemy_state, expected_wave_generation);
-    if (result) ++generation_;
+    if (result) {
+        const auto attack_state = attack_.snapshot();
+        if (!enemy_bindings_.sync(attack_state, attack_state.last_game_tick)) return false;
+        ++generation_;
+    }
     return result;
 }
 

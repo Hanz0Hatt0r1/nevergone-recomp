@@ -17,6 +17,9 @@ struct Binding {
     std::uint64_t wave_generation = 0;
     unsigned enemy_id = 0;
     int initial_enemy_state = 0;
+    int current_enemy_state = 0;
+    std::uint64_t state_started_game_tick = 0;
+    bool state_changed = false;
     float base_health = 0.0f;
     float spawn_x = 0.0f;
     float spawn_y = 0.0f;
@@ -42,7 +45,9 @@ public:
     // Mirrors only roster slots that have actually materialized. It does not
     // create an EnemyObject, choose an asset, start AI, or invent combat state.
     // A new roster wave atomically invalidates all bindings from the old wave.
-    bool sync(const tutorial_attack_wave_runtime::Snapshot& attack) {
+    bool sync(
+            const tutorial_attack_wave_runtime::Snapshot& attack,
+            std::uint64_t game_tick) {
         if (!attack.wave_started) {
             if (wave_bound_ || wave_generation_ != 0) reset();
             return true;
@@ -86,7 +91,7 @@ public:
             }
 
             if (bindings_[i].active) {
-                const Binding& binding = bindings_[i];
+                Binding& binding = bindings_[i];
                 if (binding.slot != i ||
                     binding.wave_generation != wave_generation_ ||
                     binding.enemy_id != slot.request.enemy_id ||
@@ -95,6 +100,12 @@ public:
                     binding.spawn_x != slot.request.x ||
                     binding.spawn_y != slot.request.y) {
                     return false;
+                }
+                if (binding.current_enemy_state != slot.health.enemy_state) {
+                    binding.current_enemy_state = slot.health.enemy_state;
+                    binding.state_started_game_tick = game_tick;
+                    binding.state_changed = true;
+                    changed = true;
                 }
                 continue;
             }
@@ -105,6 +116,8 @@ public:
             binding.wave_generation = wave_generation_;
             binding.enemy_id = slot.request.enemy_id;
             binding.initial_enemy_state = slot.request.enemy_state;
+            binding.current_enemy_state = slot.health.enemy_state;
+            binding.state_started_game_tick = game_tick;
             binding.base_health = slot.health.max_health;
             binding.spawn_x = slot.request.x;
             binding.spawn_y = slot.request.y;
@@ -147,7 +160,8 @@ public:
             if (!binding.active) continue;
             out << "binding slot " << binding.slot
                 << ": enemy=" << binding.enemy_id
-                << " state=" << binding.initial_enemy_state
+                << " state=" << binding.current_enemy_state
+                << " (initial=" << binding.initial_enemy_state << ")"
                 << " hp=" << binding.base_health
                 << " x=" << binding.spawn_x
                 << " y=" << binding.spawn_y << "\n";

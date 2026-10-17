@@ -30,4 +30,11 @@ Sample sample(
     bool state_action_loops,
     double elapsed_seconds);
 
+// Samples a newly selected state action from its own transition clock.
+Sample sample_action(
+    const enemy_actions_wbg_document::Document& action,
+    unsigned action_id,
+    bool loops,
+    double elapsed_seconds);
+
 }  // namespace nevergone::tutorial_enemy_action_animation

@@ -51,5 +51,16 @@ int main() {
             appearance, 47u, false, state_action, 28u, false, 1.06);
     assert(sample.document == nullptr);
 
+    sample = nevergone::tutorial_enemy_action_animation::sample_action(
+            state_action, 3u, false, 0.30);
+    assert(sample.document == &state_action);
+    assert(sample.action_id == 3u && sample.frame_index == 1u);
+    sample = nevergone::tutorial_enemy_action_animation::sample_action(
+            state_action, 3u, false, 0.75);
+    assert(sample.document == nullptr);
+    sample = nevergone::tutorial_enemy_action_animation::sample_action(
+            state_action, 21u, true, 0.75);
+    assert(sample.document == &state_action && sample.frame_index == 0u);
+
     return 0;
 }

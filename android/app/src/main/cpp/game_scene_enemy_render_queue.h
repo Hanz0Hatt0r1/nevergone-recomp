@@ -1,7 +1,6 @@
 #pragma once
 
 #include <algorithm>
-#include <optional>
 #include <utility>
 
 #include "game_clock.h"
@@ -19,18 +18,13 @@ namespace nevergone::game_scene_enemy_render_queue {
 inline game_scene_render_queue::Queue with_live_enemies(
         game_scene_render_queue::Queue queue,
         const tutorial_attack_live_gate::Snapshot& live,
-        const tutorial_enemy_action_document_store::Documents* documents,
         std::uint64_t game_tick,
         float camera_eye_x) {
-    if (!live.attack.wave_started || documents == nullptr ||
-        documents->enemy_id != 3u || live.attack.wave_generation == 0u ||
+    if (!live.attack.wave_started || live.attack.wave_generation == 0u ||
         live.enemy_bindings.wave_generation != live.attack.wave_generation ||
         live.attack.start_game_tick > game_tick) {
         return queue;
     }
-
-    const auto* selection = tutorial_enemy_action_selection::for_enemy(documents->enemy_id);
-    if (selection == nullptr) return queue;
 
     const auto camera_translation =
             game_scene_camera_contract::world_screen_translation_x(camera_eye_x);
@@ -43,24 +37,41 @@ inline game_scene_render_queue::Queue with_live_enemies(
             binding.slot >= live.attack.roster.enemies.size()) {
             continue;
         }
-        if (binding.enemy_id != documents->enemy_id ||
-            binding.initial_enemy_state != static_cast<int>(selection->state_action_id)) {
-            continue;
-        }
+        if (binding.enemy_id != 3u) continue;
+        const auto* selection = tutorial_enemy_action_selection::for_enemy(binding.enemy_id);
+        const auto* state_action = tutorial_enemy_action_selection::for_enemy_state(
+                binding.enemy_id, binding.current_enemy_state);
+        if (selection == nullptr || state_action == nullptr) continue;
+        const auto documents = tutorial_enemy_action_document_store::current(
+                binding.enemy_id, binding.current_enemy_state);
+        if (!documents) continue;
 
         const auto& slot = live.attack.roster.enemies[binding.slot];
         if (!slot.materialized) continue;
         const double actor_elapsed = wave_elapsed - slot.request.delay_seconds;
         if (actor_elapsed < 0.0) continue;
 
-        const auto animation = tutorial_enemy_action_animation::sample(
-                documents->appearance,
-                selection->start_action_id,
-                selection->start_action_loops,
-                documents->state_action,
-                selection->state_action_id,
-                selection->state_action_loops,
-                actor_elapsed);
+        tutorial_enemy_action_animation::Sample animation;
+        if (binding.state_changed) {
+            if (binding.state_started_game_tick > game_tick) continue;
+            const double state_elapsed = static_cast<double>(
+                    game_tick - binding.state_started_game_tick) *
+                    game_clock::kFixedStepSeconds;
+            animation = tutorial_enemy_action_animation::sample_action(
+                    documents->state_action,
+                    documents->state_action_id,
+                    documents->state_action_loops,
+                    state_elapsed);
+        } else {
+            animation = tutorial_enemy_action_animation::sample(
+                    documents->appearance,
+                    selection->start_action_id,
+                    selection->start_action_loops,
+                    documents->state_action,
+                    documents->state_action_id,
+                    documents->state_action_loops,
+                    actor_elapsed);
+        }
         if (animation.document == nullptr ||
             animation.frame_index >= animation.document->primary_records.size()) {
             continue;
@@ -116,13 +127,8 @@ inline game_scene_render_queue::Queue current(
     const auto live = tutorial_attack_live_gate::live_snapshot();
     if (!live.attack.wave_started || live.enemy_bindings.active_count == 0u) return queue;
 
-    const auto documents = tutorial_enemy_action_document_store::current(3u);
     return with_live_enemies(
-            std::move(queue),
-            live,
-            documents ? &*documents : nullptr,
-            game_clock::tick_count(),
-            camera_eye_x);
+            std::move(queue), live, game_clock::tick_count(), camera_eye_x);
 }
 
 }  // namespace nevergone::game_scene_enemy_render_queue
