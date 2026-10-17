@@ -337,6 +337,16 @@ void wrapped_native_touch(
         jint pointer_id,
         jfloat x,
         jfloat y) {
+    if (nevergone::game_scene_action_surface_input::snapshot().edit_mode &&
+            nevergone::game_scene_action_surface_input::on_touch(
+                static_cast<int>(action),
+                static_cast<int>(pointer_id),
+                static_cast<float>(x),
+                static_cast<float>(y),
+                g_surface_width.load(std::memory_order_relaxed),
+                g_surface_height.load(std::memory_order_relaxed))) {
+        return;
+    }
     if (gameplay_controls_allowed()) {
         nevergone::game_scene_player_joystick_input::record_input_event(
             static_cast<int>(action), static_cast<int>(pointer_id),

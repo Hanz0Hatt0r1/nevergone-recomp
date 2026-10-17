@@ -110,3 +110,9 @@ Java_org_nevergone_recomp_GameSceneControlSettingsLoader_nativePositions(
     }
     return output;
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_GameSceneControlSettingsLoader_nativeSetEditMode(
+        JNIEnv*, jclass, jboolean enabled) {
+    nevergone::game_scene_action_surface_input::set_edit_mode(enabled == JNI_TRUE);
+}

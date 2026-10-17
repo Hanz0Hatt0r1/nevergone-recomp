@@ -12,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 final class GameSceneControlSettingsLoader {
     private static final String FILE_NAME = "original_control_preferences.xml";
@@ -29,6 +30,7 @@ final class GameSceneControlSettingsLoader {
             float uniqueSkillX,
             float uniqueSkillY);
     private static native float[] nativePositions();
+    private static native void nativeSetEditMode(boolean enabled);
 
     static boolean copyPreferences(Context context, Uri uri) throws IOException {
         if (context == null || uri == null) throw new IOException("No control preferences selected");
@@ -116,6 +118,41 @@ final class GameSceneControlSettingsLoader {
                 ? positions
                 : new float[] {204.0f, 173.0f, 898.0f, 90.0f, 1040.0f, 90.0f,
                         1000.0f, 224.0f, 949.0f, 154.0f};
+    }
+
+    static void setEditMode(boolean enabled) {
+        nativeSetEditMode(enabled);
+    }
+
+    static boolean saveCurrentLayout(String filesDir) throws IOException {
+        float[] positions = actionCuePositions();
+        File directory = new File(filesDir);
+        File destination = new File(directory, FILE_NAME);
+        File temporary = new File(directory, FILE_NAME + ".saving");
+        String xml = "<map>\n" +
+                "  <boolean name=\"controls_settings\" value=\"true\" />\n" +
+                floatPreference("joyStickX", positions[0]) +
+                floatPreference("joyStickY", positions[1]) +
+                floatPreference("BX", positions[4]) +
+                floatPreference("BY", positions[5]) +
+                floatPreference("uniqueSkillX", positions[8]) +
+                floatPreference("uniqueSkillY", positions[9]) +
+                "</map>\n";
+        try (OutputStream output = new FileOutputStream(temporary)) {
+            output.write(xml.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException error) {
+            temporary.delete();
+            throw error;
+        }
+        if (!temporary.renameTo(destination)) {
+            temporary.delete();
+            throw new IOException("Could not save control layout");
+        }
+        return reloadFromFilesDir(filesDir);
+    }
+
+    private static String floatPreference(String key, float value) {
+        return "  <float name=\"" + key + "\" value=\"" + Float.toString(value) + "\" />\n";
     }
 
     private static Settings read(File source) throws Exception {

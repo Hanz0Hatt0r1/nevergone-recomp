@@ -33,12 +33,14 @@ public final class MainActivity extends Activity {
     private Button importButton;
     private Button importObbButton;
     private Button importControlSettingsButton;
+    private Button editControlLayoutButton;
     private Button developerToolsButton;
     private ScrollView technicalPanel;
     private GameSurfaceView gameSurface;
     private ChooseHeroThunderAudio chooseHeroThunderAudio;
     private boolean chooseHeroThunderPolling;
     private boolean technicalPanelManuallyExpanded;
+    private boolean controlLayoutEditing;
 
     private final Runnable chooseHeroThunderPoll = new Runnable() {
         @Override
@@ -136,6 +138,13 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        editControlLayoutButton = new Button(this);
+        editControlLayoutButton.setText("Adjust action controls");
+        editControlLayoutButton.setOnClickListener(view -> toggleControlLayoutEditing());
+        content.addView(editControlLayoutButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
         Button refreshButton = new Button(this);
         refreshButton.setText("Refresh runtime diagnostics");
         refreshButton.setOnClickListener(view -> status.setText(buildStatusText(null)));
@@ -165,6 +174,7 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        saveControlLayoutIfEditing();
         stopChooseHeroThunderPolling();
         if (chooseHeroThunderAudio != null) {
             chooseHeroThunderAudio.onPause();
@@ -265,10 +275,37 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void toggleControlLayoutEditing() {
+        if (!controlLayoutEditing) {
+            controlLayoutEditing = true;
+            GameSceneControlSettingsLoader.setEditMode(true);
+            editControlLayoutButton.setText("Save control layout");
+            status.setText(buildStatusText("Drag the joystick or an action button on the game surface."));
+            return;
+        }
+        saveControlLayoutIfEditing();
+    }
+
+    private void saveControlLayoutIfEditing() {
+        if (!controlLayoutEditing) return;
+        GameSceneControlSettingsLoader.setEditMode(false);
+        controlLayoutEditing = false;
+        if (editControlLayoutButton != null) editControlLayoutButton.setText("Adjust action controls");
+        try {
+            GameSceneControlSettingsLoader.saveCurrentLayout(getFilesDir().getAbsolutePath());
+            if (status != null) status.setText(buildStatusText("Saved control layout."));
+        } catch (java.io.IOException error) {
+            if (status != null) {
+                status.setText(buildStatusText("Could not save control layout: " + error.getMessage()));
+            }
+        }
+    }
+
     private void setImportButtonsEnabled(boolean enabled) {
         importButton.setEnabled(enabled);
         importObbButton.setEnabled(enabled);
         importControlSettingsButton.setEnabled(enabled);
+        editControlLayoutButton.setEnabled(enabled);
     }
 
     private boolean originalApkAssetsReady() {

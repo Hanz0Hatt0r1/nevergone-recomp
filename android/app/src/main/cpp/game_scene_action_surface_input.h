@@ -15,6 +15,7 @@ struct Snapshot {
     game_scene_action_layout::ControlPositions positions =
         game_scene_action_layout::default_positions(1136.0f);
     std::array<bool, game_scene_action_layout::kButtonCount> pressed{};
+    bool edit_mode = false;
     std::uint64_t bounds_revision = 0;
     std::uint64_t accepted_begins = 0;
     std::uint64_t accepted_ends = 0;
@@ -36,6 +37,8 @@ bool apply_saved_control_settings(
     game_scene_action_layout::Point joystick,
     game_scene_action_layout::Point button_b,
     game_scene_action_layout::Point unique_skill_tip);
+
+void set_edit_mode(bool enabled);
 
 // Android MotionEvent action values are consumed directly. Surface coordinates
 // are converted through the same 1136x640 design-space mapping as the recovered

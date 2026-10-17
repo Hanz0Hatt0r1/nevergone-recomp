@@ -36,10 +36,13 @@ rendering, action-button hit testing and rendering, and tutorial control cues.
 Action-button bounds still use the imported normal sprite dimensions and retain
 the original left-half rejection rule.
 
-`SetControlPosition`'s draggable editor and the separate quick-use toolbar
-positions are not implemented in this recovery. The imported saved layout path
-allows an existing Never Gone layout to be reused while those UI interactions
-remain future work.
+The developer-tools panel also provides a draggable editor for the joystick
+and A/B/C controls. It reuses the six persisted coordinates above and writes
+them back in Android SharedPreferences XML form. A and C remain paired around
+the recovered `uniqueSkillX/Y` anchor. This is a partial reconstruction of
+`SetControlPosition`: collision rejection, the other original draggable
+sprites, and the separate quick-use toolbar coordinates are still outstanding;
+see [`control-layout-editor.md`](control-layout-editor.md).
 
 ## Corpus label
 
