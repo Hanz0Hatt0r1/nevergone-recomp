@@ -54,6 +54,7 @@ add_library(nevergone_recomp SHARED
     fresh_role_compat_state.cpp
     game_clock.cpp
     game_save_data_codec.cpp
+    game_save_data_missions.cpp
     game_scene_action_assets_jni.cpp
     game_scene_action_compositor.cpp
     game_scene_action_input.cpp
