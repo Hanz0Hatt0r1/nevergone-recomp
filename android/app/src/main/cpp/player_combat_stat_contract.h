@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 namespace nevergone::player_combat_stat_contract {
 
@@ -17,6 +18,38 @@ struct AttackTerms {
     float weapon_final_add_base_attack = 0.0f;
     float player_level_attack_110 = 0.0f;
     float player_status_value_144 = 0.0f;
+};
+
+struct EquipmentAbsorbEffect {
+    std::uint32_t type = 0;
+    float value = 0.0f;
+};
+
+struct ManagementAbsorbEffect {
+    std::uint32_t type = 0;
+    std::uint32_t level = 0;
+    float base_bonus = 0.0f;
+    float growth_bonus = 0.0f;
+};
+
+struct AttributeAbsorbEffect {
+    std::uint32_t type = 0;
+    std::uint32_t level = 0;
+    bool enabled = false;
+    float per_level_bonus = 0.0f;
+};
+
+struct DamageAbsorbTerms {
+    float player_level_absorb = 0.0f;
+    float player_status_absorb_140 = 0.0f;
+    bool use_management_level_effects = false;
+    float parameter_multiplier_bonus_308 = 0.0f;
+    bool armband_equipped = false;
+    float armband_multiplier_40 = 0.0f;
+    float armband_absorb_addition = 0.0f;
+    std::vector<EquipmentAbsorbEffect> equipment_effects;
+    std::vector<ManagementAbsorbEffect> management_effects;
+    std::vector<AttributeAbsorbEffect> attribute_effects;
 };
 
 struct WeaponFinalAddBaseTerms {
@@ -55,12 +88,16 @@ WeaponFinalAddBaseResult resolve_weapon_final_add_base_attack(
 // and PlayerStatusInfo values remain inputs until their source data is restored.
 float resolve_attack(const State& player, const AttackTerms& terms) noexcept;
 
+// Mirrors MEPlayer::getAllDamageAbsorb(). Data-manager and status objects are
+// supplied as decoded values; the aggregation and final multiplier are exact.
+float resolve_damage_absorb(
+        const State& player, const DamageAbsorbTerms& terms) noexcept;
+
 // MEPlayer::setEquipAddAttack() writes the argument to +0x114.
 void set_equipment_add_attack(State* state, float value) noexcept;
 
 // The setters below mirror the native fields and arithmetic. Effective max
-// health and total damage absorption are computed by larger, unrecovered
-// functions and are intentionally not derived here.
+// health remains a separate, unrecovered calculation.
 void set_equipment_add_health(State* state, float value) noexcept;
 void add_equipment_add_health(State* state, float delta) noexcept;
 void set_equipment_add_damage_absorb(State* state, float value) noexcept;

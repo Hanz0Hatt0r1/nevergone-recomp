@@ -46,6 +46,43 @@ float resolve_attack(const State& player, const AttackTerms& terms) noexcept {
         terms.player_status_value_144;
 }
 
+float resolve_damage_absorb(
+        const State& player, const DamageAbsorbTerms& terms) noexcept {
+    float equipment_absorb = 0.0f;
+    for (const auto& effect : terms.equipment_effects) {
+        if (effect.type == 0x1cu) equipment_absorb = effect.value;
+    }
+
+    float multiplier_bonus = terms.parameter_multiplier_bonus_308;
+    if (terms.use_management_level_effects) {
+        multiplier_bonus = 0.0f;
+        for (const auto& effect : terms.management_effects) {
+            if (effect.type != 10u) continue;
+            multiplier_bonus = multiplier_bonus + effect.base_bonus;
+            multiplier_bonus = multiplier_bonus +
+                static_cast<float>(effect.level - 1u) * effect.growth_bonus;
+        }
+    }
+
+    float attribute_absorb = 0.0f;
+    for (const auto& effect : terms.attribute_effects) {
+        if ((effect.type == 2u || effect.type == 4u) && effect.enabled) {
+            attribute_absorb +=
+                (static_cast<float>(effect.level) * effect.per_level_bonus) / 100.0f;
+        }
+    }
+
+    const float armband_multiplier = terms.armband_equipped
+        ? terms.armband_multiplier_40 : 0.0f;
+    const float armband_absorb = terms.armband_equipped
+        ? terms.armband_absorb_addition / 100.0f : 0.0f;
+    const float absorb_sum = terms.player_level_absorb + equipment_absorb +
+        armband_absorb + terms.player_status_absorb_140 +
+        player.equipment_add_damage_absorb_118 + attribute_absorb;
+    const float multiplier = multiplier_bonus + 1.0f + armband_multiplier;
+    return absorb_sum * multiplier;
+}
+
 void set_equipment_add_attack(State* state, float value) noexcept {
     if (state == nullptr) return;
     state->equipment_add_attack_114 = value;

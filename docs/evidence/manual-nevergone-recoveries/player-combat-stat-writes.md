@@ -32,10 +32,11 @@ Thumb instructions confirm their writes:
 
 `player_combat_stat_contract` mirrors these writes and arithmetic. Its later
 bounded `MEPlayer::setEquipAddAttack()` and `MEPlayer::getAttack()` contracts
-are documented in `player-attack-value.md`. The health and absorption
-modifiers still are not combined into an effective maximum or total damage
-absorption: `MEPlayer::getMaxHealth()` and `getAllDamageAbsorb()` have
-truncated corpus rows, so those formulas need separate recovery.
+are documented in `player-attack-value.md`. Total damage absorption is
+reconstructed in `player-total-damage-absorb.md`; the separate
+`MEPlayer::getMaxHealth()` calculation remains unrecovered. Although the
+`getAllDamageAbsorb()` corpus row is truncated, its complete Ghidra
+decompilation provided enough evidence to reconstruct the formula.
 
 Gold subsystem and function-role labels for these five functions are recorded
 in `player-combat-stat-writes-labels.jsonl`. Adding them to the previous manual

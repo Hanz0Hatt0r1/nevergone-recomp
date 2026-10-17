@@ -34,3 +34,21 @@ Correction after isolating the recompilation's retained motion save: the earlier
 The clean zero-motion screenshot is `/tmp/nevergone-live-20261016/recomp-clean-no-motion.png`, SHA-256 `1f3d9d657b53a94ff1851ebf91e95e1a74b5e15048b75276ed656511517ab500`. Matching diagnostics are `/tmp/nevergone-live-20261016/clean-no-motion/runtime-diagnostics.txt`, SHA-256 `efec5fdec4822f324878c425eff3713fc13944dd7a37e28838dd328cb4a7be6e`. The original Run prompt/top HUD are still absent in the recompilation, and its selected costume and horizontal placement need closer parity checks.
 
 Next visual acceptance work is to restore the original tutorial HUD/instruction state and verify the matching role/costume and horizontal placement. The opening narrative still needs the established onboarding taps before the render collector can capture a live GameLevels scene.
+
+## 2026-10-17 REA ADB cold-launch checkpoint
+
+REA listed the Redmi Note 8 Pro on ADB and confirmed the original package is
+Never Gone 1.0.9. A cold launch of `com.hippiegame.nevergone/.TJ_P_01`
+completed, the process stayed alive, and the original reached its title screen
+with “Tap to start”. Its PID-scoped main log reported opening
+`assets/Script/Game/StartLua.lua`; the PID-scoped crash buffer was empty at
+inspection. The one-frame title capture is
+`/tmp/nevergone-original-runtime-20261017-second/screen.png`, SHA-256
+`d476e9827e2a1788cf80fccc3595f39f457a7b03e30b29020d3031ca58f8c5d6`.
+
+The installed recompilation was separately cold-launched and remained on its
+title background with the `Developer Tools` button; that one-frame capture is
+`/tmp/nevergone-runtime-inspect-20261017/screen.png`, SHA-256
+`236b718397d4e99ad06402125395147856fb6955c4753a80ba06b00cefc3ba19`. No taps
+were sent in either app, so this checkpoint says nothing about scenes beyond
+the original title screen.
