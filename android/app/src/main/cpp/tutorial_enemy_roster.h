@@ -66,6 +66,11 @@ public:
     // All mutations must carry the wave generation captured at begin().
     // Late EnemyObject callbacks from an earlier wave are rejected.
     bool apply_damage(std::size_t slot, float damage, std::uint64_t expected_generation);
+    enemy_health_state::OnlineHealthUpdateResult apply_online_health_update(
+            std::size_t slot,
+            int update_type,
+            int value,
+            std::uint64_t expected_generation);
     bool set_dead(std::size_t slot, std::uint64_t expected_generation);
     bool set_enemy_state(std::size_t slot, int enemy_state, std::uint64_t expected_generation);
     bool set_force_action_state_no_dead(

@@ -87,6 +87,19 @@ bool Roster::apply_damage(
     return true;
 }
 
+enemy_health_state::OnlineHealthUpdateResult Roster::apply_online_health_update(
+        std::size_t slot,
+        int update_type,
+        int value,
+        std::uint64_t expected_generation) {
+    if (!active_ || generation_ != expected_generation ||
+        slot >= plan_.enemy_count || !enemies_[slot].materialized) {
+        return {};
+    }
+    return enemy_health_state::apply_online_health_update(
+            &enemies_[slot].health, update_type, value);
+}
+
 bool Roster::set_dead(std::size_t slot, std::uint64_t expected_generation) {
     if (!active_ || generation_ != expected_generation ||
         slot >= plan_.enemy_count || !enemies_[slot].materialized) {

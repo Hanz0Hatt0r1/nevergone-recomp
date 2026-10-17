@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "enemy_health_state.h"
 #include "enemy_attack_value_contract.h"
 #include "enemy_actions_wbg_document.h"
 #include "enemy_hitpoint_contract.h"
@@ -63,6 +64,12 @@ public:
     // produced a live actor binding for this exact wave generation.
     bool apply_damage(
         std::size_t slot, float damage, std::uint64_t expected_wave_generation);
+    // Applies remote enemy-health mode 1 (damage) or mode 2 (absolute HP).
+    enemy_health_state::OnlineHealthUpdateResult apply_online_health_update(
+        std::size_t slot,
+        int update_type,
+        int value,
+        std::uint64_t expected_wave_generation);
     bool set_dead(std::size_t slot, std::uint64_t expected_wave_generation);
     bool set_enemy_state(
         std::size_t slot, int enemy_state, std::uint64_t expected_wave_generation);
@@ -115,6 +122,11 @@ void live_set_review_bundle(const ReviewBundle& review);
 bool live_tick();
 bool live_apply_damage(
     std::size_t slot, float damage, std::uint64_t expected_wave_generation);
+enemy_health_state::OnlineHealthUpdateResult live_apply_online_health_update(
+    std::size_t slot,
+    int update_type,
+    int value,
+    std::uint64_t expected_wave_generation);
 bool live_set_dead(std::size_t slot, std::uint64_t expected_wave_generation);
 bool live_set_enemy_state(
     std::size_t slot, int enemy_state, std::uint64_t expected_wave_generation);

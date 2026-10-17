@@ -9,6 +9,12 @@ struct State {
     bool force_action_state_no_dead = false;
 };
 
+struct OnlineHealthUpdateResult {
+    bool accepted = false;
+    float physical_damage = 0.0f;
+    bool death_state_requested = false;
+};
+
 // EnemyObject::loadEnemyObjectFile copies GameLevelsEnemyData health into both
 // +0x160 (max) and +0x164 (current). Reject non-positive config health in the
 // clean-room runtime instead of creating a divide-by-zero health ratio.
@@ -20,6 +26,12 @@ float health_ratio_percent(const State& state);
 // EnemyObject::isLowHealthPercent(): integer-converted health percentage < 30.
 // For finite percentages the integer conversion leaves this threshold unchanged.
 bool is_low_health_percent(const State& state);
+
+// EnemyObject::setOlEnemyHealth(): mode 1 subtracts damage; mode 2 sets
+// absolute health. Returns the damage amount sent to EnemyPhysical and models
+// the accepted zero-health state code; physical animation remains separate.
+OnlineHealthUpdateResult apply_online_health_update(
+        State* state, int update_type, int value);
 
 // EnemyObject::beaten(float, ...): current -= damage before its special-case
 // clamps/state handling. This contract intentionally models only that core HP

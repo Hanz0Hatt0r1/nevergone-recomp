@@ -20,6 +20,39 @@ bool is_low_health_percent(const State& state) {
     return health_ratio_percent(state) < 30.0f;
 }
 
+OnlineHealthUpdateResult apply_online_health_update(
+        State* state, int update_type, int value) {
+    OnlineHealthUpdateResult result;
+    if (state == nullptr) return result;
+
+    result.accepted = true;
+    const float current_health = state->current_health;
+    if (update_type == 1) {
+        const float damage = static_cast<float>(value);
+        result.physical_damage = current_health <= damage
+                ? static_cast<float>(static_cast<int>(current_health))
+                : damage;
+        state->current_health = current_health - damage;
+    } else if (update_type == 2) {
+        const float new_health = static_cast<float>(value);
+        state->current_health = new_health;
+        if (new_health < current_health) {
+            result.physical_damage =
+                    static_cast<float>(static_cast<int>(current_health - new_health));
+        }
+    }
+
+    if (!(state->current_health > 0.0f)) {
+        state->current_health = 0.0f;
+        result.death_state_requested = true;
+        if (state->enemy_state != 0x15) {
+            state->enemy_state = 0x15;
+            state->force_action_state_no_dead = false;
+        }
+    }
+    return result;
+}
+
 void apply_beaten_damage(State* state, float damage) {
     if (state == nullptr) return;
     state->current_health -= damage;

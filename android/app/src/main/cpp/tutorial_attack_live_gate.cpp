@@ -160,6 +160,22 @@ bool Gate::apply_damage(
     return result;
 }
 
+enemy_health_state::OnlineHealthUpdateResult Gate::apply_online_health_update(
+        std::size_t slot,
+        int update_type,
+        int value,
+        std::uint64_t expected_wave_generation) {
+    if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return {};
+    auto result = attack_.apply_online_health_update(
+            slot, update_type, value, expected_wave_generation);
+    if (result.accepted) {
+        const auto attack_state = attack_.snapshot();
+        if (!enemy_bindings_.sync(attack_state, attack_state.last_game_tick)) return {};
+        ++generation_;
+    }
+    return result;
+}
+
 bool Gate::set_dead(std::size_t slot, std::uint64_t expected_wave_generation) {
     if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return false;
     const bool result = attack_.set_dead(slot, expected_wave_generation);

@@ -75,6 +75,16 @@ bool live_apply_damage(
     return g_live_gate.apply_damage(slot, damage, expected_wave_generation);
 }
 
+enemy_health_state::OnlineHealthUpdateResult live_apply_online_health_update(
+        std::size_t slot,
+        int update_type,
+        int value,
+        std::uint64_t expected_wave_generation) {
+    std::lock_guard<std::mutex> lock(g_live_mutex);
+    return g_live_gate.apply_online_health_update(
+            slot, update_type, value, expected_wave_generation);
+}
+
 bool live_set_dead(std::size_t slot, std::uint64_t expected_wave_generation) {
     std::lock_guard<std::mutex> lock(g_live_mutex);
     return g_live_gate.set_dead(slot, expected_wave_generation);
