@@ -14,6 +14,7 @@ struct Snapshot {
     std::uint64_t action_generation = 0;
     std::uint64_t loaded_revision = 0;
     std::uint32_t action_state = 0;
+    bool looping = false;
     std::uint64_t last_game_tick = 0;
     std::uint64_t frame_revision = 0;
     std::uint64_t update_count = 0;
@@ -31,6 +32,7 @@ bool sync_and_tick(
     std::uint64_t action_generation,
     std::uint64_t loaded_revision,
     std::uint32_t action_state,
+    bool looping,
     const enemy_actions_wbg_document::Document& document,
     std::uint64_t game_tick);
 

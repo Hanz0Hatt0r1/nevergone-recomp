@@ -18,6 +18,7 @@ struct Snapshot {
     std::uint64_t generation = 0;
     std::uint64_t spawn_generation = 0;
     std::uint32_t current_action_state = kInitialActionState;
+    bool current_action_looping = false;
     std::uint32_t desired_action_state = kInitialActionState;
     std::uint64_t desired_revision = 0;
     std::uint64_t loaded_revision = 0;
@@ -78,7 +79,7 @@ bool observe_action_completion(
 
 // Called only after PlayerActionRuntimeLoader has successfully resolved and
 // parsed the action document corresponding to desired_action_state.
-bool commit_loaded_action(std::uint32_t action_state);
+bool commit_loaded_action(std::uint32_t action_state, bool looping = false);
 
 Snapshot snapshot();
 std::string status_report();

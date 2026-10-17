@@ -16,17 +16,20 @@ me_actions_combo_boundaries::Boundaries g_boundaries{};
 bool same_action_locked(
         std::uint64_t action_generation,
         std::uint64_t loaded_revision,
-        std::uint32_t action_state) {
+        std::uint32_t action_state,
+        bool looping) {
     return g_snapshot.ready &&
            g_snapshot.action_generation == action_generation &&
            g_snapshot.loaded_revision == loaded_revision &&
-           g_snapshot.action_state == action_state;
+           g_snapshot.action_state == action_state &&
+           g_snapshot.looping == looping;
 }
 
 void begin_action_locked(
         std::uint64_t action_generation,
         std::uint64_t loaded_revision,
         std::uint32_t action_state,
+        bool looping,
         const enemy_actions_wbg_document::Document& document,
         std::uint64_t game_tick) {
     const std::uint64_t prior_frame_revision = g_snapshot.frame_revision;
@@ -36,6 +39,7 @@ void begin_action_locked(
     g_snapshot.action_generation = action_generation;
     g_snapshot.loaded_revision = loaded_revision;
     g_snapshot.action_state = action_state;
+    g_snapshot.looping = looping;
     g_snapshot.last_game_tick = game_tick;
     g_snapshot.frame_revision = prior_frame_revision + 1u;
     g_snapshot.completed_action_count = prior_completed;
@@ -57,6 +61,7 @@ bool sync_and_tick(
         std::uint64_t action_generation,
         std::uint64_t loaded_revision,
         std::uint32_t action_state,
+        bool looping,
         const enemy_actions_wbg_document::Document& document,
         std::uint64_t game_tick) {
     if (action_generation == 0u || loaded_revision == 0u ||
@@ -65,9 +70,9 @@ bool sync_and_tick(
     }
 
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (!same_action_locked(action_generation, loaded_revision, action_state)) {
+    if (!same_action_locked(action_generation, loaded_revision, action_state, looping)) {
         begin_action_locked(
-            action_generation, loaded_revision, action_state, document, game_tick);
+            action_generation, loaded_revision, action_state, looping, document, game_tick);
         return true;
     }
 
@@ -99,6 +104,10 @@ bool sync_and_tick(
     }
     if (!was_done && g_snapshot.cursor.timing.done_220) {
         ++g_snapshot.completed_action_count;
+        if (g_snapshot.looping) {
+            g_snapshot.cursor = me_actions_playback_timing::initial_cursor();
+            ++g_snapshot.frame_revision;
+        }
     }
     return true;
 }
@@ -124,6 +133,7 @@ std::string status_report() {
     out << "action generation: " << state.action_generation << "\n";
     out << "loaded revision: " << state.loaded_revision << "\n";
     out << "action state: 0x" << std::hex << state.action_state << std::dec << "\n";
+    out << "looping: " << (state.looping ? "yes" : "no") << "\n";
     out << "current frame: " << state.cursor.current_frame_1a4 << "\n";
     out << "previous frame: " << state.cursor.previous_frame_1a8 << "\n";
     out << "frame revision: " << state.frame_revision << "\n";

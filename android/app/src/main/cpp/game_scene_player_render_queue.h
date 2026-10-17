@@ -143,6 +143,7 @@ inline game_scene_render_queue::Queue current(game_scene_render_queue::Queue que
                 live_action.generation,
                 live_action.loaded_revision,
                 live_action.current_action_state,
+                live_action.current_action_looping,
                 *document,
                 game_clock::tick_count());
 
