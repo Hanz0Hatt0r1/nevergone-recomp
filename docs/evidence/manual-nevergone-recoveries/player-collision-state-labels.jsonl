@@ -1,0 +1,1 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"00328ad0","source_name":"MEPlayer::isCollisionState","task":"function_role","label":"player_collision_state_predicate","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/player-collision-state.md"}
