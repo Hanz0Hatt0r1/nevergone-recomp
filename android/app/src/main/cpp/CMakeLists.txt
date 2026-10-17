@@ -41,6 +41,7 @@ add_library(nevergone_recomp SHARED
     controls_function_state_runtime_bridge.cpp
     created_role_transition.cpp
     created_role_transition_runtime.cpp
+    enemy_attack_value_contract.cpp
     enemy_actions_combo_consumer.cpp
     enemy_actions_runtime_state.cpp
     enemy_actions_layout_evidence.cpp
