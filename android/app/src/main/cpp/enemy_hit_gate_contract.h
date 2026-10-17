@@ -32,6 +32,34 @@ inline State record_hit_flag(State state) noexcept {
     return state;
 }
 
+// EnemyObject::isBeatenState() and checkInputStateIsBeaten() share the same
+// accepted state set, except that the latter receives the candidate state.
+inline bool is_beaten_state(
+        std::uint32_t enemy_state, bool suppress_states_5_6_22a) noexcept {
+    const std::uint32_t from_state_5 = enemy_state - 5u;
+    if (suppress_states_5_6_22a && from_state_5 <= 1u) {
+        return false;
+    }
+    return from_state_5 <= 7u || enemy_state - 15u <= 2u ||
+        enemy_state == 0x34u || enemy_state == 0x2cu || enemy_state == 0x2du;
+}
+
+inline bool check_input_state_is_beaten(
+        std::uint32_t input_state, bool suppress_states_5_6_22a) noexcept {
+    return is_beaten_state(input_state, suppress_states_5_6_22a);
+}
+
+struct ForceBeatenFlags {
+    std::uint8_t field_19c = 0;
+    std::uint8_t field_19d = 0;
+};
+
+// EnemyObject::setForceBeatenState() writes the same bool byte to both fields.
+inline ForceBeatenFlags set_force_beaten_state(bool enabled) noexcept {
+    const auto value = static_cast<std::uint8_t>(enabled);
+    return {value, value};
+}
+
 // EnemyObject::isAttackMiss() compares action-system frame +0x294 with a
 // state-specific cutoff selected from EnemyObject +0x274.
 inline bool is_attack_miss(
