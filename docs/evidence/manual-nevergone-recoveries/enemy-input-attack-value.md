@@ -16,7 +16,9 @@ The source of `EnemyObject +0x2bc` is now also resolved in
 `vcvt.u32.f32`, and store it at `EnemyObject +0x2bc`. The preceding stores from
 the same `r1` base match the independently recovered `GameLevelsEnemyData
 +0x18` health source. The raw `LoadGL_Global` field corresponding to
-`GameLevelsEnemyData +0x20` is not yet established.
+`GameLevelsEnemyData +0x20` is `EnemyRecord.first_float`: the original parser
+reads it between `second_i32` and `third_i32`, then stores it at `+0x20` (see
+`docs/evidence/enemy-record-identity-health-2026-10-15.md`).
 
 The calculation is established by the original ARMv7 disassembly and Ghidra
 decompilation for Never Gone 1.0.9 (`libcocos2dcpp.so` SHA-256
@@ -38,6 +40,13 @@ values outside that proven domain. `resolve()` implements the subsequent
 unsigned-to-float conversion and multiplication. It accepts the frame factor as
 an input because the `EnemyActionsData +0xd8` table and runtime import path are
 not yet connected to the tutorial actor.
+
+`game_levels_enemy_record_mapping::resolve_input_value_2bc()` follows the
+reviewed enemy ID mapping to exactly one imported `EnemyRecord`, converts its
+`first_float`, and fails closed for missing IDs, duplicate IDs, unreviewed
+mappings, or values outside the defined conversion range. The tutorial actor
+binding stores this recovered input alongside imported base health, ready for
+the frame-factor and attack-event boundaries to be connected.
 
 This restores the numeric function only. It does not apply damage to the
 player, create enemy AI attacks, or connect attack events to the first combat

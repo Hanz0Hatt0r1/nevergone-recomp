@@ -7,6 +7,7 @@
 #include <sstream>
 #include <string>
 
+#include "game_levels_enemy_record_mapping.h"
 #include "tutorial_attack_wave_runtime.h"
 
 namespace nevergone::tutorial_enemy_actor_bindings {
@@ -21,6 +22,7 @@ struct Binding {
     std::uint64_t state_started_game_tick = 0;
     bool state_changed = false;
     float base_health = 0.0f;
+    std::uint32_t input_value_2bc = 0;
     float spawn_x = 0.0f;
     float spawn_y = 0.0f;
 };
@@ -47,7 +49,9 @@ public:
     // A new roster wave atomically invalidates all bindings from the old wave.
     bool sync(
             const tutorial_attack_wave_runtime::Snapshot& attack,
-            std::uint64_t game_tick) {
+            std::uint64_t game_tick,
+            const game_levels_enemy_record_mapping::Mapping* enemy_mapping = nullptr,
+            const std::vector<game_levels_global_section::EnemyRecord>* enemy_records = nullptr) {
         if (!attack.wave_started) {
             if (wave_bound_ || wave_generation_ != 0) reset();
             return true;
@@ -89,7 +93,6 @@ public:
                 !std::isfinite(slot.health.max_health) || slot.health.max_health <= 0.0f) {
                 return false;
             }
-
             if (bindings_[i].active) {
                 Binding& binding = bindings_[i];
                 if (binding.slot != i ||
@@ -110,6 +113,12 @@ public:
                 continue;
             }
 
+            if (enemy_mapping == nullptr || enemy_records == nullptr) return false;
+            const auto input_value_2bc =
+                game_levels_enemy_record_mapping::resolve_input_value_2bc(
+                    *enemy_records, *enemy_mapping, slot.request.enemy_id);
+            if (!input_value_2bc.has_value()) return false;
+
             Binding binding;
             binding.active = true;
             binding.slot = i;
@@ -119,6 +128,7 @@ public:
             binding.current_enemy_state = slot.health.enemy_state;
             binding.state_started_game_tick = game_tick;
             binding.base_health = slot.health.max_health;
+            binding.input_value_2bc = *input_value_2bc;
             binding.spawn_x = slot.request.x;
             binding.spawn_y = slot.request.y;
             bindings_[i] = binding;
@@ -163,6 +173,7 @@ public:
                 << " state=" << binding.current_enemy_state
                 << " (initial=" << binding.initial_enemy_state << ")"
                 << " hp=" << binding.base_health
+                << " atk-base=" << binding.input_value_2bc
                 << " x=" << binding.spawn_x
                 << " y=" << binding.spawn_y << "\n";
         }

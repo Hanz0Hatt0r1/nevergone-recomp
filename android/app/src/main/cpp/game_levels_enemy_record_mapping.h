@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -9,8 +10,8 @@
 namespace nevergone::game_levels_enemy_record_mapping {
 
 // Only the seven integer slots from the recovered 32-byte EnemyRecord can be
-// selected here. The intervening float remains intentionally unavailable for
-// identity/base-health semantics.
+// selected as identity/base-health fields. The intervening float has its own
+// reviewed combat consumer and is not selectable as an integer field.
 enum class IntegerField {
     kFirstI32 = 0,
     kSecondI32,
@@ -56,6 +57,13 @@ bool resolve_base_health(
         const Mapping& mapping,
         unsigned enemy_id,
         int* out_base_health);
+
+// Resolves the separately recovered EnemyRecord.first_float combat input for
+// exactly one record selected by the reviewed identity mapping.
+std::optional<std::uint32_t> resolve_input_value_2bc(
+        const std::vector<game_levels_global_section::EnemyRecord>& records,
+        const Mapping& mapping,
+        unsigned enemy_id);
 
 // Signature-compatible adapter for tutorial_enemy_roster::BaseHealthResolver.
 bool roster_base_health_resolver(

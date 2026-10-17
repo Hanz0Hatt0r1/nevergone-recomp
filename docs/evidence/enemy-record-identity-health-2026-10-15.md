@@ -71,6 +71,21 @@ An independent original consumer corroborates the same source value:
 `GameLevels::GetLevelALLEnemyBlood()` sums `GameLevelsEnemyData +0x1c`, and
 `LoadGL_Global()` writes the same `second_i32` to both `+0x18` and `+0x1c`.
 
+## Combat input value
+
+The same serialized record's `first_float` is stored by `LoadGL_Global()` at
+`GameLevelsEnemyData +0x20`. `EnemyObject::loadEnemyObjectFile()` converts that
+value with `VCVT.U32.F32` and stores it at `EnemyObject +0x2bc`. The recovered
+`EnemyObject::inputAtkValue()` then multiplies it by the current-frame
+`EnemyActionsSystem::DamageFactor()`.
+
+The clean-room resolver keeps this field separate from the integer mapping:
+after a reviewed ID lookup selects exactly one record,
+`resolve_input_value_2bc()` converts `EnemyRecord.first_float` and rejects
+missing or duplicate IDs and values outside the defined unsigned conversion
+range. The tutorial actor binding retains the result for the still-unconnected
+frame-factor and attack-event path.
+
 ## Production mapping
 
 `game_levels_enemy_record_mapping::reviewed_original_mapping()` now returns:

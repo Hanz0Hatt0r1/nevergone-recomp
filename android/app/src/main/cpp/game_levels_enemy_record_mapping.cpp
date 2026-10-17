@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "enemy_attack_value_contract.h"
+
 namespace nevergone::game_levels_enemy_record_mapping {
 namespace {
 
@@ -119,6 +121,29 @@ bool resolve_base_health(
     if (!found || resolved_health <= 0) return false;
     *out_base_health = static_cast<int>(resolved_health);
     return true;
+}
+
+std::optional<std::uint32_t> resolve_input_value_2bc(
+        const std::vector<game_levels_global_section::EnemyRecord>& records,
+        const Mapping& mapping,
+        unsigned enemy_id) {
+    if (!is_usable(mapping) ||
+        enemy_id > static_cast<unsigned>(std::numeric_limits<std::int32_t>::max())) {
+        return std::nullopt;
+    }
+
+    const std::int32_t wanted = static_cast<std::int32_t>(enemy_id);
+    const game_levels_global_section::EnemyRecord* match = nullptr;
+    for (const auto& record : records) {
+        std::int32_t identity = 0;
+        if (!read_field(record, mapping.identity_field, &identity)) return std::nullopt;
+        if (identity != wanted) continue;
+        if (match != nullptr) return std::nullopt;
+        match = &record;
+    }
+
+    if (match == nullptr) return std::nullopt;
+    return enemy_attack_value_contract::try_initialize_value_2bc(match->first_float);
 }
 
 bool roster_base_health_resolver(
