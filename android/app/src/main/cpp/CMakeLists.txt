@@ -50,6 +50,7 @@ add_library(nevergone_recomp SHARED
     enemy_actions_wbg_final_table.cpp
     enemy_actions_wbg_prefix.cpp
     enemy_health_state.cpp
+    enemy_physical_state.cpp
     filesystem_bindings.cpp
     fresh_role_compat_jni.cpp
     fresh_role_compat_state.cpp

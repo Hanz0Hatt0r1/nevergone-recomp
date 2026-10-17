@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "enemy_physical_state.h"
 #include "enemy_health_state.h"
 #include "tutorial_enemy_spawn_plan.h"
 
@@ -17,9 +18,11 @@ using BaseHealthResolver = bool (*)(
 struct EnemySlot {
     tutorial_enemy_spawn_plan::EnemyRequest request{};
     enemy_health_state::State health{};
+    enemy_physical_state::State physical{};
     bool planned = false;
     bool due = false;
     bool materialized = false;
+    bool physical_configured = false;
 };
 
 struct Snapshot {
@@ -70,6 +73,17 @@ public:
             std::size_t slot,
             int update_type,
             int value,
+            std::uint64_t expected_generation);
+    bool configure_physical_state(
+            std::size_t slot,
+            const enemy_physical_state::State& physical,
+            std::uint64_t expected_generation);
+    bool advance_physical_state(
+            std::size_t slot,
+            float damage,
+            std::uint64_t expected_generation);
+    bool next_physical_state(
+            std::size_t slot,
             std::uint64_t expected_generation);
     bool set_dead(std::size_t slot, std::uint64_t expected_generation);
     bool set_enemy_state(std::size_t slot, int enemy_state, std::uint64_t expected_generation);

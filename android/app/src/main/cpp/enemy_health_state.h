@@ -12,6 +12,7 @@ struct State {
 struct OnlineHealthUpdateResult {
     bool accepted = false;
     float physical_damage = 0.0f;
+    bool physical_state_advanced = false;
     bool death_state_requested = false;
 };
 

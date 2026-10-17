@@ -96,8 +96,55 @@ enemy_health_state::OnlineHealthUpdateResult Roster::apply_online_health_update(
         slot >= plan_.enemy_count || !enemies_[slot].materialized) {
         return {};
     }
-    return enemy_health_state::apply_online_health_update(
-            &enemies_[slot].health, update_type, value);
+    EnemySlot& enemy = enemies_[slot];
+    auto result = enemy_health_state::apply_online_health_update(
+            &enemy.health, update_type, value);
+    if (enemy.physical_configured) {
+        result.physical_state_advanced = enemy_physical_state::update(
+                &enemy.physical, result.physical_damage);
+    }
+    return result;
+}
+
+bool Roster::configure_physical_state(
+        std::size_t slot,
+        const enemy_physical_state::State& physical,
+        std::uint64_t expected_generation) {
+    if (!active_ || generation_ != expected_generation ||
+        slot >= plan_.enemy_count || !enemies_[slot].materialized) {
+        return false;
+    }
+    if (!physical.disabled &&
+        (physical.last_state_index < 0 ||
+         physical.damage_percent_by_state.size() <=
+                 static_cast<std::size_t>(physical.last_state_index))) {
+        return false;
+    }
+    enemies_[slot].physical = physical;
+    enemies_[slot].physical_configured = true;
+    return true;
+}
+
+bool Roster::advance_physical_state(
+        std::size_t slot,
+        float damage,
+        std::uint64_t expected_generation) {
+    if (!active_ || generation_ != expected_generation ||
+        slot >= plan_.enemy_count || !enemies_[slot].materialized ||
+        !enemies_[slot].physical_configured) {
+        return false;
+    }
+    return enemy_physical_state::update(&enemies_[slot].physical, damage);
+}
+
+bool Roster::next_physical_state(
+        std::size_t slot, std::uint64_t expected_generation) {
+    if (!active_ || generation_ != expected_generation ||
+        slot >= plan_.enemy_count || !enemies_[slot].materialized ||
+        !enemies_[slot].physical_configured) {
+        return false;
+    }
+    return enemy_physical_state::next_state(&enemies_[slot].physical);
 }
 
 bool Roster::set_dead(std::size_t slot, std::uint64_t expected_generation) {

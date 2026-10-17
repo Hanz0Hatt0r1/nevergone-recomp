@@ -35,8 +35,8 @@ and update type in `r2`.
   no-death flag; if the enemy is already in `0x15`, the native handoff returns
   early and leaves the flag unchanged. Other handoff side effects remain open.
 - Every path calls `EnemyPhysical::updatePhysicalState()` with the computed
-  damage amount. The clean-room API returns that amount for the physical
-  subsystem; the 90-op animation accumulator is not represented yet.
+  damage amount. The generation-checked roster now feeds this amount into its
+  configured physical-state sequence and reports whether a state advanced.
 
 The generation-checked tutorial roster and live attack gate now expose this
 remote-update operation. The health and state fields reproduce the recovered
@@ -46,7 +46,7 @@ state was requested.
 `onlineEnemyState()` has 350 P-code operations and its corpus row is truncated
 to 256, so this reconstruction does not claim to restore its complete action,
 sprite, sound, and physics side effects. Gold labels are in
-`enemy-online-health-update-labels.jsonl`. Local RevEngInstr dataset v29 has
-9,175 labelled functions, 6,883 structural groups, and 9,774 gold label rows
-(train 7,370, test 813, validation 992); generated corpus and splits remain
+`enemy-online-health-update-labels.jsonl`. Local RevEngInstr dataset v30 has
+9,178 labelled functions, 6,886 structural groups, and 9,780 gold label rows
+(train 7,373, test 813, validation 992); generated corpus and splits remain
 outside Git.
