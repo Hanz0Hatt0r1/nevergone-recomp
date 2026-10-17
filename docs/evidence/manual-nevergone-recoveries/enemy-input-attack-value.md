@@ -57,6 +57,7 @@ gate can combine it with the selected action document's current frame factor;
 the remaining boundary is scheduling that result from an enemy attack event
 and applying contact damage to the player.
 
-This restores the numeric function only. It does not apply damage to the
-player, create enemy AI attacks, or connect attack events to the first combat
-wave. Those are the next runtime boundaries.
+The numeric attack-value inputs are restored and exposed through the live gate.
+The current implementation still does not apply damage to the player, create
+enemy AI attacks, or connect attack events to the first combat wave. Those are
+the next runtime boundaries.

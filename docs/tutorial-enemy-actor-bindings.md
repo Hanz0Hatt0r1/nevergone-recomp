@@ -24,8 +24,10 @@ spawn_y
 The ID, state, health, and geometry come from the materialized roster slot.
 `input_value_2bc` comes from the unique reviewed `EnemyRecord` selected by that
 ID. Given the selected action document and current frame, the live gate resolves
-the recovered `inputAtkValue()` result from Section F's `+0xd8` factor. This
-boundary does not infer hit contact or apply damage to the player.
+both inputs passed to `MEPlayer::isBeaten()`: `inputAtkValue()` from Section F's
+`+0xd8` factor and `curFramePower()` from the matching `+0x9c` entry. A compact
+hit-window helper also mirrors the recovered `+0x16c/+0x2a4` comparison and
+advance. This boundary does not infer hit contact or apply damage to the player.
 
 `(wave_generation, slot)` is the stable live identity. A slot index by itself is
 not accepted because tutorial waves reuse the same small slot range.

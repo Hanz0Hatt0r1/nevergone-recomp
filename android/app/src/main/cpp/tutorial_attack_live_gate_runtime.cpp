@@ -107,6 +107,16 @@ std::optional<float> live_resolve_input_attack_value(
         slot, current_frame, action, expected_wave_generation);
 }
 
+std::optional<enemy_attack_value_contract::CombatFrameValues> live_resolve_combat_frame(
+        std::size_t slot,
+        std::int32_t current_frame,
+        const enemy_actions_wbg_document::Document& action,
+        std::uint64_t expected_wave_generation) {
+    std::lock_guard<std::mutex> lock(g_live_mutex);
+    return g_live_gate.resolve_combat_frame(
+        slot, current_frame, action, expected_wave_generation);
+}
+
 Snapshot live_snapshot() {
     std::lock_guard<std::mutex> lock(g_live_mutex);
     return g_live_gate.snapshot();

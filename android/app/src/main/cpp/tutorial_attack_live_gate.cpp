@@ -204,6 +204,15 @@ std::optional<float> Gate::resolve_input_attack_value(
         slot, current_frame, action, expected_wave_generation);
 }
 
+std::optional<enemy_attack_value_contract::CombatFrameValues> Gate::resolve_combat_frame(
+        std::size_t slot,
+        std::int32_t current_frame,
+        const enemy_actions_wbg_document::Document& action,
+        std::uint64_t expected_wave_generation) const {
+    return enemy_bindings_.resolve_combat_frame(
+        slot, current_frame, action, expected_wave_generation);
+}
+
 bool Gate::consume_completion_after_publish() {
     if (!attack_.consume_completion()) return false;
     ++completion_publish_count_;

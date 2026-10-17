@@ -158,6 +158,16 @@ public:
             bindings_[slot].input_value_2bc, action, current_frame);
     }
 
+    std::optional<enemy_attack_value_contract::CombatFrameValues> resolve_combat_frame(
+            std::size_t slot,
+            std::int32_t current_frame,
+            const enemy_actions_wbg_document::Document& action,
+            std::uint64_t expected_wave_generation) const {
+        if (!accepts(slot, expected_wave_generation)) return std::nullopt;
+        return enemy_attack_value_contract::resolve_combat_frame(
+            bindings_[slot].input_value_2bc, action, current_frame);
+    }
+
     Snapshot snapshot() const {
         Snapshot out;
         out.bindings = bindings_;

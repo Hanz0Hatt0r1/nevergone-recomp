@@ -41,4 +41,32 @@ std::optional<float> resolve_at_frame(
     return resolve(value_2bc, tuple.float_values[0]);
 }
 
+std::int32_t resolve_frame_power(
+        const enemy_actions_wbg_document::Document& action,
+        std::int32_t current_frame) noexcept {
+    if (current_frame < 0) return 1;
+    const std::size_t frame = static_cast<std::size_t>(current_frame);
+    if (frame >= action.combo_block.array_9c_values.size()) return 1;
+
+    const auto& value = action.combo_block.array_9c_values[frame];
+    if (value.target_array_offset != enemy_actions_wbg_combo_section::kArray9cOffset ||
+        value.source_tuple_index != frame) {
+        return 1;
+    }
+    return value.field_1c;
+}
+
+std::optional<CombatFrameValues> resolve_combat_frame(
+        std::uint32_t value_2bc,
+        const enemy_actions_wbg_document::Document& action,
+        std::int32_t current_frame) noexcept {
+    const auto input_attack_value = resolve_at_frame(value_2bc, action, current_frame);
+    if (!input_attack_value.has_value()) return std::nullopt;
+
+    CombatFrameValues values;
+    values.input_attack_value = *input_attack_value;
+    values.frame_power = resolve_frame_power(action, current_frame);
+    return values;
+}
+
 }  // namespace nevergone::enemy_attack_value_contract

@@ -142,7 +142,8 @@ tutorial enemy IDs 3 or 0x15.
 
 ## Scope boundary
 
-This contract does not yet reconstruct hitboxes, attack power, armor, AI,
-knockback, special boss health floors, rewards, death animation, or object
-removal. It establishes only the health mutation and liveness predicate needed
-for the next live tutorial roster/combat slice.
+Enemy attack input value, current-frame factor/power, and the once-per-window hit
+counter are now recovered in the combat evidence notes. This health/death
+contract still does not reconstruct hitbox contact, armor, the complete AI and
+`MEPlayer::isBeaten()` state machine, knockback, special boss health floors,
+rewards, death animation, or object removal.
