@@ -45,6 +45,22 @@ inline game_scene_render_queue::Queue with_live_player(
     if (frame_index >= document->primary_records.size()) return queue;
     const auto& selected_frame = document->primary_records[frame_index];
 
+    // Section-E positions are local to MeActionsSystem. This live reconstruction
+    // has the recovered play() zero-offset baseline; it does not equate the
+    // system's +0x2ec point with MEPlayer movement offsets.
+    for (const auto& hitpoint : request.lookup.current_frame_hitpoints) {
+        if (hitpoint.action_data_index >= document->fixed_tail_block.records.size()) {
+            continue;
+        }
+        const auto& record = document->fixed_tail_block.records[hitpoint.action_data_index];
+        queue.player_action_hitpoints.push_back({
+                runtime.current_frame_1a4,
+                hitpoint.action_data_index,
+                hitpoint.frame_ordinal,
+                record.float_values[2] - runtime.system_offset_x_2ec,
+                record.float_values[3] - runtime.system_offset_y_2f0});
+    }
+
     // The recovered MeActionsSystem::updateData() body path reads position,
     // anchor, scale, rotation, flip and child-Z from the *current* primary
     // ActionFrameData, not permanently from frame zero. The project-supported

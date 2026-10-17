@@ -18,6 +18,11 @@ namespace nevergone::me_actions_runtime_state {
 struct State {
     std::int32_t current_frame_1a4 = 0;
     std::int32_t previous_frame_1a8 = -1;
+    // MeActionsSystem::swapBufferPos subtracts this explicit +0x2ec point
+    // from each Section-E hit-point position. The recovered play path starts
+    // at zero; live AdjustPos writes are not modeled here yet.
+    float system_offset_x_2ec = 0.0f;
+    float system_offset_y_2f0 = 0.0f;
 };
 
 struct UpdateDataFrameLookupResult {

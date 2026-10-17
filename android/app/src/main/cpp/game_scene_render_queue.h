@@ -24,6 +24,16 @@ struct EnemyActionHitPointPosition {
     float system_local_y = 0.0f;
 };
 
+struct PlayerActionHitPointPosition {
+    std::int32_t action_frame_index = 0;
+    std::size_t action_data_index = 0;
+    std::size_t frame_ordinal = 0;
+    // Coordinates in MeActionsSystem space. World translation and sprite
+    // bounds remain separate combat inputs.
+    float system_local_x = 0.0f;
+    float system_local_y = 0.0f;
+};
+
 struct SpriteCommand {
     std::size_t layer_z_index = 0;
     std::size_t source_layer_index = 0;
@@ -63,6 +73,7 @@ struct Queue {
     std::string guid;
     std::vector<SpriteCommand> sprites;
     std::vector<SceneActionPairCommand> scene_action_pairs;
+    std::vector<PlayerActionHitPointPosition> player_action_hitpoints;
     std::vector<EnemyActionHitPointPosition> enemy_action_hitpoints;
     std::size_t sprite_frame_lookup_count = 0;
     std::size_t direct_file_count = 0;
