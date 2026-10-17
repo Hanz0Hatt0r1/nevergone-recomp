@@ -23,8 +23,11 @@ Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256
 | `WeaponsItemData::getAddBase_atk` | `0x00344db0` | 136 | 13 | 13 | 22 | 0 |
 | `PlayerStatusInfo::add_C_AttackValue` | `0x00327644` | 14 | 1 | 1 | 2 | 1 |
 | `PlayerStatusInfo::resetPlayerStatusClothAddData` | `0x003275b8` | 13 | 0 | 0 | 0 | 4 |
+| `PlayerStatusInfo::add_C_HealthValue` | `0x003275cc` | 14 | 1 | 1 | 2 | 1 |
+| `PlayerStatusInfo::add_C_StrengthValue` | `0x003275f4` | 14 | 1 | 1 | 2 | 1 |
+| `PlayerStatusInfo::add_C_DamageAbsorbValue` | `0x0032761c` | 14 | 1 | 1 | 2 | 1 |
 
-All eleven rows are complete. The original decompilation and ARM instructions
+All fourteen rows are complete. The original decompilation and ARM instructions
 establish this order for `MEPlayer::getAttack()`:
 
 1. `MEEquip::equipAtIdx(..., 0)` selects weapon-array entry zero from the
@@ -51,6 +54,13 @@ these writes; callers can supply
 `PlayerStatusInfoState::cloth_add_attack_144` as
 `AttackTerms::player_status_value_144` after applying the native gate and
 reset behavior.
+
+The sibling `add_C_HealthValue()`, `add_C_StrengthValue()`, and
+`add_C_DamageAbsorbValue()` use the same `ManagementLayer +0x744 == 0` gate to
+add their arguments at `+0x138`, `+0x13c`, and `+0x140`, respectively. Their
+contracts update the corresponding status fields; `+0x138` feeds the final
+additive term of `resolve_max_health()`, and `+0x140` is an input to
+`resolve_damage_absorb()`.
 
 `WeaponsItemData::getFinalAddBase_atk()` gates the hole contribution on a
 nonzero byte at `ManagementLayer +0x744`, gates the temper contribution on
@@ -95,9 +105,9 @@ from nested entries. Virtual getter results and string comparisons are
 decoded inputs, and the contract preserves the top-level and nested order of
 float additions.
 
-Gold subsystem and function-role labels for these eleven functions are
-recorded in `player-attack-value-labels.jsonl`. Adding the four labels for
-`add_C_AttackValue()` and `resetPlayerStatusClothAddData()` to manual-restoration
-v37 and rebuilding as v38 produced 9,188 labelled functions, 6,896 structural
-groups, 9,800 gold label rows, and splits of 7,379 train / 992 validation /
-817 test. The generated corpus and dataset remain outside Git.
+Gold subsystem and function-role labels for these fourteen functions are
+recorded in `player-attack-value-labels.jsonl`. Adding the six labels for
+the three sibling cloth writers to manual-restoration v38 and rebuilding as
+v39 produced 9,191 labelled functions, 6,899 structural groups, 9,806 gold
+label rows, and splits of 7,382 train / 992 validation / 817 test. The
+generated corpus and dataset remain outside Git.

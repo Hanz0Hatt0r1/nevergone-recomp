@@ -192,6 +192,28 @@ void add_cloth_attack_value(
     status->cloth_add_attack_144 = status->cloth_add_attack_144 + value;
 }
 
+void add_cloth_health_value(
+        PlayerStatusInfoState* status, bool management_gate_nonzero,
+        float value) noexcept {
+    if (status == nullptr || management_gate_nonzero) return;
+    status->cloth_add_health_138 = status->cloth_add_health_138 + value;
+}
+
+void add_cloth_strength_value(
+        PlayerStatusInfoState* status, bool management_gate_nonzero,
+        float value) noexcept {
+    if (status == nullptr || management_gate_nonzero) return;
+    status->cloth_add_strength_13c = status->cloth_add_strength_13c + value;
+}
+
+void add_cloth_damage_absorb_value(
+        PlayerStatusInfoState* status, bool management_gate_nonzero,
+        float value) noexcept {
+    if (status == nullptr || management_gate_nonzero) return;
+    status->cloth_add_damage_absorb_140 =
+        status->cloth_add_damage_absorb_140 + value;
+}
+
 void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept {
     if (status == nullptr) return;
     status->cloth_add_health_138 = 0.0f;

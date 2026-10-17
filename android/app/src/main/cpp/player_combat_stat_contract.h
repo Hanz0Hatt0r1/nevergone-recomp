@@ -197,6 +197,16 @@ void add_cloth_attack_value(
         PlayerStatusInfoState* status, bool management_gate_nonzero,
         float value) noexcept;
 
+void add_cloth_health_value(
+        PlayerStatusInfoState* status, bool management_gate_nonzero,
+        float value) noexcept;
+void add_cloth_strength_value(
+        PlayerStatusInfoState* status, bool management_gate_nonzero,
+        float value) noexcept;
+void add_cloth_damage_absorb_value(
+        PlayerStatusInfoState* status, bool management_gate_nonzero,
+        float value) noexcept;
+
 // Mirrors resetPlayerStatusClothAddData() at +0x138, +0x13c, +0x140, +0x144.
 void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept;
 
