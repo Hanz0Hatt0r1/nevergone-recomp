@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <cstdlib>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -12,12 +14,16 @@
 #include "game_clock.h"
 #include "game_levels_enter_transition.h"
 #include "game_levels_runtime_state.h"
+#include "game_scene_camera_contract.h"
 #include "game_scene_direct_asset_requests.h"
 #include "game_scene_direct_geometry.h"
 #include "game_scene_direct_texture_gl.h"
+#include "game_scene_player_hl_point_state.h"
 #include "game_scene_player_render_queue.h"
 #include "game_scene_player_spawn_state.h"
 #include "game_scene_type0_animation.h"
+#include "meplayer_live_action_state.h"
+#include "player_hl_point_contract.h"
 #include "tutorial_enemy_action_document_store.h"
 
 namespace nevergone::game_scene_direct_renderer {
@@ -27,6 +33,17 @@ struct PreparedSprite {
     game_scene_direct_texture_cache::Texture texture;
     game_scene_direct_geometry::Quad quad;
     float opacity = 1.0f;
+};
+
+struct PlayerAnchorFrame {
+    std::uint64_t spawn_generation = 0;
+    std::uint64_t game_tick = 0;
+    std::uint32_t player_index = 0;
+    std::uint32_t action_state = 0;
+    player_hl_point_contract::Rect sprite_bounds;
+    player_hl_point_contract::Point position_240;
+    player_hl_point_contract::Point offset_248;
+    player_hl_point_contract::Point position_268;
 };
 
 struct RuntimeAnimation {
@@ -235,6 +252,7 @@ bool draw() {
     g_draw_attempt_count.fetch_add(1u, std::memory_order_relaxed);
     g_last_drawn_sprite_count.store(0u, std::memory_order_relaxed);
     g_last_min_opacity.store(255u, std::memory_order_relaxed);
+    game_scene_player_hl_point_state::invalidate();
 
     const int surface_width = g_surface_width.load(std::memory_order_relaxed);
     const int surface_height = g_surface_height.load(std::memory_order_relaxed);
@@ -269,6 +287,14 @@ bool draw() {
 
     std::vector<PreparedSprite> prepared;
     prepared.reserve(order.size());
+    std::optional<PlayerAnchorFrame> player_anchor;
+    const auto action_state = meplayer_live_action_state::snapshot();
+    const std::uint32_t current_action_state = action_state.ready
+            ? action_state.current_action_state
+            : meplayer_live_action_state::kInitialActionState;
+    const float camera_translation_x =
+            game_scene_camera_contract::world_screen_translation_x(camera_eye_x)
+                    .value_or(0.0f);
     std::uint8_t min_opacity = 255u;
     for (std::size_t index = 0; index < order.size(); ++index) {
         const std::size_t sprite_command_index = order[index];
@@ -312,6 +338,31 @@ bool draw() {
                     &quad);
         if (!geometry_ready) return false;
 
+        if (command.player_body_transform.has_value() &&
+            command.player_career >= 1 && command.player_career <= 5 &&
+            spawn.status == game_scene_player_spawn_state::Status::kReady) {
+            const auto sprite_bounds =
+                    game_scene_direct_geometry::player_action_sprite_bounds(
+                            *command.player_body_transform,
+                            texture.width,
+                            texture.height);
+            if (sprite_bounds.has_value()) {
+                player_anchor = PlayerAnchorFrame{
+                    spawn.generation,
+                    tick,
+                    static_cast<std::uint32_t>(command.player_career),
+                    current_action_state,
+                    *sprite_bounds,
+                    {spawn.bootstrap_x, spawn.bootstrap_y},
+                    {command.transform.position_x - camera_translation_x -
+                             spawn.bootstrap_x,
+                     command.transform.position_y - spawn.bootstrap_y},
+                    {command.transform.position_x - camera_translation_x,
+                     command.transform.position_y},
+                };
+            }
+        }
+
         const std::uint8_t opacity = command.action_frame_transform.has_value()
                 ? static_cast<std::uint8_t>(
                         (static_cast<unsigned>(animated.opacity) *
@@ -347,6 +398,21 @@ bool draw() {
     glUseProgram(0);
 
     if (glGetError() != GL_NO_ERROR) return false;
+
+    if (player_anchor.has_value()) {
+        const auto& player = *player_anchor;
+        (void)game_scene_player_hl_point_state::update(
+                player.spawn_generation,
+                player.player_index,
+                player.action_state,
+                player.game_tick,
+                player.sprite_bounds,
+                player.position_240,
+                player.offset_248,
+                player.position_268);
+    } else {
+        game_scene_player_hl_point_state::invalidate();
+    }
 
     g_last_min_opacity.store(min_opacity, std::memory_order_relaxed);
     g_last_drawn_sprite_count.store(prepared.size(), std::memory_order_relaxed);
@@ -384,6 +450,7 @@ std::string status_report() {
     out << "tutorial enemy action sprites: "
         << state.tutorial_enemy_action_sprite_count << "\n";
     out << "last minimum opacity: " << static_cast<unsigned int>(state.last_min_opacity) << "\n";
+    out << game_scene_player_hl_point_state::status_report();
     out << tutorial_enemy_action_document_store::status_report();
     return out.str();
 }

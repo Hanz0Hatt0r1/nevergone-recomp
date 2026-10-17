@@ -2,10 +2,12 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 #include "game_scene_construction_plan.h"
 #include "game_scene_render_queue.h"
+#include "player_hl_point_contract.h"
 
 namespace nevergone::game_scene_direct_geometry {
 
@@ -49,6 +51,14 @@ bool build_player_quad(
         int surface_width,
         int surface_height,
         Quad* out);
+
+// Returns CCSprite::sprBoundingBox() in the enclosing MeActionsSystem space:
+// transform all four corners of the full, untrimmed CCSpriteFrame source size
+// by the current child position/anchor/scale/rotation, then take their AABB.
+std::optional<player_hl_point_contract::Rect> player_action_sprite_bounds(
+        const me_actions_initial_sprite_transform::Plan& body,
+        int texture_width,
+        int texture_height);
 
 std::vector<std::size_t> ordered_direct_sprite_indices(
         const game_scene_render_queue::Queue& queue);
