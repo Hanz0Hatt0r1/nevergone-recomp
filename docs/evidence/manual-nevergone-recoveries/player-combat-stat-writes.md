@@ -33,13 +33,11 @@ Thumb instructions confirm their writes:
 `player_combat_stat_contract` mirrors these writes and arithmetic. Its later
 bounded `MEPlayer::setEquipAddAttack()` and `MEPlayer::getAttack()` contracts
 are documented in `player-attack-value.md`. Total damage absorption is
-reconstructed in `player-total-damage-absorb.md`; the separate
-`MEPlayer::getMaxHealth()` calculation remains unrecovered. Although the
-`getAllDamageAbsorb()` corpus row is truncated, its complete Ghidra
-decompilation provided enough evidence to reconstruct the formula.
+reconstructed in `player-total-damage-absorb.md`, and maximum health in
+`player-max-health.md`. Although both calculation rows are truncated, their
+complete Ghidra decompilations provided enough evidence to reconstruct the
+formulas.
 
 Gold subsystem and function-role labels for these five functions are recorded
-in `player-combat-stat-writes-labels.jsonl`. Adding them to the previous manual
-restoration v13 labels and rebuilding as v14 produced 9,145 labelled
-functions, 6,855 structural groups, and 9,711 gold label rows. The generated
-corpus and dataset remain outside Git.
+in `player-combat-stat-writes-labels.jsonl`. The generated corpus and dataset
+remain outside Git.

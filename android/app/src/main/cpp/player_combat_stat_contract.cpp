@@ -83,6 +83,52 @@ float resolve_damage_absorb(
     return absorb_sum * multiplier;
 }
 
+float resolve_max_health(State* player, const MaxHealthTerms& terms) noexcept {
+    if (player == nullptr) return 0.0f;
+
+    float management_bonus = terms.parameter_bonus_304;
+    if (terms.use_management_level_effects) {
+        management_bonus = 0.0f;
+        for (const auto& effect : terms.management_effects) {
+            if (effect.type != 9u || effect.level == 0u) continue;
+            management_bonus = management_bonus + effect.base_bonus;
+            management_bonus = management_bonus +
+                static_cast<float>(effect.level - 1u) * effect.growth_bonus;
+        }
+    }
+
+    float attribute_bonus = 0.0f;
+    for (const auto& effect : terms.attribute_effects) {
+        if ((effect.type == 7u || effect.type == 8u) && effect.enabled) {
+            attribute_bonus = attribute_bonus +
+                static_cast<float>(effect.level) * effect.per_level_bonus;
+        }
+    }
+
+    const float armband_multiplier = terms.armband_equipped
+        ? terms.armband_health_multiplier_3c : 0.0f;
+    const float armband_addition = terms.armband_equipped
+        ? static_cast<float>(terms.armband_health_addition) : 0.0f;
+    const float mercenary_bonus = terms.has_living_type6_mercenary
+        ? static_cast<float>(terms.type6_mercenary_health) : 0.0f;
+
+    float health_sum = terms.player_level_health + 100.0f;
+    health_sum = health_sum + mercenary_bonus;
+    health_sum = health_sum + static_cast<float>(terms.weapon_add_health);
+    health_sum = health_sum + player->tools_add_health_120;
+    health_sum = health_sum + management_bonus;
+    health_sum = health_sum + attribute_bonus;
+    health_sum = health_sum + armband_addition;
+
+    const float health_multiplier = armband_multiplier + 1.0f;
+    const float modified_health = health_sum * health_multiplier;
+    float result = player->equipment_add_health_110 + modified_health;
+    result = result + terms.player_status_health_138;
+
+    player->effective_max_health_11c = static_cast<std::int32_t>(result);
+    return static_cast<float>(player->effective_max_health_11c);
+}
+
 void set_equipment_add_attack(State* state, float value) noexcept {
     if (state == nullptr) return;
     state->equipment_add_attack_114 = value;

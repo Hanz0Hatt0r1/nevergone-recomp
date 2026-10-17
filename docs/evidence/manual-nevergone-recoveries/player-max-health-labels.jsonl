@@ -1,0 +1,2 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"0032bfa4","source_name":"MEPlayer::getMaxHealth","task":"subsystem","label":"combat","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/player-max-health.md"}
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"0032bfa4","source_name":"MEPlayer::getMaxHealth","task":"function_role","label":"combat_player_max_health_calculation","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/player-max-health.md"}

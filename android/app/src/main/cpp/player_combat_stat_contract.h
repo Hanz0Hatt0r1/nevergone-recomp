@@ -8,6 +8,7 @@ namespace nevergone::player_combat_stat_contract {
 struct State {
     float equipment_add_attack_114 = 0.0f;
     float equipment_add_health_110 = 0.0f;
+    std::int32_t effective_max_health_11c = 0;
     float equipment_add_damage_absorb_118 = 0.0f;
     float tools_add_health_120 = 0.0f;
     float tools_damage_absorb_factor_430 = 0.0f;
@@ -52,6 +53,36 @@ struct DamageAbsorbTerms {
     std::vector<AttributeAbsorbEffect> attribute_effects;
 };
 
+struct ManagementHealthEffect {
+    std::uint32_t type = 0;
+    std::uint32_t level = 0;
+    float base_bonus = 0.0f;
+    float growth_bonus = 0.0f;
+};
+
+struct AttributeHealthEffect {
+    std::uint32_t type = 0;
+    std::uint32_t level = 0;
+    bool enabled = false;
+    float per_level_bonus = 0.0f;
+};
+
+struct MaxHealthTerms {
+    float player_level_health = 0.0f;
+    bool use_management_level_effects = false;
+    float parameter_bonus_304 = 0.0f;
+    std::vector<ManagementHealthEffect> management_effects;
+    std::vector<AttributeHealthEffect> attribute_effects;
+    bool armband_equipped = false;
+    float armband_health_multiplier_3c = 0.0f;
+    std::int32_t armband_health_addition = 0;
+    // Pre-resolved from the first type-6 entry when mercenaries are alive.
+    bool has_living_type6_mercenary = false;
+    std::int32_t type6_mercenary_health = 0;
+    std::int32_t weapon_add_health = 0;
+    float player_status_health_138 = 0.0f;
+};
+
 struct WeaponFinalAddBaseTerms {
     bool management_hole_gate_nonzero = false;
     float add_hole_base_attack = 0.0f;
@@ -93,11 +124,16 @@ float resolve_attack(const State& player, const AttackTerms& terms) noexcept;
 float resolve_damage_absorb(
         const State& player, const DamageAbsorbTerms& terms) noexcept;
 
+// Mirrors MEPlayer::getMaxHealth(). Native manager lookups and the type-6
+// mercenary map scan are supplied as decoded terms; the int cache write and
+// returned float conversion match MEPlayer +0x11c.
+float resolve_max_health(State* player, const MaxHealthTerms& terms) noexcept;
+
 // MEPlayer::setEquipAddAttack() writes the argument to +0x114.
 void set_equipment_add_attack(State* state, float value) noexcept;
 
-// The setters below mirror the native fields and arithmetic. Effective max
-// health remains a separate, unrecovered calculation.
+// The setters below mirror the native fields and arithmetic. The max-health
+// getter is reconstructed separately because it also reads manager data.
 void set_equipment_add_health(State* state, float value) noexcept;
 void add_equipment_add_health(State* state, float delta) noexcept;
 void set_equipment_add_damage_absorb(State* state, float value) noexcept;

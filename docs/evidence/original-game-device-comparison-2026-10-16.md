@@ -60,3 +60,13 @@ opened the existing save-selection screen. It shows Dawn Lv.1, Time 00:00,
 The one-frame capture is
 `/tmp/nevergone-original-runtime-after-tap-20261017/screen.png`, SHA-256
 `d265d6c9ff186277795bd31bf97bdeb3da84d4df967d738ef88e66d44155e62b`.
+
+## 2026-10-17 latest debug build install
+
+After rebuilding with the `MEPlayer::getMaxHealth()` contract, the current
+debug APK (`8,946,600` bytes; SHA-256
+`b6ae72decc3058a546a0c98c4b837fa93103e365e60bf6b2cf1decb598068672`) was
+installed to `org.nevergone.recomp` with replacement mode, retaining app data.
+REA pulled the installed package's complete APK set; its `base.apk` has the
+same byte size and SHA-256 as the local build. Package inspection reports
+version `0.0.1-dev`, code `1`, and update time `2026-10-17 21:51:35` local time.
