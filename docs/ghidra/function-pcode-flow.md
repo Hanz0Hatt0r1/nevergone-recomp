@@ -27,9 +27,10 @@ The project-neutral implementation and TSV row schema now live in the sibling
 `revenginstr` repository as `REVENGINSTR.GhidraFunctionPcodeFlow/1`. The runners
 for this exporter prefer that shared script when it is available and retain
 this local copy as fallback. Both implementations keep the legacy header and
-are checked for byte-for-byte parity on the same analyzed project.
-The current source hashes and the scope of the latest source-only audit are
-recorded in [exporter parity evidence](../evidence/ghidra-exporter-source-parity-audit.md).
+are checked for byte-for-byte parity on the same analyzed project. Current
+source hashes are recorded in [source audit](../evidence/ghidra-exporter-source-parity-audit.md),
+and bounded forward/reverse output parity is recorded in
+[same-program parity evidence](../evidence/ghidra-export-parity.md).
 
 For the current player-start boundary:
 
