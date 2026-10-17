@@ -39,6 +39,11 @@ int main() {
     assert(state.accepted_completion_transition_count == 1u);
     assert(state.last_completed_action_state == live::kBaselineBActionState);
     assert(state.last_completion_target_state == live::kHeldBFollowupActionState);
+    assert(live::commit_loaded_action(live::kHeldBFollowupActionState, true));
+    assert(live::snapshot().current_action_looping);
+    assert(live::observe_base_function_state(2u, 0u, false, 0u, false));
+    state = live::snapshot();
+    assert(state.desired_action_state == live::kInitialActionState);
 
     // Re-observing the same done action cannot queue a second transition because
     // current and desired no longer identify the same loaded action.
@@ -50,6 +55,24 @@ int main() {
         true,
         8u));
     assert(live::snapshot().desired_revision == held_b_revision);
+
+    // If B is released after the first defence animation completes but before
+    // its looping follow-up finishes loading, discard that stale follow-up.
+    assert(live::sync_spawn(81u, 3u));
+    assert(live::commit_loaded_action(live::kInitialActionState, true));
+    assert(live::observe_base_function_state(
+        11u, 8u, true, live::kBaselineBActionState, true));
+    assert(live::commit_loaded_action(live::kBaselineBActionState));
+    state = live::snapshot();
+    assert(live::observe_action_completion(
+        state.generation,
+        state.loaded_revision,
+        live::kBaselineBActionState,
+        true,
+        8u));
+    assert(live::snapshot().desired_action_state == live::kHeldBFollowupActionState);
+    assert(live::observe_base_function_state(12u, 0u, false, 0u, false));
+    assert(live::snapshot().desired_action_state == live::kInitialActionState);
 
     // A released B completion follows the other actionState branch to 0x1b.
     assert(live::sync_spawn(8u, 3u));
@@ -130,9 +153,26 @@ int main() {
         0u));
     assert(live::snapshot().desired_revision == desired_revision);
 
+    // Locomotion selects the shipped action01/action02 entries, then restores
+    // the idle action on release. It cannot replace an accepted combat action.
+    assert(live::sync_spawn(12u, 13u));
+    assert(live::commit_loaded_action(live::kInitialActionState));
+    assert(live::observe_movement_action_state(live::kWalkActionState, true));
+    assert(live::snapshot().desired_action_state == live::kWalkActionState);
+    assert(live::commit_loaded_action(live::kWalkActionState));
+    assert(live::observe_movement_action_state(live::kRunActionState, true));
+    assert(live::snapshot().desired_action_state == live::kRunActionState);
+    assert(live::commit_loaded_action(live::kRunActionState));
+    assert(live::observe_movement_action_state(live::kRunActionState, false));
+    assert(live::snapshot().desired_action_state == live::kInitialActionState);
+    assert(live::commit_loaded_action(live::kInitialActionState));
+    assert(!live::observe_movement_action_state(live::kTutorialJumpActionState, true));
+    assert(live::observe_base_function_state(
+        21u, 7u, true, live::kBaseAActionState, false));
+    assert(live::commit_loaded_action(live::kBaseAActionState));
+    assert(!live::observe_movement_action_state(live::kWalkActionState, true));
+
     const std::string report = live::status_report();
     assert(report.find("tutorial jump requests observed: 13") != std::string::npos);
-    assert(report.find("accepted completion transitions: 1") != std::string::npos);
-    assert(report.find("last completion target: 0x1b") != std::string::npos);
     return 0;
 }

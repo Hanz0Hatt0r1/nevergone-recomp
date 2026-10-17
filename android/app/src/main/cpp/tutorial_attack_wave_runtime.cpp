@@ -153,6 +153,21 @@ bool Runtime::apply_damage(
     return applied;
 }
 
+enemy_health_state::OnlineHealthUpdateResult Runtime::apply_online_health_update(
+        std::size_t slot,
+        int update_type,
+        int value,
+        std::uint64_t expected_wave_generation) {
+    if (wave_completed_ || !wave_started_ ||
+        expected_wave_generation != wave_generation_) {
+        return {};
+    }
+    auto result = roster_.apply_online_health_update(
+            slot, update_type, value, expected_wave_generation);
+    if (result.accepted) ++generation_;
+    return result;
+}
+
 bool Runtime::set_dead(std::size_t slot, std::uint64_t expected_wave_generation) {
     if (wave_completed_ || !wave_started_ ||
             expected_wave_generation != wave_generation_) {
@@ -228,6 +243,7 @@ std::string Runtime::status_report() const {
     out << "planned enemies: " << state.roster.planned_count << "\n";
     out << "materialized enemies: " << state.roster.materialized_count << "\n";
     out << "dead enemies: " << state.roster.dead_count << "\n";
+    out << "low-health enemies: " << state.roster.low_health_count << "\n";
     out << "unresolved health: " << state.roster.unresolved_health_count << "\n";
     return out.str();
 }

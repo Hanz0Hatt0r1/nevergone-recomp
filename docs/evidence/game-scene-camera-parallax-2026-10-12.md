@@ -78,4 +78,10 @@ The camera displacement is added to both the retained initial camera center X an
 
 The project-owned renderer now retains each layer camera factor in its sprite command and, before inserting the BattleManager/player branch, applies the flattened static-world camera transform. The player receives the complete `-cameraEyeX` world translation and the joystick is appended afterward without camera translation.
 
-This patch intentionally reconstructs the initial `loadingTex()` camera position plus its class-layer parallax composition. It does **not** yet make the camera follow later player movement or reproduce queued `MyCameraMove`/zoom/event camera actions. Those require a separate evidence slice rather than extrapolating the initial formula.
+## Live horizontal tracking
+
+The original `GameScene::tick(float)` calls `updateCameraTrack(float)` and then `updatePlayerPos()`. `updatePlayerPos()` delegates movement to `updatePrePlayerPos(MEPlayer*)`, which calculates the joystick displacement, applies collision and scene-border constraints, updates the player's position, and conditionally updates the camera's center and eye. The movement path uses the visible-width half point and a `0.12 * visibleWidth` margin, with additional state and scene-edge gates. Queued `MyCameraMove` actions are handled separately by `cameraTrackMove()`.
+
+When `updateCameraTrack()` observes a changed eye X, it forwards that coordinate to all 11 recovered class layers. This is what keeps foreground/background parallax synchronized with the camera. The project renderer applies the equivalent flattened transforms to the serialized world, enemy actors, and player; the joystick remains in screen space.
+
+The first live-follow implementation derives the horizontal eye from the current player world X (`spawn.player_x + motion.offset_x`) using the recovered `loadingTex()` focus point at `0.5 + 0.12` of the design width and the same scene-extent clamp. This makes ordinary rightward movement scroll the world after the player reaches that focus point. It does not yet model the original `updatePrePlayerPos()` state gates, its full dead-zone behavior while moving left, or queued camera actions/zoom. Those remain separate reconstruction work.

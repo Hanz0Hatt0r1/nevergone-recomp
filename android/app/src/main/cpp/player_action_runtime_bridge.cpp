@@ -174,10 +174,11 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeDesiredPlayerActionSta
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeCommitLoadedPlayerActionState(
-        JNIEnv*, jclass, jint action_state) {
+        JNIEnv*, jclass, jint action_state, jboolean looping) {
     if (action_state < 0) return JNI_FALSE;
     const std::uint32_t committed_state = static_cast<std::uint32_t>(action_state);
-    if (!nevergone::meplayer_live_action_state::commit_loaded_action(committed_state)) {
+    if (!nevergone::meplayer_live_action_state::commit_loaded_action(
+            committed_state, looping == JNI_TRUE)) {
         return JNI_FALSE;
     }
 

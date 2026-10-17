@@ -37,4 +37,23 @@ The recomp currently restores only the confirmed base scene:
 
 No original image or audio bytes are stored in the repository.
 
+## Coffin reveal
+
+`Singleselechero.plist/png` also supplies the coffin interior, door, door trim,
+and the standing hero plus its grey and glow layers. The runtime extracts these
+frames during the existing atlas load and draws them inside the recovered
+274x514 coffin window at `(287, 320)` on the 1136x640 design canvas.
+
+The initial door stays closed during the recovered 84-tick (2.4 second)
+carousel. `OpenTheDoor` then supplies a 0.2 second lead-in, 0.3 second pause,
+2 second eased movement, and 0.69 seconds of final movement. The compositor
+uses that schedule to move the selected door left through the coffin clip,
+fade the grey hero layer, and pulse the existing chest-glow frame. Career
+changes use the recovered 95-tick closing segment, hold the door shut through
+the existing 179/231-tick carousel deadline, then run the same opening motion.
+The target points for the original `CCMoveTo` calls are not fully recovered, so
+the slide distance remains an estimate sized to clear the coffin window; the
+direction, layer order, clip bounds, hero frames, and timing come from the
+shipped scene.
+
 The vine stack is intentionally deferred to the next visual increment. `xrtengman01.png` is a rotated TexturePacker frame; the runtime now has a separately regression-tested rotated-frame transform, so the next step can restore all four vines while preserving the recovered insertion order and validating their exact placement independently from this base-scene change.

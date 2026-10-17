@@ -52,6 +52,11 @@ public:
     // was materialized. A slot index alone is not stable across tutorial waves.
     bool apply_damage(
         std::size_t slot, float damage, std::uint64_t expected_wave_generation);
+    enemy_health_state::OnlineHealthUpdateResult apply_online_health_update(
+        std::size_t slot,
+        int update_type,
+        int value,
+        std::uint64_t expected_wave_generation);
     bool set_dead(std::size_t slot, std::uint64_t expected_wave_generation);
     bool set_enemy_state(
         std::size_t slot, int enemy_state, std::uint64_t expected_wave_generation);

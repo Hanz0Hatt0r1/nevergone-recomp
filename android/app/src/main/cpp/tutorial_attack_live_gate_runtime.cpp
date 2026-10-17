@@ -75,6 +75,16 @@ bool live_apply_damage(
     return g_live_gate.apply_damage(slot, damage, expected_wave_generation);
 }
 
+enemy_health_state::OnlineHealthUpdateResult live_apply_online_health_update(
+        std::size_t slot,
+        int update_type,
+        int value,
+        std::uint64_t expected_wave_generation) {
+    std::lock_guard<std::mutex> lock(g_live_mutex);
+    return g_live_gate.apply_online_health_update(
+            slot, update_type, value, expected_wave_generation);
+}
+
 bool live_set_dead(std::size_t slot, std::uint64_t expected_wave_generation) {
     std::lock_guard<std::mutex> lock(g_live_mutex);
     return g_live_gate.set_dead(slot, expected_wave_generation);
@@ -95,6 +105,41 @@ bool live_set_force_action_state_no_dead(
     std::lock_guard<std::mutex> lock(g_live_mutex);
     return g_live_gate.set_force_action_state_no_dead(
         slot, enabled, expected_wave_generation);
+}
+
+std::optional<float> live_resolve_input_attack_value(
+        std::size_t slot,
+        std::int32_t current_frame,
+        const enemy_actions_wbg_document::Document& action,
+        std::uint64_t expected_wave_generation) {
+    std::lock_guard<std::mutex> lock(g_live_mutex);
+    return g_live_gate.resolve_input_attack_value(
+        slot, current_frame, action, expected_wave_generation);
+}
+
+std::optional<enemy_attack_value_contract::CombatFrameValues> live_resolve_combat_frame(
+        std::size_t slot,
+        std::int32_t current_frame,
+        const enemy_actions_wbg_document::Document& action,
+        std::uint64_t expected_wave_generation) {
+    std::lock_guard<std::mutex> lock(g_live_mutex);
+    return g_live_gate.resolve_combat_frame(
+        slot, current_frame, action, expected_wave_generation);
+}
+
+std::optional<enemy_hitpoint_contract::HitPoint> live_resolve_hitpoint(
+        std::size_t slot,
+        std::int32_t current_frame,
+        std::int32_t frame_ordinal,
+        const enemy_actions_wbg_document::Document& action,
+        std::optional<enemy_hitpoint_contract::Point> sprite_bounds_origin,
+        float enemy_offset_118,
+        float enemy_offset_284,
+        std::uint64_t expected_wave_generation) {
+    std::lock_guard<std::mutex> lock(g_live_mutex);
+    return g_live_gate.resolve_hitpoint(
+        slot, current_frame, frame_ordinal, action, sprite_bounds_origin,
+        enemy_offset_118, enemy_offset_284, expected_wave_generation);
 }
 
 Snapshot live_snapshot() {

@@ -173,5 +173,30 @@ input behind the overlay.
 The runtime diagnostics now retain overlay asset readiness, imported pixel
 sizes, draw attempts/frames, Continue captures/taps, and successful overlay
 completions. The remaining fidelity boundary is the set of additional
-localized keyboard labels, original fixed-button chrome/hit area, the recovered
-0.2-second LoadingLayer fade, and the subsequent Dialogue presentation.
+localized keyboard labels, original fixed-button chrome/hit area, and the
+recovered 0.2-second LoadingLayer fade. The post-lesson Dialogue uses its own
+runtime, which hands the scene to the interactive prompts below.
+
+## Interactive lesson prompts
+
+After the post-lesson dialogue completes, the same compositor now draws the
+active lesson prompt over the live controls. `TutorialLessonOverlayAssetLoader`
+reads the active `dialogue_text_03` through `dialogue_text_11` record from the
+user-imported plist, resolves its `text_title` and `text_01` localization keys
+through the imported login CSV, and rasterizes the result locally. No tutorial
+copy or imported image bytes are stored in the repository.
+
+The compositor uses the imported `lesson_board.png` and `lesson_title.png`
+textures and the Arial 25 title / Arial 20 body sizes recovered from
+`LessonLayer::showDialogue()`. The panel is positioned using its recovered
+visible-size offsets; it is submitted after the game controls and only while
+the matching tutorial step is active. This restores the changing Run, Jump,
+Attack, Block, and later lesson text panels.
+
+`LessonLayer::callback1()` also creates step-specific control cues. The overlay
+now draws the imported touch, ring, hand, and A/B/C highlight sprites at the
+recovered joystick and action-button centers. The Execution cue marks the A-to-C
+swipe path. The hand currently uses a static frame; the repeat timing and frame
+alternation remain to be reproduced. The S2 item-slot cue is confirmed in the
+callback, but its exact position is unresolved. The separate player status HUD
+remains visible fidelity work.

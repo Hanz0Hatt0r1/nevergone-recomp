@@ -119,10 +119,12 @@ loader:
    advance.
 
 Autoplay uses the project fixed 35 Hz game clock and each imported line's
-`appearTime + showDelayTime`. Root fade-in/fade-out values are applied to lines
-whose imported flags request them. The first functional implementation renders
-complete localized line text rather than reproducing the original progressive
-typewriter reveal; exact glyph-by-glyph timing remains a visual-fidelity task.
+`appearTime + showDelayTime`. The localized content bitmap keeps a per-glyph
+reveal rank derived from Android's wrapped text layout. During `appearTime`, the
+renderer reveals those glyphs in Unicode code-point order; `showDelayTime` then
+holds the complete line before advancing. Root fade-in/fade-out values are
+applied to lines whose imported flags request them. Diagnostics report visible
+and total code points for the active line.
 
 After the third line the dialogue runtime retains `lesson-interlude` as its
 fine-grained stage, but the Android frame integration immediately publishes the

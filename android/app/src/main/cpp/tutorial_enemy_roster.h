@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "enemy_physical_state.h"
 #include "enemy_health_state.h"
 #include "tutorial_enemy_spawn_plan.h"
 
@@ -17,9 +18,11 @@ using BaseHealthResolver = bool (*)(
 struct EnemySlot {
     tutorial_enemy_spawn_plan::EnemyRequest request{};
     enemy_health_state::State health{};
+    enemy_physical_state::State physical{};
     bool planned = false;
     bool due = false;
     bool materialized = false;
+    bool physical_configured = false;
 };
 
 struct Snapshot {
@@ -30,6 +33,7 @@ struct Snapshot {
     std::size_t due_count = 0;
     std::size_t materialized_count = 0;
     std::size_t dead_count = 0;
+    std::size_t low_health_count = 0;
     std::size_t unresolved_health_count = 0;
     float elapsed_seconds = 0.0f;
     std::uint64_t generation = 0;
@@ -65,6 +69,27 @@ public:
     // All mutations must carry the wave generation captured at begin().
     // Late EnemyObject callbacks from an earlier wave are rejected.
     bool apply_damage(std::size_t slot, float damage, std::uint64_t expected_generation);
+    enemy_health_state::OnlineHealthUpdateResult apply_online_health_update(
+            std::size_t slot,
+            int update_type,
+            int value,
+            std::uint64_t expected_generation);
+    bool configure_physical_state(
+            std::size_t slot,
+            const enemy_physical_state::State& physical,
+            std::uint64_t expected_generation);
+    bool initialize_physical_state(
+            std::size_t slot,
+            const enemy_physical_state::Config& physical,
+            int duration,
+            std::uint64_t expected_generation);
+    bool advance_physical_state(
+            std::size_t slot,
+            float damage,
+            std::uint64_t expected_generation);
+    bool next_physical_state(
+            std::size_t slot,
+            std::uint64_t expected_generation);
     bool set_dead(std::size_t slot, std::uint64_t expected_generation);
     bool set_enemy_state(std::size_t slot, int enemy_state, std::uint64_t expected_generation);
     bool set_force_action_state_no_dead(

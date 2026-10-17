@@ -79,8 +79,14 @@ int main() {
     second_frame.current_frame_1a4 = 1;
     second_frame.previous_frame_1a8 = 0;
     const auto live = game_scene_player_render_queue::with_live_player(
-            scene, spawn, &live_document, second_frame);
+            scene, spawn, &live_document, second_frame, 0.0f, 1, 1);
     assert(live.sprites.size() == 3u);
+    auto live_requests = game_scene_direct_asset_requests::build(live);
+    assert(live_requests.requests[0].player_career == 1);
+    assert(live_requests.requests[0].player_clothes_id == 1);
+    auto changed_clothes = live;
+    changed_clothes.sprites[1].player_clothes_id = 2;
+    assert(game_scene_direct_asset_requests::build(changed_clothes).revision != live_requests.revision);
     assert(live.sprites[1].resource.resource_name == "player_002.png");
     assert(live.sprites[1].player_body_atlas_plist.has_value());
     assert(*live.sprites[1].player_body_atlas_plist == "p01_03_default.plist");

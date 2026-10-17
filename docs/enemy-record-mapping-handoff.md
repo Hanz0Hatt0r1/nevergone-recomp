@@ -27,6 +27,16 @@ base_health_field = second_i32
 review_status     = reviewed
 ```
 
+The combat-value investigation also proves that
+`EnemyObject::loadEnemyObjectFile()` reads `GameLevelsEnemyData +0x20`, converts
+it with `VCVT.U32.F32`, and stores it at `EnemyObject +0x2bc`. This value is
+consumed by `EnemyObject::inputAtkValue()` with the current
+`EnemyActionsSystem::DamageFactor()`. The raw mapping is
+`EnemyRecord.first_float -> GameLevelsEnemyData +0x20`. The separate
+`resolve_input_value_2bc()` follows the reviewed identity mapping to one unique
+record and stores the converted combat input in each tutorial actor binding.
+This float remains separate from identity and base-health field selection.
+
 The live tutorial Attack gate installs this reviewed mapping independently from
 its player-facing and scene-limit providers.
 
@@ -44,7 +54,8 @@ Thumb signatures to match.
 ## Runtime guard
 
 `game_levels_enemy_record_mapping` still exposes only the seven integer slots
-from the recovered record; the intervening float cannot accidentally become an
+for identity and base-health selection. The intervening float is resolved
+through its separate reviewed combat consumer and cannot be selected as an
 identity or health field.
 
 A mapping is usable only when:

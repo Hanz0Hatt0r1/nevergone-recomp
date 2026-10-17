@@ -1,11 +1,19 @@
 #include "game_scene_player_joystick_input.h"
 
+#include <algorithm>
 #include <cmath>
+#include <atomic>
+#include <deque>
+#include <iomanip>
 #include <mutex>
 #include <sstream>
+#include <utility>
 
+#include "controls_function_state_runtime.h"
 #include "game_clock.h"
 #include "game_scene_player_motion_state.h"
+#include "minimal_runtime_save_runtime.h"
+#include "meplayer_live_action_state.h"
 #include "player_control_runtime_state.h"
 #include "player_direction_combo_contract.h"
 #include "player_motion_contract.h"
@@ -24,6 +32,16 @@ constexpr int kActionPointerUp = 6;
 
 std::mutex g_mutex;
 Snapshot g_snapshot;
+std::mutex g_trace_mutex;
+std::deque<std::string> g_trace;
+std::atomic<std::uint64_t> g_trace_frame{0};
+std::uint64_t g_trace_sequence = 0;
+std::size_t g_post_input_updates = 0;
+bool g_capture_active = false;
+bool g_capture_frozen = false;
+constexpr std::size_t kMaxTraceRows = 512;
+constexpr std::size_t kPreInputRows = 128;
+constexpr std::size_t kPostInputRows = kMaxTraceRows - kPreInputRows;
 
 bool finite(float value) {
     return std::isfinite(value);
@@ -59,15 +77,36 @@ void release_capture_locked(std::uint64_t game_tick) {
     }
     g_snapshot.captured = false;
     g_snapshot.pointer_id = -1;
-    g_snapshot.design_x = kCenterX;
-    g_snapshot.design_y = kCenterY;
+    g_snapshot.design_x = g_snapshot.center_x;
+    g_snapshot.design_y = g_snapshot.center_y;
     g_snapshot.power = 0.0f;
     g_snapshot.angle_degrees = 0.0f;
 }
 
+void push_trace_row(std::string row) {
+    g_trace.push_back(std::move(row));
+    if (g_trace.size() > kMaxTraceRows) g_trace.pop_front();
+}
+
+void keep_pre_input_window() {
+    std::size_t updates = 0;
+    for (auto it = g_trace.rbegin(); it != g_trace.rend(); ++it) {
+        if (it->find(" U ") != std::string::npos) ++updates;
+        if (updates > kPreInputRows) {
+            g_trace.erase(g_trace.begin(), it.base());
+            break;
+        }
+    }
+    g_trace.erase(
+        std::remove_if(g_trace.begin(), g_trace.end(), [](const std::string& row) {
+            return row.find(" I ") != std::string::npos;
+        }),
+        g_trace.end());
+}
+
 bool update_sample_locked(float design_x, float design_y, bool count_move) {
-    const float local_x = design_x - kCenterX;
-    const float local_y = design_y - kCenterY;
+    const float local_x = design_x - g_snapshot.center_x;
+    const float local_y = design_y - g_snapshot.center_y;
     const float length = std::sqrt(local_x * local_x + local_y * local_y);
     if (!finite(length) || length > kUpdateRadius) return false;
 
@@ -144,6 +183,77 @@ void update_horizontal_combo_locked(float angle_degrees, std::uint64_t game_tick
 
 }  // namespace
 
+void record_frame_sample(bool controls_allowed) {
+    if (!controls_allowed) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(g_trace_mutex);
+    const std::uint64_t render_frame =
+        g_trace_frame.fetch_add(1, std::memory_order_relaxed) + 1;
+    if (g_capture_frozen) return;
+    if (g_capture_active && g_post_input_updates >= kPostInputRows) {
+        g_capture_active = false;
+        g_capture_frozen = true;
+        return;
+    }
+    const std::uint64_t game_tick = game_clock::tick_count();
+    const auto motion = game_scene_player_motion_state::snapshot();
+    const Snapshot joystick = snapshot();
+    const auto control = player_control_runtime_state::snapshot();
+    const auto function = controls_function_state_runtime::snapshot();
+    const auto lesson = tutorial_gameplay_state::snapshot();
+
+    std::ostringstream row;
+    row << "U " << render_frame << ' ' << game_tick << ' '
+        << 1 << ' ' << (joystick.captured ? 1 : 0) << ' '
+        << joystick.pointer_id << " 0x" << std::hex << joystick.direction_combo_state
+        << ' ' << (joystick.direction_combo_released ? 1 : 0)
+        << " 0x" << joystick.movement_action_state << std::dec << ' '
+        << (control.primary_state.has_value()
+                ? static_cast<int>(*control.primary_state) : 0)
+        << ' ' << (control.flip_x ? 1 : 0) << " 0x" << std::hex
+        << function.function_state << std::dec << ' '
+        << motion.applied_steps << ' ' << std::setprecision(7)
+        << motion.offset_x << ' ' << motion.offset_y << ' '
+        << tutorial_gameplay_state::step_name(lesson.step);
+    push_trace_row(std::to_string(++g_trace_sequence) + " " + row.str());
+    if (g_capture_active) {
+        ++g_post_input_updates;
+        if (g_post_input_updates >= kPostInputRows) {
+            g_capture_active = false;
+            g_capture_frozen = true;
+        }
+    } else {
+        std::size_t updates = 0;
+        for (const auto& trace_row : g_trace) {
+            if (trace_row.find(" U ") != std::string::npos) ++updates;
+        }
+        while (updates > kPreInputRows && !g_trace.empty()) {
+            const bool was_update = g_trace.front().find(" U ") != std::string::npos;
+            g_trace.pop_front();
+            if (was_update) --updates;
+        }
+    }
+}
+
+void record_input_event(int action, int pointer_id, float surface_x, float surface_y) {
+    std::lock_guard<std::mutex> lock(g_trace_mutex);
+    if (!g_capture_active) keep_pre_input_window();
+    std::ostringstream row;
+    row << "I " << g_trace_frame.load(std::memory_order_relaxed) << ' '
+        << game_clock::tick_count() << ' '
+        << action << ' ' << pointer_id << ' ' << std::setprecision(7)
+        << surface_x << ' ' << surface_y;
+
+    push_trace_row(std::to_string(++g_trace_sequence) + " " + row.str());
+    if (action == kActionDown || action == kActionUp || action == kActionMove ||
+            action == kActionCancel) {
+        g_capture_active = true;
+        g_capture_frozen = false;
+        g_post_input_updates = 0;
+    }
+}
+
 bool surface_to_design(
         int surface_width,
         int surface_height,
@@ -168,6 +278,17 @@ bool surface_to_design(
     return finite(*design_x) && finite(*design_y);
 }
 
+bool set_center(float design_x, float design_y) {
+    if (!finite(design_x) || !finite(design_y)) return false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_snapshot.captured) release_capture_locked(game_clock::tick_count());
+    g_snapshot.center_x = design_x;
+    g_snapshot.center_y = design_y;
+    g_snapshot.design_x = design_x;
+    g_snapshot.design_y = design_y;
+    return true;
+}
+
 bool on_touch(
         int action,
         int pointer_id,
@@ -190,8 +311,8 @@ bool on_touch(
 
     if (action == kActionDown || action == kActionPointerDown) {
         if (g_snapshot.captured || !mapped) return false;
-        const float dx = design_x - kCenterX;
-        const float dy = design_y - kCenterY;
+        const float dx = design_x - g_snapshot.center_x;
+        const float dy = design_y - g_snapshot.center_y;
         const float distance = std::sqrt(dx * dx + dy * dy);
         if (!finite(distance) || distance >= kHitRadius) return false;
         g_snapshot.captured = true;
@@ -232,8 +353,8 @@ void tick() {
         if (captured) {
             power = g_snapshot.power;
             angle = g_snapshot.angle_degrees;
-            const float local_x = g_snapshot.design_x - kCenterX;
-            const float local_y = g_snapshot.design_y - kCenterY;
+            const float local_x = g_snapshot.design_x - g_snapshot.center_x;
+            const float local_y = g_snapshot.design_y - g_snapshot.center_y;
             const float length = std::sqrt(local_x * local_x + local_y * local_y);
             if (finite(length) && length > 0.0f) {
                 direction_x = local_x / length;
@@ -269,6 +390,16 @@ void tick() {
         // Runtime capture proves Controls +0x168 is the normalized direction and
         // +0x160 is the separate activity sample used by the 0.05 threshold.
         active = player_control_runtime_state::apply_horizontal_sample(power, angle);
+        if (active) {
+            (void)meplayer_live_action_state::observe_movement_action_state(
+                movement_action_state, true);
+        } else if (power <= 0.05f) {
+            (void)meplayer_live_action_state::observe_movement_action_state(
+                player_motion_contract::kNormalMoveActionState, false);
+        }
+    } else {
+        (void)meplayer_live_action_state::observe_movement_action_state(
+            player_motion_contract::kNormalMoveActionState, false);
     }
     (void)game_scene_player_motion_state::advance_sample(
             game_tick,
@@ -288,9 +419,15 @@ void reset() {
         std::lock_guard<std::mutex> lock(g_mutex);
         const auto accepted_begins = g_snapshot.accepted_begins;
         const auto accepted_moves = g_snapshot.accepted_moves;
+        const float center_x = g_snapshot.center_x;
+        const float center_y = g_snapshot.center_y;
         g_snapshot = {};
         g_snapshot.accepted_begins = accepted_begins;
         g_snapshot.accepted_moves = accepted_moves;
+        g_snapshot.center_x = center_x;
+        g_snapshot.center_y = center_y;
+        g_snapshot.design_x = center_x;
+        g_snapshot.design_y = center_y;
     }
     player_control_runtime_state::reset();
     game_scene_player_motion_state::reset();
@@ -317,6 +454,13 @@ std::string status_report() {
     out << "movement action state: 0x" << std::hex << state.movement_action_state << std::dec << "\n";
     out << "fast reactivations: " << state.fast_reactivation_count << "\n";
     out << game_scene_player_motion_state::status_report();
+    {
+        std::lock_guard<std::mutex> lock(g_trace_mutex);
+        out << "Player tick trace (seq kind frame game_tick; U then controls_allowed captured pointer combo released move_action primary flip function steps x y lesson; I then action pointer x y)\n";
+        out << "retained rows: " << g_trace.size() << "\n";
+        for (const auto& row : g_trace) out << row << "\n";
+    }
+    out << nevergone::minimal_runtime_save_runtime::status_report();
     return out.str();
 }
 

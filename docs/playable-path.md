@@ -35,24 +35,20 @@ A checkpoint counts as complete only when every preceding checkpoint is also com
 | P4 | ChooseHero | Role data renders, selection/focus/profile state is usable, and role choice reaches reconstructed login Lua. | **Done** for the tracked existing-role route — issue #145 closed |
 | P5 | Enter-game transition | Confirmed role selection deterministically enters the next offline route without original native code. | **Done** for the tracked existing-role route — issue #145 closed |
 | P6 | GameLevels load | Required scene data is found and parsed through all fields needed by the first offline scene-construction boundary. | **Done** — tracked issue #146 closed |
-| P7 | Scene instantiated | A project-owned scene graph is built and rendered from imported original data. | **In progress** — renderer/import/capture path exists; contiguous retained real-device proof still required |
-| P8 | Player spawned | Player entity/visual state appears at an evidence-backed spawn point. | **In progress** — spawn/frame/render implementation exists; contiguous real-device proof still required |
-| P9 | Input visible | User input changes player state visibly in the first offline scene. | **In progress** — joystick/facing/dock implementation exists; contiguous real-device proof still required |
-| P10 | Minimal persistence | Save -> process restart -> restore works for the minimal vertical slice. | **Implemented, proof pending** — bounded sidecar/autosave/restart-restore runtime and host regression exist; contiguous real-device restart/restore evidence still required |
+| P7 | Scene instantiated | A project-owned scene graph is built and rendered from imported original data. | **Done for the fresh-role tutorial route** — integrated Redmi Note 8 Pro capture on 2026-10-16 passed with 9 staged requests, 9 drawn sprites and no hidden slots; see `docs/evidence/player-clothes-frame-lookup-2026-10-16.md` |
+| P8 | Player spawned | Player entity/visual state appears at an evidence-backed spawn point. | **Done** — the player body resolves and renders at `(430, 271)` in the contiguous fresh-role scene; see `docs/evidence/player-clothes-frame-lookup-2026-10-16.md` |
+| P9 | Input visible | User input changes player state visibly in the first offline scene. | **Done** — an Android joystick gesture visibly moved the player right in that scene; device diagnostics recorded 2 accepted begins and 73 moves; see `docs/evidence/player-clothes-frame-lookup-2026-10-16.md` |
+| P10 | Minimal persistence | Save -> process restart -> restore works for the minimal vertical slice. | **Done** — the P7–P10 contiguous device harness passed; a non-zero player motion offset survived a process restart and matched the restored runtime state |
 
-The primary progress number remains the highest **contiguous** completed checkpoint. Until the P7-P9 path is accepted on a real Android device with user-owned imported data, implementation beyond P6 does not change that strict marker.
+The highest contiguous fresh-role checkpoint is P10 on the tested Android device.
 
 ## Current critical path
 
 The implementation bottleneck has moved beyond startup and core rendering infrastructure. The current critical path is:
 
-1. retain one contiguous real-device P7 capture that visibly renders the first offline scene from imported data;
-2. verify the already reconstructed player spawn/frame path in that same scene and retain P8 evidence;
-3. record one actual Android gesture producing a visible player/control state change and retain P9 evidence;
-4. run the implemented P10 sidecar flow through a real process restart and retain restored player-motion evidence;
-5. resolve the fresh-role `CreateCharacter` callback boundary only if the chosen contiguous acceptance route requires fresh-role creation;
-6. validate the structural EnemyActions/TrapActions work against genuine user-owned data and connect the minimum first combat interaction;
-7. retain API 35/36 arm64 physical-device evidence.
+1. restore the original tutorial HUD/instruction state and verify role/costume plus horizontal placement against the clean original-game device capture; the clean player spawn's vertical placement now matches within a few design units;
+2. validate the structural EnemyActions/TrapActions work against genuine user-owned data and connect the minimum first combat interaction;
+3. retain API 35/36 arm64 physical-device evidence.
 
 SceneActions work may proceed in parallel where it directly improves the first playable scene, but unrecovered spatial trigger and global PRNG behavior must remain explicit evidence boundaries rather than guessed runtime logic.
 

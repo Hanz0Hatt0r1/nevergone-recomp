@@ -18,7 +18,9 @@ constexpr const char* kActiveDockImportedRelativePath = "controls_ui/Dock_s.png"
 // restores Dock.png. Both are centered children of the dock container.
 inline game_scene_render_queue::Queue with_dock(
         game_scene_render_queue::Queue queue,
-        bool active) {
+        bool active,
+        float center_x = game_scene_player_joystick_input::kCenterX,
+        float center_y = game_scene_player_joystick_input::kCenterY) {
     game_scene_render_queue::SpriteCommand dock;
     // The controls layer is a screen-space GameScene UI overlay, not one of the
     // serialized world layers. Appending it makes the same ordering explicit in
@@ -31,8 +33,8 @@ inline game_scene_render_queue::Queue with_dock(
     dock.direct_asset_relative_path = active
         ? kActiveDockImportedRelativePath
         : kDockImportedRelativePath;
-    dock.transform.position_x = game_scene_player_joystick_input::kCenterX;
-    dock.transform.position_y = game_scene_player_joystick_input::kCenterY;
+    dock.transform.position_x = center_x;
+    dock.transform.position_y = center_y;
     dock.transform.rotation = 0.0f;
     dock.transform.scale_x = 1.0f;
     dock.transform.scale_y = 1.0f;
@@ -42,8 +44,8 @@ inline game_scene_render_queue::Queue with_dock(
 }
 
 inline game_scene_render_queue::Queue current(game_scene_render_queue::Queue queue) {
-    return with_dock(std::move(queue),
-                     game_scene_player_joystick_input::snapshot().captured);
+    const auto input = game_scene_player_joystick_input::snapshot();
+    return with_dock(std::move(queue), input.captured, input.center_x, input.center_y);
 }
 
 }  // namespace nevergone::game_scene_player_joystick_render_queue

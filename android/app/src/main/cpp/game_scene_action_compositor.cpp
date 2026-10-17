@@ -25,6 +25,7 @@ struct SpriteTexture {
 
 std::mutex g_mutex;
 std::array<std::array<SpriteTexture, 2>, game_scene_action_layout::kButtonCount> g_textures{};
+std::array<SpriteTexture, game_scene_action_layout::kQuickUseButtonCount> g_quick_use_textures{};
 GLuint g_program = 0;
 GLint g_sampler = -1;
 int g_surface_width = 0;
@@ -100,42 +101,16 @@ void destroy_all_locked() {
         destroy_texture(&pair[0]);
         destroy_texture(&pair[1]);
     }
+    for (auto& texture : g_quick_use_textures) destroy_texture(&texture);
 }
 
-bool control_pressed(
-        const game_scene_action_surface_input::Snapshot& input,
-        int slot) {
-    if (slot < 0 || slot >= game_scene_action_layout::kButtonCount) return false;
-    return input.pressed[static_cast<std::size_t>(slot)];
-}
-
-}  // namespace
-
-void on_surface_created() {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    destroy_all_locked();
-    if (g_program != 0) glDeleteProgram(g_program);
-    g_program = build_program();
-    g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
-    g_upload_count = 0;
-    g_draw_count = 0;
-}
-
-void on_surface_changed(int width, int height) {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    g_surface_width = width;
-    g_surface_height = height;
-}
-
-bool upload_sprite(
-        int slot,
-        bool selected,
+bool upload_texture(
+        SpriteTexture* target,
         int width,
         int height,
         const std::uint32_t* argb_pixels,
         std::size_t pixel_count) {
-    if (slot < 0 || slot >= game_scene_action_layout::kButtonCount ||
-        width <= 0 || height <= 0 || width > 4096 || height > 4096 ||
+    if (target == nullptr || width <= 0 || height <= 0 || width > 4096 || height > 4096 ||
         argb_pixels == nullptr ||
         pixel_count != static_cast<std::size_t>(width) * static_cast<std::size_t>(height) ||
         pixel_count > 16777216u) {
@@ -171,13 +146,68 @@ bool upload_sprite(
     }
 
     std::lock_guard<std::mutex> lock(g_mutex);
-    SpriteTexture& target = g_textures[static_cast<std::size_t>(slot)][selected ? 1u : 0u];
-    destroy_texture(&target);
-    target.id = id;
-    target.width = width;
-    target.height = height;
+    destroy_texture(target);
+    target->id = id;
+    target->width = width;
+    target->height = height;
     ++g_upload_count;
     return true;
+}
+
+bool control_pressed(
+        const game_scene_action_surface_input::Snapshot& input,
+        int slot) {
+    if (slot < 0 || slot >= game_scene_action_layout::kButtonCount) return false;
+    return input.pressed[static_cast<std::size_t>(slot)];
+}
+
+}  // namespace
+
+void on_surface_created() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    destroy_all_locked();
+    if (g_program != 0) glDeleteProgram(g_program);
+    g_program = build_program();
+    g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
+    g_upload_count = 0;
+    g_draw_count = 0;
+}
+
+void on_surface_changed(int width, int height) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_surface_width = width;
+    g_surface_height = height;
+}
+
+bool upload_sprite(
+        int slot,
+        bool selected,
+        int width,
+        int height,
+        const std::uint32_t* argb_pixels,
+        std::size_t pixel_count) {
+    if (slot < 0 || slot >= game_scene_action_layout::kButtonCount) return false;
+    return upload_texture(
+        &g_textures[static_cast<std::size_t>(slot)][selected ? 1u : 0u],
+        width,
+        height,
+        argb_pixels,
+        pixel_count);
+}
+
+bool upload_quick_use_sprite(
+        int slot,
+        int width,
+        int height,
+        const std::uint32_t* argb_pixels,
+        std::size_t pixel_count) {
+    if (slot < 0 || slot >= game_scene_action_layout::kQuickUseButtonCount) return false;
+    return upload_texture(
+        &g_quick_use_textures[static_cast<std::size_t>(slot)],
+        width,
+        height,
+        argb_pixels,
+        pixel_count);
 }
 
 void clear_sprites() {
@@ -196,7 +226,6 @@ bool draw() {
         return false;
     }
 
-    const auto& descriptors = game_scene_action_layout::descriptors();
     static constexpr GLfloat kTexCoords[] = {
         0.0f, 1.0f,
         0.0f, 0.0f,
@@ -211,38 +240,39 @@ bool draw() {
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
 
+    const auto draw_texture = [&](game_scene_action_layout::Point center,
+                                  const SpriteTexture& texture) {
+        if (texture.id == 0 || texture.width <= 0 || texture.height <= 0) return false;
+        const float half_w = static_cast<float>(texture.width) * 0.5f;
+        const float half_h = static_cast<float>(texture.height) * 0.5f;
+        const GLfloat vertices[] = {
+            (center.x - half_w) / kDesignWidth * 2.0f - 1.0f,
+            (center.y - half_h) / kDesignHeight * 2.0f - 1.0f,
+            (center.x - half_w) / kDesignWidth * 2.0f - 1.0f,
+            (center.y + half_h) / kDesignHeight * 2.0f - 1.0f,
+            (center.x + half_w) / kDesignWidth * 2.0f - 1.0f,
+            (center.y - half_h) / kDesignHeight * 2.0f - 1.0f,
+            (center.x + half_w) / kDesignWidth * 2.0f - 1.0f,
+            (center.y + half_h) / kDesignHeight * 2.0f - 1.0f,
+        };
+        glBindTexture(GL_TEXTURE_2D, texture.id);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, kTexCoords);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        return true;
+    };
+
     for (int slot = 0; slot < game_scene_action_layout::kButtonCount; ++slot) {
         const bool pressed = control_pressed(input, slot);
         const SpriteTexture& selected = g_textures[static_cast<std::size_t>(slot)][1];
         const SpriteTexture& normal = g_textures[static_cast<std::size_t>(slot)][0];
         const SpriteTexture& texture = pressed && selected.id != 0 ? selected : normal;
-        if (texture.id == 0 || texture.width <= 0 || texture.height <= 0) continue;
-
-        const auto& descriptor = descriptors[static_cast<std::size_t>(slot)];
-        const float center_x = kDesignWidth - descriptor.right_inset;
-        const float center_y = descriptor.center_y;
-        const float half_w = static_cast<float>(texture.width) * 0.5f;
-        const float half_h = static_cast<float>(texture.height) * 0.5f;
-        const float left = center_x - half_w;
-        const float right = center_x + half_w;
-        const float bottom = center_y - half_h;
-        const float top = center_y + half_h;
-        const GLfloat vertices[] = {
-            left / kDesignWidth * 2.0f - 1.0f,
-            bottom / kDesignHeight * 2.0f - 1.0f,
-            left / kDesignWidth * 2.0f - 1.0f,
-            top / kDesignHeight * 2.0f - 1.0f,
-            right / kDesignWidth * 2.0f - 1.0f,
-            bottom / kDesignHeight * 2.0f - 1.0f,
-            right / kDesignWidth * 2.0f - 1.0f,
-            top / kDesignHeight * 2.0f - 1.0f,
-        };
-
-        glBindTexture(GL_TEXTURE_2D, texture.id);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, kTexCoords);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        drew = true;
+        drew = draw_texture(
+            input.positions.buttons[static_cast<std::size_t>(slot)], texture) || drew;
+    }
+    for (std::size_t slot = 0; slot < g_quick_use_textures.size(); ++slot) {
+        drew = draw_texture(input.positions.quick_use_buttons[slot],
+                            g_quick_use_textures[slot]) || drew;
     }
 
     glDisableVertexAttribArray(1);

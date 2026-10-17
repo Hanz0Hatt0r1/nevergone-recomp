@@ -103,6 +103,7 @@ final class GameSceneDirectAssetStager {
         int stagedCount = 0;
         Map<String, Bitmap> atlasBitmaps = new LinkedHashMap<>(16, 0.75f, true);
         Map<String, GameSceneAtlasFrameResolver.Prepared> playerFrameResolvers = new HashMap<>();
+        Map<String, GameSceneAtlasFrameResolver.Prepared> actionFrameResolvers = new HashMap<>();
         try {
             File canonicalRoot = assetRoot.getCanonicalFile();
             String rootPrefix = canonicalRoot.getPath() + File.separator;
@@ -114,6 +115,9 @@ final class GameSceneDirectAssetStager {
             String[] requestValues = new String[count];
             boolean[] playerRequests = new boolean[count];
             String[] playerAtlasPlists = new String[count];
+            String[] actionFrameAtlasPlists = new String[count];
+            int[] playerCareers = new int[count];
+            int[] playerClothesIds = new int[count];
             boolean needsSceneAtlases = false;
             for (int requestIndex = 0; requestIndex < count; ++requestIndex) {
                 int kind = GameSceneDirectAssetRequests.kindAt(requestIndex);
@@ -136,12 +140,19 @@ final class GameSceneDirectAssetStager {
                 spriteCommandIndices[requestIndex] = spriteCommandIndex;
                 playerRequests[requestIndex] =
                         GameSceneDirectAssetRequests.isPlayerBodyAt(requestIndex);
+                actionFrameAtlasPlists[requestIndex] =
+                        GameSceneDirectAssetRequests.actionFrameAtlasPlistAt(requestIndex);
                 if (playerRequests[requestIndex] &&
                         kind != GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME) {
                     return reject("invalid-player-request", revision, count,
                             requestIndex, kind, stagedCount);
                 }
                 if (kind == GameSceneDirectAssetRequests.KIND_SPRITE_FRAME_BY_NAME) {
+                    if (playerRequests[requestIndex] &&
+                            actionFrameAtlasPlists[requestIndex] != null) {
+                        return reject("conflicting-frame-atlas-request", revision, count,
+                                requestIndex, kind, stagedCount);
+                    }
                     if (playerRequests[requestIndex]) {
                         String playerAtlasPlist =
                                 GameSceneDirectAssetRequests.playerAtlasPlistAt(requestIndex);
@@ -150,7 +161,12 @@ final class GameSceneDirectAssetStager {
                                     requestIndex, kind, stagedCount);
                         }
                         playerAtlasPlists[requestIndex] = playerAtlasPlist;
-                    } else {
+                        playerCareers[requestIndex] =
+                                GameSceneDirectAssetRequests.nativePlayerCareerAt(requestIndex);
+                        playerClothesIds[requestIndex] =
+                                GameSceneDirectAssetRequests.nativePlayerClothesIdAt(requestIndex);
+                    } else if (actionFrameAtlasPlists[requestIndex] == null ||
+                            actionFrameAtlasPlists[requestIndex].isEmpty()) {
                         needsSceneAtlases = true;
                     }
                 }
@@ -300,11 +316,14 @@ final class GameSceneDirectAssetStager {
                 GameSceneAtlasFrameResolver.Prepared frameResolver;
                 if (playerRequests[requestIndex]) {
                     String playerAtlasPlist = playerAtlasPlists[requestIndex];
-                    frameResolver = playerFrameResolvers.get(playerAtlasPlist);
+                    String cacheKey = playerCareers[requestIndex] + ":" +
+                            playerClothesIds[requestIndex] + ":" + playerAtlasPlist;
+                    frameResolver = playerFrameResolvers.get(cacheKey);
                     if (frameResolver == null) {
                         List<GameSceneAtlasResolver.Atlas> playerAtlases =
                                 PlayerActionAtlasCacheResolver.resolve(
-                                        canonicalRoot, playerAtlasPlist);
+                                        canonicalRoot, playerAtlasPlist,
+                                        playerCareers[requestIndex], playerClothesIds[requestIndex]);
                         if (playerAtlases == null || playerAtlases.isEmpty()) {
                             return reject(
                                     "player-atlas-resolution-failed",
@@ -325,7 +344,27 @@ final class GameSceneDirectAssetStager {
                                     kind,
                                     stagedCount);
                         }
-                        playerFrameResolvers.put(playerAtlasPlist, frameResolver);
+                        playerFrameResolvers.put(cacheKey, frameResolver);
+                    }
+                } else if (actionFrameAtlasPlists[requestIndex] != null &&
+                        !actionFrameAtlasPlists[requestIndex].isEmpty()) {
+                    String actionAtlasPlist = actionFrameAtlasPlists[requestIndex];
+                    frameResolver = actionFrameResolvers.get(actionAtlasPlist);
+                    if (frameResolver == null) {
+                        List<GameSceneAtlasResolver.Atlas> actionAtlases =
+                                GameSceneAtlasResolver.resolve(
+                                        canonicalRoot, Collections.singletonList(actionAtlasPlist));
+                        if (actionAtlases == null || actionAtlases.size() != 1) {
+                            return reject("action-atlas-resolution-failed", revision, count,
+                                    requestIndex, kind, stagedCount);
+                        }
+                        frameResolver = GameSceneAtlasFrameResolver.prepare(
+                                canonicalRoot, actionAtlases);
+                        if (frameResolver == null) {
+                            return reject("frame-cache-prepare-failed", revision, count,
+                                    requestIndex, kind, stagedCount);
+                        }
+                        actionFrameResolvers.put(actionAtlasPlist, frameResolver);
                     }
                 } else {
                     frameResolver = sceneFrameResolver;
@@ -339,7 +378,10 @@ final class GameSceneDirectAssetStager {
                             kind,
                             stagedCount);
                 }
-                GameSceneAtlasFrameResolver.Frame frame = frameResolver.resolve(value);
+                GameSceneAtlasFrameResolver.Frame frame = playerRequests[requestIndex]
+                        ? PlayerActionAtlasCacheResolver.resolveFrame(
+                                frameResolver, value, playerClothesIds[requestIndex])
+                        : frameResolver.resolve(value);
                 if (frame == null) {
                     if (!playerRequests[requestIndex] && safeFrameName(value)) {
                         File fallback = new File(canonicalRoot, HIDDEN_FALLBACK_ASSET)

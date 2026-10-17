@@ -45,6 +45,7 @@ int main() {
     assert(enter.payload_generation == payload_generation);
     assert(enter.character_id == 101);
     assert(enter.career == 1);
+    assert(enter.clothes_id == 31);
     assert(peek_pending_enter_request().valid);
 
     // Changing selection invalidates the previous pending enter request.
@@ -72,6 +73,7 @@ int main() {
     assert(state.dispatched_payload_generation == payload_generation);
     assert(state.dispatched_character_id == 202);
     assert(state.dispatched_career == 2);
+    assert(state.dispatched_clothes_id == 19);
     assert(state.dispatched_character_name == "Bram");
     assert(!commit_enter_dispatch(consumed_enter));
     assert(snapshot().enter_dispatch_count == 1);
@@ -104,6 +106,12 @@ int main() {
     assert(!state.enter_dispatch_committed);
     assert(!commit_enter_dispatch(consumed_enter));
     assert(!confirm_selection().valid);
+
+    assert(request_enter_role(RoleEntry{404, "Dara", 2, 1, 3, 0}));
+    auto fresh = take_pending_enter_request();
+    assert(fresh.clothes_id == 3);
+    assert(commit_enter_dispatch(fresh));
+    assert(snapshot().dispatched_clothes_id == 3);
 
     reset();
     state = snapshot();

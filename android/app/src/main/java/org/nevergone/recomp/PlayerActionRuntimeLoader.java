@@ -8,6 +8,7 @@ final class PlayerActionRuntimeLoader {
     private static String loadedRelativePath;
     private static int loadedActionState = -1;
     private static int failedActionState = -1;
+    private static boolean loadedActionLooping;
 
     private PlayerActionRuntimeLoader() {}
 
@@ -15,7 +16,8 @@ final class PlayerActionRuntimeLoader {
     private static native int nativeCurrentOfflineCareer();
     private static native boolean nativeRefreshPlayerSpawnState();
     private static native int nativeDesiredPlayerActionState();
-    private static native boolean nativeCommitLoadedPlayerActionState(int actionState);
+    private static native boolean nativeCommitLoadedPlayerActionState(
+            int actionState, boolean looping);
     private static native boolean nativeLoadPlayerActionDocument(String relativePath);
     private static native boolean nativeLoadPlayerActionDocumentFromBundle(
             String bundleRelativePath,
@@ -28,6 +30,7 @@ final class PlayerActionRuntimeLoader {
         loadedRelativePath = null;
         loadedActionState = -1;
         failedActionState = -1;
+        loadedActionLooping = false;
         nativeResetPlayerActionDocument();
     }
 
@@ -38,11 +41,6 @@ final class PlayerActionRuntimeLoader {
             }
             return false;
         }
-
-        // Refresh from the current scene/event-port/surface every frame. The
-        // operation is bounded to the current parsed scene and preserves the
-        // original ordered overwrite behavior for multiple matching markers.
-        boolean spawnReady = nativeRefreshPlayerSpawnState();
 
         int career = nativeCurrentOfflineCareer();
         if (career < 1 || career > 5) {
@@ -57,11 +55,14 @@ final class PlayerActionRuntimeLoader {
             loadedRelativePath = null;
             loadedActionState = -1;
             failedActionState = -1;
+            loadedActionLooping = false;
             nativeResetPlayerActionDocument();
-            // reset also clears spawn/action state, so restore the same live
-            // scene before asking which MEPLAYERSTATE document is desired.
-            spawnReady = nativeRefreshPlayerSpawnState();
         }
+
+        // Refresh after a career change: resetting the action document also
+        // resets spawn/motion state, and save restoration must see that spawn.
+        // Refresh every frame to retain the current scene/port/surface marker.
+        boolean spawnReady = nativeRefreshPlayerSpawnState();
 
         int desiredActionState = nativeDesiredPlayerActionState();
         if (desiredActionState < 0) return false;
@@ -96,13 +97,15 @@ final class PlayerActionRuntimeLoader {
             loaded = nativeLoadPlayerActionDocument(resolved.actionDataRelativePath);
             retainedPath = resolved.actionDataRelativePath;
         }
-        if (!loaded || !nativeCommitLoadedPlayerActionState(desiredActionState)) {
+        if (!loaded || !nativeCommitLoadedPlayerActionState(
+                desiredActionState, resolved.looping)) {
             failedActionState = desiredActionState;
             return false;
         }
 
         loadedRelativePath = retainedPath;
         loadedActionState = desiredActionState;
+        loadedActionLooping = resolved.looping;
         failedActionState = -1;
         return spawnReady;
     }
@@ -114,6 +117,7 @@ final class PlayerActionRuntimeLoader {
         out.append("loader attempted career: ").append(attemptedCareer).append('\n');
         out.append("loader action state: ").append(loadedActionState).append('\n');
         out.append("loader failed action state: ").append(failedActionState).append('\n');
+        out.append("loader action looping: ").append(loadedActionLooping).append('\n');
         out.append("loader document retained: ")
                 .append(loadedRelativePath != null ? "yes" : "no")
                 .append('\n');

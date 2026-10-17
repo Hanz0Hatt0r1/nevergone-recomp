@@ -221,6 +221,34 @@ public final class GameSceneAtlasResolverSmoke {
         assert directDuplicateResolved.getCanonicalPath().equals(
                 directRootSprite.getCanonicalPath());
 
+        // Tutorial resources live below the recovered gamescene_ui search root.
+        // Their logical names must resolve without hard-coding that physical root.
+        File lessonImage = new File(assets,
+                "gamescene_ui/lessonsUI/keyboard_lesson.png");
+        File dialogueImage = new File(assets,
+                "gamescene_ui/Dialogue_UI/dialogue_bg.png");
+        write(lessonImage, "png");
+        write(dialogueImage, "png");
+        assert GameSceneAtlasResolver.resolveResource(
+                assets, "lessonsUI/keyboard_lesson.png").getCanonicalPath().equals(
+                lessonImage.getCanonicalPath());
+        assert GameSceneAtlasResolver.resolveResource(
+                assets, "Dialogue_UI/dialogue_bg.png").getCanonicalPath().equals(
+                dialogueImage.getCanonicalPath());
+
+        File commonButton = new File(assets,
+                "gamescene_ui/Common/btn_standard_a.png");
+        File loginThunder = new File(assets,
+                "gamescene_ui/SingleLogin_UI/L_thunder08-r.mp3");
+        write(commonButton, "png");
+        write(loginThunder, "mp3");
+        assert GameSceneAtlasResolver.resolveResource(
+                assets, "Common/btn_standard_a.png").getCanonicalPath().equals(
+                commonButton.getCanonicalPath());
+        assert GameSceneAtlasResolver.resolveResource(
+                assets, "SingleLogin_UI/L_thunder08-r.mp3").getCanonicalPath().equals(
+                loginThunder.getCanonicalPath());
+
         // Project-owned lookup stays fail-closed for missing or unsafe names.
         assert GameSceneAtlasResolver.resolveResource(assets, "missing-direct.png") == null;
         assert GameSceneAtlasResolver.resolveResource(assets, "../outside-root.png") == null;

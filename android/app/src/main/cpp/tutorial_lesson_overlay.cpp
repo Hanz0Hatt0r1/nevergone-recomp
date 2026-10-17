@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "login_localization_csv.h"
+#include "tutorial_gameplay_state.h"
 #include "tutorial_session_state.h"
 
 namespace nevergone::tutorial_lesson_overlay {
@@ -24,6 +25,8 @@ constexpr float kDesignWidth = 1136.0f;
 constexpr float kDesignHeight = 640.0f;
 constexpr float kContinueCenterX = kDesignWidth - 160.0f;
 constexpr float kContinueCenterY = 45.0f;
+constexpr float kPromptCenterX = kDesignWidth - 150.0f;
+constexpr float kPromptCenterY = kDesignHeight - 60.0f;
 constexpr int kActionDown = 0;
 constexpr int kActionUp = 1;
 constexpr int kActionMove = 2;
@@ -41,7 +44,14 @@ struct Asset {
 struct State {
     Asset keyboard;
     Asset continue_label;
+    Asset prompt_board;
+    Asset prompt_titlebar;
+    Asset prompt_title;
+    Asset prompt_body;
+    Asset prompt_hints;
     std::uint64_t asset_generation = 0;
+    std::uint64_t prompt_generation = 0;
+    int prompt_step = -1;
     std::uint64_t draw_attempt_count = 0;
     std::uint64_t drawn_frame_count = 0;
     std::uint64_t accepted_begin_count = 0;
@@ -66,7 +76,13 @@ GLuint g_program = 0;
 GLint g_sampler = -1;
 GLuint g_keyboard_texture = 0;
 GLuint g_continue_texture = 0;
+GLuint g_prompt_board_texture = 0;
+GLuint g_prompt_titlebar_texture = 0;
+GLuint g_prompt_title_texture = 0;
+GLuint g_prompt_body_texture = 0;
+GLuint g_prompt_hints_texture = 0;
 std::uint64_t g_texture_generation = 0;
+std::uint64_t g_prompt_texture_generation = 0;
 std::atomic<int> g_surface_width{0};
 std::atomic<int> g_surface_height{0};
 
@@ -179,9 +195,20 @@ void main() {
 void release_textures() {
     if (g_keyboard_texture != 0) glDeleteTextures(1, &g_keyboard_texture);
     if (g_continue_texture != 0) glDeleteTextures(1, &g_continue_texture);
+    if (g_prompt_board_texture != 0) glDeleteTextures(1, &g_prompt_board_texture);
+    if (g_prompt_titlebar_texture != 0) glDeleteTextures(1, &g_prompt_titlebar_texture);
+    if (g_prompt_title_texture != 0) glDeleteTextures(1, &g_prompt_title_texture);
+    if (g_prompt_body_texture != 0) glDeleteTextures(1, &g_prompt_body_texture);
+    if (g_prompt_hints_texture != 0) glDeleteTextures(1, &g_prompt_hints_texture);
     g_keyboard_texture = 0;
     g_continue_texture = 0;
+    g_prompt_board_texture = 0;
+    g_prompt_titlebar_texture = 0;
+    g_prompt_title_texture = 0;
+    g_prompt_body_texture = 0;
+    g_prompt_hints_texture = 0;
     g_texture_generation = 0;
+    g_prompt_texture_generation = 0;
 }
 
 GLuint create_texture(const Asset& asset) {
@@ -250,6 +277,69 @@ bool ensure_textures() {
     g_keyboard_texture = keyboard_texture;
     g_continue_texture = continue_texture;
     g_texture_generation = generation;
+    return true;
+}
+
+bool ensure_prompt_textures() {
+    Asset board;
+    Asset titlebar;
+    Asset title;
+    Asset body;
+    Asset hints;
+    std::uint64_t generation = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        if (!valid_asset(g_state.prompt_board) || !valid_asset(g_state.prompt_titlebar) ||
+                !valid_asset(g_state.prompt_title) || !valid_asset(g_state.prompt_body) ||
+                !valid_asset(g_state.prompt_hints)) {
+            return false;
+        }
+        generation = g_state.prompt_generation;
+        if (g_prompt_texture_generation == generation &&
+                g_prompt_board_texture != 0 && g_prompt_titlebar_texture != 0 &&
+                g_prompt_title_texture != 0 && g_prompt_body_texture != 0 &&
+                g_prompt_hints_texture != 0) {
+            return true;
+        }
+        board = g_state.prompt_board;
+        titlebar = g_state.prompt_titlebar;
+        title = g_state.prompt_title;
+        body = g_state.prompt_body;
+        hints = g_state.prompt_hints;
+    }
+
+    if (g_prompt_board_texture != 0) glDeleteTextures(1, &g_prompt_board_texture);
+    if (g_prompt_titlebar_texture != 0) glDeleteTextures(1, &g_prompt_titlebar_texture);
+    if (g_prompt_title_texture != 0) glDeleteTextures(1, &g_prompt_title_texture);
+    if (g_prompt_body_texture != 0) glDeleteTextures(1, &g_prompt_body_texture);
+    if (g_prompt_hints_texture != 0) glDeleteTextures(1, &g_prompt_hints_texture);
+    g_prompt_board_texture = 0;
+    g_prompt_titlebar_texture = 0;
+    g_prompt_title_texture = 0;
+    g_prompt_body_texture = 0;
+    g_prompt_hints_texture = 0;
+    g_prompt_texture_generation = 0;
+
+    const GLuint board_texture = create_texture(board);
+    const GLuint titlebar_texture = create_texture(titlebar);
+    const GLuint title_texture = create_texture(title);
+    const GLuint body_texture = create_texture(body);
+    const GLuint hints_texture = create_texture(hints);
+    if (board_texture == 0 || titlebar_texture == 0 || title_texture == 0 ||
+            body_texture == 0 || hints_texture == 0) {
+        if (board_texture != 0) glDeleteTextures(1, &board_texture);
+        if (titlebar_texture != 0) glDeleteTextures(1, &titlebar_texture);
+        if (title_texture != 0) glDeleteTextures(1, &title_texture);
+        if (body_texture != 0) glDeleteTextures(1, &body_texture);
+        if (hints_texture != 0) glDeleteTextures(1, &hints_texture);
+        return false;
+    }
+    g_prompt_board_texture = board_texture;
+    g_prompt_titlebar_texture = titlebar_texture;
+    g_prompt_title_texture = title_texture;
+    g_prompt_body_texture = body_texture;
+    g_prompt_hints_texture = hints_texture;
+    g_prompt_texture_generation = generation;
     return true;
 }
 
@@ -327,7 +417,13 @@ bool continue_hit(float design_x, float design_y) {
 void on_surface_created() {
     g_keyboard_texture = 0;
     g_continue_texture = 0;
+    g_prompt_board_texture = 0;
+    g_prompt_titlebar_texture = 0;
+    g_prompt_title_texture = 0;
+    g_prompt_body_texture = 0;
+    g_prompt_hints_texture = 0;
     g_texture_generation = 0;
+    g_prompt_texture_generation = 0;
     if (g_program != 0) glDeleteProgram(g_program);
     g_program = build_program();
     g_sampler = g_program != 0 ? glGetUniformLocation(g_program, "uTexture") : -1;
@@ -342,8 +438,15 @@ void clear_assets() {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_state.keyboard = {};
     g_state.continue_label = {};
+    g_state.prompt_board = {};
+    g_state.prompt_titlebar = {};
+    g_state.prompt_title = {};
+    g_state.prompt_body = {};
+    g_state.prompt_hints = {};
+    g_state.prompt_step = -1;
     g_state.captured_pointer = -1;
     ++g_state.asset_generation;
+    ++g_state.prompt_generation;
 }
 
 bool upload_keyboard(
@@ -372,26 +475,120 @@ bool upload_continue_label(
     return true;
 }
 
-bool draw() {
-    if (tutorial_session_state::snapshot().phase !=
-            tutorial_session_state::Phase::kLessonOverlay) {
+bool upload_prompt_backgrounds(
+        int board_width,
+        int board_height,
+        const std::uint32_t* board_argb,
+        std::size_t board_count,
+        int titlebar_width,
+        int titlebar_height,
+        const std::uint32_t* titlebar_argb,
+        std::size_t titlebar_count) {
+    Asset board;
+    Asset titlebar;
+    if (!make_asset(board_width, board_height, board_argb, board_count, &board) ||
+            !make_asset(titlebar_width, titlebar_height, titlebar_argb, titlebar_count, &titlebar)) {
         return false;
     }
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state.prompt_board = std::move(board);
+    g_state.prompt_titlebar = std::move(titlebar);
+    ++g_state.prompt_generation;
+    return true;
+}
+
+bool upload_prompt_text(
+        int tutorial_step,
+        int title_width,
+        int title_height,
+        const std::uint32_t* title_argb,
+        std::size_t title_count,
+        int body_width,
+        int body_height,
+        const std::uint32_t* body_argb,
+        std::size_t body_count) {
+    if (tutorial_step < 2 || tutorial_step > 10) return false;
+    Asset title;
+    Asset body;
+    if (!make_asset(title_width, title_height, title_argb, title_count, &title) ||
+            !make_asset(body_width, body_height, body_argb, body_count, &body)) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state.prompt_title = std::move(title);
+    g_state.prompt_body = std::move(body);
+    g_state.prompt_step = tutorial_step;
+    ++g_state.prompt_generation;
+    return true;
+}
+
+bool upload_prompt_hints(
+        int tutorial_step,
+        int width,
+        int height,
+        const std::uint32_t* argb,
+        std::size_t count) {
+    if (tutorial_step < 2 || tutorial_step > 10) return false;
+    Asset hints;
+    if (!make_asset(width, height, argb, count, &hints)) return false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state.prompt_hints = std::move(hints);
+    g_state.prompt_step = tutorial_step;
+    ++g_state.prompt_generation;
+    return true;
+}
+
+void clear_prompt() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state.prompt_board = {};
+    g_state.prompt_titlebar = {};
+    g_state.prompt_title = {};
+    g_state.prompt_body = {};
+    g_state.prompt_hints = {};
+    g_state.prompt_step = -1;
+    ++g_state.prompt_generation;
+}
+
+bool draw() {
+    const auto phase = tutorial_session_state::snapshot().phase;
+    const bool modal = phase == tutorial_session_state::Phase::kLessonOverlay;
+    const bool interactive = phase == tutorial_session_state::Phase::kInteractive;
+    if (!modal && !interactive) return false;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         ++g_state.draw_attempt_count;
     }
     SurfaceMetrics surface;
-    if (g_program == 0 || g_sampler < 0 || !current_surface(&surface) || !ensure_textures()) {
+    const bool textures_ready = modal ? ensure_textures() : ensure_prompt_textures();
+    if (g_program == 0 || g_sampler < 0 || !current_surface(&surface) || !textures_ready) {
         return false;
     }
 
     Asset keyboard;
     Asset continue_label;
+    Asset prompt_board;
+    Asset prompt_titlebar;
+    Asset prompt_title;
+    Asset prompt_body;
+    Asset prompt_hints;
+    int prompt_step = -1;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
-        keyboard = g_state.keyboard;
-        continue_label = g_state.continue_label;
+        if (modal) {
+            keyboard = g_state.keyboard;
+            continue_label = g_state.continue_label;
+        } else {
+            prompt_board = g_state.prompt_board;
+            prompt_titlebar = g_state.prompt_titlebar;
+            prompt_title = g_state.prompt_title;
+            prompt_body = g_state.prompt_body;
+            prompt_hints = g_state.prompt_hints;
+            prompt_step = g_state.prompt_step;
+        }
+    }
+    if (interactive && prompt_step !=
+            static_cast<int>(tutorial_gameplay_state::snapshot().step)) {
+        return false;
     }
 
     while (glGetError() != GL_NO_ERROR) {
@@ -403,13 +600,41 @@ bool draw() {
     glUniform1i(g_sampler, 0);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
-    draw_asset(
-        g_keyboard_texture,
-        keyboard,
-        surface,
-        kDesignWidth * 0.5f,
-        kDesignHeight * 0.5f);
-    draw_asset(g_continue_texture, continue_label, surface, kContinueCenterX, kContinueCenterY);
+    if (modal) {
+        draw_asset(
+            g_keyboard_texture,
+            keyboard,
+            surface,
+            kDesignWidth * 0.5f,
+            kDesignHeight * 0.5f);
+        draw_asset(g_continue_texture, continue_label, surface, kContinueCenterX, kContinueCenterY);
+    } else {
+        draw_asset(g_prompt_board_texture, prompt_board, surface, kPromptCenterX, kPromptCenterY);
+        draw_asset(
+            g_prompt_titlebar_texture,
+            prompt_titlebar,
+            surface,
+            kPromptCenterX,
+            kPromptCenterY);
+        draw_asset(
+            g_prompt_title_texture,
+            prompt_title,
+            surface,
+            kPromptCenterX - 115.0f,
+            kPromptCenterY);
+        draw_asset(
+            g_prompt_body_texture,
+            prompt_body,
+            surface,
+            kPromptCenterX,
+            kPromptCenterY - 60.0f);
+        draw_asset(
+            g_prompt_hints_texture,
+            prompt_hints,
+            surface,
+            kDesignWidth * 0.5f,
+            kDesignHeight * 0.5f);
+    }
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -486,6 +711,13 @@ std::string status_report() {
         << (valid_asset(g_state.keyboard) && valid_asset(g_state.continue_label) ? "yes" : "no")
         << "\n";
     out << "asset generation: " << g_state.asset_generation << "\n";
+    out << "interactive prompt ready: "
+        << (valid_asset(g_state.prompt_board) && valid_asset(g_state.prompt_titlebar) &&
+            valid_asset(g_state.prompt_title) && valid_asset(g_state.prompt_body) &&
+            valid_asset(g_state.prompt_hints) ? "yes" : "no")
+        << "\n";
+    out << "interactive prompt step: " << g_state.prompt_step << "\n";
+    out << "interactive prompt generation: " << g_state.prompt_generation << "\n";
     if (valid_asset(g_state.keyboard)) {
         out << "keyboard pixels: " << g_state.keyboard.width << "x" << g_state.keyboard.height << "\n";
     }
@@ -546,6 +778,99 @@ bool upload_java_asset(
     return ok;
 }
 
+bool copy_java_pixels(
+        JNIEnv* env,
+        jint width,
+        jint height,
+        jintArray pixels,
+        std::vector<std::uint32_t>* output) {
+    if (env == nullptr || pixels == nullptr || output == nullptr || width <= 0 || height <= 0) {
+        return false;
+    }
+    const jsize length = env->GetArrayLength(pixels);
+    const std::size_t expected =
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    if (static_cast<std::size_t>(length) != expected || expected > 16u * 1024u * 1024u) {
+        return false;
+    }
+    output->resize(expected);
+    env->GetIntArrayRegion(
+        pixels,
+        0,
+        length,
+        reinterpret_cast<jint*>(output->data()));
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        output->clear();
+        return false;
+    }
+    return true;
+}
+
+bool upload_java_prompt_backgrounds(
+        JNIEnv* env,
+        jint board_width,
+        jint board_height,
+        jintArray board_pixels,
+        jint titlebar_width,
+        jint titlebar_height,
+        jintArray titlebar_pixels) {
+    std::vector<std::uint32_t> board;
+    std::vector<std::uint32_t> titlebar;
+    if (!copy_java_pixels(env, board_width, board_height, board_pixels, &board) ||
+            !copy_java_pixels(env, titlebar_width, titlebar_height, titlebar_pixels, &titlebar)) {
+        return false;
+    }
+    return nevergone::tutorial_lesson_overlay::upload_prompt_backgrounds(
+        board_width,
+        board_height,
+        board.data(),
+        board.size(),
+        titlebar_width,
+        titlebar_height,
+        titlebar.data(),
+        titlebar.size());
+}
+
+bool upload_java_prompt_text(
+        JNIEnv* env,
+        jint step,
+        jint title_width,
+        jint title_height,
+        jintArray title_pixels,
+        jint body_width,
+        jint body_height,
+        jintArray body_pixels) {
+    std::vector<std::uint32_t> title;
+    std::vector<std::uint32_t> body;
+    if (!copy_java_pixels(env, title_width, title_height, title_pixels, &title) ||
+            !copy_java_pixels(env, body_width, body_height, body_pixels, &body)) {
+        return false;
+    }
+    return nevergone::tutorial_lesson_overlay::upload_prompt_text(
+        step,
+        title_width,
+        title_height,
+        title.data(),
+        title.size(),
+        body_width,
+        body_height,
+        body.data(),
+        body.size());
+}
+
+bool upload_java_prompt_hints(
+        JNIEnv* env,
+        jint step,
+        jint width,
+        jint height,
+        jintArray pixels) {
+    std::vector<std::uint32_t> hints;
+    if (!copy_java_pixels(env, width, height, pixels, &hints)) return false;
+    return nevergone::tutorial_lesson_overlay::upload_prompt_hints(
+        step, width, height, hints.data(), hints.size());
+}
+
 }  // namespace
 
 extern "C" JNIEXPORT void JNICALL
@@ -571,6 +896,64 @@ Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeUploadContinueL
         jint height,
         jintArray pixels) {
     return upload_java_asset(env, width, height, pixels, false) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeClearPrompt(JNIEnv*, jclass) {
+    nevergone::tutorial_lesson_overlay::clear_prompt();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeUploadPromptBackgrounds(
+        JNIEnv* env,
+        jclass,
+        jint board_width,
+        jint board_height,
+        jintArray board_pixels,
+        jint titlebar_width,
+        jint titlebar_height,
+        jintArray titlebar_pixels) {
+    return upload_java_prompt_backgrounds(
+        env,
+        board_width,
+        board_height,
+        board_pixels,
+        titlebar_width,
+        titlebar_height,
+        titlebar_pixels) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeUploadPromptText(
+        JNIEnv* env,
+        jclass,
+        jint step,
+        jint title_width,
+        jint title_height,
+        jintArray title_pixels,
+        jint body_width,
+        jint body_height,
+        jintArray body_pixels) {
+    return upload_java_prompt_text(
+        env,
+        step,
+        title_width,
+        title_height,
+        title_pixels,
+        body_width,
+        body_height,
+        body_pixels) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeUploadPromptHints(
+        JNIEnv* env,
+        jclass,
+        jint step,
+        jint width,
+        jint height,
+        jintArray pixels) {
+    return upload_java_prompt_hints(env, step, width, height, pixels) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jstring JNICALL

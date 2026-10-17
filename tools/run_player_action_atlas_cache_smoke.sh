@@ -6,11 +6,12 @@ OUT="${TMPDIR:-/tmp}/nevergone-player-action-atlas-cache-smoke"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-javac -d "$OUT" \
+javac -Xlint:all -Werror -d "$OUT" \
   "$ROOT/android/app/src/main/java/org/nevergone/recomp/ImportedPlistXml.java" \
   "$ROOT/android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasListDiscovery.java" \
   "$ROOT/android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasResolver.java" \
   "$ROOT/android/app/src/main/java/org/nevergone/recomp/PlayerActionAtlasCacheResolver.java" \
+  "$ROOT/android/app/src/main/java/org/nevergone/recomp/GameSceneAtlasFrameResolver.java" \
   "$ROOT/tools/PlayerActionAtlasCacheResolverSmoke.java"
 
 java -ea -cp "$OUT" org.nevergone.recomp.PlayerActionAtlasCacheResolverSmoke

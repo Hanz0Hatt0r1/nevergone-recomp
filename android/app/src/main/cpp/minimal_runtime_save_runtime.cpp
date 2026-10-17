@@ -1,5 +1,6 @@
 #include "minimal_runtime_save_runtime.h"
 
+#include <cmath>
 #include <limits>
 #include <mutex>
 #include <sstream>
@@ -95,9 +96,9 @@ bool restore_for_spawn(
         std::uint32_t player_index,
         std::uint64_t game_tick) {
     minimal_runtime_save::Record pending;
+    bool was_restored = false;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
-        if (g_snapshot.restored) return true;
         if (!g_snapshot.load_attempted) {
             g_snapshot.load_attempted = true;
             minimal_runtime_save::Record loaded;
@@ -108,11 +109,22 @@ bool restore_for_spawn(
                 ++g_snapshot.load_failure_count;
             }
         }
-        if (!g_snapshot.pending_record) return false;
+        was_restored = g_snapshot.restored;
+        if (!g_snapshot.pending_record && !was_restored) return false;
         pending = g_snapshot.record;
     }
 
     if (!same_scene(pending, spawn, player_index)) return false;
+
+    const auto current_motion = game_scene_player_motion_state::snapshot();
+    if (was_restored && current_motion.ready &&
+        current_motion.spawn_generation == spawn.generation &&
+        current_motion.player_index == player_index) {
+        const bool offset_matches =
+            std::fabs(current_motion.offset_x - pending.motion_offset_x) <= 1e-5f &&
+            std::fabs(current_motion.offset_y - pending.motion_offset_y) <= 1e-5f;
+        if (offset_matches || current_motion.applied_steps != 0u) return true;
+    }
 
     if (!game_scene_player_motion_state::restore_offset(
             spawn.generation,
@@ -125,7 +137,6 @@ bool restore_for_spawn(
 
     const auto restored_motion = game_scene_player_motion_state::snapshot();
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_snapshot.restored) return true;
     g_snapshot.restored = true;
     g_snapshot.pending_record = false;
     g_snapshot.last_saved_motion_generation = restored_motion.generation;

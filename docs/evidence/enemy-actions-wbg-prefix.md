@@ -129,6 +129,8 @@ The fixed 53-byte record is:
 
 The stream cursor advances by exactly `0x35` at `0x290182`. No serialized strings occur in this block. The original stores the loop index at `ActionFrameData + 0x70`, writes the serialized scalar values into the same broad ActionFrameData scalar region used by earlier sections, creates one fixed native string that is not sourced from the WBG payload, and sets an additional flag before insertion. Those downstream object fields are outside this stream parser; the reconstruction therefore keeps the serialized fields structurally named.
 
+The first serialized `int32` is stored at `ActionFrameData +0x74`. The complete `EnemyActionsSystem::GetCurFrameHitPointCount()` scan over the `EnemyActionsData +0x84` array compares this value with the current frame at `EnemyActionsSystem +0x294`, stores the matching record's zero-based ordinal at `ActionFrameData +0x54`, and returns the number of matches. Section E therefore supplies frame-indexed enemy hit-point records. The remaining serialized scalars retain structural names because the native sprite-position consumer has not been fully reconstructed.
+
 Zero and negative counts consume only the four-byte count. Positive counts are pre-bounded against `remaining / 0x35` before vector allocation. Parse failure is transactional.
 
 ## Reconstructed implementation

@@ -1,0 +1,2 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002bef2c","source_name":"EnemyObject::isAttackMiss","task":"subsystem","label":"combat","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-attack-miss-window.md"}
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002bef2c","source_name":"EnemyObject::isAttackMiss","task":"function_role","label":"combat_enemy_attack_miss_frame_gate","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-attack-miss-window.md"}

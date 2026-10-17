@@ -6,6 +6,8 @@
 namespace nevergone::meplayer_live_action_state {
 
 constexpr std::uint32_t kInitialActionState = 0x1bu;
+constexpr std::uint32_t kWalkActionState = 0x00u;
+constexpr std::uint32_t kRunActionState = 0x01u;
 constexpr std::uint32_t kTutorialJumpActionState = 0x20u;
 constexpr std::uint32_t kBaseAActionState = 0x02u;
 constexpr std::uint32_t kBaselineBActionState = 0x1du;
@@ -16,6 +18,7 @@ struct Snapshot {
     std::uint64_t generation = 0;
     std::uint64_t spawn_generation = 0;
     std::uint32_t current_action_state = kInitialActionState;
+    bool current_action_looping = false;
     std::uint32_t desired_action_state = kInitialActionState;
     std::uint64_t desired_revision = 0;
     std::uint64_t loaded_revision = 0;
@@ -48,6 +51,12 @@ bool sync_spawn(
 bool observe_tutorial_jump_request_count(
     std::uint64_t tutorial_jump_request_count);
 
+// Maps horizontal Controls movement to action01 walk/action02 run, then returns
+// to idle on release. Other active actions retain control until completion.
+bool observe_movement_action_state(
+    std::uint32_t movement_action_state,
+    bool moving);
+
 // Consumes the edge of the reconstructed Controls +0x118 function-state stream.
 bool observe_base_function_state(
     std::uint64_t function_generation,
@@ -70,7 +79,7 @@ bool observe_action_completion(
 
 // Called only after PlayerActionRuntimeLoader has successfully resolved and
 // parsed the action document corresponding to desired_action_state.
-bool commit_loaded_action(std::uint32_t action_state);
+bool commit_loaded_action(std::uint32_t action_state, bool looping = false);
 
 Snapshot snapshot();
 std::string status_report();

@@ -141,6 +141,7 @@ struct VersionedActionFrameBlock {
 };
 
 struct FixedTailActionFrameRecord {
+    // Serialized Section-E frame index, stored at ActionFrameData +0x74.
     std::int32_t first_i32 = 0;
     std::array<float, 12> float_values{};
     bool first_bool = false;

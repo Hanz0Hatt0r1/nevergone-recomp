@@ -72,6 +72,31 @@ bool observe_tutorial_jump_request_count(
     return queued;
 }
 
+bool observe_movement_action_state(
+        std::uint32_t movement_action_state,
+        bool moving) {
+    if (moving && movement_action_state != kWalkActionState &&
+            movement_action_state != kRunActionState) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_snapshot.ready) return false;
+    const auto is_locomotion_or_idle = [](std::uint32_t state) {
+        return state == kInitialActionState || state == kWalkActionState ||
+            state == kRunActionState;
+    };
+    if (!is_locomotion_or_idle(g_snapshot.current_action_state) ||
+            !is_locomotion_or_idle(g_snapshot.desired_action_state)) {
+        return false;
+    }
+
+    const std::uint32_t target = moving
+        ? movement_action_state : kInitialActionState;
+    if (g_snapshot.desired_action_state == target) return true;
+    return queue_desired_action_locked(target);
+}
+
 bool observe_base_function_state(
         std::uint64_t function_generation,
         std::uint32_t function_state,
@@ -89,6 +114,11 @@ bool observe_base_function_state(
 
     if (function_state == 0u) {
         g_snapshot.observed_function_state = 0u;
+        if (g_snapshot.desired_action_state == kHeldBFollowupActionState &&
+            (g_snapshot.current_action_state == kBaselineBActionState ||
+             g_snapshot.current_action_state == kHeldBFollowupActionState)) {
+            return queue_desired_action_locked(kInitialActionState);
+        }
         return false;
     }
 
@@ -165,10 +195,11 @@ bool observe_action_completion(
     return true;
 }
 
-bool commit_loaded_action(std::uint32_t action_state) {
+bool commit_loaded_action(std::uint32_t action_state, bool looping) {
     std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_snapshot.ready || action_state != g_snapshot.desired_action_state) return false;
     g_snapshot.current_action_state = action_state;
+    g_snapshot.current_action_looping = looping;
     g_snapshot.loaded_revision = g_snapshot.desired_revision;
     return true;
 }
@@ -186,6 +217,7 @@ std::string status_report() {
     out << "generation: " << state.generation << "\n";
     out << "spawn generation: " << state.spawn_generation << "\n";
     out << "current action: 0x" << std::hex << state.current_action_state << std::dec << "\n";
+    out << "current action looping: " << (state.current_action_looping ? "yes" : "no") << "\n";
     out << "desired action: 0x" << std::hex << state.desired_action_state << std::dec << "\n";
     out << "desired revision: " << state.desired_revision << "\n";
     out << "loaded revision: " << state.loaded_revision << "\n";

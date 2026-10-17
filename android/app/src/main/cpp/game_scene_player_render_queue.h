@@ -8,6 +8,7 @@
 #include "game_levels_runtime_state.h"
 #include "game_scene_camera_contract.h"
 #include "game_scene_camera_render_queue.h"
+#include "game_scene_enemy_render_queue.h"
 #include "game_scene_player_frame_request.h"
 #include "game_scene_player_joystick_render_queue.h"
 #include "game_scene_player_motion_state.h"
@@ -18,6 +19,7 @@
 #include "meplayer_live_action_state.h"
 #include "player_action_document_store.h"
 #include "player_control_runtime_state.h"
+#include "player_offline_career.h"
 
 namespace nevergone::game_scene_player_render_queue {
 
@@ -26,7 +28,9 @@ inline game_scene_render_queue::Queue with_live_player(
         const game_scene_player_spawn_state::Snapshot& spawn,
         const enemy_actions_wbg_document::Document* document,
         me_actions_runtime_state::State runtime,
-        float camera_eye_x = 0.0f) {
+        float camera_eye_x = 0.0f,
+        int player_career = 0,
+        int player_clothes_id = -1) {
     if (spawn.status != game_scene_player_spawn_state::Status::kReady ||
         spawn.source_scene_index != queue.source_scene_index ||
         spawn.scene_guid != queue.guid || document == nullptr ||
@@ -72,6 +76,8 @@ inline game_scene_render_queue::Queue with_live_player(
         transform.flip_x = control.flip_x;
     }
     player.player_body_transform = transform;
+    player.player_career = player_career;
+    player.player_clothes_id = player_clothes_id;
 
     if (!selected_frame.first_string.empty()) {
         player.player_body_atlas_plist = selected_frame.first_string;
@@ -102,7 +108,7 @@ inline game_scene_render_queue::Queue with_initial_player(
         camera_eye_x);
 }
 
-inline float current_initial_camera_eye_x(
+inline float current_camera_eye_x(
         const game_scene_player_spawn_state::Snapshot& spawn) {
     if (spawn.status != game_scene_player_spawn_state::Status::kReady) return 0.0f;
     const auto port = game_levels_runtime_state::current_port_node_record();
@@ -110,18 +116,23 @@ inline float current_initial_camera_eye_x(
 
     const float scene_extent_x = static_cast<float>(
             static_cast<std::int32_t>(port->fifth_u32));
-    const auto eye = game_scene_camera_contract::initial_eye_x(
-            spawn.source_x, scene_extent_x);
+    const auto motion = game_scene_player_motion_state::snapshot();
+    const float player_world_x = spawn.player_x +
+            (motion.ready && motion.spawn_generation == spawn.generation
+                    ? motion.offset_x : 0.0f);
+    const auto eye = game_scene_camera_contract::follow_eye_x(
+            player_world_x, scene_extent_x);
     return eye.value_or(0.0f);
 }
 
 inline game_scene_render_queue::Queue current(game_scene_render_queue::Queue queue) {
     const auto document = player_action_document_store::current_document();
     const auto spawn = game_scene_player_spawn_state::snapshot();
-    const float camera_eye_x = current_initial_camera_eye_x(spawn);
+    const float camera_eye_x = current_camera_eye_x(spawn);
 
     queue = game_scene_camera_render_queue::apply_static_world_camera(
             std::move(queue), camera_eye_x);
+    queue = game_scene_enemy_render_queue::current(std::move(queue), camera_eye_x);
 
     me_actions_runtime_state::State runtime = me_actions_runtime_state::initial_play_state();
     if (document.has_value()) {
@@ -132,6 +143,7 @@ inline game_scene_render_queue::Queue current(game_scene_render_queue::Queue que
                 live_action.generation,
                 live_action.loaded_revision,
                 live_action.current_action_state,
+                live_action.current_action_looping,
                 *document,
                 game_clock::tick_count());
 
@@ -149,12 +161,15 @@ inline game_scene_render_queue::Queue current(game_scene_render_queue::Queue que
         }
     }
 
+    const auto appearance = player_offline_career::current();
     queue = with_live_player(
             std::move(queue),
             spawn,
             document ? &*document : nullptr,
             runtime,
-            camera_eye_x);
+            camera_eye_x,
+            static_cast<int>(appearance.career),
+            appearance.clothes_id);
 
     return game_scene_player_joystick_render_queue::current(std::move(queue));
 }

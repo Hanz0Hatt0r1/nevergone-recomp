@@ -21,6 +21,8 @@ struct Snapshot {
     int pointer_id = -1;
     std::uint64_t accepted_begins = 0;
     std::uint64_t accepted_moves = 0;
+    float center_x = kCenterX;
+    float center_y = kCenterY;
     float design_x = kCenterX;
     float design_y = kCenterY;
     float power = 0.0f;
@@ -47,6 +49,8 @@ bool surface_to_design(
     float* design_x,
     float* design_y);
 
+bool set_center(float design_x, float design_y);
+
 // MotionEvent-compatible actions: DOWN=0, UP=1, MOVE=2, CANCEL=3,
 // POINTER_DOWN=5, POINTER_UP=6. Returns true only when this joystick owns the
 // event/pointer. MOVE samples outside the recovered 290-unit update radius are
@@ -63,6 +67,10 @@ bool on_touch(
 // primary horizontal facing, the bounded same-direction double-tap fast combo,
 // and the corresponding playerMoveValue() movement state are advanced together.
 void tick();
+
+// Keep bounded per-render and raw-touch history for original-client comparison.
+void record_frame_sample(bool controls_allowed);
+void record_input_event(int action, int pointer_id, float surface_x, float surface_y);
 
 // Releases the live pointer and neutralizes the joystick sample while retaining
 // facing and the native short-lived direction-combo window needed for a second
