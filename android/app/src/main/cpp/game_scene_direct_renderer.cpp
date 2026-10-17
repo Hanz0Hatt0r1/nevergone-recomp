@@ -22,6 +22,7 @@
 #include "game_scene_player_render_queue.h"
 #include "game_scene_player_spawn_state.h"
 #include "game_scene_type0_animation.h"
+#include "me_actions_live_playback.h"
 #include "meplayer_live_action_state.h"
 #include "player_hl_point_contract.h"
 #include "tutorial_enemy_action_document_store.h"
@@ -38,8 +39,11 @@ struct PreparedSprite {
 struct PlayerAnchorFrame {
     std::uint64_t spawn_generation = 0;
     std::uint64_t game_tick = 0;
+    std::uint64_t action_generation = 0;
+    std::uint64_t loaded_revision = 0;
     std::uint32_t player_index = 0;
     std::uint32_t action_state = 0;
+    std::int32_t action_frame_index = 0;
     player_hl_point_contract::Rect sprite_bounds;
     player_hl_point_contract::Point position_240;
     player_hl_point_contract::Point offset_248;
@@ -289,6 +293,7 @@ bool draw() {
     prepared.reserve(order.size());
     std::optional<PlayerAnchorFrame> player_anchor;
     const auto action_state = meplayer_live_action_state::snapshot();
+    const auto action_playback = me_actions_live_playback::snapshot();
     const std::uint32_t current_action_state = action_state.ready
             ? action_state.current_action_state
             : meplayer_live_action_state::kInitialActionState;
@@ -350,8 +355,11 @@ bool draw() {
                 player_anchor = PlayerAnchorFrame{
                     spawn.generation,
                     tick,
+                    action_state.generation,
+                    action_state.loaded_revision,
                     static_cast<std::uint32_t>(command.player_career),
                     current_action_state,
+                    action_playback.cursor.current_frame_1a4,
                     *sprite_bounds,
                     {spawn.bootstrap_x, spawn.bootstrap_y},
                     {command.transform.position_x - camera_translation_x -
@@ -401,6 +409,14 @@ bool draw() {
 
     if (player_anchor.has_value()) {
         const auto& player = *player_anchor;
+        (void)me_actions_live_playback::observe_sprite_bounds(
+                player.action_generation,
+                player.loaded_revision,
+                player.action_state,
+                player.action_frame_index,
+                player.sprite_bounds.x,
+                player.sprite_bounds.y,
+                player.sprite_bounds.width);
         (void)game_scene_player_hl_point_state::update(
                 player.spawn_generation,
                 player.player_index,

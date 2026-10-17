@@ -1,5 +1,6 @@
 #include "me_actions_live_playback.h"
 
+#include <cmath>
 #include <mutex>
 #include <sstream>
 
@@ -121,6 +122,69 @@ bool sync_and_tick(
     return true;
 }
 
+bool observe_sprite_bounds(
+        std::uint64_t action_generation,
+        std::uint64_t loaded_revision,
+        std::uint32_t action_state,
+        std::int32_t frame_index,
+        float bounds_x,
+        float bounds_y,
+        float bounds_width) {
+    const float center_x = bounds_x + bounds_width * 0.5f;
+    if (action_generation == 0u || loaded_revision == 0u || frame_index < 0 ||
+        !std::isfinite(bounds_x) || !std::isfinite(bounds_y) ||
+        !std::isfinite(bounds_width) || !std::isfinite(center_x)) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_snapshot.ready || g_snapshot.action_generation != action_generation ||
+        g_snapshot.loaded_revision != loaded_revision ||
+        g_snapshot.action_state != action_state ||
+        g_snapshot.cursor.current_frame_1a4 != frame_index) {
+        return false;
+    }
+
+    if (!g_snapshot.movement_bounds_ready ||
+        frame_index < g_snapshot.movement_frame_index) {
+        g_snapshot.movement_bounds_ready = true;
+        g_snapshot.movement_frame_index = frame_index;
+        g_snapshot.movement_bounds_center_x = center_x;
+        g_snapshot.movement_bounds_origin_y = bounds_y;
+        g_snapshot.cur_move_value_x = 0.0f;
+        g_snapshot.cur_move_value_y = 0.0f;
+        ++g_snapshot.movement_value_update_count;
+        return true;
+    }
+
+    if (frame_index == g_snapshot.movement_frame_index) return true;
+
+    g_snapshot.cur_move_value_x += center_x - g_snapshot.movement_bounds_center_x;
+    g_snapshot.cur_move_value_y += bounds_y - g_snapshot.movement_bounds_origin_y;
+    g_snapshot.movement_frame_index = frame_index;
+    g_snapshot.movement_bounds_center_x = center_x;
+    g_snapshot.movement_bounds_origin_y = bounds_y;
+    ++g_snapshot.movement_value_update_count;
+    return true;
+}
+
+float consume_cur_move_value(
+        std::uint64_t action_generation,
+        std::uint64_t loaded_revision,
+        std::uint32_t action_state) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_snapshot.ready || g_snapshot.action_generation != action_generation ||
+        g_snapshot.loaded_revision != loaded_revision ||
+        g_snapshot.action_state != action_state) {
+        return 0.0f;
+    }
+
+    const float value = g_snapshot.cur_move_value_x;
+    g_snapshot.cur_move_value_x = 0.0f;
+    g_snapshot.cur_move_value_y = 0.0f;
+    return value;
+}
+
 Snapshot snapshot() {
     std::lock_guard<std::mutex> lock(g_mutex);
     return g_snapshot;
@@ -145,6 +209,11 @@ std::string status_report() {
     out << "looping: " << (state.looping ? "yes" : "no") << "\n";
     out << "current frame: " << state.cursor.current_frame_1a4 << "\n";
     out << "previous frame: " << state.cursor.previous_frame_1a8 << "\n";
+    out << "movement bounds ready: " << (state.movement_bounds_ready ? "yes" : "no") << "\n";
+    out << "movement bounds frame: " << state.movement_frame_index << "\n";
+    out << "curMoveValue: " << state.cur_move_value_x << ","
+        << state.cur_move_value_y << "\n";
+    out << "movement value updates: " << state.movement_value_update_count << "\n";
     out << "frame revision: " << state.frame_revision << "\n";
     out << "updates: " << state.update_count << "\n";
     out << "done: " << (state.cursor.timing.done_220 ? "yes" : "no") << "\n";

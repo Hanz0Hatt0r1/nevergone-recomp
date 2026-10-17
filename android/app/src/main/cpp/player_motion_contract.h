@@ -13,15 +13,24 @@ struct Vector {
 
 constexpr std::uint32_t kNormalMoveActionState = 0x00u;
 constexpr std::uint32_t kFastMoveActionState = 0x01u;
+constexpr std::uint32_t kBaseAttackActionState = 0x02u;
+constexpr std::uint32_t kWalkAttackActionState = 0x10u;
+constexpr std::uint32_t kRunAttackActionState = 0x14u;
+constexpr std::uint32_t kInitialIdleActionState = 0x1bu;
+constexpr std::uint32_t kBaselineBActionState = 0x1du;
+constexpr std::uint32_t kHeldBActionState = 0x1eu;
+constexpr std::uint32_t kTutorialJumpActionState = 0x20u;
 
 // Evidence-backed MEPlayer::playerMoveValue() subset. The input is the
-// normalized Controls +0x168 joystick direction, not joystick power. Only the
-// action/player-index combinations proven by the shipped ARMv7 implementation
-// are exposed; every other combination fails closed.
+// normalized Controls +0x168 joystick direction, not joystick power. Current
+// player action state 0 and 1 use direct input; initial idle 0x1b is stationary.
+// States 2/0x10/0x14 consume the recovered action-frame move accumulator.
+// Other action states use additional player fields and are not synthesized here.
 inline std::optional<Vector> movement_value(
         std::uint32_t player_index,
         std::uint32_t action_state,
-        Vector normalized_direction) {
+        Vector normalized_direction,
+        float action_frame_move_value_x = 0.0f) {
     if (!std::isfinite(normalized_direction.x) ||
         !std::isfinite(normalized_direction.y)) return std::nullopt;
 
@@ -47,7 +56,35 @@ inline std::optional<Vector> movement_value(
         }
     }
 
+    if (action_state == kBaseAttackActionState ||
+        action_state == kWalkAttackActionState ||
+        action_state == kRunAttackActionState) {
+        if (!std::isfinite(action_frame_move_value_x)) return std::nullopt;
+        return Vector{action_frame_move_value_x, 0.0f};
+    }
+
+    // These supported live actions leave playerMoveValue()'s zero-initialized
+    // result unchanged. Jump is initiated from idle, so its recovered +0x3c5
+    // direction flag is clear; other jump entry paths remain unsupported.
+    if (action_state == kInitialIdleActionState ||
+        action_state == kBaselineBActionState ||
+        action_state == kHeldBActionState ||
+        action_state == kTutorialJumpActionState) {
+        return Vector{};
+    }
+
     return std::nullopt;
+}
+
+inline bool uses_direct_input(std::uint32_t action_state) noexcept {
+    return action_state == kNormalMoveActionState ||
+        action_state == kFastMoveActionState;
+}
+
+inline bool uses_action_frame_move_value(std::uint32_t action_state) noexcept {
+    return action_state == kBaseAttackActionState ||
+        action_state == kWalkAttackActionState ||
+        action_state == kRunAttackActionState;
 }
 
 }  // namespace nevergone::player_motion_contract

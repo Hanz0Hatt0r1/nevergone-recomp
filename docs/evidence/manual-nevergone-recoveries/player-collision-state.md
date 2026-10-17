@@ -33,12 +33,16 @@ state except these exact sets:
 All other player indices return false. The checked-in contract mirrors these
 sets in `player_collision_state_contract::is_collision_state()`.
 
-The checked-in contract keeps the `+0x3e8` value explicit. The live renderer
-does not currently observe that native field, so no value is guessed and this
-recovery does not yet change simulated movement.
+`MEPlayer::setCurActionNoCollision()` at ELF `0x00318ac8` sets the byte to one.
+Its two call sites are both inside `BattleManager::playerHitEnemy()` and both
+select player index `2`; one hit-reaction branch sets it only when the enemy is
+not erupting. `MEPlayer::initWithMEName()` initializes the byte to zero, and
+`MEPlayer::setActionState()` clears it on an accepted action transition. The
+simulated combat path does not yet generate those incoming-hit transitions, so
+the live renderer still has no nonzero value to supply and collision response
+remains disconnected from movement.
 
-The function-role gold label is recorded in
-`player-collision-state-labels.jsonl`. Adding it to local manual-restoration
-dataset v49 and rebuilding as v50 produces 9,204 labelled functions, 6,911
-structural groups, and 9,826 gold rows (7,394 train / 818 test / 992
-validation). The RevEngInstr corpus and generated dataset remain outside Git.
+The predicate and setter function-role gold labels are recorded in
+`player-collision-state-labels.jsonl`. Their exact state lifecycle is evidence
+for the next collision integration; it does not yet simulate an incoming hit.
+The RevEngInstr corpus and generated dataset remain outside Git.

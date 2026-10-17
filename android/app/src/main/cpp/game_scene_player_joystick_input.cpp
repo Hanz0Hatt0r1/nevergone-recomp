@@ -14,6 +14,7 @@
 #include "game_scene_player_motion_state.h"
 #include "minimal_runtime_save_runtime.h"
 #include "meplayer_live_action_state.h"
+#include "me_actions_live_playback.h"
 #include "player_control_runtime_state.h"
 #include "player_direction_combo_contract.h"
 #include "player_motion_contract.h"
@@ -401,12 +402,29 @@ void tick() {
         (void)meplayer_live_action_state::observe_movement_action_state(
             player_motion_contract::kNormalMoveActionState, false);
     }
+    const auto live_action = meplayer_live_action_state::snapshot();
+    const std::uint32_t player_action_state = live_action.ready
+            ? live_action.current_action_state
+            : meplayer_live_action_state::kInitialActionState;
+    if (!active) {
+        direction_x = 0.0f;
+        direction_y = 0.0f;
+    }
+    float action_frame_move_value_x = 0.0f;
+    if (live_action.ready && live_action.loaded_revision != 0u &&
+        player_motion_contract::uses_action_frame_move_value(player_action_state)) {
+        action_frame_move_value_x = me_actions_live_playback::consume_cur_move_value(
+                live_action.generation,
+                live_action.loaded_revision,
+                player_action_state);
+    }
     (void)game_scene_player_motion_state::advance_sample(
             game_tick,
             active,
-            movement_action_state,
+            player_action_state,
             direction_x,
-            direction_y);
+            direction_y,
+            action_frame_move_value_x);
 }
 
 void cancel_capture() {
