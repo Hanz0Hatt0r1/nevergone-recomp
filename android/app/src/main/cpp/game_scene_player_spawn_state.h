@@ -56,7 +56,8 @@ bool refresh(
         const game_levels_scene_instance::SceneInstance& scene,
         std::uint32_t event_port_type,
         int surface_width,
-        int surface_height);
+        int surface_height,
+        std::string player_name = {});
 Snapshot snapshot();
 std::optional<game_scene_player_bootstrap::InitialPoint> current_position();
 const char* status_name(Status status);

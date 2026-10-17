@@ -150,10 +150,9 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeRefreshPlayerSpawnStat
             *scene,
             levels.stored_event_port_type,
             renderer.surface_width,
-            renderer.surface_height);
+            renderer.surface_height,
+            nevergone::player_offline_career::current_player_name());
     if (ready) {
-        nevergone::game_scene_player_spawn_state::set_player_name(
-                nevergone::player_offline_career::current_player_name());
         sync_runtime_to_spawn(nevergone::game_scene_player_spawn_state::snapshot());
     } else {
         nevergone::game_scene_player_motion_state::reset();
