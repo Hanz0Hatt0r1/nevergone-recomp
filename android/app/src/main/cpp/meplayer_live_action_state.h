@@ -8,6 +8,8 @@ namespace nevergone::meplayer_live_action_state {
 constexpr std::uint32_t kInitialActionState = 0x1bu;
 constexpr std::uint32_t kWalkActionState = 0x00u;
 constexpr std::uint32_t kRunActionState = 0x01u;
+constexpr std::uint32_t kWalkAttackActionState = 0x10u;
+constexpr std::uint32_t kRunAttackActionState = 0x14u;
 constexpr std::uint32_t kTutorialJumpActionState = 0x20u;
 constexpr std::uint32_t kBaseAActionState = 0x02u;
 constexpr std::uint32_t kBaselineBActionState = 0x1du;
@@ -19,6 +21,7 @@ struct Snapshot {
     std::uint64_t spawn_generation = 0;
     std::uint32_t current_action_state = kInitialActionState;
     bool current_action_looping = false;
+    bool current_action_done = false;
     std::uint32_t desired_action_state = kInitialActionState;
     std::uint64_t desired_revision = 0;
     std::uint64_t loaded_revision = 0;
@@ -65,11 +68,13 @@ bool observe_base_function_state(
     std::uint32_t pending_meplayer_state,
     bool pending_has_additional_guard);
 
-// Mirrors the recovered MEPlayer::actionState() completion transitions for the
+// Mirrors recovered MEPlayer::actionState() completion transitions for the
 // currently supported live actions. The generation/revision/state tuple binds a
 // completion to the exact loaded MeActionsSystem instance that became done.
 // A(0x02) and tutorial jump(0x20) queue 0x1b. B(0x1d) queues 0x1e while
-// function state 8 remains held, otherwise 0x1b. Unsupported states fail closed.
+// function state 8 remains held, otherwise 0x1b. Completed movement attacks
+// (0x10/0x14) remain in their native state until a later control sample.
+// Unsupported states fail closed.
 bool observe_action_completion(
     std::uint64_t action_generation,
     std::uint64_t loaded_revision,

@@ -86,8 +86,15 @@ bool observe_movement_action_state(
         return state == kInitialActionState || state == kWalkActionState ||
             state == kRunActionState;
     };
-    if (!is_locomotion_or_idle(g_snapshot.current_action_state) ||
-            !is_locomotion_or_idle(g_snapshot.desired_action_state)) {
+    const bool completed_movement_attack = g_snapshot.current_action_done &&
+        (g_snapshot.current_action_state == kWalkAttackActionState ||
+         g_snapshot.current_action_state == kRunAttackActionState);
+    const bool completed_attack_is_current_request = completed_movement_attack &&
+        g_snapshot.desired_action_state == g_snapshot.current_action_state;
+    if ((!is_locomotion_or_idle(g_snapshot.current_action_state) &&
+         !completed_movement_attack) ||
+            (!is_locomotion_or_idle(g_snapshot.desired_action_state) &&
+             !completed_attack_is_current_request)) {
         return false;
     }
 
@@ -135,9 +142,17 @@ bool observe_base_function_state(
     }
 
     std::uint32_t accepted_action = 0u;
-    if (function_state == 7u && pending_meplayer_state == kBaseAActionState &&
+    const bool base_a_action_matches_current =
+        (pending_meplayer_state == kBaseAActionState &&
+         (g_snapshot.current_action_state == kInitialActionState ||
+          g_snapshot.current_action_state == 0x1cu)) ||
+        (pending_meplayer_state == 0x10u &&
+         g_snapshot.current_action_state == kWalkActionState) ||
+        (pending_meplayer_state == 0x14u &&
+         g_snapshot.current_action_state == kRunActionState);
+    if (function_state == 7u && base_a_action_matches_current &&
         !pending_has_additional_guard) {
-        accepted_action = kBaseAActionState;
+        accepted_action = pending_meplayer_state;
     } else if (function_state == 8u &&
                pending_meplayer_state == kBaselineBActionState &&
                pending_has_additional_guard &&
@@ -162,7 +177,8 @@ bool observe_action_completion(
         std::uint32_t current_function_state) {
     std::lock_guard<std::mutex> lock(g_mutex);
 
-    if (!g_snapshot.ready || !action_done || action_generation == 0u ||
+    if (!g_snapshot.ready || !action_done || g_snapshot.current_action_done ||
+        action_generation == 0u ||
         action_generation != g_snapshot.generation ||
         loaded_revision == 0u || loaded_revision != g_snapshot.loaded_revision ||
         completed_action_state != g_snapshot.current_action_state ||
@@ -173,7 +189,13 @@ bool observe_action_completion(
     }
 
     std::uint32_t target_state = 0u;
-    if (completed_action_state == kBaseAActionState ||
+    if (completed_action_state == kWalkAttackActionState ||
+        completed_action_state == kRunAttackActionState) {
+        g_snapshot.current_action_done = true;
+        g_snapshot.last_completed_action_state = completed_action_state;
+        g_snapshot.last_completion_target_state = completed_action_state;
+        return true;
+    } else if (completed_action_state == kBaseAActionState ||
         completed_action_state == kTutorialJumpActionState) {
         target_state = kInitialActionState;
     } else if (completed_action_state == kBaselineBActionState) {
@@ -200,6 +222,7 @@ bool commit_loaded_action(std::uint32_t action_state, bool looping) {
     if (!g_snapshot.ready || action_state != g_snapshot.desired_action_state) return false;
     g_snapshot.current_action_state = action_state;
     g_snapshot.current_action_looping = looping;
+    g_snapshot.current_action_done = false;
     g_snapshot.loaded_revision = g_snapshot.desired_revision;
     return true;
 }
@@ -218,6 +241,7 @@ std::string status_report() {
     out << "spawn generation: " << state.spawn_generation << "\n";
     out << "current action: 0x" << std::hex << state.current_action_state << std::dec << "\n";
     out << "current action looping: " << (state.current_action_looping ? "yes" : "no") << "\n";
+    out << "current action done: " << (state.current_action_done ? "yes" : "no") << "\n";
     out << "desired action: 0x" << std::hex << state.desired_action_state << std::dec << "\n";
     out << "desired revision: " << state.desired_revision << "\n";
     out << "loaded revision: " << state.loaded_revision << "\n";

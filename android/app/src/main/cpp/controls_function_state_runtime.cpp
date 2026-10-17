@@ -46,7 +46,8 @@ bool advance_sample(
         const std::array<bool, 3>& pressed,
         std::uint32_t source_direction_combo_state,
         std::uint64_t source_combo_started_tick,
-        std::uint64_t game_tick) {
+        std::uint64_t game_tick,
+        std::optional<std::uint32_t> current_action_state) {
     std::lock_guard<std::mutex> lock(g_mutex);
 
     // A source state/start-tick pair identifies one retained Controls +0x110
@@ -107,7 +108,8 @@ bool advance_sample(
         source_combo_started_tick == g_consumed_combo_started_tick;
     next.consumed_combo_started_tick = g_consumed_combo_started_tick;
 
-    const auto request = player_function_action_contract::base_action_request(next.function_state);
+    const auto request = player_function_action_contract::base_action_request(
+        next.function_state, current_action_state);
     if (request.has_value()) {
         next.has_pending_base_action = true;
         next.pending_meplayer_state = request->meplayer_state;

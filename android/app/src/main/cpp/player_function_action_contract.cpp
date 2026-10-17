@@ -2,11 +2,26 @@
 
 namespace nevergone::player_function_action_contract {
 
-std::optional<ActionRequest> base_action_request(std::uint32_t controls_function_state) {
+std::optional<ActionRequest> base_action_request(
+        std::uint32_t controls_function_state,
+        std::optional<std::uint32_t> current_action_state) {
     switch (controls_function_state) {
         case 7u:
-            // MEPlayer::setFunctionState: base A path -> setActionState(2,false).
-            return ActionRequest{7u, 0x02u, false, false};
+            if (!current_action_state.has_value()) return std::nullopt;
+            switch (*current_action_state) {
+                case 0x00u:
+                    // setActionState(2,false) from walk selects state 0x10.
+                    return ActionRequest{7u, 0x10u, false, false};
+                case 0x01u:
+                    // setActionState(2,false) from run selects state 0x14.
+                    return ActionRequest{7u, 0x14u, false, false};
+                case 0x1bu:
+                case 0x1cu:
+                    // The native path normalizes its temporary 0x27 state to 2.
+                    return ActionRequest{7u, 0x02u, false, false};
+                default:
+                    return std::nullopt;
+            }
         case 8u:
             // From the reconstructed initial player action 0x1b, with no prior
             // guarded-action history at +0x1f0/+0x1f8, the shipped B path falls

@@ -17,11 +17,11 @@ The stateful core feeds those values through `controls_function_state_contract::
 
 `controls_function_state_runtime::Snapshot` exposes the live recovered `Controls + 0x118` function state. For the three already proven base states it additionally exposes the corresponding pending `MEPlayer::setActionState` request:
 
-- Controls state `7` / A -> MEPlayer state `0x02`, `force=false`;
+- Controls state `7` / A -> MEPlayer state `0x10` from walk `0x00`, `0x14` from run `0x01`, or `0x02` from initial states `0x1b/0x1c`, all with `force=false`;
 - Controls state `8` / B -> MEPlayer state `0x11`, `force=true`, with the still-unimplemented additional player guard;
 - Controls state `9` / C -> MEPlayer state `0x20`, `force=false`.
 
-Synthesized function states such as A+C `0x1c` or directional A rewrites remain visible as function state but deliberately produce no base action request until their `MEPlayer::setFunctionState` branches are recovered.
+The A action request is resolved from the committed live MEPlayer state; unknown or unsupported current states produce no request. Synthesized function states such as A+C `0x1c` or directional A rewrites remain visible as function state but deliberately produce no base action request until their `MEPlayer::setFunctionState` branches are recovered.
 
 ## Execution boundary
 
