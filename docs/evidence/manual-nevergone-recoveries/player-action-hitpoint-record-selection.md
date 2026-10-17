@@ -29,8 +29,9 @@ decompilation confirm the following data path:
 3. `MeActionsSystem::curFrameHitPoint()` matches both fields and uses the
    selected array index to fetch a parallel object from `MeActionsSystem
    +0x198`, sets its position, and obtains its transformed `CCRect` through
-   `CCSprite::sprBoundingBox()`. The method copies the rectangle origin into a
-   `CCPoint`; `MEPlayer::curActionHitPointCount()` delegates to the active
+   `CCSprite::sprBoundingBox()`. The method copies the rectangle center
+   (`x + width/2`, `y + height/2`) into a `CCPoint`;
+   `MEPlayer::curActionHitPointCount()` delegates to the active
    system at `MEPlayer +0x234`.
 
 The Sections A-G document parser already retains the same Section-E records
@@ -40,7 +41,7 @@ result carries these references alongside the existing sprite frame lookup.
 
 This restores the data-backed count/ordinal/index selection stage. It does not
 create the native `+0x198` sprite objects, reproduce their position updates,
-calculate the transformed `sprBoundingBox()` origin, or perform the later
+calculate the transformed `sprBoundingBox()` center, or perform the later
 point comparisons. `MEPlayer::beatHitPoint()` now has a separate bounded
 contract for its failure checks and `+0x268/+0x26c` player-coordinate
 translation. Native sprite creation/positioning and the later comparisons

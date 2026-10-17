@@ -132,13 +132,13 @@ std::optional<enemy_hitpoint_contract::HitPoint> live_resolve_hitpoint(
         std::int32_t current_frame,
         std::int32_t frame_ordinal,
         const enemy_actions_wbg_document::Document& action,
-        std::optional<enemy_hitpoint_contract::Point> sprite_bounds_origin,
+        std::optional<enemy_hitpoint_contract::Point> sprite_bounds_center,
         float enemy_offset_118,
         float enemy_offset_284,
         std::uint64_t expected_wave_generation) {
     std::lock_guard<std::mutex> lock(g_live_mutex);
     return g_live_gate.resolve_hitpoint(
-        slot, current_frame, frame_ordinal, action, sprite_bounds_origin,
+        slot, current_frame, frame_ordinal, action, sprite_bounds_center,
         enemy_offset_118, enemy_offset_284, expected_wave_generation);
 }
 

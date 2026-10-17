@@ -1,4 +1,4 @@
-# Manual reconstruction: player action hit-point origin translation
+# Manual reconstruction: player action hit-point bounds-center translation
 
 > Address convention: executable addresses from RevEngInstr use an image base
 > `0x10000` above the shipped ELF VMA. Subtract `0x10000` to inspect the ELF.
@@ -24,24 +24,28 @@ the player-side wrapper around the already reconstructed Section-E selection:
    requested ordinal. If that accessor fails to find the frame/ordinal record
    or its parallel sprite, `beatHitPoint()` returns false.
 3. On success, the accessor has supplied the transformed
-   `CCSprite::sprBoundingBox()` rectangle origin. `beatHitPoint()` adds the
+   `CCSprite::sprBoundingBox()` rectangle center (`x + width/2`,
+   `y + height/2`). `beatHitPoint()` adds the
    floats at `MEPlayer +0x268` and `MEPlayer +0x26c` to x and y respectively,
    writes the resulting `CCPoint` to the caller, and returns true.
 
 `player_hitpoint_contract::resolve()` mirrors the record and ordinal lookup
 using `action_hitpoint_record_contract`, fails closed when the sprite bounds
-origin or selected record is absent, and returns the translated point with its
-Section-E record reference. The transformed origin is supplied as an input
+center or selected record is absent, and returns the translated point with its
+Section-E record reference. The transformed center is supplied as an input
 because the native `MeActionsSystem +0x198` sprite array is not yet recreated.
 
 This restores the player wrapper's success gates and coordinate translation.
 It does not create the parallel sprites, derive their transformed rectangle
-origins from the remaining Section-E floats, or reproduce point comparisons
+centers from the remaining Section-E floats, or reproduce point comparisons
 and distance rules in `MEPlayer::isBeaten()` and
 `BattleManager::playerHitEnemy()`.
 
 The gold subsystem and function-role labels are recorded in
-`player-hitpoint-origin-translation-labels.jsonl`. The local RevEngInstr
+`player-hitpoint-bounds-center-translation-labels.jsonl`. The local RevEngInstr
 dataset v17 contains 9,151 labelled functions, 6,861 structural groups, and
 9,725 gold label rows after adding these two labels to manual-restoration v16.
-The generated corpus and dataset remain outside Git.
+The generated corpus and dataset remain outside Git. After correcting both
+player and enemy hit-point role labels to identify bounds centers, local
+manual-restoration dataset v45 contains 9,195 labelled functions, 6,903
+structural groups, and 9,816 gold label rows.

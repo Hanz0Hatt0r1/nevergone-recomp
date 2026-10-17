@@ -28,7 +28,7 @@ decompilation establish these data paths:
    that frame index and ordinal, then uses the same array index in the parallel
    sprite array at `EnemyActionsSystem +0x150`. It obtains the sprite's
    transformed `CCRect` through `CCSprite::sprBoundingBox()` and copies the
-   rectangle origin to its `CCPoint` output.
+   rectangle center (`x + width/2`, `y + height/2`) to its `CCPoint` output.
 3. `EnemyObject::curActionHitPointCount()` returns zero when its action-system
    pointer at `EnemyObject +0x10c` is null; otherwise it delegates to the
    count accessor above.
@@ -43,12 +43,12 @@ exposes frame-matching records for player and enemy documents. The enemy
 combat-frame result includes those record references, and
 `tutorial_attack_live_gate::live_resolve_hitpoint()` exposes the selected
 ordinal and point translation behind the current wave-generation guard. Its
-sprite-bounds origin and object offsets are inputs because the native Cocos
+sprite-bounds center and object offsets are inputs because the native Cocos
 sprite objects have not been reconstructed yet.
 
 This recovers frame/count/ordinal/index selection and the two enemy-coordinate
 offsets. It does not create or position the native parallel sprites, derive
-their transformed `CCRect` origins from the remaining Section-E scalars, or
+their transformed `CCRect` centers from the remaining Section-E scalars, or
 implement the later player-point comparisons and distance rules in
 `MEPlayer::isBeaten()` / `BattleManager::enemyHitPlayer()`. Damage, guard,
 dodge, parry, and knockback remain outside this bounded slice.

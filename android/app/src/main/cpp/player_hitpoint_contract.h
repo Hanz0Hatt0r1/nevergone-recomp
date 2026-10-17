@@ -19,13 +19,13 @@ struct HitPoint {
 };
 
 // MEPlayer::beatHitPoint() requires a current-frame record and a successful
-// MeActionsSystem::curFrameHitPoint() origin, then adds player offsets
+// MeActionsSystem::curFrameHitPoint() bounds center, then adds player offsets
 // +0x268/+0x26c before writing the output CCPoint.
 std::optional<HitPoint> resolve(
     const enemy_actions_wbg_document::Document& document,
     std::int32_t current_frame,
     std::int32_t frame_ordinal,
-    std::optional<Point> sprite_bounds_origin,
+    std::optional<Point> sprite_bounds_center,
     float player_offset_268,
     float player_offset_26c) noexcept;
 

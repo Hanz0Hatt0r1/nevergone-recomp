@@ -19,14 +19,14 @@ struct HitPoint {
 };
 
 // EnemyObject::beatHitPoint() selects the frame/ordinal record, consumes the
-// transformed CCSprite::sprBoundingBox() origin, and adds offsets +0x118/+0x284.
-// The optional sprite origin represents the native parallel +0x150 sprite
+// transformed CCSprite::sprBoundingBox() center, and adds offsets +0x118/+0x284.
+// The optional sprite center represents the native parallel +0x150 sprite
 // lookup/bounds call; no result is returned if that bounds source is absent.
 std::optional<HitPoint> resolve(
     const enemy_actions_wbg_document::Document& document,
     std::int32_t current_frame,
     std::int32_t frame_ordinal,
-    std::optional<Point> sprite_bounds_origin,
+    std::optional<Point> sprite_bounds_center,
     float enemy_offset_118,
     float enemy_offset_284) noexcept;
 

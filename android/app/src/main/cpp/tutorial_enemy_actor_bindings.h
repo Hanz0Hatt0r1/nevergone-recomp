@@ -174,13 +174,13 @@ public:
             std::int32_t current_frame,
             std::int32_t frame_ordinal,
             const enemy_actions_wbg_document::Document& action,
-            std::optional<enemy_hitpoint_contract::Point> sprite_bounds_origin,
+            std::optional<enemy_hitpoint_contract::Point> sprite_bounds_center,
             float enemy_offset_118,
             float enemy_offset_284,
             std::uint64_t expected_wave_generation) const {
         if (!accepts(slot, expected_wave_generation)) return std::nullopt;
         return enemy_hitpoint_contract::resolve(
-            action, current_frame, frame_ordinal, sprite_bounds_origin,
+            action, current_frame, frame_ordinal, sprite_bounds_center,
             enemy_offset_118, enemy_offset_284);
     }
 
