@@ -2,6 +2,7 @@
 
 #include <mutex>
 #include <sstream>
+#include <utility>
 
 #include "game_scene_direct_geometry.h"
 
@@ -35,6 +36,13 @@ void reset() {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_state = Snapshot{};
     g_position.reset();
+}
+
+void set_player_name(std::string player_name) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_state.status == Status::kReady) {
+        g_state.player_name = std::move(player_name);
+    }
 }
 
 bool refresh(

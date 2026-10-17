@@ -17,8 +17,8 @@
 
 #include "character_name_state.h"
 #include "game_clock.h"
-#include "game_scene_player_bootstrap.h"
 #include "login_localization_csv.h"
+#include "player_offline_career.h"
 #include "tutorial_session_state.h"
 #include "tutorial_typewriter_reveal.h"
 
@@ -955,7 +955,7 @@ Java_org_nevergone_recomp_TutorialDialogueAssetLoader_nativeCurrentRoleName(
         JNIEnv* env,
         jclass) {
     if (env == nullptr) return nullptr;
-    const std::string role_name = nevergone::game_scene_player_bootstrap::player_name();
+    const std::string role_name = nevergone::player_offline_career::current_player_name();
     return role_name.empty() ? nullptr : env->NewStringUTF(role_name.c_str());
 }
 

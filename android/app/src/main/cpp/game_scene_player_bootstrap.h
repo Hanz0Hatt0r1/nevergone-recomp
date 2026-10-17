@@ -52,9 +52,8 @@ constexpr const char* action_name_field() {
     return "name";
 }
 
-// Uses the selected existing role name or the freshly created role name once
-// one is available. SELF remains the pre-selection fallback used by the
-// original bootstrap.
-std::string player_name();
+constexpr const char* player_name() {
+    return "SELF";
+}
 
 }  // namespace nevergone::game_scene_player_bootstrap

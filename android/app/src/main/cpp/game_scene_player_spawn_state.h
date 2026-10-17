@@ -51,6 +51,7 @@ struct Snapshot {
 };
 
 void reset();
+void set_player_name(std::string player_name);
 bool refresh(
         const game_levels_scene_instance::SceneInstance& scene,
         std::uint32_t event_port_type,

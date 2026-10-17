@@ -59,6 +59,20 @@ inline Resolution current() {
     return resolve(role_selection_state::snapshot(), character_name_state::snapshot());
 }
 
+inline std::string current_player_name() {
+    const auto role = role_selection_state::snapshot();
+    if (role.enter_dispatch_committed && !role.dispatched_character_name.empty()) {
+        return role.dispatched_character_name;
+    }
+
+    const auto created_role = character_name_state::snapshot();
+    if (created_role.completion_count > 0u && !created_role.role_name.empty()) {
+        return created_role.role_name;
+    }
+
+    return game_scene_player_bootstrap::player_name();
+}
+
 inline const char* source_name(Source source) {
     switch (source) {
         case Source::kNone: return "none";

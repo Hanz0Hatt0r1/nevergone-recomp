@@ -133,7 +133,9 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeRefreshPlayerSpawnStat
         existing.event_port_type == levels.stored_event_port_type &&
         existing.surface_width == renderer.surface_width &&
         existing.surface_height == renderer.surface_height) {
-        sync_runtime_to_spawn(existing);
+        nevergone::game_scene_player_spawn_state::set_player_name(
+                nevergone::player_offline_career::current_player_name());
+        sync_runtime_to_spawn(nevergone::game_scene_player_spawn_state::snapshot());
         return JNI_TRUE;
     }
 
@@ -150,6 +152,8 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeRefreshPlayerSpawnStat
             renderer.surface_width,
             renderer.surface_height);
     if (ready) {
+        nevergone::game_scene_player_spawn_state::set_player_name(
+                nevergone::player_offline_career::current_player_name());
         sync_runtime_to_spawn(nevergone::game_scene_player_spawn_state::snapshot());
     } else {
         nevergone::game_scene_player_motion_state::reset();
