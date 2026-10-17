@@ -27,6 +27,14 @@ base_health_field = second_i32
 review_status     = reviewed
 ```
 
+The combat-value investigation also proves that
+`EnemyObject::loadEnemyObjectFile()` reads `GameLevelsEnemyData +0x20`, converts
+it with `VCVT.U32.F32`, and stores it at `EnemyObject +0x2bc`. This value is
+consumed by `EnemyObject::inputAtkValue()` with the current
+`EnemyActionsSystem::DamageFactor()`. Its correspondence to one of the raw
+32-byte `LoadGL_Global` record fields is not yet proven, so it remains outside
+the runtime enemy-record mapping.
+
 The live tutorial Attack gate installs this reviewed mapping independently from
 its player-facing and scene-limit providers.
 
