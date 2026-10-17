@@ -4,6 +4,13 @@
 
 namespace nevergone::enemy_physical_state {
 
+struct Config {
+    bool no_physical = false;
+    int start_physical = 0;
+    int max_physical = 3;
+    std::array<int, 4> damage_percent{{100, 100, 100, 100}};
+};
+
 struct State {
     bool disabled = true;
     float duration = 0.0f;
@@ -17,6 +24,14 @@ struct State {
 
 // EnemyPhysical::initEnemyPhysical(EnemyPhysical*): copy fields +0x14..+0x3c.
 void copy_state(const State& source, State* target);
+
+// EnemyPhysical::loadPhysicalConfig(): apply the already-parsed dictionary
+// fields noPhysical, startPhysical, maxPhysical, and physicalDamage_01..04.
+bool load_config(const Config& config, State* state);
+
+// EnemyPhysical::initEnemyPhysical(CCString*, int): set duration, then load
+// the supplied typed configuration.
+bool initialize(const Config& config, int duration, State* out);
 
 // EnemyPhysical::physicalStateDamageWithID(): read the integer at +0x2c+4*id.
 // Returns false only when the supplied clean-room state lacks that config item.

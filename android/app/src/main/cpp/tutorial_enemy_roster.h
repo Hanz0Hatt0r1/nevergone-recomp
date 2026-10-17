@@ -78,6 +78,11 @@ public:
             std::size_t slot,
             const enemy_physical_state::State& physical,
             std::uint64_t expected_generation);
+    bool initialize_physical_state(
+            std::size_t slot,
+            const enemy_physical_state::Config& physical,
+            int duration,
+            std::uint64_t expected_generation);
     bool advance_physical_state(
             std::size_t slot,
             float damage,

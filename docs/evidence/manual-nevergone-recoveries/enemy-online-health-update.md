@@ -46,7 +46,7 @@ state was requested.
 `onlineEnemyState()` has 350 P-code operations and its corpus row is truncated
 to 256, so this reconstruction does not claim to restore its complete action,
 sprite, sound, and physics side effects. Gold labels are in
-`enemy-online-health-update-labels.jsonl`. Local RevEngInstr dataset v31 has
-9,179 labelled functions, 6,887 structural groups, and 9,782 gold label rows
-(train 7,374, test 813, validation 992); generated corpus and splits remain
+`enemy-online-health-update-labels.jsonl`. Local RevEngInstr dataset v32 has
+9,181 labelled functions, 6,889 structural groups, and 9,786 gold label rows
+(train 7,375, test 814, validation 992); generated corpus and splits remain
 outside Git.

@@ -125,6 +125,23 @@ bool Roster::configure_physical_state(
     return true;
 }
 
+bool Roster::initialize_physical_state(
+        std::size_t slot,
+        const enemy_physical_state::Config& physical,
+        int duration,
+        std::uint64_t expected_generation) {
+    if (!active_ || generation_ != expected_generation ||
+        slot >= plan_.enemy_count || !enemies_[slot].materialized) {
+        return false;
+    }
+    EnemySlot& enemy = enemies_[slot];
+    if (!enemy_physical_state::initialize(physical, duration, &enemy.physical)) {
+        return false;
+    }
+    enemy.physical_configured = true;
+    return true;
+}
+
 bool Roster::advance_physical_state(
         std::size_t slot,
         float damage,
