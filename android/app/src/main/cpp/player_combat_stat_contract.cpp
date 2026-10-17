@@ -222,17 +222,34 @@ void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept {
     status->cloth_add_attack_144 = 0.0f;
 }
 
+float resolve_eat_attribute(
+        std::int32_t type, std::int32_t tier,
+        const std::vector<EatAttributeCsvRow>& rows) noexcept {
+    for (const auto& row : rows) {
+        if (row.tier != tier || row.type != type) continue;
+        switch (type) {
+            case 1: return row.column_3;
+            case 2: return row.column_4;
+            case 3: return row.column_5;
+            case 4: return row.column_6;
+            default: return 0.0f;
+        }
+    }
+    return 0.0f;
+}
+
 float resolve_hero_eat_attribute(
         std::int32_t type, std::uint32_t count,
-        const HeroEatAttributeTerms& terms) noexcept {
-    const EatAttributeRates* rates = nullptr;
+        const std::vector<EatAttributeCsvRow>& rows) noexcept {
+    std::int32_t csv_type = type;
     bool apply_hundredth_scale = false;
     switch (type) {
-        case 1: rates = &terms.table_type_1; break;
-        case 2: rates = &terms.table_type_2; break;
-        case 4: rates = &terms.table_type_4; break;
+        case 1:
+        case 2:
+        case 4:
+            break;
         case 5:
-            rates = &terms.table_type_3;
+            csv_type = 3;
             apply_hundredth_scale = true;
             break;
         default:
@@ -243,9 +260,12 @@ float resolve_hero_eat_attribute(
     const std::uint32_t remainder = count % 1000000u;
     const std::uint32_t thousand_count = remainder / 1000u;
     const std::uint32_t unit_count = remainder % 1000u;
-    float result = static_cast<float>(million_count) * rates->per_million;
-    result = result + static_cast<float>(thousand_count) * rates->per_thousand;
-    result = result + static_cast<float>(unit_count) * rates->per_unit;
+    float result = static_cast<float>(million_count) *
+        resolve_eat_attribute(csv_type, 3, rows);
+    result = result + static_cast<float>(thousand_count) *
+        resolve_eat_attribute(csv_type, 2, rows);
+    result = result + static_cast<float>(unit_count) *
+        resolve_eat_attribute(csv_type, 1, rows);
     return apply_hundredth_scale ? result * 0.01f : result;
 }
 
@@ -279,7 +299,7 @@ void add_eat_property(
         ? static_cast<std::uint32_t>(static_cast<std::int32_t>(*target))
         : 0u;
     const float current_bonus = resolve_hero_eat_attribute(
-        terms.property_type, count, terms.attribute_rates);
+        terms.property_type, count, terms.attribute_rows);
     if (current_bonus < limit) {
         *target = *target + terms.addition;
     }

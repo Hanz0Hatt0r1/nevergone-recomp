@@ -27,9 +27,10 @@ Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256
 | `PlayerStatusInfo::add_C_StrengthValue` | `0x003275f4` | 14 | 1 | 1 | 2 | 1 |
 | `PlayerStatusInfo::add_C_DamageAbsorbValue` | `0x0032761c` | 14 | 1 | 1 | 2 | 1 |
 | `PlayerStatusInfo::add_EatProperty` | `0x003273f0` | 121 | 5 | 9 | 9 | 4 |
+| `MRGetEatAttribute` | `0x003165a8` | 87 | 7 | 11 | 3 | 0 |
 | `MRGetHeroEatAttribute` | `0x00316650` | 233 | 24 | 3 | 0 | 0 |
 
-All sixteen rows are complete. The original decompilation and ARM instructions
+All seventeen rows are complete. The original decompilation and ARM instructions
 establish this order for `MEPlayer::getAttack()`:
 
 1. `MEEquip::equipAtIdx(..., 0)` selects weapon-array entry zero from the
@@ -72,12 +73,15 @@ below `2000.0f` for ids `1`/`2` or `200.0f` for ids `4`/`5`. The current level
 is converted to a nonnegative integer before the helper call.
 
 `MRGetHeroEatAttribute()` splits that integer into millions, thousands, and
-units, multiplies each count by the matching tier returned by
-`MRGetEatAttribute()`, and adds the tiers in order. Types `1`, `2`, and `4`
-look up their own CSV types; type `5` looks up CSV type `3` and multiplies the
-sum by `0.01f`. Other types return zero. The one-million divisor, one-hundredth
-scale, and zero fallback are confirmed in the shipped ELF; CSV-derived rates
-remain explicit inputs.
+units, looks up tiers `3`, `2`, and `1` in that order, multiplies each count by
+the matching result, and adds the terms in order. `MRGetEatAttribute()` scans
+CSV data rows in source order, matching column 9 to the tier and column 10 to
+the type. The first matching row returns column 3 for type `1`, column 4 for
+type `2`, column 5 for type `3`, or column 6 for type `4`; missing rows and
+unsupported types return zero. Types `1`, `2`, and `4` look up their own CSV
+types; type `5` looks up CSV type `3` and multiplies the sum by `0.01f`. The
+one-million divisor, one-hundredth scale, lookup columns, and zero fallback are
+confirmed in the shipped ELF.
 
 `WeaponsItemData::getFinalAddBase_atk()` gates the hole contribution on a
 nonzero byte at `ManagementLayer +0x744`, gates the temper contribution on
@@ -122,9 +126,9 @@ from nested entries. Virtual getter results and string comparisons are
 decoded inputs, and the contract preserves the top-level and nested order of
 float additions.
 
-Gold subsystem and function-role labels for these sixteen functions are
+Gold subsystem and function-role labels for these seventeen functions are
 recorded in `player-attack-value-labels.jsonl`. Adding two labels for
-`MRGetHeroEatAttribute()` to manual-restoration v40 and rebuilding as v41
-produced 9,193 labelled functions, 6,901 structural groups, 9,810 gold label
-rows, and splits of 7,384 train / 992 validation / 817 test. The generated
-corpus and dataset remain outside Git.
+`MRGetEatAttribute()` to manual-restoration v41 and rebuilding as v42 produced
+9,194 labelled functions, 6,902 structural groups, 9,812 gold label rows, and
+splits of 7,385 train / 992 validation / 817 test. The generated corpus and
+dataset remain outside Git.
