@@ -25,10 +25,12 @@ Thumb instructions confirm their writes:
 - `setToolsDamageAbsorb()` computes `1.0f - argument` and stores it at
   `MEPlayer +0x430`.
 
-`player_combat_stat_contract` mirrors only these writes and arithmetic. It
-does not combine the modifiers into an effective maximum or damage value:
-`MEPlayer::getMaxHealth()` and `getAllDamageAbsorb()` have truncated corpus
-rows, so their remaining formulas need separate recovery.
+`player_combat_stat_contract` mirrors these writes and arithmetic. Its later
+bounded `MEPlayer::setEquipAddAttack()` and `MEPlayer::getAttack()` contracts
+are documented in `player-attack-value.md`. The health and absorption
+modifiers still are not combined into an effective maximum or total damage
+absorption: `MEPlayer::getMaxHealth()` and `getAllDamageAbsorb()` have
+truncated corpus rows, so those formulas need separate recovery.
 
 Gold subsystem and function-role labels for these five functions are recorded
 in `player-combat-stat-writes-labels.jsonl`. Adding them to the previous manual

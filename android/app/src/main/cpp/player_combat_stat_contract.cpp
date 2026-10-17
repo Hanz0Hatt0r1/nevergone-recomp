@@ -2,6 +2,17 @@
 
 namespace nevergone::player_combat_stat_contract {
 
+float resolve_attack(const State& player, const AttackTerms& terms) noexcept {
+    return terms.weapon_base_attack_38 + terms.weapon_final_add_base_attack +
+        terms.player_level_attack_110 + player.equipment_add_attack_114 +
+        terms.player_status_value_144;
+}
+
+void set_equipment_add_attack(State* state, float value) noexcept {
+    if (state == nullptr) return;
+    state->equipment_add_attack_114 = value;
+}
+
 void set_equipment_add_health(State* state, float value) noexcept {
     if (state == nullptr) return;
     state->equipment_add_health_110 = value;
