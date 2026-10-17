@@ -69,3 +69,39 @@ revenginstr-receiver-field-store-load-audit field-access-pairs.jsonl \
 
 The audit rows also pin the pair-graph and CFG hashes and retain the original
 store/load source identities.
+
+## Frozen workflow replay
+
+[`benchmark-manifest.json`](benchmark-manifest.json) pins the pair graphs, the
+existing CFG/1 rows, four schema snapshots from `revenginstr` main at
+`8288e07`, and the expected path-audit output. It replays the original path
+audit and the new conservative dominance audit, with exact-evidence gates for
+both outputs.
+
+Run it with that `revenginstr` revision available locally:
+
+```bash
+PYTHONPATH=/path/to/revenginstr/src \
+  python -m revenginstr.benchmark \
+  docs/evidence/field-store-load-cfg-ccjoystick-init/benchmark-manifest.json \
+  --mode smoke --output /path/to/benchmark-summary.json
+```
+
+The benchmark refuses to overwrite declared outputs. For another replay,
+remove the local `frozen-replay/` outputs or use a fresh checkout.
+
+The frozen replay passed both stages and both zero-mismatch exact gates. The
+dominance output has `incomplete_evidence` for both offsets because the pinned
+CFG/1 artifact has no explicit entry block, memory space, or memory width. This
+does not mean the paired stores fail to reach their loads. A fresh CFG/2 export
+is required before the dominance audit can make a structural candidate; use
+`--memory-metadata` on the shared CFG exporter. The generated `frozen-replay/`
+files are outputs and are intentionally not checked in; the expected rows and
+all input/schema hashes are pinned in this consumer-owned manifest.
+
+The expected dominance rows are in
+[`field-store-load-dominance-audit.expected.jsonl`](field-store-load-dominance-audit.expected.jsonl)
+with SHA-256 `d2817879c2efce3d701a43190cdcf65613dcfc6ca8158fa9fcad92b87c26e033`.
+The frozen manifest SHA-256 is `c8ad5401f1a582520c2b3706cda0f4d19d39111c8e76702b14a1046116ddc5c6`.
+They preserve the missing-metadata result instead of inferring aliasing or
+memory value flow from CFG reachability.

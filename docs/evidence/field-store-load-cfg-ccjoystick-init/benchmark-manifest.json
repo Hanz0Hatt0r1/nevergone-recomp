@@ -1,0 +1,185 @@
+{
+  "artifacts": {
+    "dominance_audit_expected": {
+      "content": "jsonl",
+      "format": "REVENGINSTR.FieldStoreLoadDominanceAudit/1",
+      "kind": "file",
+      "path": "field-store-load-dominance-audit.expected.jsonl",
+      "role": "input",
+      "schema": "dominance_audit",
+      "sha256": "d2817879c2efce3d701a43190cdcf65613dcfc6ca8158fa9fcad92b87c26e033"
+    },
+    "dominance_audit_replay": {
+      "content": "jsonl",
+      "format": "REVENGINSTR.FieldStoreLoadDominanceAudit/1",
+      "kind": "file",
+      "path": "frozen-replay/field-store-load-dominance-audit.jsonl",
+      "role": "output",
+      "schema": "dominance_audit"
+    },
+    "field_access_pairs": {
+      "content": "jsonl",
+      "format": "REVENGINSTR.ReceiverProvenanceGraph/1",
+      "kind": "file",
+      "path": "field-access-pairs.jsonl",
+      "role": "input",
+      "schema": "receiver_graph",
+      "sha256": "a914bacb54e8b0996091e443184ac456bb5c3ce93bc400759764a66e7d604e43"
+    },
+    "function_pcode_cfg": {
+      "content": "jsonl",
+      "format": "REVENGINSTR.GhidraFunctionPcodeCFG/1",
+      "kind": "file",
+      "path": "function-pcode-cfg.jsonl",
+      "role": "input",
+      "schema": "pcode_cfg",
+      "sha256": "30e473fdf66e933f354ddcb78fdecc92355f7d59feb95b45ea59318d334b6e53"
+    },
+    "path_audit_expected": {
+      "content": "jsonl",
+      "format": "REVENGINSTR.FieldStoreLoadPathAudit/1",
+      "kind": "file",
+      "path": "field-store-load-path-audit.jsonl",
+      "role": "input",
+      "schema": "path_audit",
+      "sha256": "682fdc63b2b908e54515323d2fd7fd496f5b38e4f586c84321e17e38f0fd8e31"
+    },
+    "path_audit_replay": {
+      "content": "jsonl",
+      "format": "REVENGINSTR.FieldStoreLoadPathAudit/1",
+      "kind": "file",
+      "path": "frozen-replay/field-store-load-path-audit.jsonl",
+      "role": "output",
+      "schema": "path_audit"
+    }
+  },
+  "benchmark": {
+    "dataset_artifact": "field_access_pairs",
+    "dataset_id": "nevergone-ccjoystick-field-access-pairs",
+    "description": "Frozen replay of consumer-owned CCJoyStick::init CFG candidate evidence and fail-closed CFG/1 dominance behavior.",
+    "family_set_id": null,
+    "id": "nevergone-ccjoystick-field-flow-frozen",
+    "split_id": "read-only-cfg-frozen-2026-10"
+  },
+  "configs": {
+    "function": "CCJoyStick::init@002a6584",
+    "memory_policy": "all writes and unknown effects are barriers; CFG/1 lacks the metadata needed for dominance candidates",
+    "program_id": "nevergone:libcocos2dcpp.so",
+    "source_binary_sha256": "94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e"
+  },
+  "format": "REVENGINSTR.BenchmarkManifest/1",
+  "projections": [
+    {
+      "artifact": "path_audit_replay",
+      "exact_evidence": {
+        "compare_fields": [
+          "status",
+          "path_block_indices",
+          "store",
+          "load"
+        ],
+        "expected_artifact": "path_audit_expected",
+        "key_fields": [
+          "program_id",
+          "function_entry",
+          "parameter_index",
+          "field_offset",
+          "source_parameter_index"
+        ],
+        "maximum_mismatches": 0
+      },
+      "id": "cfg_path_replay_exact",
+      "kind": "receiver",
+      "resolved_statuses": [],
+      "status_field": "status"
+    },
+    {
+      "artifact": "dominance_audit_replay",
+      "exact_evidence": {
+        "compare_fields": [
+          "status",
+          "store_reachable_from_entry",
+          "store_dominates_load",
+          "clean_store_to_load_path_exists",
+          "memory_effect_path_exists"
+        ],
+        "expected_artifact": "dominance_audit_expected",
+        "key_fields": [
+          "program_id",
+          "function_entry",
+          "parameter_index",
+          "field_offset",
+          "source_parameter_index"
+        ],
+        "maximum_mismatches": 0
+      },
+      "id": "cfg1_fail_closed_exact",
+      "kind": "receiver",
+      "resolved_statuses": [],
+      "status_field": "status"
+    }
+  ],
+  "schemas": {
+    "dominance_audit": {
+      "path": "schemas/field-store-load-dominance-audit-v1.schema.json",
+      "sha256": "07c455cbabe5a9766176c01bd0b09f917634d8650d3e4cae4892fb2fc93f17cf",
+      "version": "REVENGINSTR.FieldStoreLoadDominanceAudit/1 JSONL row"
+    },
+    "path_audit": {
+      "path": "schemas/field-store-load-path-audit-v1.schema.json",
+      "sha256": "6644ef0c116cb6dab65ab0716ab6e9372d5d80cae35c45470b0c85cd356bf373",
+      "version": "REVENGINSTR.FieldStoreLoadPathAudit/1 JSONL row"
+    },
+    "pcode_cfg": {
+      "path": "schemas/ghidra-function-pcode-cfg-v1.schema.json",
+      "sha256": "cae1b44fbf308e420d1fc9fcf84ee1100fb4ce40220b543132634aec14402ed0",
+      "version": "REVENGINSTR.GhidraFunctionPcodeCFG/1 JSONL row"
+    },
+    "receiver_graph": {
+      "path": "schemas/receiver-provenance-graph-v1.schema.json",
+      "sha256": "43cb888633ef724846361d6bcf67f32fa80b11272cd211be8e296d05178814de",
+      "version": "REVENGINSTR.ReceiverProvenanceGraph/1 record"
+    }
+  },
+  "stages": [
+    {
+      "args": [
+        "${artifact:field_access_pairs}",
+        "${artifact:function_pcode_cfg}",
+        "--output",
+        "${artifact:path_audit_replay}"
+      ],
+      "id": "replay_cfg_path_audit",
+      "inputs": [
+        "field_access_pairs",
+        "function_pcode_cfg"
+      ],
+      "outputs": [
+        "path_audit_replay"
+      ],
+      "tool": "receiver-field-store-load-audit"
+    },
+    {
+      "args": [
+        "${artifact:field_access_pairs}",
+        "${artifact:function_pcode_cfg}",
+        "--output",
+        "${artifact:dominance_audit_replay}"
+      ],
+      "id": "replay_cfg1_fail_closed_audit",
+      "inputs": [
+        "field_access_pairs",
+        "function_pcode_cfg"
+      ],
+      "outputs": [
+        "dominance_audit_replay"
+      ],
+      "tool": "receiver-field-store-load-dominance-audit"
+    }
+  ],
+  "toolchain": {
+    "ghidra_version": "12.1.2_DEV",
+    "revenginstr_version": "0.5.2",
+    "source_revision": "8288e07bc8f1df073cf100bd9041cb325734c034"
+  }
+}
