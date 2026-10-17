@@ -39,6 +39,12 @@ bool upload_prompt_text(
     int body_height,
     const std::uint32_t* body_argb,
     std::size_t body_count);
+bool upload_prompt_hints(
+    int tutorial_step,
+    int width,
+    int height,
+    const std::uint32_t* argb,
+    std::size_t count);
 void clear_prompt();
 
 // Draws only while tutorial_session_state owns LessonOverlay.

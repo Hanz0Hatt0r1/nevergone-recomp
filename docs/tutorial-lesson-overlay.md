@@ -193,6 +193,10 @@ visible-size offsets; it is submitted after the game controls and only while
 the matching tutorial step is active. This restores the changing Run, Jump,
 Attack, Block, and later lesson text panels.
 
-This does not yet reproduce `LessonLayer::callback1()`'s animated hand,
-highlighted control sprites, or the player status HUD. Those are separate
-rendering paths and remain visible fidelity work.
+`LessonLayer::callback1()` also creates step-specific control cues. The overlay
+now draws the imported touch, ring, hand, and A/B/C highlight sprites at the
+recovered joystick and action-button centers. The Execution cue marks the A-to-C
+swipe path. The hand currently uses a static frame; the repeat timing and frame
+alternation remain to be reproduced. The S2 item-slot cue is confirmed in the
+callback, but its exact position is unresolved. The separate player status HUD
+remains visible fidelity work.

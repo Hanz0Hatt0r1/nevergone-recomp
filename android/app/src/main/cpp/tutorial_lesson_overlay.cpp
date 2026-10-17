@@ -48,6 +48,7 @@ struct State {
     Asset prompt_titlebar;
     Asset prompt_title;
     Asset prompt_body;
+    Asset prompt_hints;
     std::uint64_t asset_generation = 0;
     std::uint64_t prompt_generation = 0;
     int prompt_step = -1;
@@ -79,6 +80,7 @@ GLuint g_prompt_board_texture = 0;
 GLuint g_prompt_titlebar_texture = 0;
 GLuint g_prompt_title_texture = 0;
 GLuint g_prompt_body_texture = 0;
+GLuint g_prompt_hints_texture = 0;
 std::uint64_t g_texture_generation = 0;
 std::uint64_t g_prompt_texture_generation = 0;
 std::atomic<int> g_surface_width{0};
@@ -197,12 +199,14 @@ void release_textures() {
     if (g_prompt_titlebar_texture != 0) glDeleteTextures(1, &g_prompt_titlebar_texture);
     if (g_prompt_title_texture != 0) glDeleteTextures(1, &g_prompt_title_texture);
     if (g_prompt_body_texture != 0) glDeleteTextures(1, &g_prompt_body_texture);
+    if (g_prompt_hints_texture != 0) glDeleteTextures(1, &g_prompt_hints_texture);
     g_keyboard_texture = 0;
     g_continue_texture = 0;
     g_prompt_board_texture = 0;
     g_prompt_titlebar_texture = 0;
     g_prompt_title_texture = 0;
     g_prompt_body_texture = 0;
+    g_prompt_hints_texture = 0;
     g_texture_generation = 0;
     g_prompt_texture_generation = 0;
 }
@@ -281,50 +285,60 @@ bool ensure_prompt_textures() {
     Asset titlebar;
     Asset title;
     Asset body;
+    Asset hints;
     std::uint64_t generation = 0;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         if (!valid_asset(g_state.prompt_board) || !valid_asset(g_state.prompt_titlebar) ||
-                !valid_asset(g_state.prompt_title) || !valid_asset(g_state.prompt_body)) {
+                !valid_asset(g_state.prompt_title) || !valid_asset(g_state.prompt_body) ||
+                !valid_asset(g_state.prompt_hints)) {
             return false;
         }
         generation = g_state.prompt_generation;
         if (g_prompt_texture_generation == generation &&
                 g_prompt_board_texture != 0 && g_prompt_titlebar_texture != 0 &&
-                g_prompt_title_texture != 0 && g_prompt_body_texture != 0) {
+                g_prompt_title_texture != 0 && g_prompt_body_texture != 0 &&
+                g_prompt_hints_texture != 0) {
             return true;
         }
         board = g_state.prompt_board;
         titlebar = g_state.prompt_titlebar;
         title = g_state.prompt_title;
         body = g_state.prompt_body;
+        hints = g_state.prompt_hints;
     }
 
     if (g_prompt_board_texture != 0) glDeleteTextures(1, &g_prompt_board_texture);
     if (g_prompt_titlebar_texture != 0) glDeleteTextures(1, &g_prompt_titlebar_texture);
     if (g_prompt_title_texture != 0) glDeleteTextures(1, &g_prompt_title_texture);
     if (g_prompt_body_texture != 0) glDeleteTextures(1, &g_prompt_body_texture);
+    if (g_prompt_hints_texture != 0) glDeleteTextures(1, &g_prompt_hints_texture);
     g_prompt_board_texture = 0;
     g_prompt_titlebar_texture = 0;
     g_prompt_title_texture = 0;
     g_prompt_body_texture = 0;
+    g_prompt_hints_texture = 0;
     g_prompt_texture_generation = 0;
 
     const GLuint board_texture = create_texture(board);
     const GLuint titlebar_texture = create_texture(titlebar);
     const GLuint title_texture = create_texture(title);
     const GLuint body_texture = create_texture(body);
-    if (board_texture == 0 || titlebar_texture == 0 || title_texture == 0 || body_texture == 0) {
+    const GLuint hints_texture = create_texture(hints);
+    if (board_texture == 0 || titlebar_texture == 0 || title_texture == 0 ||
+            body_texture == 0 || hints_texture == 0) {
         if (board_texture != 0) glDeleteTextures(1, &board_texture);
         if (titlebar_texture != 0) glDeleteTextures(1, &titlebar_texture);
         if (title_texture != 0) glDeleteTextures(1, &title_texture);
         if (body_texture != 0) glDeleteTextures(1, &body_texture);
+        if (hints_texture != 0) glDeleteTextures(1, &hints_texture);
         return false;
     }
     g_prompt_board_texture = board_texture;
     g_prompt_titlebar_texture = titlebar_texture;
     g_prompt_title_texture = title_texture;
     g_prompt_body_texture = body_texture;
+    g_prompt_hints_texture = hints_texture;
     g_prompt_texture_generation = generation;
     return true;
 }
@@ -407,6 +421,7 @@ void on_surface_created() {
     g_prompt_titlebar_texture = 0;
     g_prompt_title_texture = 0;
     g_prompt_body_texture = 0;
+    g_prompt_hints_texture = 0;
     g_texture_generation = 0;
     g_prompt_texture_generation = 0;
     if (g_program != 0) glDeleteProgram(g_program);
@@ -427,6 +442,7 @@ void clear_assets() {
     g_state.prompt_titlebar = {};
     g_state.prompt_title = {};
     g_state.prompt_body = {};
+    g_state.prompt_hints = {};
     g_state.prompt_step = -1;
     g_state.captured_pointer = -1;
     ++g_state.asset_generation;
@@ -506,12 +522,29 @@ bool upload_prompt_text(
     return true;
 }
 
+bool upload_prompt_hints(
+        int tutorial_step,
+        int width,
+        int height,
+        const std::uint32_t* argb,
+        std::size_t count) {
+    if (tutorial_step < 2 || tutorial_step > 10) return false;
+    Asset hints;
+    if (!make_asset(width, height, argb, count, &hints)) return false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state.prompt_hints = std::move(hints);
+    g_state.prompt_step = tutorial_step;
+    ++g_state.prompt_generation;
+    return true;
+}
+
 void clear_prompt() {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_state.prompt_board = {};
     g_state.prompt_titlebar = {};
     g_state.prompt_title = {};
     g_state.prompt_body = {};
+    g_state.prompt_hints = {};
     g_state.prompt_step = -1;
     ++g_state.prompt_generation;
 }
@@ -537,6 +570,7 @@ bool draw() {
     Asset prompt_titlebar;
     Asset prompt_title;
     Asset prompt_body;
+    Asset prompt_hints;
     int prompt_step = -1;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
@@ -548,6 +582,7 @@ bool draw() {
             prompt_titlebar = g_state.prompt_titlebar;
             prompt_title = g_state.prompt_title;
             prompt_body = g_state.prompt_body;
+            prompt_hints = g_state.prompt_hints;
             prompt_step = g_state.prompt_step;
         }
     }
@@ -593,6 +628,12 @@ bool draw() {
             surface,
             kPromptCenterX,
             kPromptCenterY - 60.0f);
+        draw_asset(
+            g_prompt_hints_texture,
+            prompt_hints,
+            surface,
+            kDesignWidth * 0.5f,
+            kDesignHeight * 0.5f);
     }
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(0);
@@ -672,7 +713,8 @@ std::string status_report() {
     out << "asset generation: " << g_state.asset_generation << "\n";
     out << "interactive prompt ready: "
         << (valid_asset(g_state.prompt_board) && valid_asset(g_state.prompt_titlebar) &&
-            valid_asset(g_state.prompt_title) && valid_asset(g_state.prompt_body) ? "yes" : "no")
+            valid_asset(g_state.prompt_title) && valid_asset(g_state.prompt_body) &&
+            valid_asset(g_state.prompt_hints) ? "yes" : "no")
         << "\n";
     out << "interactive prompt step: " << g_state.prompt_step << "\n";
     out << "interactive prompt generation: " << g_state.prompt_generation << "\n";
@@ -817,6 +859,18 @@ bool upload_java_prompt_text(
         body.size());
 }
 
+bool upload_java_prompt_hints(
+        JNIEnv* env,
+        jint step,
+        jint width,
+        jint height,
+        jintArray pixels) {
+    std::vector<std::uint32_t> hints;
+    if (!copy_java_pixels(env, width, height, pixels, &hints)) return false;
+    return nevergone::tutorial_lesson_overlay::upload_prompt_hints(
+        step, width, height, hints.data(), hints.size());
+}
+
 }  // namespace
 
 extern "C" JNIEXPORT void JNICALL
@@ -889,6 +943,17 @@ Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeUploadPromptTex
         body_width,
         body_height,
         body_pixels) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_TutorialLessonOverlayAssetLoader_nativeUploadPromptHints(
+        JNIEnv* env,
+        jclass,
+        jint step,
+        jint width,
+        jint height,
+        jintArray pixels) {
+    return upload_java_prompt_hints(env, step, width, height, pixels) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jstring JNICALL

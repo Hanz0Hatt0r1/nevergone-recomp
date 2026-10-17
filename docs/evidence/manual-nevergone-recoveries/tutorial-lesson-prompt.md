@@ -46,11 +46,9 @@ execution state transitions instead of a separate timer or raw button press.
 
 The board, titlebar, and localized text are now present. The static control
 diagrams referenced by `showDialogue()` (`lesson_stick.png`, `A1.png`, `B1.png`,
-`C1.png`, and `S1_a.png`) are not drawn yet. `LessonLayer::callback1()` remains
-the next visual boundary for this scene: it animates `hand_ring.png`,
-`hand_point%02d.png`, `lesson_touch.png`, and step-specific A/B/C control
-highlights. The separate player status HUD is also not reconstructed by this
-change.
+`C1.png`, and `S1_a.png`) are not drawn yet. A first reconstruction of
+`LessonLayer::callback1()`'s interactive control cues is documented separately.
+The separate player status HUD is also not reconstructed by this change.
 
 ## Corpus label
 

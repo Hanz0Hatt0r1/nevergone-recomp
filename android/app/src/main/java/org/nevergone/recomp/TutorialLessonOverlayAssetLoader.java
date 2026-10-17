@@ -43,6 +43,8 @@ final class TutorialLessonOverlayAssetLoader {
             int step,
             int titleWidth, int titleHeight, int[] titlePixels,
             int bodyWidth, int bodyHeight, int[] bodyPixels);
+    private static native boolean nativeUploadPromptHints(
+            int step, int width, int height, int[] pixels);
     private static native String nativeLocalizedString(
             String filesDir, String key, int languageColumn);
 
@@ -130,22 +132,87 @@ final class TutorialLessonOverlayAssetLoader {
         Bitmap titlebar = decodeArgb(titlebarFile);
         Bitmap title = renderCocosLabel(titleText, PROMPT_TITLE_FONT_SIZE, 0);
         Bitmap body = renderCocosLabel(bodyText, PROMPT_BODY_FONT_SIZE, PROMPT_BODY_MAX_WIDTH);
-        if (board == null || titlebar == null || title == null || body == null) {
+        Bitmap hints = renderPromptHints(root, tutorialStep);
+        if (board == null || titlebar == null || title == null || body == null || hints == null) {
             recycle(board);
             recycle(titlebar);
             recycle(title);
             recycle(body);
+            recycle(hints);
             return false;
         }
 
         boolean backgroundsUploaded = uploadPromptBackgrounds(board, titlebar);
         boolean promptUploaded = backgroundsUploaded && uploadPromptText(tutorialStep, title, body);
+        boolean hintsUploaded = promptUploaded && uploadPromptHints(tutorialStep, hints);
         recycle(board);
         recycle(titlebar);
         recycle(title);
         recycle(body);
-        if (!promptUploaded) nativeClearPrompt();
-        return promptUploaded;
+        recycle(hints);
+        if (!hintsUploaded) nativeClearPrompt();
+        return hintsUploaded;
+    }
+
+    private static Bitmap renderPromptHints(File assetsRoot, int step) {
+        Bitmap hints = Bitmap.createBitmap(1136, 640, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(hints);
+        switch (step) {
+            case 2:
+                drawHint(canvas, assetsRoot, "hand_ring.png", 204, 173);
+                drawHint(canvas, assetsRoot, "lesson_touch.png", 204, 173);
+                drawHint(canvas, assetsRoot, "hand_point01.png", 264, 123);
+                break;
+            case 3:
+                drawActionHint(canvas, assetsRoot, "C2.png", 1000, 224);
+                break;
+            case 4:
+            case 6:
+                drawActionHint(canvas, assetsRoot, "A2.png", 898, 90);
+                break;
+            case 5:
+                drawActionHint(canvas, assetsRoot, "B2.png", 1040, 90);
+                break;
+            case 7:
+                drawActionHint(canvas, assetsRoot, "B2.png", 1040, 90);
+                drawHint(canvas, assetsRoot, "hand_ring.png", 204, 173);
+                drawHint(canvas, assetsRoot, "lesson_touch.png", 204, 173);
+                drawHint(canvas, assetsRoot, "hand_point01.png", 264, 123);
+                break;
+            case 8:
+                drawActionHint(canvas, assetsRoot, "C2.png", 1000, 224);
+                drawActionHint(canvas, assetsRoot, "A2.png", 898, 90);
+                break;
+            case 10:
+                drawActionHint(canvas, assetsRoot, "A2.png", 898, 90);
+                drawActionHint(canvas, assetsRoot, "C2.png", 1000, 224);
+                drawHint(canvas, assetsRoot, "s_a_to_j_tip.png", 949, 157);
+                break;
+            default:
+                break;
+        }
+        return hints;
+    }
+
+    private static void drawActionHint(Canvas canvas, File assetsRoot, String fileName, int x, int y) {
+        drawHint(canvas, assetsRoot, fileName, x, y);
+        drawHint(canvas, assetsRoot, "hand_ring.png", x, y);
+        int pointOffsetX = x > 1000 ? 30 : 60;
+        drawHint(canvas, assetsRoot, "hand_point01.png", x + pointOffsetX, y - 50);
+    }
+
+    private static void drawHint(Canvas canvas, File assetsRoot, String fileName, int x, int y) {
+        File file = GameSceneAtlasResolver.resolveResource(assetsRoot, LESSON_DIR + "/" + fileName);
+        if (file == null) return;
+        Bitmap bitmap = decodeArgb(file);
+        if (bitmap == null) return;
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        canvas.drawBitmap(
+                bitmap,
+                x - bitmap.getWidth() * 0.5f,
+                640.0f - y - bitmap.getHeight() * 0.5f,
+                paint);
+        bitmap.recycle();
     }
 
     private static boolean hasRecoveredLessonKeys(File plist) {
@@ -327,6 +394,14 @@ final class TutorialLessonOverlayAssetLoader {
                 step,
                 titleWidth, titleHeight, titlePixels,
                 bodyWidth, bodyHeight, bodyPixels);
+    }
+
+    private static boolean uploadPromptHints(int step, Bitmap hints) {
+        int width = hints.getWidth();
+        int height = hints.getHeight();
+        int[] pixels = new int[width * height];
+        hints.getPixels(pixels, 0, width, 0, 0, width, height);
+        return nativeUploadPromptHints(step, width, height, pixels);
     }
 
     private static int languageColumn(Locale locale) {
