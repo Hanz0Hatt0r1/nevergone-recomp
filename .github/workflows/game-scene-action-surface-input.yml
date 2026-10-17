@@ -10,6 +10,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_player_joystick_input.*'
       - 'android/app/src/main/cpp/game_clock.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
+      - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/controls_function_state_runtime.*'
       - 'android/app/src/main/cpp/controls_function_state_contract.*'
       - 'android/app/src/main/cpp/player_function_action_contract.*'
@@ -31,6 +32,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_player_joystick_input.*'
       - 'android/app/src/main/cpp/game_clock.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
+      - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/controls_function_state_runtime.*'
       - 'android/app/src/main/cpp/controls_function_state_contract.*'
       - 'android/app/src/main/cpp/player_function_action_contract.*'
@@ -63,6 +65,7 @@ jobs:
             android/app/src/main/cpp/game_clock.cpp \
             android/app/src/main/cpp/game_scene_player_joystick_input.cpp \
             android/app/src/main/cpp/player_control_runtime_state.cpp \
+            android/app/src/main/cpp/player_control_contract.cpp \
             android/app/src/main/cpp/controls_function_state_runtime.cpp \
             android/app/src/main/cpp/controls_function_state_contract.cpp \
             android/app/src/main/cpp/player_function_action_contract.cpp \
