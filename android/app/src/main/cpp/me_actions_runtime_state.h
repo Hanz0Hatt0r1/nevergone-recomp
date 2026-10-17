@@ -3,8 +3,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "enemy_actions_wbg_document.h"
+#include "player_action_hitpoint_contract.h"
 
 namespace nevergone::me_actions_runtime_state {
 
@@ -26,6 +28,7 @@ struct UpdateDataFrameLookupResult {
     std::string frame_name_68;
     std::int32_t frame_name_length_6c = 0;
     bool should_lookup_sprite_frame = false;
+    std::vector<player_action_hitpoint_contract::RecordRef> current_frame_hitpoints;
 };
 
 inline State initial_play_state() {
@@ -52,6 +55,8 @@ inline UpdateDataFrameLookupResult apply_update_data_frame_lookup(
     result.frame_name_68 = frame.third_string;
     result.frame_name_length_6c = frame.third_string_length_i32;
     result.should_lookup_sprite_frame = true;
+    result.current_frame_hitpoints = player_action_hitpoint_contract::records_for_frame(
+        document, state.current_frame_1a4);
     return result;
 }
 
