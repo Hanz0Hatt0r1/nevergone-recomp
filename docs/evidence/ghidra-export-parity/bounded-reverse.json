@@ -1,0 +1,10 @@
+{
+  "first_mismatch": null,
+  "format": "REVENGINSTR.GhidraExportParity/1",
+  "left_rows": 8171,
+  "left_sha256": "613e6820f4d48e6d5c91d2916dd383b46d659d2a150876c35fb97702dee98bea",
+  "right_rows": 8171,
+  "right_sha256": "613e6820f4d48e6d5c91d2916dd383b46d659d2a150876c35fb97702dee98bea",
+  "same_bytes": true,
+  "same_records": true
+}

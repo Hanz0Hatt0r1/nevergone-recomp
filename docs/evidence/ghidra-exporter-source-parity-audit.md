@@ -16,12 +16,17 @@ not claim a new same-program Ghidra run.
 The bounded Nevergone sources rank title-specific function-name fragments in
 the exporter. The shared exporters accept priority rules as invocation
 arguments. Those choices can change which functions fit inside a traversal
-budget, so keep the local fallback and its policy until paired exports have
-been compared with the same program, roots, bounds, and equivalent priority
-rules.
+budget, so source comparison alone cannot establish output parity. The first
+same-program forward/reverse comparison under equivalent rules is recorded in
+the related evidence below; expand the root/bounds fixture set before reducing
+the local fallbacks.
 
 `revenginstr-export-parity` was added in
 [`revenginstr` PR #48](https://github.com/Hanz0Hatt0r1/revenginstr/pull/48).
-After preparing paired exports from the same analyzed program, save the
-hash-only parity report and invocation details in this repository. The report
-does not copy TSV rows or filesystem paths.
+The tool stores hashes and row comparison results without copying TSV rows or
+filesystem paths. The first bounded same-program run is recorded below.
+
+## Related same-program evidence
+
+The first bounded forward/reverse output comparison is recorded in
+[bounded P-code exporter output parity](ghidra-export-parity.md).
