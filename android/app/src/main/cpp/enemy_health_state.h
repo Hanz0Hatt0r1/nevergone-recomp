@@ -25,7 +25,9 @@ void apply_beaten_damage(State* state, float damage);
 // EnemyObject::addHealth(float): current += delta; the original does not clamp.
 void add_health(State* state, float delta);
 
-// EnemyObject::setEnemyDead(): current health is written to 0 before isDead().
+// EnemyObject::setEnemyDead(): mirrors the +0x164 write before isDead(); the
+// health-data callback and large setEnemyState() handoff are not part of this
+// retained health-only state model.
 void set_dead(State* state);
 
 void set_enemy_state(State* state, int enemy_state);

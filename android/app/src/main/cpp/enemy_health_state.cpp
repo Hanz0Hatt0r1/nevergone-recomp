@@ -42,7 +42,7 @@ void set_force_action_state_no_dead(State* state, bool enabled) {
 }
 
 bool is_dead(const State& state) {
-    if (state.current_health > 0.0f) return false;
+    if (!(state.current_health <= 0.0f)) return false;
     if (state.enemy_state == 0x0f || state.enemy_state == 0x2c) return false;
     return !state.force_action_state_no_dead;
 }
