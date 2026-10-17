@@ -105,3 +105,51 @@ with SHA-256 `d2817879c2efce3d701a43190cdcf65613dcfc6ca8158fa9fcad92b87c26e033`.
 The frozen manifest SHA-256 is `c8ad5401f1a582520c2b3706cda0f4d19d39111c8e76702b14a1046116ddc5c6`.
 They preserve the missing-metadata result instead of inferring aliasing or
 memory value flow from CFG reachability.
+
+## CFG/3 and memory-store evidence
+
+After `revenginstr` merged PR #95 and PR #96, the selected function was exported
+again from the same analyzed Ghidra project with CFG/3 and the optional
+`GhidraMemoryStoreAccess/1` sidecar. The existing parameter store/load TSVs and
+their exact pair graph were byte-identical to the earlier capture. To avoid the
+local database quota failure, the project was copied to tmpfs and opened with
+`-readOnly -noanalysis`; the binary and Ghidra project are not included here.
+
+The v2 audit found two `possible_intervening_memory_effect` rows and zero
+`unique_cfg_store_candidate` rows. Both candidate stores dominate their loads,
+but a represented intervening STORE could not be excluded as a memory effect.
+That is unresolved alias evidence, not proof that the STORE aliases the field
+or that a particular store reaches a load. All 12 captured STORE facts have a
+parameter-rooted constant byte offset. The audit pins the CFG, pair graph, and
+sidecar hashes, including the consumed sidecar row ordinals.
+
+| Artifact | Rows | SHA-256 |
+|---|---:|---|
+| `function-pcode-cfg-v3.jsonl` | 1 | `38c640ebdd387aa99f0a27f8b28d374267080d18117ee396e96bc4ba26901cb3` |
+| `memory-store-access.jsonl` | 12 | `391c0444194daa95b554670f8c29a112ca17625549290129c521c13f52311eda` |
+| `field-store-load-dominance-audit-v2.expected.jsonl` | 2 | `0bf48e0f06f7afbf918044718e12b3b72b47a83c316ac6aeb9547d1d9da5e911` |
+| Rebuilt `field-access-pairs.jsonl` | 2 | `a914bacb54e8b0996091e443184ac456bb5c3ce93bc400759764a66e7d604e43` |
+
+The new capture used `revenginstr` main at `fa8df4d5921bd91fa32d5bdb55e49955cb2472ae`
+(PRs [#95](https://github.com/Hanz0Hatt0r1/revenginstr/pull/95) and
+[#96](https://github.com/Hanz0Hatt0r1/revenginstr/pull/96)); Ghidra version
+was `12.1.2_DEV`. `benchmark-manifest-memory-v2.json` pins the three input
+schemas, data hashes, source binary hash, tool version, and exact expected
+audit fields. The smoke replay passed with two rows compared and zero
+mismatches. Its generated replay output is local and is not checked in.
+
+Reproduce the new audit from the checked-in generic evidence with:
+
+```bash
+PYTHONPATH=/path/to/revenginstr/src \
+  python -m revenginstr.benchmark \
+  docs/evidence/field-store-load-cfg-ccjoystick-init/benchmark-manifest-memory-v2.json \
+  --mode smoke --output /tmp/field-memory-v2-summary.json
+```
+
+To recapture from an existing analyzed Ghidra project, use the same project,
+program, function, and opaque program id as above, add
+`--memory-access-output memory-store-access.jsonl --program-id
+'nevergone:libcocos2dcpp.so'` to the parameter-store runner, and pass
+`--physical-memory-metadata` to the CFG runner. This stays generic: the raw
+Nevergone rows and binary identity remain in this consumer repository.
