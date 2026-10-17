@@ -12,6 +12,7 @@ on:
       - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
       - 'android/app/src/main/cpp/tutorial_enemy_actor_bindings.h'
       - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
+      - 'android/app/src/main/cpp/enemy_hitpoint_contract.*'
       - 'android/app/src/main/cpp/enemy_attack_value_contract.*'
       - 'android/app/src/main/cpp/action_hitpoint_record_contract.*'
       - 'android/app/src/main/cpp/enemy_health_state.*'
@@ -30,6 +31,7 @@ on:
       - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
       - 'android/app/src/main/cpp/tutorial_enemy_actor_bindings.h'
       - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
+      - 'android/app/src/main/cpp/enemy_hitpoint_contract.*'
       - 'android/app/src/main/cpp/enemy_attack_value_contract.*'
       - 'android/app/src/main/cpp/action_hitpoint_record_contract.*'
       - 'android/app/src/main/cpp/enemy_health_state.*'
@@ -50,6 +52,7 @@ jobs:
             -Iandroid/app/src/main/cpp \
             tools/tutorial_enemy_actor_bindings_smoke.cpp \
             android/app/src/main/cpp/game_levels_enemy_record_mapping.cpp \
+            android/app/src/main/cpp/enemy_hitpoint_contract.cpp \
             android/app/src/main/cpp/enemy_attack_value_contract.cpp \
             android/app/src/main/cpp/action_hitpoint_record_contract.cpp \
             -o /tmp/tutorial_enemy_actor_bindings_smoke
