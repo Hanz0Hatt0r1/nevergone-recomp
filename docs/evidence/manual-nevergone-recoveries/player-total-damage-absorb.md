@@ -31,13 +31,15 @@ function and supplies the arithmetic and object offsets below.
 4. `PlayerStatusInfo +0x140`.
 5. `MEPlayer +0x118`, written by `setEquipAddDamageAbosr()`.
 6. Enabled type `2` and `4` mission attributes, each adding
-   `float(level) * LevelUpData[type] +0x18 / 100.0f`.
+   `float(level)` multiplied by the value at `LevelUpData[type] +0x18`, then
+   divided by `100.0f`.
 
 The multiplier bonus comes from one of two paths. When
 `AppParameters +0x214` is `4` or `8`, sum each type `10` management effect's
-`LevelUpData[10] +0x1c + float(level - 1) * LevelUpData[10] +0x20`. Otherwise,
-use `AppParameters +0x308` directly. If equipped, add the armband multiplier
-at `ArmbandItemData +0x40`. The function returns:
+value at `LevelUpData[10] +0x1c` plus `float(level - 1)` multiplied by the
+value at `LevelUpData[10] +0x20`. Otherwise, use `AppParameters +0x308`
+directly. If equipped, add the armband multiplier at `ArmbandItemData +0x40`.
+The function returns:
 
 ```text
 base_sum * (multiplier_bonus + 1.0f + armband_multiplier)
