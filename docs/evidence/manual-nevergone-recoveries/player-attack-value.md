@@ -21,8 +21,10 @@ Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256
 | `WeaponsItemData::getAddTemperBase_atk` | `0x00344f24` | 15 | 0 | 0 | 2 | 0 |
 | `WeaponsItemData::getExtraBase_atk` | `0x00345734` | 176 | 14 | 13 | 20 | 0 |
 | `WeaponsItemData::getAddBase_atk` | `0x00344db0` | 136 | 13 | 13 | 22 | 0 |
+| `PlayerStatusInfo::add_C_AttackValue` | `0x00327644` | 14 | 1 | 1 | 2 | 1 |
+| `PlayerStatusInfo::resetPlayerStatusClothAddData` | `0x003275b8` | 13 | 0 | 0 | 0 | 4 |
 
-All nine rows are complete. The original decompilation and ARM instructions
+All eleven rows are complete. The original decompilation and ARM instructions
 establish this order for `MEPlayer::getAttack()`:
 
 1. `MEEquip::equipAtIdx(..., 0)` selects weapon-array entry zero from the
@@ -38,8 +40,17 @@ establish this order for `MEPlayer::getAttack()`:
 `player_combat_stat_contract::resolve_attack()` preserves that left-to-right
 float sum. `set_equipment_add_attack()` stores the setter's value in its
 project-owned state field corresponding to `MEPlayer +0x114`. The term at
-`PlayerStatusInfo +0x144` is kept structurally named because its independent
-producer has not been identified.
+`PlayerStatusInfo +0x144` is added last; its producer and reset path are now
+recovered below.
+
+`PlayerStatusInfo::add_C_AttackValue()` adds its float argument to `+0x144`
+only while the byte at `ManagementLayer +0x744` is zero. A nonzero byte leaves
+the accumulated value unchanged. `resetPlayerStatusClothAddData()` clears
+`+0x138`, `+0x13c`, `+0x140`, and `+0x144`. The status-state contract mirrors
+these writes; callers can supply
+`PlayerStatusInfoState::cloth_add_attack_144` as
+`AttackTerms::player_status_value_144` after applying the native gate and
+reset behavior.
 
 `WeaponsItemData::getFinalAddBase_atk()` gates the hole contribution on a
 nonzero byte at `ManagementLayer +0x744`, gates the temper contribution on
@@ -84,9 +95,9 @@ from nested entries. Virtual getter results and string comparisons are
 decoded inputs, and the contract preserves the top-level and nested order of
 float additions.
 
-Gold subsystem and function-role labels for these nine functions are recorded
-in `player-attack-value-labels.jsonl`. Adding the two labels for
-`getAddBase_atk()` to manual-restoration v36 and rebuilding as v37 produced
-9,186 labelled functions, 6,894 structural groups, 9,796 gold label rows, and
-splits of 7,378 train / 992 validation / 816 test. The generated corpus and
-dataset remain outside Git.
+Gold subsystem and function-role labels for these eleven functions are
+recorded in `player-attack-value-labels.jsonl`. Adding the four labels for
+`add_C_AttackValue()` and `resetPlayerStatusClothAddData()` to manual-restoration
+v37 and rebuilding as v38 produced 9,188 labelled functions, 6,896 structural
+groups, 9,800 gold label rows, and splits of 7,379 train / 992 validation /
+817 test. The generated corpus and dataset remain outside Git.

@@ -14,6 +14,13 @@ struct State {
     float tools_damage_absorb_factor_430 = 0.0f;
 };
 
+struct PlayerStatusInfoState {
+    float cloth_add_health_138 = 0.0f;
+    float cloth_add_strength_13c = 0.0f;
+    float cloth_add_damage_absorb_140 = 0.0f;
+    float cloth_add_attack_144 = 0.0f;
+};
+
 struct AttackTerms {
     float weapon_base_attack_38 = 0.0f;
     float weapon_final_add_base_attack = 0.0f;
@@ -183,6 +190,15 @@ float resolve_extra_base_attack(const ExtraBaseAttackTerms& terms) noexcept;
 // Mirrors WeaponsItemData::getAddBase_atk(); virtual item getters and string
 // comparison outcomes are decoded per item, preserving the native iteration.
 float resolve_weapon_add_base_attack(const WeaponBaseAttackTerms& terms) noexcept;
+
+// Mirrors PlayerStatusInfo::add_C_AttackValue(); a nonzero management-layer
+// gate suppresses the field +0x144 addition.
+void add_cloth_attack_value(
+        PlayerStatusInfoState* status, bool management_gate_nonzero,
+        float value) noexcept;
+
+// Mirrors resetPlayerStatusClothAddData() at +0x138, +0x13c, +0x140, +0x144.
+void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept;
 
 // MEPlayer::setEquipAddAttack() writes the argument to +0x114.
 void set_equipment_add_attack(State* state, float value) noexcept;

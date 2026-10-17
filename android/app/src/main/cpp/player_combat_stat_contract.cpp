@@ -185,6 +185,21 @@ float resolve_weapon_add_base_attack(const WeaponBaseAttackTerms& terms) noexcep
     return result;
 }
 
+void add_cloth_attack_value(
+        PlayerStatusInfoState* status, bool management_gate_nonzero,
+        float value) noexcept {
+    if (status == nullptr || management_gate_nonzero) return;
+    status->cloth_add_attack_144 = status->cloth_add_attack_144 + value;
+}
+
+void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept {
+    if (status == nullptr) return;
+    status->cloth_add_health_138 = 0.0f;
+    status->cloth_add_strength_13c = 0.0f;
+    status->cloth_add_damage_absorb_140 = 0.0f;
+    status->cloth_add_attack_144 = 0.0f;
+}
+
 void set_equipment_add_attack(State* state, float value) noexcept {
     if (state == nullptr) return;
     state->equipment_add_attack_114 = value;
