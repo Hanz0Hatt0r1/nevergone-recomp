@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 
 final class GameSceneControlSettingsLoader {
     private static final String FILE_NAME = "original_control_preferences.xml";
+    private static final String EDITED_LAYOUT_FILE_NAME = "edited_control_layout.xml";
     private static final long MAX_FILE_BYTES = 1024L * 1024L;
     private static volatile String lastStatus = "shipped default layout";
 
@@ -67,12 +68,15 @@ final class GameSceneControlSettingsLoader {
             temporary.delete();
             throw new IOException("Could not save control preferences");
         }
+        new File(context.getFilesDir(), EDITED_LAYOUT_FILE_NAME).delete();
         return reloadFromFilesDir(context.getFilesDir().getAbsolutePath());
     }
 
     static boolean reloadFromFilesDir(String filesDir) {
-        File source = filesDir == null || filesDir.isEmpty()
-                ? null : new File(new File(filesDir), FILE_NAME);
+        File directory = filesDir == null || filesDir.isEmpty() ? null : new File(filesDir);
+        File editedLayout = directory == null ? null : new File(directory, EDITED_LAYOUT_FILE_NAME);
+        File importedPreferences = directory == null ? null : new File(directory, FILE_NAME);
+        File source = editedLayout != null && editedLayout.isFile() ? editedLayout : importedPreferences;
         if (source == null || !source.isFile()) {
             nativeApply(false, 204.0f, 173.0f, 1040.0f, 90.0f, 949.0f, 154.0f);
             lastStatus = "shipped default layout";
@@ -127,8 +131,8 @@ final class GameSceneControlSettingsLoader {
     static boolean saveCurrentLayout(String filesDir) throws IOException {
         float[] positions = actionCuePositions();
         File directory = new File(filesDir);
-        File destination = new File(directory, FILE_NAME);
-        File temporary = new File(directory, FILE_NAME + ".saving");
+        File destination = new File(directory, EDITED_LAYOUT_FILE_NAME);
+        File temporary = new File(directory, EDITED_LAYOUT_FILE_NAME + ".saving");
         String xml = "<map>\n" +
                 "  <boolean name=\"controls_settings\" value=\"true\" />\n" +
                 floatPreference("joyStickX", positions[0]) +

@@ -23,7 +23,9 @@ Dragging moves the joystick, B, or the paired A/C controls; action controls
 stay within the 1136x640 design area using imported sprite dimensions. A/C
 continue to share their original anchor. Saving writes the corresponding six
 coordinates in the same preference-key format consumed by `Controls::init()`.
-Leaving the activity also saves an active edit.
+Leaving the activity also saves an active edit. Edits use a small override file
+beside the imported preference XML so the source import and its unrelated
+preferences remain intact.
 
 This implementation covers only the joystick and three action buttons. It does
 not yet reproduce the original collision rejection, the other draggable
