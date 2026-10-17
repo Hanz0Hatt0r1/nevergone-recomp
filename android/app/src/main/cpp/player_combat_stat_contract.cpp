@@ -159,6 +159,32 @@ float resolve_extra_base_attack(const ExtraBaseAttackTerms& terms) noexcept {
     return result + terms.equipment_property_bonus_30;
 }
 
+float resolve_weapon_add_base_attack(const WeaponBaseAttackTerms& terms) noexcept {
+    float result = 0.0f;
+    for (const auto& item : terms.weapon_items) {
+        if (item.type == 0x1eu) {
+            if (terms.weapon_field_18 == 0 && item.weapon_name_matches) {
+                result = result + item.matching_weapon_attack_addition;
+            } else {
+                result = result + item.regular_attack_addition;
+            }
+        } else if (item.type == 1000u) {
+            for (const auto& nested : item.nested_modifiers) {
+                if (nested.type != 0x1eu) continue;
+                if (terms.weapon_field_18 == 0) {
+                    const float multiplier =
+                        terms.armband_effect_multiplier_50 + 1.0f;
+                    result = result +
+                        nested.value_when_weapon_field_18_is_zero * multiplier;
+                } else if (terms.weapon_field_18 == 1) {
+                    result = result + nested.value_when_weapon_field_18_is_one;
+                }
+            }
+        }
+    }
+    return result;
+}
+
 void set_equipment_add_attack(State* state, float value) noexcept {
     if (state == nullptr) return;
     state->equipment_add_attack_114 = value;

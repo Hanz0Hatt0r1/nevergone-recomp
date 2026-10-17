@@ -110,6 +110,26 @@ struct ExtraBaseAttackTerms {
     float equipment_property_bonus_30 = 0.0f;
 };
 
+struct NestedWeaponBaseAttackModifier {
+    std::uint32_t type = 0;
+    float value_when_weapon_field_18_is_zero = 0.0f;
+    float value_when_weapon_field_18_is_one = 0.0f;
+};
+
+struct WeaponBaseAttackItem {
+    std::uint32_t type = 0;
+    bool weapon_name_matches = false;
+    float regular_attack_addition = 0.0f;
+    float matching_weapon_attack_addition = 0.0f;
+    std::vector<NestedWeaponBaseAttackModifier> nested_modifiers;
+};
+
+struct WeaponBaseAttackTerms {
+    std::int32_t weapon_field_18 = 0;
+    float armband_effect_multiplier_50 = 0.0f;
+    std::vector<WeaponBaseAttackItem> weapon_items;
+};
+
 struct WeaponFinalAddBaseTerms {
     bool management_hole_gate_nonzero = false;
     float add_hole_base_attack = 0.0f;
@@ -159,6 +179,10 @@ float resolve_max_health(State* player, const MaxHealthTerms& terms) noexcept;
 // Mirrors WeaponsItemData::getExtraBase_atk(); native manager and getter
 // results are decoded inputs, while the mode and equipped-item gates are exact.
 float resolve_extra_base_attack(const ExtraBaseAttackTerms& terms) noexcept;
+
+// Mirrors WeaponsItemData::getAddBase_atk(); virtual item getters and string
+// comparison outcomes are decoded per item, preserving the native iteration.
+float resolve_weapon_add_base_attack(const WeaponBaseAttackTerms& terms) noexcept;
 
 // MEPlayer::setEquipAddAttack() writes the argument to +0x114.
 void set_equipment_add_attack(State* state, float value) noexcept;

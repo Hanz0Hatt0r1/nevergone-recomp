@@ -20,8 +20,9 @@ Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256
 | `WeaponsItemData::getAddHoleBase_atk` | `0x00345054` | 29 | 1 | 1 | 1 | 0 |
 | `WeaponsItemData::getAddTemperBase_atk` | `0x00344f24` | 15 | 0 | 0 | 2 | 0 |
 | `WeaponsItemData::getExtraBase_atk` | `0x00345734` | 176 | 14 | 13 | 20 | 0 |
+| `WeaponsItemData::getAddBase_atk` | `0x00344db0` | 136 | 13 | 13 | 22 | 0 |
 
-All eight rows are complete. The original decompilation and ARM instructions
+All nine rows are complete. The original decompilation and ARM instructions
 establish this order for `MEPlayer::getAttack()`:
 
 1. `MEEquip::equipAtIdx(..., 0)` selects weapon-array entry zero from the
@@ -66,13 +67,26 @@ attributes add `float(level) * LevelUpData[type] +0x18`. An equipped armband
 adds `getAttackAddtion(ArmbandItemData +0x18)` and its `+0x38` field; the
 function then adds `EquipPropertyManager +0x30`. The zero literal at
 `DAT_0034584c` is confirmed in the shipped ELF. Manager reads, the
-`getAddBase_atk()` result, and the armband getter output remain explicit
-inputs. The native `getAttack()` has no visible empty-weapon fallback after
-`equipAtIdx()`.
+`getAddBase_atk()` result and armband getter output remain explicit inputs;
+the former is reconstructed by the helper below. The native `getAttack()` has
+no visible empty-weapon fallback after `equipAtIdx()`.
 
-Gold subsystem and function-role labels for these eight functions are recorded
+`getAddBase_atk()` now has a separate `resolve_weapon_add_base_attack()`
+contract. It scans the `WeaponsItemData +0x98` array from start to end, starting
+at the confirmed `0.0f` literal. A direct type-`0x1e` entry uses its special
+virtual result when `WeaponsItemData +0x18 == 0` and the entry's `+0xa0`
+string matches the equipped weapon's `+0xa0` name; otherwise it uses the
+regular virtual result. A type-`1000` entry scans its nested array at `+0x48`
+for type-`0x1e` entries. For weapon field `+0x18 == 0`, each nested result is
+multiplied by `ArmbandItemData +0x50 + 1.0f`; for field value `1`, the alternate
+no-argument getter result is added directly. Other field values add nothing
+from nested entries. Virtual getter results and string comparisons are
+decoded inputs, and the contract preserves the top-level and nested order of
+float additions.
+
+Gold subsystem and function-role labels for these nine functions are recorded
 in `player-attack-value-labels.jsonl`. Adding the two labels for
-`getExtraBase_atk()` to manual-restoration v35 and rebuilding as v36 produced
-9,185 labelled functions, 6,893 structural groups, 9,794 gold label rows, and
-splits of 7,377 train / 992 validation / 816 test. The generated corpus and
+`getAddBase_atk()` to manual-restoration v36 and rebuilding as v37 produced
+9,186 labelled functions, 6,894 structural groups, 9,796 gold label rows, and
+splits of 7,378 train / 992 validation / 816 test. The generated corpus and
 dataset remain outside Git.
