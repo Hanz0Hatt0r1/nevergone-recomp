@@ -214,17 +214,35 @@ void add_cloth_damage_absorb_value(
 // Mirrors resetPlayerStatusClothAddData() at +0x138, +0x13c, +0x140, +0x144.
 void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept;
 
+struct EatAttributeRates {
+    float per_unit = 0.0f;
+    float per_thousand = 0.0f;
+    float per_million = 0.0f;
+};
+
+struct HeroEatAttributeTerms {
+    EatAttributeRates table_type_1;
+    EatAttributeRates table_type_2;
+    EatAttributeRates table_type_3;
+    EatAttributeRates table_type_4;
+};
+
 struct EatPropertyTerms {
     std::int32_t property_type = 0;
     float addition = 0.0f;
-    // Result of MRGetHeroEatAttribute(type, current level) for this property.
-    float current_computed_bonus = 0.0f;
+    HeroEatAttributeTerms attribute_rates;
     bool management_gate_nonzero = false;
 };
 
+// Mirrors MRGetHeroEatAttribute(); MRGetEatAttribute() table results are
+// supplied for each source type and tier.
+float resolve_hero_eat_attribute(
+        std::int32_t type, std::uint32_t count,
+        const HeroEatAttributeTerms& terms) noexcept;
+
 // Mirrors PlayerStatusInfo::add_EatProperty(); MRGetHeroEatAttribute remains
-// an explicit data-derived input, while the type, management, and cap gates
-// are exact.
+// data-derived through its table inputs, while the type, management, and cap
+// gates are exact.
 void add_eat_property(
         PlayerStatusInfoState* status, const EatPropertyTerms& terms) noexcept;
 

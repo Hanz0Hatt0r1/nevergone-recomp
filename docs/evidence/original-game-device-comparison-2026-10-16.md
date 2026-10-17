@@ -65,10 +65,10 @@ The one-frame capture is
 
 The current debug APK includes the `MEPlayer::getMaxHealth()`,
 `WeaponsItemData::getExtraBase_atk()`, `WeaponsItemData::getAddBase_atk()`, and
-the cloth status writer/reset and `add_EatProperty()` contracts (`8,950,008`
-bytes; SHA-256
-`232548c9d2f8a2169ce67e2aefa082fd40640de42c343652af5f71440672443c`) was
+the cloth status writer/reset, `MRGetHeroEatAttribute()`, and `add_EatProperty()`
+contracts (`8,950,520` bytes; SHA-256
+`94deeb37c5e2b82dfe885f7ea1441fbf7c064e1424183a46f7b67a1050f6ee75`) was
 installed to `org.nevergone.recomp` with replacement mode, retaining app data.
 REA pulled the installed package's complete APK set; its `base.apk` has the
 same byte size and SHA-256 as the local build. Package inspection reports
-version `0.0.1-dev`, code `1`, and update time `2026-10-17 22:02:41` local time.
+version `0.0.1-dev`, code `1`, and update time `2026-10-17 22:07:16` local time.

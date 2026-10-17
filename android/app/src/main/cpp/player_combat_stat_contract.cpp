@@ -222,6 +222,33 @@ void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept {
     status->cloth_add_attack_144 = 0.0f;
 }
 
+float resolve_hero_eat_attribute(
+        std::int32_t type, std::uint32_t count,
+        const HeroEatAttributeTerms& terms) noexcept {
+    const EatAttributeRates* rates = nullptr;
+    bool apply_hundredth_scale = false;
+    switch (type) {
+        case 1: rates = &terms.table_type_1; break;
+        case 2: rates = &terms.table_type_2; break;
+        case 4: rates = &terms.table_type_4; break;
+        case 5:
+            rates = &terms.table_type_3;
+            apply_hundredth_scale = true;
+            break;
+        default:
+            return 0.0f;
+    }
+
+    const std::uint32_t million_count = count / 1000000u;
+    const std::uint32_t remainder = count % 1000000u;
+    const std::uint32_t thousand_count = remainder / 1000u;
+    const std::uint32_t unit_count = remainder % 1000u;
+    float result = static_cast<float>(million_count) * rates->per_million;
+    result = result + static_cast<float>(thousand_count) * rates->per_thousand;
+    result = result + static_cast<float>(unit_count) * rates->per_unit;
+    return apply_hundredth_scale ? result * 0.01f : result;
+}
+
 void add_eat_property(
         PlayerStatusInfoState* status, const EatPropertyTerms& terms) noexcept {
     if (status == nullptr || terms.management_gate_nonzero) return;
@@ -248,7 +275,12 @@ void add_eat_property(
         default:
             return;
     }
-    if (terms.current_computed_bonus < limit) {
+    const std::uint32_t count = *target > 0.0f
+        ? static_cast<std::uint32_t>(static_cast<std::int32_t>(*target))
+        : 0u;
+    const float current_bonus = resolve_hero_eat_attribute(
+        terms.property_type, count, terms.attribute_rates);
+    if (current_bonus < limit) {
         *target = *target + terms.addition;
     }
 }
