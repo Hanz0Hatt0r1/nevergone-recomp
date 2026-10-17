@@ -21,6 +21,11 @@ void set_threshold(State* state, int percentage) {
 
 }  // namespace
 
+void copy_state(const State& source, State* target) {
+    if (target == nullptr) return;
+    *target = source;
+}
+
 bool damage_with_id(const State& state, int id, int* out_damage) {
     return percentage_for_id(state, id, out_damage);
 }

@@ -116,11 +116,11 @@ bool Roster::configure_physical_state(
     }
     if (!physical.disabled &&
         (physical.last_state_index < 0 ||
-         physical.damage_percent_by_state.size() <=
-                 static_cast<std::size_t>(physical.last_state_index))) {
+         physical.last_state_index >=
+                 static_cast<int>(physical.damage_percent_by_state.size()))) {
         return false;
     }
-    enemies_[slot].physical = physical;
+    enemy_physical_state::copy_state(physical, &enemies_[slot].physical);
     enemies_[slot].physical_configured = true;
     return true;
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vector>
+#include <array>
 
 namespace nevergone::enemy_physical_state {
 
@@ -9,10 +9,14 @@ struct State {
     float duration = 0.0f;
     float accumulated_damage = 0.0f;
     float next_damage_threshold = 0.0f;
-    int last_state_index = 0;
+    int initial_state_index = 0;
+    int last_state_index = 3;
+    std::array<int, 4> damage_percent_by_state{{100, 100, 100, 100}};
     int state_index = 0;
-    std::vector<int> damage_percent_by_state;
 };
+
+// EnemyPhysical::initEnemyPhysical(EnemyPhysical*): copy fields +0x14..+0x3c.
+void copy_state(const State& source, State* target);
 
 // EnemyPhysical::physicalStateDamageWithID(): read the integer at +0x2c+4*id.
 // Returns false only when the supplied clean-room state lacks that config item.
