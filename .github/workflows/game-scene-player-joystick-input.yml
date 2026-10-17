@@ -9,6 +9,12 @@ on:
       - 'android/app/src/main/cpp/player_direction_combo_contract.h'
       - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
+      - 'android/app/src/main/cpp/controls_function_state_runtime.*'
+      - 'android/app/src/main/cpp/controls_function_state_contract.*'
+      - 'android/app/src/main/cpp/player_function_action_contract.*'
+      - 'android/app/src/main/cpp/meplayer_live_action_state.*'
+      - 'android/app/src/main/cpp/minimal_runtime_save_runtime.*'
+      - 'android/app/src/main/cpp/minimal_runtime_save.*'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
       - 'android/app/src/main/cpp/tutorial_gameplay_state.*'
       - 'android/app/src/main/cpp/render_bridge.cpp'
@@ -27,6 +33,12 @@ on:
       - 'android/app/src/main/cpp/player_direction_combo_contract.h'
       - 'android/app/src/main/cpp/player_control_contract.*'
       - 'android/app/src/main/cpp/player_control_runtime_state.*'
+      - 'android/app/src/main/cpp/controls_function_state_runtime.*'
+      - 'android/app/src/main/cpp/controls_function_state_contract.*'
+      - 'android/app/src/main/cpp/player_function_action_contract.*'
+      - 'android/app/src/main/cpp/meplayer_live_action_state.*'
+      - 'android/app/src/main/cpp/minimal_runtime_save_runtime.*'
+      - 'android/app/src/main/cpp/minimal_runtime_save.*'
       - 'android/app/src/main/cpp/player_action_runtime_bridge.cpp'
       - 'android/app/src/main/cpp/tutorial_gameplay_state.*'
       - 'android/app/src/main/cpp/render_bridge.cpp'
@@ -54,6 +66,12 @@ jobs:
             android/app/src/main/cpp/player_control_runtime_state.cpp \
             android/app/src/main/cpp/tutorial_gameplay_state.cpp \
             android/app/src/main/cpp/game_scene_player_joystick_input.cpp \
+            android/app/src/main/cpp/controls_function_state_runtime.cpp \
+            android/app/src/main/cpp/controls_function_state_contract.cpp \
+            android/app/src/main/cpp/player_function_action_contract.cpp \
+            android/app/src/main/cpp/meplayer_live_action_state.cpp \
+            android/app/src/main/cpp/minimal_runtime_save_runtime.cpp \
+            android/app/src/main/cpp/minimal_runtime_save.cpp \
             tools/game_scene_player_joystick_input_smoke.cpp \
             -o /tmp/game_scene_player_joystick_input_smoke
           /tmp/game_scene_player_joystick_input_smoke

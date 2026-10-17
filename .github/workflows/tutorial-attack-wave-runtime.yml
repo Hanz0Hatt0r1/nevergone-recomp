@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'android/app/src/main/cpp/tutorial_attack_wave_runtime.*'
+      - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
+      - 'android/app/src/main/cpp/enemy_health_state.*'
+      - 'android/app/src/main/cpp/enemy_online_state_contract.*'
+      - 'android/app/src/main/cpp/enemy_physical_state.*'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/tutorial_attack_wave_runtime_smoke.cpp'
       - '.github/workflows/tutorial-attack-wave-runtime.yml'
@@ -12,6 +16,10 @@ on:
     branches-ignore: [main]
     paths:
       - 'android/app/src/main/cpp/tutorial_attack_wave_runtime.*'
+      - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
+      - 'android/app/src/main/cpp/enemy_health_state.*'
+      - 'android/app/src/main/cpp/enemy_online_state_contract.*'
+      - 'android/app/src/main/cpp/enemy_physical_state.*'
       - 'android/app/src/main/cpp/CMakeLists.txt'
       - 'tools/tutorial_attack_wave_runtime_smoke.cpp'
       - '.github/workflows/tutorial-attack-wave-runtime.yml'
@@ -36,5 +44,7 @@ jobs:
             android/app/src/main/cpp/tutorial_enemy_roster.cpp \
             android/app/src/main/cpp/tutorial_enemy_spawn_plan.cpp \
             android/app/src/main/cpp/enemy_health_state.cpp \
+            android/app/src/main/cpp/enemy_online_state_contract.cpp \
+            android/app/src/main/cpp/enemy_physical_state.cpp \
             -o /tmp/tutorial_attack_wave_runtime_smoke
           /tmp/tutorial_attack_wave_runtime_smoke
