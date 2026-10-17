@@ -60,6 +60,20 @@ inline ForceBeatenFlags set_force_beaten_state(bool enabled) noexcept {
     return {value, value};
 }
 
+// EnemyObject::isEnemyMoveState() has fixed moving-state codes, then consults
+// EnemyActionsSystem +0x2b6 for all other states.
+inline bool is_enemy_move_state(
+        std::uint32_t enemy_state,
+        bool has_action_system,
+        std::uint8_t action_move_state_2b6) noexcept {
+    const std::uint32_t from_state_2a = enemy_state - 0x2au;
+    if (enemy_state < 2u || enemy_state == 0x1bu || from_state_2a <= 1u ||
+            enemy_state == 0x35u) {
+        return true;
+    }
+    return has_action_system && action_move_state_2b6 != 0;
+}
+
 // EnemyObject::isAttackMiss() compares action-system frame +0x294 with a
 // state-specific cutoff selected from EnemyObject +0x274.
 inline bool is_attack_miss(
