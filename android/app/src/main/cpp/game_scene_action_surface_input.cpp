@@ -64,12 +64,17 @@ bool map_surface(
     return std::isfinite(*design_x) && std::isfinite(*design_y);
 }
 
+bool valid_point(game_scene_action_layout::Point point) {
+    return std::isfinite(point.x) && std::isfinite(point.y);
+}
+
 game_scene_action_input::Control classify_locked(float design_x, float design_y) {
     return game_scene_action_layout::hit_test(
         kDesignWidth,
         design_x,
         design_y,
-        g_snapshot.sprite_bounds);
+        g_snapshot.sprite_bounds,
+        g_snapshot.positions);
 }
 
 void publish_release(game_scene_action_input::Control control, bool tapped) {
@@ -92,7 +97,9 @@ void reset() {
         captured.reserve(g_captures.size());
         for (const auto& entry : g_captures) captured.push_back(entry.second);
         g_captures.clear();
+        const auto positions = g_snapshot.positions;
         g_snapshot = {};
+        g_snapshot.positions = positions;
     }
     for (const auto control : captured) publish_release(control, false);
 }
@@ -114,6 +121,25 @@ void clear_sprite_bounds() {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_snapshot.sprite_bounds = {};
     ++g_snapshot.bounds_revision;
+}
+
+bool apply_saved_control_settings(
+    bool enabled,
+    game_scene_action_layout::Point joystick,
+    game_scene_action_layout::Point button_b,
+    game_scene_action_layout::Point unique_skill_tip) {
+    if (enabled && (!valid_point(joystick) || !valid_point(button_b) ||
+                    !valid_point(unique_skill_tip))) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_snapshot.positions = game_scene_action_layout::positions_from_saved_settings(
+        kDesignWidth,
+        enabled,
+        joystick,
+        button_b,
+        unique_skill_tip);
+    return true;
 }
 
 bool on_touch(

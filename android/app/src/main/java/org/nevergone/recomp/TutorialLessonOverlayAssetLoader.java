@@ -91,7 +91,6 @@ final class TutorialLessonOverlayAssetLoader {
         if (filesDir == null || filesDir.isEmpty() || tutorialStep < 2 || tutorialStep > 10) {
             return false;
         }
-
         File root = new File(filesDir, "assets");
         File lessonTextFile = GameSceneAtlasResolver.resolveResource(
                 root, LESSON_DIR + "/" + LESSON_TEXT_NAME);
@@ -132,7 +131,8 @@ final class TutorialLessonOverlayAssetLoader {
         Bitmap titlebar = decodeArgb(titlebarFile);
         Bitmap title = renderCocosLabel(titleText, PROMPT_TITLE_FONT_SIZE, 0);
         Bitmap body = renderCocosLabel(bodyText, PROMPT_BODY_FONT_SIZE, PROMPT_BODY_MAX_WIDTH);
-        Bitmap hints = renderPromptHints(root, tutorialStep);
+        Bitmap hints = renderPromptHints(
+                root, tutorialStep, GameSceneControlSettingsLoader.actionCuePositions());
         if (board == null || titlebar == null || title == null || body == null || hints == null) {
             recycle(board);
             recycle(titlebar);
@@ -154,39 +154,49 @@ final class TutorialLessonOverlayAssetLoader {
         return hintsUploaded;
     }
 
-    private static Bitmap renderPromptHints(File assetsRoot, int step) {
+    private static Bitmap renderPromptHints(File assetsRoot, int step, float[] controls) {
         Bitmap hints = Bitmap.createBitmap(1136, 640, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(hints);
+        int joystickX = Math.round(controls[0]);
+        int joystickY = Math.round(controls[1]);
+        int buttonAX = Math.round(controls[2]);
+        int buttonAY = Math.round(controls[3]);
+        int buttonBX = Math.round(controls[4]);
+        int buttonBY = Math.round(controls[5]);
+        int buttonCX = Math.round(controls[6]);
+        int buttonCY = Math.round(controls[7]);
+        int skillX = Math.round(controls[8]);
+        int skillY = Math.round(controls[9]);
         switch (step) {
             case 2:
-                drawHint(canvas, assetsRoot, "hand_ring.png", 204, 173);
-                drawHint(canvas, assetsRoot, "lesson_touch.png", 204, 173);
-                drawHint(canvas, assetsRoot, "hand_point01.png", 264, 123);
+                drawHint(canvas, assetsRoot, "hand_ring.png", joystickX, joystickY);
+                drawHint(canvas, assetsRoot, "lesson_touch.png", joystickX, joystickY);
+                drawHint(canvas, assetsRoot, "hand_point01.png", joystickX + 60, joystickY - 50);
                 break;
             case 3:
-                drawActionHint(canvas, assetsRoot, "C2.png", 1000, 224);
+                drawActionHint(canvas, assetsRoot, "C2.png", buttonCX, buttonCY);
                 break;
             case 4:
             case 6:
-                drawActionHint(canvas, assetsRoot, "A2.png", 898, 90);
+                drawActionHint(canvas, assetsRoot, "A2.png", buttonAX, buttonAY);
                 break;
             case 5:
-                drawActionHint(canvas, assetsRoot, "B2.png", 1040, 90);
+                drawActionHint(canvas, assetsRoot, "B2.png", buttonBX, buttonBY);
                 break;
             case 7:
-                drawActionHint(canvas, assetsRoot, "B2.png", 1040, 90);
-                drawHint(canvas, assetsRoot, "hand_ring.png", 204, 173);
-                drawHint(canvas, assetsRoot, "lesson_touch.png", 204, 173);
-                drawHint(canvas, assetsRoot, "hand_point01.png", 264, 123);
+                drawActionHint(canvas, assetsRoot, "B2.png", buttonBX, buttonBY);
+                drawHint(canvas, assetsRoot, "hand_ring.png", joystickX, joystickY);
+                drawHint(canvas, assetsRoot, "lesson_touch.png", joystickX, joystickY);
+                drawHint(canvas, assetsRoot, "hand_point01.png", joystickX + 60, joystickY - 50);
                 break;
             case 8:
-                drawActionHint(canvas, assetsRoot, "C2.png", 1000, 224);
-                drawActionHint(canvas, assetsRoot, "A2.png", 898, 90);
+                drawActionHint(canvas, assetsRoot, "C2.png", buttonCX, buttonCY);
+                drawActionHint(canvas, assetsRoot, "A2.png", buttonAX, buttonAY);
                 break;
             case 10:
-                drawActionHint(canvas, assetsRoot, "A2.png", 898, 90);
-                drawActionHint(canvas, assetsRoot, "C2.png", 1000, 224);
-                drawHint(canvas, assetsRoot, "s_a_to_j_tip.png", 949, 157);
+                drawActionHint(canvas, assetsRoot, "A2.png", buttonAX, buttonAY);
+                drawActionHint(canvas, assetsRoot, "C2.png", buttonCX, buttonCY);
+                drawHint(canvas, assetsRoot, "s_a_to_j_tip.png", skillX, skillY + 3);
                 break;
             default:
                 break;

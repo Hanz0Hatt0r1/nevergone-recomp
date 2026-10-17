@@ -25,12 +25,14 @@ public final class MainActivity extends Activity {
     private static final String DEVICE_ID = "device_id";
     private static final int REQUEST_ORIGINAL_APK = 1001;
     private static final int REQUEST_ORIGINAL_OBB = 1002;
+    private static final int REQUEST_CONTROL_SETTINGS = 1003;
     private static final long CHOOSE_HERO_THUNDER_POLL_MS = 16L;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private TextView status;
     private Button importButton;
     private Button importObbButton;
+    private Button importControlSettingsButton;
     private Button developerToolsButton;
     private ScrollView technicalPanel;
     private GameSurfaceView gameSurface;
@@ -76,6 +78,7 @@ public final class MainActivity extends Activity {
                 getFilesDir().getAbsolutePath(),
                 getOrCreateDeviceId(),
                 getAppVersion());
+        GameSceneControlSettingsLoader.reloadFromFilesDir(getFilesDir().getAbsolutePath());
         chooseHeroThunderAudio = new ChooseHeroThunderAudio(
                 new File(getFilesDir(), "assets"));
 
@@ -123,6 +126,13 @@ public final class MainActivity extends Activity {
         importObbButton.setText("Import original Never Gone OBB");
         importObbButton.setOnClickListener(view -> chooseOriginalObb());
         content.addView(importObbButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        importControlSettingsButton = new Button(this);
+        importControlSettingsButton.setText("Import saved control layout XML");
+        importControlSettingsButton.setOnClickListener(view -> chooseControlSettings());
+        content.addView(importControlSettingsButton, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -216,6 +226,8 @@ public final class MainActivity extends Activity {
             importOriginalApk(uri);
         } else if (requestCode == REQUEST_ORIGINAL_OBB) {
             importOriginalObb(uri);
+        } else if (requestCode == REQUEST_CONTROL_SETTINGS) {
+            importControlSettings(uri);
         }
     }
 
@@ -233,9 +245,30 @@ public final class MainActivity extends Activity {
         startActivityForResult(intent, REQUEST_ORIGINAL_OBB);
     }
 
+    private void chooseControlSettings() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        startActivityForResult(intent, REQUEST_CONTROL_SETTINGS);
+    }
+
+    private void importControlSettings(Uri uri) {
+        try {
+            GameSceneControlSettingsLoader.copyPreferences(this, uri);
+            technicalPanelManuallyExpanded = true;
+            updateTechnicalPanelVisibility();
+            status.setText(buildStatusText(GameSceneControlSettingsLoader.status()));
+        } catch (java.io.IOException error) {
+            technicalPanelManuallyExpanded = true;
+            updateTechnicalPanelVisibility();
+            status.setText(buildStatusText("Control layout import failed: " + error.getMessage()));
+        }
+    }
+
     private void setImportButtonsEnabled(boolean enabled) {
         importButton.setEnabled(enabled);
         importObbButton.setEnabled(enabled);
+        importControlSettingsButton.setEnabled(enabled);
     }
 
     private boolean originalApkAssetsReady() {
@@ -359,6 +392,9 @@ public final class MainActivity extends Activity {
                 .append("\n")
                 .append("Original OBB assets: ")
                 .append(originalObbAssetsReady() ? "present" : "not imported")
+                .append("\n")
+                .append("Saved control layout: ")
+                .append(GameSceneControlSettingsLoader.status())
                 .append("\n");
         if (gameSurface != null) {
             text.append("SingleLogin BGM: ")

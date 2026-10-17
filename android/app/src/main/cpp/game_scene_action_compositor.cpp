@@ -196,7 +196,6 @@ bool draw() {
         return false;
     }
 
-    const auto& descriptors = game_scene_action_layout::descriptors();
     static constexpr GLfloat kTexCoords[] = {
         0.0f, 1.0f,
         0.0f, 0.0f,
@@ -218,9 +217,9 @@ bool draw() {
         const SpriteTexture& texture = pressed && selected.id != 0 ? selected : normal;
         if (texture.id == 0 || texture.width <= 0 || texture.height <= 0) continue;
 
-        const auto& descriptor = descriptors[static_cast<std::size_t>(slot)];
-        const float center_x = kDesignWidth - descriptor.right_inset;
-        const float center_y = descriptor.center_y;
+        const auto center = input.positions.buttons[static_cast<std::size_t>(slot)];
+        const float center_x = center.x;
+        const float center_y = center.y;
         const float half_w = static_cast<float>(texture.width) * 0.5f;
         const float half_h = static_cast<float>(texture.height) * 0.5f;
         const float left = center_x - half_w;

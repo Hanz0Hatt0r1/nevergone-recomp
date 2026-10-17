@@ -77,8 +77,8 @@ void release_capture_locked(std::uint64_t game_tick) {
     }
     g_snapshot.captured = false;
     g_snapshot.pointer_id = -1;
-    g_snapshot.design_x = kCenterX;
-    g_snapshot.design_y = kCenterY;
+    g_snapshot.design_x = g_snapshot.center_x;
+    g_snapshot.design_y = g_snapshot.center_y;
     g_snapshot.power = 0.0f;
     g_snapshot.angle_degrees = 0.0f;
 }
@@ -105,8 +105,8 @@ void keep_pre_input_window() {
 }
 
 bool update_sample_locked(float design_x, float design_y, bool count_move) {
-    const float local_x = design_x - kCenterX;
-    const float local_y = design_y - kCenterY;
+    const float local_x = design_x - g_snapshot.center_x;
+    const float local_y = design_y - g_snapshot.center_y;
     const float length = std::sqrt(local_x * local_x + local_y * local_y);
     if (!finite(length) || length > kUpdateRadius) return false;
 
@@ -278,6 +278,17 @@ bool surface_to_design(
     return finite(*design_x) && finite(*design_y);
 }
 
+bool set_center(float design_x, float design_y) {
+    if (!finite(design_x) || !finite(design_y)) return false;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_snapshot.captured) release_capture_locked(game_clock::tick_count());
+    g_snapshot.center_x = design_x;
+    g_snapshot.center_y = design_y;
+    g_snapshot.design_x = design_x;
+    g_snapshot.design_y = design_y;
+    return true;
+}
+
 bool on_touch(
         int action,
         int pointer_id,
@@ -300,8 +311,8 @@ bool on_touch(
 
     if (action == kActionDown || action == kActionPointerDown) {
         if (g_snapshot.captured || !mapped) return false;
-        const float dx = design_x - kCenterX;
-        const float dy = design_y - kCenterY;
+        const float dx = design_x - g_snapshot.center_x;
+        const float dy = design_y - g_snapshot.center_y;
         const float distance = std::sqrt(dx * dx + dy * dy);
         if (!finite(distance) || distance >= kHitRadius) return false;
         g_snapshot.captured = true;
@@ -342,8 +353,8 @@ void tick() {
         if (captured) {
             power = g_snapshot.power;
             angle = g_snapshot.angle_degrees;
-            const float local_x = g_snapshot.design_x - kCenterX;
-            const float local_y = g_snapshot.design_y - kCenterY;
+            const float local_x = g_snapshot.design_x - g_snapshot.center_x;
+            const float local_y = g_snapshot.design_y - g_snapshot.center_y;
             const float length = std::sqrt(local_x * local_x + local_y * local_y);
             if (finite(length) && length > 0.0f) {
                 direction_x = local_x / length;
@@ -408,9 +419,15 @@ void reset() {
         std::lock_guard<std::mutex> lock(g_mutex);
         const auto accepted_begins = g_snapshot.accepted_begins;
         const auto accepted_moves = g_snapshot.accepted_moves;
+        const float center_x = g_snapshot.center_x;
+        const float center_y = g_snapshot.center_y;
         g_snapshot = {};
         g_snapshot.accepted_begins = accepted_begins;
         g_snapshot.accepted_moves = accepted_moves;
+        g_snapshot.center_x = center_x;
+        g_snapshot.center_y = center_y;
+        g_snapshot.design_x = center_x;
+        g_snapshot.design_y = center_y;
     }
     player_control_runtime_state::reset();
     game_scene_player_motion_state::reset();

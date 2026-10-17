@@ -21,6 +21,8 @@ struct Snapshot {
     int pointer_id = -1;
     std::uint64_t accepted_begins = 0;
     std::uint64_t accepted_moves = 0;
+    float center_x = kCenterX;
+    float center_y = kCenterY;
     float design_x = kCenterX;
     float design_y = kCenterY;
     float power = 0.0f;
@@ -46,6 +48,8 @@ bool surface_to_design(
     float surface_y,
     float* design_x,
     float* design_y);
+
+bool set_center(float design_x, float design_y);
 
 // MotionEvent-compatible actions: DOWN=0, UP=1, MOVE=2, CANCEL=3,
 // POINTER_DOWN=5, POINTER_UP=6. Returns true only when this joystick owns the

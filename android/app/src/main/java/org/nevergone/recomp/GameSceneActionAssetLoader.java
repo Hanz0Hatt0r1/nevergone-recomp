@@ -17,6 +17,7 @@ final class GameSceneActionAssetLoader {
 
     static boolean reloadFromFilesDir(String filesDir) {
         if (filesDir == null || filesDir.isEmpty()) return false;
+        GameSceneControlSettingsLoader.reloadFromFilesDir(filesDir);
         File assetRoot = new File(filesDir, "assets");
         if (!assetRoot.isDirectory()) return false;
 

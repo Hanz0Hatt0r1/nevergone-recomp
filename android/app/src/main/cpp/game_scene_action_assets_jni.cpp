@@ -5,6 +5,7 @@
 
 #include "game_scene_action_compositor.h"
 #include "game_scene_action_surface_input.h"
+#include "game_scene_player_joystick_input.h"
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSceneActionAssetLoader_nativeSetBounds(
@@ -58,4 +59,54 @@ extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSceneActionAssetLoader_nativeClearSprites(
         JNIEnv*, jclass) {
     nevergone::game_scene_action_compositor::clear_sprites();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_GameSceneControlSettingsLoader_nativeApply(
+        JNIEnv*,
+        jclass,
+        jboolean enabled,
+        jfloat joystick_x,
+        jfloat joystick_y,
+        jfloat button_b_x,
+        jfloat button_b_y,
+        jfloat unique_skill_x,
+        jfloat unique_skill_y) {
+    const auto joystick = nevergone::game_scene_action_layout::Point{
+        static_cast<float>(joystick_x), static_cast<float>(joystick_y)};
+    const auto button_b = nevergone::game_scene_action_layout::Point{
+        static_cast<float>(button_b_x), static_cast<float>(button_b_y)};
+    const auto unique_skill = nevergone::game_scene_action_layout::Point{
+        static_cast<float>(unique_skill_x), static_cast<float>(unique_skill_y)};
+    if (!nevergone::game_scene_action_surface_input::apply_saved_control_settings(
+            enabled == JNI_TRUE, joystick, button_b, unique_skill)) {
+        return JNI_FALSE;
+    }
+    const auto positions = nevergone::game_scene_action_layout::positions_from_saved_settings(
+        1136.0f, enabled == JNI_TRUE, joystick, button_b, unique_skill);
+    return nevergone::game_scene_player_joystick_input::set_center(
+        positions.joystick.x, positions.joystick.y)
+        ? JNI_TRUE
+        : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jfloatArray JNICALL
+Java_org_nevergone_recomp_GameSceneControlSettingsLoader_nativePositions(
+        JNIEnv* env, jclass) {
+    if (env == nullptr) return nullptr;
+    const auto actions = nevergone::game_scene_action_surface_input::snapshot();
+    const auto joystick = nevergone::game_scene_player_joystick_input::snapshot();
+    const jfloat values[] = {
+        joystick.center_x, joystick.center_y,
+        actions.positions.buttons[0].x, actions.positions.buttons[0].y,
+        actions.positions.buttons[1].x, actions.positions.buttons[1].y,
+        actions.positions.buttons[2].x, actions.positions.buttons[2].y,
+        actions.positions.unique_skill_tip.x, actions.positions.unique_skill_tip.y,
+    };
+    jfloatArray output = env->NewFloatArray(static_cast<jsize>(sizeof(values) / sizeof(values[0])));
+    if (output != nullptr) {
+        env->SetFloatArrayRegion(
+            output, 0, static_cast<jsize>(sizeof(values) / sizeof(values[0])), values);
+    }
+    return output;
 }
