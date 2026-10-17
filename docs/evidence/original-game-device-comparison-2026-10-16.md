@@ -50,5 +50,13 @@ The installed recompilation was separately cold-launched and remained on its
 title background with the `Developer Tools` button; that one-frame capture is
 `/tmp/nevergone-runtime-inspect-20261017/screen.png`, SHA-256
 `236b718397d4e99ad06402125395147856fb6955c4753a80ba06b00cefc3ba19`. No taps
-were sent in either app, so this checkpoint says nothing about scenes beyond
-the original title screen.
+were sent in either app during this cold-launch checkpoint.
+
+## Minimal original-game navigation
+
+A later single tap at `(1080, 740)` on the original's `Tap to start` prompt
+opened the existing save-selection screen. It shows Dawn Lv.1, Time 00:00,
+`New Story`, `Delete`, and `Play`. Neither `Delete` nor `Play` was selected.
+The one-frame capture is
+`/tmp/nevergone-original-runtime-after-tap-20261017/screen.png`, SHA-256
+`d265d6c9ff186277795bd31bf97bdeb3da84d4df967d738ef88e66d44155e62b`.
