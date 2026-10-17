@@ -77,12 +77,16 @@ Attack-wave actor's startup mapping: `start=47`, action 47 is the non-looping
 `e03_e_w01_back.actData` state clip. RevEngInstr's export of
 `EnemyObject::onlineEnemyState` confirms that the native
 `CCArray::objectAtIndex` receives the state stored at `EnemyObject+0x274`.
-State `0x1c` therefore selects action index 28. The same verified map now
-supports enemy03 states 1 (walk), 2 (run), 3/4 (attack clips), 21 (idle), and
-28 (backward walk); unsupported states fail closed. The original table sets
-`go_fps=30`. See
+State `0x1c` therefore selects action index 28. The verified map supports
+enemy03 states 1 (walk), 2 (run), 3/4 (attack clips), 21 (idle), 27 (stagger),
+28 (backward walk), and 43 (alternate walk); unsupported states fail closed.
+The original table sets `go_fps=30`. Native `EnemyObject::eventAction` routes
+enemy03 AI branches to states 27 and 43; states 36 and 42 also appear in that
+function but have no matching entries in this action table. See
 [`online-enemy-action-index-2026-10-17.md`](evidence/online-enemy-action-index-2026-10-17.md)
-for the native lookup evidence.
+for the state lookup and
+[`enemy03-ai-action-routes-2026-10-17.md`](evidence/enemy03-ai-action-routes-2026-10-17.md)
+for the AI action routes.
 `tutorial_enemy_action_selection` records this mapping for enemy ID 3 and fails
 closed for IDs without reviewed data.
 

@@ -35,12 +35,23 @@ int main() {
     assert(idle != nullptr && idle->action_id == 21u && idle->loops);
     assert(std::strcmp(idle->action_data,
                        "enemy/enemy03/adata/e03_e_i01.actData") == 0);
+    const auto* stagger = for_enemy_state(3u, 27);
+    assert(stagger != nullptr && stagger->action_id == 27u && !stagger->loops);
+    assert(std::strcmp(stagger->action_data,
+                       "enemy/enemy03/adata/e03_e_s08.actData") == 0);
     const auto* backward_walk = for_enemy_state(3u, 28);
     assert(backward_walk != nullptr && backward_walk->action_id == 28u &&
            backward_walk->loops);
     assert(std::strcmp(backward_walk->action_data,
                        "enemy/enemy03/adata/e03_e_w01_back.actData") == 0);
+    const auto* walking_alternate = for_enemy_state(3u, 43);
+    assert(walking_alternate != nullptr && walking_alternate->action_id == 43u &&
+           walking_alternate->loops);
+    assert(std::strcmp(walking_alternate->action_data,
+                       "enemy/enemy03/adata/e03_e_w02.actData") == 0);
     assert(for_enemy_state(3u, 0x0f) == nullptr);
+    assert(for_enemy_state(3u, 36) == nullptr);
+    assert(for_enemy_state(3u, 42) == nullptr);
     assert(for_enemy_state(4u, 3) == nullptr);
     assert(for_enemy(4) == nullptr);
 }

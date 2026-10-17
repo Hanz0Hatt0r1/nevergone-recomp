@@ -40,18 +40,21 @@ supported states as follows:
 | 3 | `e03_e_a01.actData` | no | 13 | `e03_default.plist` |
 | 4 | `e03_e_a02.actData` | no | 12 | `e03_default.plist` |
 | 21 | `e03_e_i01.actData` | yes | 8 | `e03_default.plist` |
+| 27 | `e03_e_s08.actData` | no | 17 | `e03_default.plist` |
 | 28 | `e03_e_w01_back.actData` | yes | 12 | `e03_default.plist` |
+| 43 | `e03_e_w02.actData` | yes | 12 | `e03_default.plist` |
 | start 47 | `e03_e_born02b.actData` | no | 11 | `e03_02_default.plist` |
 
-All seven selected `.actData` files passed the project-owned Sections A–G
+All nine selected `.actData` files passed the project-owned Sections A–G
 parser when read from the OBB. The files remain outside the source repository.
 
-The action-state selection now supports these six looping/one-shot state clips
-and the existing appearance clip. A materialized actor binding records its
-immutable initial state plus its live state and the fixed game tick at which a
-state change was observed. The renderer loads/caches the action document by
-enemy/state and starts a changed state clip at elapsed time zero. It preserves
-the appearance-to-state transition when the initial state remains active.
+The action-state selection now supports these eight looping/one-shot state
+clips and the existing appearance clip. A materialized actor binding records
+its immutable initial state plus its live state and the fixed game tick at
+which a state change was observed. The renderer loads/caches the action document
+by enemy/state and starts a changed state clip at elapsed time zero. It
+preserves the appearance-to-state transition when the initial state remains
+active.
 
 ## Movement boundary
 

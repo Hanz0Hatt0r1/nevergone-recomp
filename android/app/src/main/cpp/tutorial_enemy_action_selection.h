@@ -32,8 +32,12 @@ inline const StateAction* for_enemy_state(unsigned enemy_id, int state_id) {
         4, "enemy/enemy03/adata/e03_e_a02.actData", "e03_default.plist", false};
     static constexpr StateAction kEnemy3Idle{
         21, "enemy/enemy03/adata/e03_e_i01.actData", "e03_default.plist", true};
+    static constexpr StateAction kEnemy3Stagger{
+        27, "enemy/enemy03/adata/e03_e_s08.actData", "e03_default.plist", false};
     static constexpr StateAction kEnemy3WalkingBack{
         28, "enemy/enemy03/adata/e03_e_w01_back.actData", "e03_default.plist", true};
+    static constexpr StateAction kEnemy3WalkingAlternate{
+        43, "enemy/enemy03/adata/e03_e_w02.actData", "e03_default.plist", true};
 
     if (enemy_id != 3u) return nullptr;
     switch (state_id) {
@@ -42,7 +46,9 @@ inline const StateAction* for_enemy_state(unsigned enemy_id, int state_id) {
         case 3: return &kEnemy3Attack1;
         case 4: return &kEnemy3Attack2;
         case 21: return &kEnemy3Idle;
+        case 27: return &kEnemy3Stagger;
         case 28: return &kEnemy3WalkingBack;
+        case 43: return &kEnemy3WalkingAlternate;
         default: return nullptr;
     }
 }
