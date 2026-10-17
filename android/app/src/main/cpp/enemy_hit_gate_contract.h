@@ -32,4 +32,32 @@ inline State record_hit_flag(State state) noexcept {
     return state;
 }
 
+// EnemyObject::isAttackMiss() compares action-system frame +0x294 with a
+// state-specific cutoff selected from EnemyObject +0x274.
+inline bool is_attack_miss(
+        std::int32_t enemy_state_274, std::int32_t current_frame_294) noexcept {
+    std::int32_t frame_cutoff = 0;
+    switch (enemy_state_274) {
+        case 0x07:
+        case 0x08:
+            frame_cutoff = 4;
+            break;
+        case 0x09:
+        case 0x0a:
+            frame_cutoff = 10;
+            break;
+        case 0x0b:
+            frame_cutoff = 15;
+            break;
+        case 0x0c:
+        case 0x11:
+        case 0x2d:
+            frame_cutoff = 21;
+            break;
+        default:
+            return false;
+    }
+    return current_frame_294 > frame_cutoff;
+}
+
 }  // namespace nevergone::enemy_hit_gate_contract
