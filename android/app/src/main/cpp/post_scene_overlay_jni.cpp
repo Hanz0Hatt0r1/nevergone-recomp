@@ -20,6 +20,7 @@
 #include "startup_contract.h"
 #include "tutorial_attack_live_gate.h"
 #include "tutorial_dialogue_runtime.h"
+#include "tutorial_gameplay_state.h"
 #include "tutorial_lesson_overlay.h"
 #include "tutorial_loading_compositor.h"
 #include "tutorial_scene_bootstrap.h"
@@ -39,6 +40,9 @@ std::uint64_t g_last_tutorial_loading_asset_attempt =
     std::numeric_limits<std::uint64_t>::max();
 std::uint64_t g_last_tutorial_lesson_asset_generation =
     std::numeric_limits<std::uint64_t>::max();
+std::uint64_t g_last_tutorial_prompt_generation =
+    std::numeric_limits<std::uint64_t>::max();
+int g_last_tutorial_prompt_step = -1;
 std::uint64_t g_last_tutorial_dialogue_asset_generation =
     std::numeric_limits<std::uint64_t>::max();
 std::uint64_t g_last_action_asset_attempt =
@@ -70,6 +74,39 @@ bool invoke_files_dir_loader(JNIEnv* env, const char* class_name) {
     jstring path = env->NewStringUTF(files_dir.c_str());
     if (path != nullptr) {
         loaded = env->CallStaticBooleanMethod(loader, reload, path) == JNI_TRUE;
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            loaded = false;
+        }
+        env->DeleteLocalRef(path);
+    }
+    env->DeleteLocalRef(loader);
+    return loaded;
+}
+
+bool invoke_tutorial_prompt_loader(JNIEnv* env, int step) {
+    if (env == nullptr) return false;
+    const std::string& files_dir = nevergone::startup::config().files_dir;
+    if (files_dir.empty()) return false;
+    jclass loader = env->FindClass("org/nevergone/recomp/TutorialLessonOverlayAssetLoader");
+    if (loader == nullptr) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        return false;
+    }
+    jmethodID reload = env->GetStaticMethodID(
+        loader,
+        "reloadPromptFromFilesDir",
+        "(Ljava/lang/String;I)Z");
+    if (reload == nullptr) {
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        env->DeleteLocalRef(loader);
+        return false;
+    }
+
+    jstring path = env->NewStringUTF(files_dir.c_str());
+    bool loaded = false;
+    if (path != nullptr) {
+        loaded = env->CallStaticBooleanMethod(loader, reload, path, static_cast<jint>(step)) == JNI_TRUE;
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
             loaded = false;
@@ -118,6 +155,28 @@ void maybe_stage_tutorial_lesson_assets(JNIEnv* env) {
     g_last_tutorial_lesson_asset_generation = session.generation;
     (void)invoke_files_dir_loader(
         env, "org/nevergone/recomp/TutorialLessonOverlayAssetLoader");
+}
+
+void maybe_stage_tutorial_prompt_assets(JNIEnv* env) {
+    if (env == nullptr) return;
+    const auto session = nevergone::tutorial_session_state::snapshot();
+    const auto gameplay = nevergone::tutorial_gameplay_state::snapshot();
+    const int step = static_cast<int>(gameplay.step);
+    if (session.phase != nevergone::tutorial_session_state::Phase::kInteractive ||
+            step < static_cast<int>(nevergone::tutorial_gameplay_state::Step::kRun) ||
+            step > static_cast<int>(nevergone::tutorial_gameplay_state::Step::kExecution)) {
+        if (g_last_tutorial_prompt_generation != std::numeric_limits<std::uint64_t>::max()) {
+            nevergone::tutorial_lesson_overlay::clear_prompt();
+        }
+        g_last_tutorial_prompt_generation = std::numeric_limits<std::uint64_t>::max();
+        g_last_tutorial_prompt_step = -1;
+        return;
+    }
+    if (session.generation == g_last_tutorial_prompt_generation &&
+            step == g_last_tutorial_prompt_step) return;
+    g_last_tutorial_prompt_generation = session.generation;
+    g_last_tutorial_prompt_step = step;
+    (void)invoke_tutorial_prompt_loader(env, step);
 }
 
 void maybe_stage_tutorial_dialogue_assets(JNIEnv* env) {
@@ -188,6 +247,8 @@ void wrapped_server_surface_created(JNIEnv*, jclass) {
     nevergone::controls_function_state_runtime::reset();
     g_last_action_asset_attempt = std::numeric_limits<std::uint64_t>::max();
     g_last_tutorial_lesson_asset_generation = std::numeric_limits<std::uint64_t>::max();
+    g_last_tutorial_prompt_generation = std::numeric_limits<std::uint64_t>::max();
+    g_last_tutorial_prompt_step = -1;
     g_last_tutorial_dialogue_asset_generation = std::numeric_limits<std::uint64_t>::max();
     while (glGetError() != GL_NO_ERROR) {
     }
@@ -241,7 +302,6 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
     nevergone::tutorial_scene_bootstrap::observe_scene_draw(game_scene_drawn);
 
     maybe_stage_tutorial_lesson_assets(env);
-    (void)nevergone::tutorial_lesson_overlay::draw();
 
     maybe_stage_tutorial_dialogue_assets(env);
     nevergone::tutorial_dialogue_runtime::tick();
@@ -257,6 +317,9 @@ void wrapped_server_draw(JNIEnv* env, jclass) {
         (void)nevergone::tutorial_session_state::on_dialogue_complete();
     }
     (void)nevergone::tutorial_dialogue_runtime::draw();
+
+    maybe_stage_tutorial_prompt_assets(env);
+    (void)nevergone::tutorial_lesson_overlay::draw();
 
     maybe_stage_tutorial_loading_assets(env);
     const auto loading_route = nevergone::offline_startup_flow::snapshot();
