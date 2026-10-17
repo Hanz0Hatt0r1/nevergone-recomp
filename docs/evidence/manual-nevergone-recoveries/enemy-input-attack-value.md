@@ -10,6 +10,12 @@ which RevEngInstr emits 256 and marks the row truncated. The reconstruction
 therefore uses only the exact field-transfer instructions below, rather than
 inferring the rest of that larger initializer from an incomplete corpus row.
 
+`EnemyActionsSystem::DamageFactor()` at `0x002bbeda` is another compact row in
+the same P-code corpus: 13 operations, three loads, no calls, and no branches.
+Its exact ARM/Ghidra evidence identifies the frame index, data pointer, and
+`+0xd8` table offset, so the manual label records its role as
+`combat_frame_factor_lookup`.
+
 The source of `EnemyObject +0x2bc` is now also resolved in
 `EnemyObject::loadEnemyObjectFile()` at `0x002be768`. Its ARM instructions at
 `0x002be788..0x002be790` load `GameLevelsEnemyData +0x20`, convert it with
@@ -38,15 +44,18 @@ decompilation for Never Gone 1.0.9 (`libcocos2dcpp.so` SHA-256
 unsigned conversion for finite values in the uint32 range and safely rejects
 values outside that proven domain. `resolve()` implements the subsequent
 unsigned-to-float conversion and multiplication. It accepts the frame factor as
-an input because the `EnemyActionsData +0xd8` table and runtime import path are
-not yet connected to the tutorial actor.
+an input, and `resolve_at_frame()` obtains that factor from the parsed action
+document. Section F's first float at tuple index `i` is proven to populate
+`EnemyActionsData +0xd8 + 4*i` (`docs/evidence/enemy-actions-wbg-combo-section.md`).
 
 `game_levels_enemy_record_mapping::resolve_input_value_2bc()` follows the
 reviewed enemy ID mapping to exactly one imported `EnemyRecord`, converts its
 `first_float`, and fails closed for missing IDs, duplicate IDs, unreviewed
 mappings, or values outside the defined conversion range. The tutorial actor
-binding stores this recovered input alongside imported base health, ready for
-the frame-factor and attack-event boundaries to be connected.
+binding stores this recovered input alongside imported base health. The live
+gate can combine it with the selected action document's current frame factor;
+the remaining boundary is scheduling that result from an enemy attack event
+and applying contact damage to the player.
 
 This restores the numeric function only. It does not apply damage to the
 player, create enemy AI attacks, or connect attack events to the first combat

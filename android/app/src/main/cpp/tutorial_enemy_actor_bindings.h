@@ -4,9 +4,11 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <sstream>
 #include <string>
 
+#include "enemy_attack_value_contract.h"
 #include "game_levels_enemy_record_mapping.h"
 #include "tutorial_attack_wave_runtime.h"
 
@@ -144,6 +146,16 @@ public:
             expected_wave_generation == wave_generation_ &&
             slot < bindings_.size() && bindings_[slot].active &&
             bindings_[slot].wave_generation == expected_wave_generation;
+    }
+
+    std::optional<float> resolve_input_attack_value(
+            std::size_t slot,
+            std::int32_t current_frame,
+            const enemy_actions_wbg_document::Document& action,
+            std::uint64_t expected_wave_generation) const {
+        if (!accepts(slot, expected_wave_generation)) return std::nullopt;
+        return enemy_attack_value_contract::resolve_at_frame(
+            bindings_[slot].input_value_2bc, action, current_frame);
     }
 
     Snapshot snapshot() const {

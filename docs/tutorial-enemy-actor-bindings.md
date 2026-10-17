@@ -1,9 +1,9 @@
 # Tutorial enemy actor bindings
 
 The first Attack-wave roster now has enough reviewed data to materialize slots
-from the imported tutorial scene, but a roster slot is not yet a rendered or
+from the imported tutorial scene, but a roster slot is not yet a complete
 AI-driven `EnemyObject`. `tutorial_enemy_actor_bindings` is the narrow identity
-boundary between those two layers.
+and numeric combat-input boundary between those two layers.
 
 ## Binding identity
 
@@ -16,13 +16,16 @@ wave_generation
 enemy_id
 initial_enemy_state
 base_health
+input_value_2bc
 spawn_x
 spawn_y
 ```
 
-All values come directly from the materialized roster slot. The binding layer
-never chooses a sprite, action-data file, AI state, hit box, damage amount, or
-death result.
+The ID, state, health, and geometry come from the materialized roster slot.
+`input_value_2bc` comes from the unique reviewed `EnemyRecord` selected by that
+ID. Given the selected action document and current frame, the live gate resolves
+the recovered `inputAtkValue()` result from Section F's `+0xd8` factor. This
+boundary does not infer hit contact or apply damage to the player.
 
 `(wave_generation, slot)` is the stable live identity. A slot index by itself is
 not accepted because tutorial waves reuse the same small slot range.
@@ -62,7 +65,7 @@ before touching roster health.
 
 The existing Tutorial Attack live-gate report now appends a `Tutorial enemy
 actor bindings` section containing the active wave generation and each bound
-slot's recovered ID/state/HP/spawn coordinates. This makes device evidence able
+slot's recovered ID/state/HP/attack input/spawn coordinates. This makes device evidence able
 to distinguish:
 
 - planned roster enemies;

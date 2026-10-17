@@ -83,8 +83,9 @@ The clean-room resolver keeps this field separate from the integer mapping:
 after a reviewed ID lookup selects exactly one record,
 `resolve_input_value_2bc()` converts `EnemyRecord.first_float` and rejects
 missing or duplicate IDs and values outside the defined unsigned conversion
-range. The tutorial actor binding retains the result for the still-unconnected
-frame-factor and attack-event path.
+range. `resolve_at_frame()` then selects the matching Section F factor from the
+current parsed action document. Attack-event scheduling and applying contact
+damage to the player remain unconnected.
 
 ## Production mapping
 

@@ -2,9 +2,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "enemy_actions_wbg_document.h"
 #include "game_levels_enemy_record_mapping.h"
 #include "game_levels_runtime_state.h"
 #include "game_scene_player_motion_state.h"
@@ -64,6 +66,11 @@ public:
         std::size_t slot, int enemy_state, std::uint64_t expected_wave_generation);
     bool set_force_action_state_no_dead(
         std::size_t slot, bool enabled, std::uint64_t expected_wave_generation);
+    std::optional<float> resolve_input_attack_value(
+        std::size_t slot,
+        std::int32_t current_frame,
+        const enemy_actions_wbg_document::Document& action,
+        std::uint64_t expected_wave_generation) const;
 
     // Consume only after the caller has successfully published
     // kTutorialEnemiesDefeated to tutorial_gameplay_state.
@@ -97,6 +104,11 @@ bool live_set_enemy_state(
     std::size_t slot, int enemy_state, std::uint64_t expected_wave_generation);
 bool live_set_force_action_state_no_dead(
     std::size_t slot, bool enabled, std::uint64_t expected_wave_generation);
+std::optional<float> live_resolve_input_attack_value(
+    std::size_t slot,
+    std::int32_t current_frame,
+    const enemy_actions_wbg_document::Document& action,
+    std::uint64_t expected_wave_generation);
 Snapshot live_snapshot();
 std::string live_status_report();
 
