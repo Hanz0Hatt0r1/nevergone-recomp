@@ -36,9 +36,11 @@ result carries these references alongside the existing sprite frame lookup.
 This restores the data-backed count/ordinal/index selection stage. It does not
 create the native `+0x198` sprite objects, reproduce their position updates,
 calculate the transformed `sprBoundingBox()` origin, or perform the later
-point comparisons. Those
-remaining operations sit at the boundary of `MEPlayer::beatHitPoint()` and
-the large `BattleManager::{playerHitEnemy,enemyHitPlayer}` routines.
+point comparisons. `MEPlayer::beatHitPoint()` now has a separate bounded
+contract for its failure checks and `+0x268/+0x26c` player-coordinate
+translation. Native sprite creation/positioning and the later comparisons
+remain unresolved in the large `BattleManager::{playerHitEnemy,enemyHitPlayer}`
+and `MEPlayer::isBeaten()` routines.
 
 Gold subsystem and function-role labels for the three complete entries are
 recorded in `player-action-hitpoint-record-selection-labels.jsonl`. Adding
