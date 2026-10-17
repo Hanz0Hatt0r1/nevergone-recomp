@@ -83,6 +83,33 @@ struct MaxHealthTerms {
     float player_status_health_138 = 0.0f;
 };
 
+struct ManagementAttackEffect {
+    std::uint32_t type = 0;
+    std::uint32_t level = 0;
+    float base_bonus = 0.0f;
+    float growth_bonus = 0.0f;
+};
+
+struct AttributeAttackEffect {
+    std::uint32_t type = 0;
+    std::uint32_t level = 0;
+    bool enabled = false;
+    float per_level_bonus = 0.0f;
+};
+
+struct ExtraBaseAttackTerms {
+    float weapon_add_base_attack = 0.0f;
+    bool weapon_field_18_is_zero = false;
+    bool use_management_level_effects = false;
+    float parameter_bonus_2ec = 0.0f;
+    std::vector<ManagementAttackEffect> management_effects;
+    std::vector<AttributeAttackEffect> attribute_effects;
+    bool armband_equipped = false;
+    std::int32_t armband_attack_addition = 0;
+    float armband_base_attack_38 = 0.0f;
+    float equipment_property_bonus_30 = 0.0f;
+};
+
 struct WeaponFinalAddBaseTerms {
     bool management_hole_gate_nonzero = false;
     float add_hole_base_attack = 0.0f;
@@ -128,6 +155,10 @@ float resolve_damage_absorb(
 // mercenary map scan are supplied as decoded terms; the int cache write and
 // returned float conversion match MEPlayer +0x11c.
 float resolve_max_health(State* player, const MaxHealthTerms& terms) noexcept;
+
+// Mirrors WeaponsItemData::getExtraBase_atk(); native manager and getter
+// results are decoded inputs, while the mode and equipped-item gates are exact.
+float resolve_extra_base_attack(const ExtraBaseAttackTerms& terms) noexcept;
 
 // MEPlayer::setEquipAddAttack() writes the argument to +0x114.
 void set_equipment_add_attack(State* state, float value) noexcept;

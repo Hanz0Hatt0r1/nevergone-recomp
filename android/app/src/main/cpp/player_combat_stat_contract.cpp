@@ -129,6 +129,36 @@ float resolve_max_health(State* player, const MaxHealthTerms& terms) noexcept {
     return static_cast<float>(player->effective_max_health_11c);
 }
 
+float resolve_extra_base_attack(const ExtraBaseAttackTerms& terms) noexcept {
+    float result = terms.weapon_add_base_attack + 0.0f;
+    if (!terms.weapon_field_18_is_zero) return result;
+
+    if (terms.use_management_level_effects) {
+        for (const auto& effect : terms.management_effects) {
+            if (effect.type != 3u || effect.level == 0u) continue;
+            result = result + effect.base_bonus;
+            result = result +
+                static_cast<float>(effect.level - 1u) * effect.growth_bonus;
+        }
+    } else {
+        result = result + terms.parameter_bonus_2ec;
+    }
+
+    for (const auto& effect : terms.attribute_effects) {
+        if ((effect.type == 5u || effect.type == 6u || effect.type == 10u) &&
+            effect.enabled) {
+            result = result +
+                static_cast<float>(effect.level) * effect.per_level_bonus;
+        }
+    }
+
+    if (terms.armband_equipped) {
+        result = result + static_cast<float>(terms.armband_attack_addition);
+        result = result + terms.armband_base_attack_38;
+    }
+    return result + terms.equipment_property_bonus_30;
+}
+
 void set_equipment_add_attack(State* state, float value) noexcept {
     if (state == nullptr) return;
     state->equipment_add_attack_114 = value;

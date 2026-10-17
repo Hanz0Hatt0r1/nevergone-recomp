@@ -19,8 +19,9 @@ Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256
 | `WeaponsItemData::getStarLevel` | `0x0034426c` | 15 | 2 | 1 | 2 | 0 |
 | `WeaponsItemData::getAddHoleBase_atk` | `0x00345054` | 29 | 1 | 1 | 1 | 0 |
 | `WeaponsItemData::getAddTemperBase_atk` | `0x00344f24` | 15 | 0 | 0 | 2 | 0 |
+| `WeaponsItemData::getExtraBase_atk` | `0x00345734` | 176 | 14 | 13 | 20 | 0 |
 
-All seven rows are complete. The original decompilation and ARM instructions
+All eight rows are complete. The original decompilation and ARM instructions
 establish this order for `MEPlayer::getAttack()`:
 
 1. `MEEquip::equipAtIdx(..., 0)` selects weapon-array entry zero from the
@@ -55,13 +56,23 @@ it computes `(star_level + 2) * field_7c * (star_level - 1) * 0.5`, where
 is zero. `getAddTemperBase_atk()` doubles the signed integer at `+0xac` with
 32-bit shift semantics, converts it to float, and multiplies by the same
 `+0x7c` field. These helper contracts now provide the hole and temper inputs
-to the final-add composition. The remaining `getExtraBase_atk()` is a complete
-but unresolved 176-operation function; its returned value remains an input.
-The native `getAttack()` has no visible empty-weapon fallback after
+to the final-add composition. The complete `getExtraBase_atk()` helper is
+reconstructed by `resolve_extra_base_attack()`: it always starts with the
+value returned by `getAddBase_atk()` and applies extra bonuses only when
+`WeaponsItemData +0x18 == 0`. In modes 4 and 8, each nonzero type-3 management
+effect adds `LevelUpData[3] +0x1c` and `float(level - 1) * LevelUpData[3]
++0x20`; other modes use `AppParameters +0x2ec`. Enabled type 5, 6, and 10
+attributes add `float(level) * LevelUpData[type] +0x18`. An equipped armband
+adds `getAttackAddtion(ArmbandItemData +0x18)` and its `+0x38` field; the
+function then adds `EquipPropertyManager +0x30`. The zero literal at
+`DAT_0034584c` is confirmed in the shipped ELF. Manager reads, the
+`getAddBase_atk()` result, and the armband getter output remain explicit
+inputs. The native `getAttack()` has no visible empty-weapon fallback after
 `equipAtIdx()`.
 
-Gold subsystem and function-role labels for the seven functions are recorded in
-`player-attack-value-labels.jsonl`. The local dataset v20 contains 9,158
-labelled functions, 6,866 structural groups, and 9,739 gold label rows after
-adding six new labels to manual-restoration v19. The generated corpus and
+Gold subsystem and function-role labels for these eight functions are recorded
+in `player-attack-value-labels.jsonl`. Adding the two labels for
+`getExtraBase_atk()` to manual-restoration v35 and rebuilding as v36 produced
+9,185 labelled functions, 6,893 structural groups, 9,794 gold label rows, and
+splits of 7,377 train / 992 validation / 816 test. The generated corpus and
 dataset remain outside Git.
