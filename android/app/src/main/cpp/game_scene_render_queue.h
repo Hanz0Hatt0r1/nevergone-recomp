@@ -13,6 +13,17 @@
 
 namespace nevergone::game_scene_render_queue {
 
+struct EnemyActionHitPointPosition {
+    std::size_t enemy_slot = 0;
+    std::int32_t action_frame_index = 0;
+    std::size_t action_data_index = 0;
+    std::size_t frame_ordinal = 0;
+    // Coordinates in EnemyActionsSystem space; object/world translation and
+    // sprite bounds are resolved by later combat integration.
+    float system_local_x = 0.0f;
+    float system_local_y = 0.0f;
+};
+
 struct SpriteCommand {
     std::size_t layer_z_index = 0;
     std::size_t source_layer_index = 0;
@@ -51,6 +62,7 @@ struct Queue {
     std::string guid;
     std::vector<SpriteCommand> sprites;
     std::vector<SceneActionPairCommand> scene_action_pairs;
+    std::vector<EnemyActionHitPointPosition> enemy_action_hitpoints;
     std::size_t sprite_frame_lookup_count = 0;
     std::size_t direct_file_count = 0;
     std::size_t scene_action_pair_count = 0;

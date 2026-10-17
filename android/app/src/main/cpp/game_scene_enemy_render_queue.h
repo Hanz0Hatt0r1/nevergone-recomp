@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <utility>
 
 #include "game_clock.h"
@@ -12,6 +13,7 @@
 #include "tutorial_enemy_action_document_store.h"
 #include "tutorial_enemy_action_selection.h"
 #include "enemy_actions_sprite_update.h"
+#include "enemy_actions_hitpoint_sprite_position.h"
 
 namespace nevergone::game_scene_enemy_render_queue {
 
@@ -106,6 +108,22 @@ inline game_scene_render_queue::Queue with_live_enemies(
         command.action_frame_transform = body;
         command.action_frame_atlas_plist = frame.first_string;
         command.action_frame_opacity = action_sprite.opacity;
+        // play() initializes EnemyActionsSystem+0x284 to (0, 0). The current
+        // reconstruction has no movement-state producer, so carry the static
+        // action-system-local Section-E positions and leave later translations
+        // to the movement recovery.
+        const auto hitpoints = enemy_actions_hitpoint_sprite_position::for_frame(
+                *animation.document, static_cast<std::int32_t>(animation.frame_index),
+                0.0f);
+        for (const auto& hitpoint : hitpoints) {
+            queue.enemy_action_hitpoints.push_back({
+                    binding.slot,
+                    static_cast<std::int32_t>(animation.frame_index),
+                    hitpoint.action_data_index,
+                    hitpoint.frame_ordinal,
+                    hitpoint.x,
+                    hitpoint.y});
+        }
         command.layer_z_index = 7u;
         command.source_layer_index = 11u;
         command.source_object_index = binding.slot;
