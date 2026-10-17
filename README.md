@@ -9,14 +9,14 @@ The goal is to reconstruct the original game runtime as maintainable source code
 
 ## Readiness review — 2026-10-17
 
-Assessment baseline: `main` through `e988acb1` (`e988acb1d44d07ceac8338d0fbd177f7471e4587`). This README update is documentation-only and follows that code baseline. Percentages below are engineering planning estimates, not measured code coverage.
+Assessment baseline: `main` through `fc02a987` (`fc02a987618e6406c9b6ff0ffa3daa129260ad7a`). This README update is documentation-only and follows that code baseline. Percentages below are engineering planning estimates, not measured code coverage.
 
 - **Strict technical-alpha gate:** **7/10 checkpoints (70%)**. P0-P6 are accepted; P7-P9 still require one contiguous retained real-device proof.
 - **Engineering readiness toward technical alpha:** approximately **96%**. The remaining technical-alpha risk is dominated by real-device integration/acceptance rather than missing scene/player/input infrastructure.
 - **First tutorial playable-slice engineering readiness:** approximately **82%**. Fresh-role `cp_lesson`, LoadingLayer/LessonOverlay progression, player control, tutorial state, Attack-wave planning, enemy identity/base-HP mapping and health/death semantics are reconstructed; visible enemy actors and real combat callbacks are still missing.
 - **Early playable-alpha readiness:** approximately **74%**. Technical-alpha proof is still open, and the enemy actor/damage/death loop has not yet been accepted end-to-end.
 - **Modern release readiness:** approximately **57%**. Runtime/tooling/resource recovery are mature, while physical arm64 validation, broader gameplay, device coverage and release hardening remain incomplete.
-- **Reverse-engineering/tooling maturity:** approximately **99%** for the current workflow. Ghidra, unidbg, device capture, exact native cross-checks, static dispatch/vtable analysis, ML-assisted prioritization and the `revenginstr` extraction/parity work are broad and reproducible.
+- **Reverse-engineering/tooling maturity:** approximately **99%** for the current workflow. Ghidra, unidbg, device capture, exact native cross-checks, static dispatch/vtable analysis, ML-assisted prioritization, frozen field-memory audits and the `revenginstr` extraction/parity work are broad and reproducible.
 
 The authoritative delivery metric is [`docs/playable-path.md`](docs/playable-path.md). The milestone tracker is [#151 — M4 -> First Offline Scene / Technical Alpha path](https://github.com/Hanz0Hatt0r1/nevergone-recomp/issues/151).
 
@@ -33,7 +33,7 @@ Implementation beyond P6 does not move the strict completion marker until the pr
 
 ## What changed since the 2026-10-14 review
 
-The previous readiness baseline was `b9fd09cc`. The assessed `main` is **291 commits ahead** of that point. The strict P0-P9 acceptance marker has not moved, but the implementation behind P7-P9 and the first tutorial/combat slice has advanced materially.
+The previous readiness baseline was `b9fd09cc`. The assessed `main` is **298 commits ahead** of that point. The strict P0-P9 acceptance marker has not moved, but the implementation behind P7-P9, the first tutorial/combat slice, persistence-adjacent game state and reusable analysis tooling has advanced materially.
 
 Key changes:
 
@@ -45,7 +45,9 @@ Key changes:
 - **Enemy wave identity and health/death semantics are reconstructed.** The runtime has generation-safe roster/actor-binding identities, fixed-tick spawn planning, current/max-health state and the recovered `EnemyObject::isDead()` contract needed by the first combat lesson.
 - **The remaining combat boundary is narrower.** The major missing link is no longer basic tutorial orchestration; it is materializing visible/interactive enemy actors from imported EnemyActions data and feeding real hit/damage/death state back through the retained wave identity.
 - **Generic analysis machinery is being extracted to `revenginstr`.** Shared P-code, vtable, indirect-call, receiver, evidence, selective-classifier, accept-router and frozen-validation mechanisms now have Nevergone parity/adapters while game-specific labels, catalogs and semantic evidence remain in this repository.
-- **ML production work is now evaluation-driven rather than blindly iterating.** v5.4 remains the frozen classifier champion unless later constrained GAME calibration beats its family-held-out metrics under the same leakage-safe protocol.
+- **The field-memory workflow now has frozen CFG/3 evidence on `CCJoyStick::init`.** A checked-in CFG/3 plus memory-store sidecar replay produces two `possible_intervening_memory_effect` rows and zero unsafe unique-store claims. The result deliberately preserves unresolved aliasing rather than treating dominance or reachability as value-flow proof.
+- **Six `GameSaveData` random-mission collection helpers are now clean-room reconstructed.** The implementation restores ordered ID/index lookup, duplicate suppression and the recovered three-slot equipped-random-mission capacity rule, with pinned native evidence and six new function-role gold labels.
+- **ML production work is evaluation-driven rather than blindly iterating.** v5.4 remains the frozen classifier champion unless later constrained GAME calibration beats its family-held-out metrics under the same leakage-safe protocol.
 
 ## Delivery readiness
 
@@ -79,10 +81,10 @@ By the strict technical-alpha definition (P0-P9), the highest contiguous accepte
 | Player spawn/input/action | **96%** | Spawn, motion, joystick, facing, live action playback, action buttons and reconstructed Controls evidence are in place; P8/P9 proof remains |
 | Fresh-role tutorial route/UI | **89%** | `cp_lesson`, LoadingLayer timing/fade, LessonOverlay/dialogue/progression and Attack entry are reconstructed; later fidelity and live combat remain |
 | SceneActions runtime | **89%** | Pair loading/playback, timed/spatial triggering, bound-object maps and direct/static geometry paths exist; some dynamic/global PRNG semantics remain bounded gaps |
-| Persistence | **86%** | Minimal bounded P10 sidecar/autosave/restore is implemented; real process-restart proof remains |
+| Persistence | **86%** | Minimal bounded P10 sidecar/autosave/restore is implemented; six native-backed random/equipped-mission collection helpers are also restored, but real process-restart proof remains |
 | Enemy/combat slice | **58%** | Enemy identity/base HP, spawn plan, wave generation, health/death and callback guards exist; renderer-facing enemy actors, actions, hit/damage integration and completed combat loop remain |
 | Modern Android runtime validation | **74%** | API 35/36 x86_64 and Android 15 16 KiB runtime coverage exist; API 35/36 arm64 physical-device proof remains |
-| Static/native evidence and reproducibility | **99%** | Extensive Ghidra/unidbg/device-capture, exact Thumb/native cross-checks and fail-closed reconstruction tooling |
+| Static/native evidence and reproducibility | **99%** | Extensive Ghidra/unidbg/device-capture, exact Thumb/native cross-checks, frozen CFG/field-memory replay and fail-closed reconstruction tooling |
 | ML/dispatch analysis pipeline | **95%** | v5.4 is the frozen champion, later models are gated by leakage-safe held-out metrics, and reusable mechanisms are migrating to `revenginstr` with parity checks |
 
 ## Immediate critical path
@@ -131,6 +133,7 @@ By the strict technical-alpha definition (P0-P9), the highest contiguous accepte
 - generation-safe tutorial enemy actor bindings ready for the renderer/action-system handoff;
 - a reconstructed `GameSaveData::Encode/Decode` leaf codec validated against bounded native probes;
 - an independent bounded P10 minimal save/autosave/restart-restore runtime;
+- six clean-room `GameSaveData` random/equipped-mission collection helpers with recovered lookup, deduplication and three-slot equip-cap semantics;
 - transactional `EnemyActionsData` structural parsing and expanded `TrapActionsData` reconstruction;
 - a live SceneActions current-scene pair runtime with document/pixel staging and GLES submission;
 - recovered SceneActions timed/spatial trigger contracts, event-ID mapping, bound-object maps, pair-level hit evaluation and direct/static geometry paths;
@@ -139,6 +142,7 @@ By the strict technical-alpha definition (P0-P9), the highest contiguous accepte
 - original-device-derived player/enemy runtime evidence;
 - a normalized P-code ML/analysis testbed with conservative labels and leakage-resistant splits;
 - static and runtime indirect-dispatch analysis, receiver/vtable inference and evidence provenance controls;
+- frozen CFG/path/dominance field-memory evidence for `CCJoyStick::init`, including conservative unresolved-alias handling;
 - broad migration/parity coverage for reusable reverse-engineering mechanisms in `revenginstr`;
 - API 35/36 x86_64 lifecycle CI and Android 15 16 KiB runtime CI;
 - an arm64 real-device evidence harness awaiting physical-device acceptance.
@@ -153,6 +157,7 @@ By the strict technical-alpha definition (P0-P9), the highest contiguous accepte
 - The first tutorial Attack wave has reviewed spawn/identity/HP inputs and health/death semantics, but roster bindings are not yet visible/interactive EnemyObject-equivalent actors.
 - Enemy action/resource selection, renderer-facing enemy frames, hitboxes/damage and combat completion remain the main early-playable gameplay boundary.
 - SceneActions still has explicit evidence boundaries around some dynamic sprite/current-parent inputs and original process-global PRNG selection/order.
+- The new field-memory audit deliberately leaves two `CCJoyStick::init` store/load pairs unresolved because an intervening STORE cannot yet be ruled out as an aliasing memory effect.
 - ML/dispatch predictions are prioritization/evidence tools, not semantic proof; uncertain or conflicting results remain gated from runtime reconstruction.
 - Actual API 35/36 `arm64-v8a` physical-device evidence is still required.
 
@@ -270,6 +275,7 @@ Current capabilities include:
 - runtime-trace/equivalence/consistency analysis;
 - explicit natural/interventional evidence isolation;
 - frozen unseen validation and drift auditing;
+- frozen CFG/path/dominance field-memory audits with explicit fail-closed handling of unresolved aliasing;
 - generic `revenginstr` parity adapters for reusable mechanisms.
 
 The current frozen Nevergone champion remains **v5.4** until a later candidate beats it under the same family-held-out, leakage-safe evaluation protocol. This tooling improves evidence discovery and prioritization but **does not advance the playable-path completion marker by itself**.
@@ -320,9 +326,11 @@ Coverage includes:
 - tutorial Attack-wave spawn inputs, roster, actor bindings and live evidence gates;
 - enemy health/death state and reviewed GameLevels enemy-record mapping;
 - P10 minimal save/autosave/restart-restore regression;
+- recovered random/equipped-mission lookup, duplicate suppression and three-slot equip-cap semantics;
 - EnemyActions/TrapActions structural parsing;
 - SceneActions document/frame/render/playback/timed/spatial trigger, bound-object and direct-geometry contracts;
 - Ghidra/unidbg evidence tooling;
+- frozen CFG/field-memory path and dominance replay with exact-evidence gates;
 - ML corpus/classification/OOD/family/similarity/frozen-validation smoke tests;
 - indirect-dispatch/vtable/receiver-provenance analysis smoke tests;
 - `revenginstr` migration/parity gates;
@@ -438,6 +446,8 @@ Among the established project facts:
 - fresh-role tutorial loading/order/timing into `cp_lesson` and LessonOverlay are reconstructed;
 - first-wave tutorial scene limits, player facing, enemy identity/base-health and health/death rules have direct evidence-backed project-owned representations;
 - `GameSaveData::Encode/Decode` byte transform is recovered, while P10 intentionally uses a bounded independent project-owned sidecar;
+- six short `GameSaveData` random/equipped-mission collection methods are reconstructed, including duplicate suppression and the three-entry equipped-mission limit;
+- the frozen `CCJoyStick::init` CFG/3 field-memory audit retains two unresolved possible intervening memory effects instead of inferring unproven store-to-load aliasing;
 - API 35/36 x86_64 lifecycle tests and an Android 15 16 KiB runtime test pass in CI.
 
 ## Repository layout
@@ -474,6 +484,8 @@ Key documents:
 - [`docs/live-player-action-playback.md`](docs/live-player-action-playback.md) — recovered live player action playback path
 - [`docs/player-input-runtime-evidence.md`](docs/player-input-runtime-evidence.md) — player input/runtime evidence
 - [`docs/scene-action-pair-runtime.md`](docs/scene-action-pair-runtime.md) — SceneActions pair runtime
+- [`docs/evidence/manual-nevergone-recoveries/random-mission-collection.md`](docs/evidence/manual-nevergone-recoveries/random-mission-collection.md) — reconstructed random/equipped-mission collection semantics
+- [`docs/evidence/field-store-load-cfg-ccjoystick-init/README.md`](docs/evidence/field-store-load-cfg-ccjoystick-init/README.md) — frozen `CCJoyStick::init` CFG/field-memory audit
 - [`docs/ml/README.md`](docs/ml/README.md) — normalized P-code/ML and static-dispatch testbed
 - [`docs/ml/REVENGINSTR_MIGRATION.md`](docs/ml/REVENGINSTR_MIGRATION.md) — extraction of reusable analysis mechanisms
 - [`docs/ml/PRODUCTION_CLASSIFIER_V57.md`](docs/ml/PRODUCTION_CLASSIFIER_V57.md) — latest constrained GAME meta-calibration experiment
