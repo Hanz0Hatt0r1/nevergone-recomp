@@ -17,6 +17,25 @@ struct AttackTerms {
     float player_status_value_144 = 0.0f;
 };
 
+struct WeaponFinalAddBaseTerms {
+    bool management_hole_gate_nonzero = false;
+    float add_hole_base_attack = 0.0f;
+    bool weapon_field_18_is_zero = false;
+    float add_temper_base_attack = 0.0f;
+    float extra_base_attack = 0.0f;
+    float weapon_field_60 = 0.0f;
+};
+
+struct WeaponFinalAddBaseResult {
+    float value = 0.0f;
+    bool extra_flag_64 = false;
+};
+
+// Mirrors WeaponsItemData::getFinalAddBase_atk() around its three helper
+// results. The initial literal at 0x003458d0 is 0.0f.
+WeaponFinalAddBaseResult resolve_weapon_final_add_base_attack(
+    const WeaponFinalAddBaseTerms& terms) noexcept;
+
 // Mirrors MEPlayer::getAttack()'s left-to-right float sum. The weapon getter
 // and PlayerStatusInfo values remain inputs until their source data is restored.
 float resolve_attack(const State& player, const AttackTerms& terms) noexcept;
