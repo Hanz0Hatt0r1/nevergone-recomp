@@ -228,6 +228,7 @@ std::string Runtime::status_report() const {
     out << "planned enemies: " << state.roster.planned_count << "\n";
     out << "materialized enemies: " << state.roster.materialized_count << "\n";
     out << "dead enemies: " << state.roster.dead_count << "\n";
+    out << "low-health enemies: " << state.roster.low_health_count << "\n";
     out << "unresolved health: " << state.roster.unresolved_health_count << "\n";
     return out.str();
 }

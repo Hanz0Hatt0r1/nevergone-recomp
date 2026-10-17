@@ -17,6 +17,10 @@ bool initialize(int base_health, State* out);
 // EnemyObject::enemyHealthRatio(): current / max * 100.
 float health_ratio_percent(const State& state);
 
+// EnemyObject::isLowHealthPercent(): integer-converted health percentage < 30.
+// For finite percentages the integer conversion leaves this threshold unchanged.
+bool is_low_health_percent(const State& state);
+
 // EnemyObject::beaten(float, ...): current -= damage before its special-case
 // clamps/state handling. This contract intentionally models only that core HP
 // mutation used by the ordinary tutorial enemy path.

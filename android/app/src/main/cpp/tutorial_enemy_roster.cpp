@@ -132,7 +132,11 @@ Snapshot Roster::snapshot() const {
         if (slot.due && !slot.materialized) ++out.unresolved_health_count;
         if (!slot.materialized) continue;
         ++out.materialized_count;
-        if (enemy_health_state::is_dead(slot.health)) ++out.dead_count;
+        if (enemy_health_state::is_dead(slot.health)) {
+            ++out.dead_count;
+        } else if (enemy_health_state::is_low_health_percent(slot.health)) {
+            ++out.low_health_count;
+        }
     }
 
     out.all_materialized =

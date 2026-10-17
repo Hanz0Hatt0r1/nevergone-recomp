@@ -1,5 +1,10 @@
 # Manual reconstruction: enemy input attack value
 
+> Address convention: executable addresses from RevEngInstr use an image base
+> `0x1000` above the shipped ELF VMA. Subtract `0x1000` to inspect the ELF.
+> Gold-label `source_entry` values intentionally keep the corpus address.
+> Object-field offsets are unchanged.
+
 `EnemyObject::inputAtkValue()` is a compact combat function selected from the
 local RevEngInstr P-code corpus. Its row at `libcocos2dcpp.so:002be9d4` has 16
 operations, one direct call, two loads and no branches. Those corpus metrics

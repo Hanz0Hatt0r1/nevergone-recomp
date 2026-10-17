@@ -1,15 +1,20 @@
 # Manual reconstruction: enemy death state
 
+> Address convention: executable addresses from RevEngInstr use an image base
+> `0x1000` above the shipped ELF VMA. Subtract `0x1000` to inspect the ELF.
+> Gold-label `source_entry` values intentionally keep the corpus address.
+> Object-field offsets are unchanged.
+
 Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256
 `94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`.
 
 ## RevEngInstr selection
 
-| Function | Entry | P-code ops | Calls | Branches | Loads | Stores |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| `EnemyObject::isDead` | `0x002bf06e` | 20 | 0 | 3 | 3 | 0 |
-| `EnemyObject::setEnemyDead` | `0x002c1af8` | 9 | 3 | 1 | 0 | 1 |
-| `EnemyObject::forceCurActionStateNoDead` | `0x002be332` | 3 | 0 | 0 | 0 | 1 |
+| Function | RevEngInstr entry | ELF entry | P-code ops | Calls | Branches | Loads | Stores |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `EnemyObject::isDead` | `0x002bf06e` | `0x002af06e` | 20 | 0 | 3 | 3 | 0 |
+| `EnemyObject::setEnemyDead` | `0x002c1af8` | `0x002b1af8` | 9 | 3 | 1 | 0 | 1 |
+| `EnemyObject::forceCurActionStateNoDead` | `0x002be332` | `0x002ae332` | 3 | 0 | 0 | 0 | 1 |
 
 All three RevEngInstr rows are complete. The state setter called from
 `setEnemyDead()` is a separate 2,615-op function whose corpus row is truncated.
@@ -38,7 +43,7 @@ and the effects inside the truncated state setter remain open, so this entry
 does not claim to restore the full native death animation or notification.
 
 The subsystem and function-role gold labels are in
-`enemy-death-state-labels.jsonl`. Local RevEngInstr dataset v26 now has 9,171
-labelled functions, 6,879 structural groups, and 9,766 gold label rows (train
-7,370, test 811, validation 990). Its corpus and generated dataset remain
+`enemy-death-state-labels.jsonl`. Local RevEngInstr dataset v27 has 9,172
+labelled functions, 6,880 structural groups, and 9,768 gold label rows (train
+7,367, test 813, validation 992). Its corpus and generated dataset remain
 outside Git.

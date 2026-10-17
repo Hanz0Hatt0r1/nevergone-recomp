@@ -16,6 +16,10 @@ float health_ratio_percent(const State& state) {
     return state.current_health / state.max_health * 100.0f;
 }
 
+bool is_low_health_percent(const State& state) {
+    return health_ratio_percent(state) < 30.0f;
+}
+
 void apply_beaten_damage(State* state, float damage) {
     if (state == nullptr) return;
     state->current_health -= damage;

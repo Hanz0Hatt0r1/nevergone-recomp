@@ -1,5 +1,10 @@
 # Manual reconstruction: enemy attack-miss frame gate
 
+> Address convention: executable addresses from RevEngInstr use an image base
+> `0x1000` above the shipped ELF VMA. Subtract `0x1000` to inspect the ELF.
+> Gold-label `source_entry` values intentionally keep the corpus address.
+> Object-field offsets are unchanged.
+
 Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256
 `94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`.
 

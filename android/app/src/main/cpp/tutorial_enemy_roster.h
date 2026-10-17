@@ -30,6 +30,7 @@ struct Snapshot {
     std::size_t due_count = 0;
     std::size_t materialized_count = 0;
     std::size_t dead_count = 0;
+    std::size_t low_health_count = 0;
     std::size_t unresolved_health_count = 0;
     float elapsed_seconds = 0.0f;
     std::uint64_t generation = 0;

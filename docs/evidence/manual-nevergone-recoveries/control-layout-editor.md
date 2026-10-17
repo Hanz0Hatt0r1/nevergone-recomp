@@ -1,5 +1,10 @@
 # Manual reconstruction: draggable action-control layout
 
+> Address convention: executable addresses from RevEngInstr use an image base
+> `0x1000` above the shipped ELF VMA. Subtract `0x1000` to inspect the ELF.
+> Gold-label `source_entry` values intentionally keep the corpus address.
+> Object-field offsets are unchanged.
+
 This reconstruction continues the saved-position recovery in
 [`controls-saved-layout.md`](controls-saved-layout.md). Source evidence comes
 from the user-owned ARMv7 `libcocos2dcpp.so` analyzed in Ghidra.
