@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace nevergone::player_combat_stat_contract {
 
 struct State {
@@ -30,6 +32,19 @@ struct WeaponFinalAddBaseResult {
     float value = 0.0f;
     bool extra_flag_64 = false;
 };
+
+// WeaponsItemData::getStarLevel() returns the +0x98 CCArray count minus one,
+// or zero for an empty array.
+std::int32_t resolve_weapon_star_level(std::uint32_t hole_array_count) noexcept;
+
+// Mirrors getAddHoleBase_atk(); star_level comes from the accessor above and
+// weapon_field_7c is WeaponsItemData +0x7c.
+float resolve_weapon_add_hole_base_attack(
+    std::int32_t star_level, float weapon_field_7c) noexcept;
+
+// Mirrors getAddTemperBase_atk() from WeaponsItemData +0xac and +0x7c.
+float resolve_weapon_add_temper_base_attack(
+    std::int32_t weapon_field_ac, float weapon_field_7c) noexcept;
 
 // Mirrors WeaponsItemData::getFinalAddBase_atk() around its three helper
 // results. The initial literal at 0x003458d0 is 0.0f.

@@ -1,6 +1,31 @@
 #include "player_combat_stat_contract.h"
 
+#include <cstring>
+
 namespace nevergone::player_combat_stat_contract {
+
+std::int32_t resolve_weapon_star_level(std::uint32_t hole_array_count) noexcept {
+    return hole_array_count == 0
+        ? 0
+        : static_cast<std::int32_t>(hole_array_count - 1U);
+}
+
+float resolve_weapon_add_hole_base_attack(
+        std::int32_t star_level, float weapon_field_7c) noexcept {
+    if (star_level <= 1) return 0.0f;
+    float value = static_cast<float>(star_level + 2) * weapon_field_7c;
+    value *= static_cast<float>(star_level - 1);
+    return 0.0f + value * 0.5f;
+}
+
+float resolve_weapon_add_temper_base_attack(
+        std::int32_t weapon_field_ac, float weapon_field_7c) noexcept {
+    const std::uint32_t shifted_bits =
+        static_cast<std::uint32_t>(weapon_field_ac) << 1U;
+    std::int32_t shifted_value = 0;
+    std::memcpy(&shifted_value, &shifted_bits, sizeof(shifted_value));
+    return static_cast<float>(shifted_value) * weapon_field_7c;
+}
 
 WeaponFinalAddBaseResult resolve_weapon_final_add_base_attack(
         const WeaponFinalAddBaseTerms& terms) noexcept {

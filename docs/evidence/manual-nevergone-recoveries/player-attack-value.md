@@ -11,8 +11,11 @@ Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256
 | `MEPlayer::setEquipAddAttack` | `0x0032a5f6` | 4 | 0 | 0 | 0 | 1 |
 | `PlayerStatusInfo::getLevelAttack` | `0x00327236` | 5 | 0 | 0 | 1 | 0 |
 | `WeaponsItemData::getFinalAddBase_atk` | `0x00345850` | 59 | 4 | 5 | 3 | 2 |
+| `WeaponsItemData::getStarLevel` | `0x0034426c` | 15 | 2 | 1 | 2 | 0 |
+| `WeaponsItemData::getAddHoleBase_atk` | `0x00345054` | 29 | 1 | 1 | 1 | 0 |
+| `WeaponsItemData::getAddTemperBase_atk` | `0x00344f24` | 15 | 0 | 0 | 2 | 0 |
 
-All four rows are complete. The original decompilation and ARM instructions
+All seven rows are complete. The original decompilation and ARM instructions
 establish this order for `MEPlayer::getAttack()`:
 
 1. `MEEquip::equipAtIdx(..., 0)` selects weapon-array entry zero from the
@@ -39,13 +42,21 @@ sets it when the extra-base result is positive. The initial literal at
 `0x003458d0` is `0.0f`; a negative sum returns that zero. The new
 `resolve_weapon_final_add_base_attack()` contract reproduces these gates,
 sum, flag, and floor while taking the three helper results and source fields
-as explicit inputs. `getExtraBase_atk()` is a complete but still unresolved
-176-operation function; the hole and temper helper outputs also remain inputs.
+as explicit inputs. The associated `getStarLevel()` helper returns the count
+of the `CCArray` at `WeaponsItemData +0x98` minus one, or zero when empty.
+`getAddHoleBase_atk()` returns zero for star levels at or below one; otherwise
+it computes `(star_level + 2) * field_7c * (star_level - 1) * 0.5`, where
+`field_7c` is at `WeaponsItemData +0x7c`. Its initial literal at `0x00345094`
+is zero. `getAddTemperBase_atk()` doubles the signed integer at `+0xac` with
+32-bit shift semantics, converts it to float, and multiplies by the same
+`+0x7c` field. These helper contracts now provide the hole and temper inputs
+to the final-add composition. The remaining `getExtraBase_atk()` is a complete
+but unresolved 176-operation function; its returned value remains an input.
 The native `getAttack()` has no visible empty-weapon fallback after
 `equipAtIdx()`.
 
-The four gold subsystem and function-role labels are recorded in
-`player-attack-value-labels.jsonl`. The local dataset v19 contains 9,155
-labelled functions, 6,863 structural groups, and 9,733 gold label rows after
-adding two new labels to manual-restoration v18. The generated corpus and
+Gold subsystem and function-role labels for the seven functions are recorded in
+`player-attack-value-labels.jsonl`. The local dataset v20 contains 9,158
+labelled functions, 6,866 structural groups, and 9,739 gold label rows after
+adding six new labels to manual-restoration v19. The generated corpus and
 dataset remain outside Git.
