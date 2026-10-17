@@ -1,6 +1,6 @@
 # Manual reconstruction: enemy physical damage states
 
-> Address convention: RevEngInstr entries are `0x1000` above the shipped ELF
+> Address convention: RevEngInstr entries are `0x10000` above the shipped ELF
 > VMA. Gold labels retain the RevEngInstr entry so they join the corpus.
 
 Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256

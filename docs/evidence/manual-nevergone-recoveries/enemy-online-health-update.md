@@ -1,7 +1,7 @@
 # Manual reconstruction: online enemy health updates
 
 > Address convention: executable addresses from RevEngInstr use an image base
-> `0x1000` above the shipped ELF VMA. Subtract `0x1000` to inspect the ELF.
+> `0x10000` above the shipped ELF VMA. Subtract `0x10000` to inspect the ELF.
 > Gold-label `source_entry` values intentionally keep the corpus address.
 > Object-field offsets are unchanged.
 
