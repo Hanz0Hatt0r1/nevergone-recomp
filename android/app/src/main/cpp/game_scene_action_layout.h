@@ -17,6 +17,7 @@ struct ButtonDescriptor {
 };
 
 constexpr int kButtonCount = 3;
+constexpr int kQuickUseButtonCount = 2;
 
 struct SpriteBounds {
     float width = 0.0f;
@@ -32,6 +33,7 @@ struct ControlPositions {
     Point joystick;
     std::array<Point, kButtonCount> buttons{};
     Point unique_skill_tip;
+    std::array<Point, kQuickUseButtonCount> quick_use_buttons{};
 };
 
 struct Rect {
@@ -57,7 +59,8 @@ ControlPositions positions_from_saved_settings(
     bool controls_settings,
     Point joystick,
     Point button_b,
-    Point unique_skill_tip);
+    Point unique_skill_tip,
+    std::array<Point, kQuickUseButtonCount> quick_use_buttons);
 
 std::optional<ButtonDescriptor> descriptor_for(game_scene_action_input::Control control);
 

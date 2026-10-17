@@ -20,6 +20,9 @@ constexpr int kActionPointerDown = 5;
 constexpr int kActionPointerUp = 6;
 constexpr float kDesignWidth = 1136.0f;
 constexpr float kDesignHeight = 640.0f;
+constexpr int kFirstQuickUseEditTarget = game_scene_action_layout::kButtonCount;
+constexpr int kJoystickEditTarget = game_scene_action_layout::kButtonCount +
+                                    game_scene_action_layout::kQuickUseButtonCount;
 
 std::mutex g_mutex;
 Snapshot g_snapshot;
@@ -90,13 +93,29 @@ int edit_target_locked(float x, float y) {
             g_snapshot.sprite_bounds[index]);
         if (rect.has_value() && contains(*rect, x, y)) return static_cast<int>(index);
     }
+    for (std::size_t index = 0;
+         index < game_scene_action_layout::kQuickUseButtonCount;
+         ++index) {
+        const auto center = g_snapshot.positions.quick_use_buttons[index];
+        const auto& bounds = g_snapshot.quick_use_sprite_bounds[index];
+        const auto rect = bounds.width > 0.0f && bounds.height > 0.0f
+            ? std::optional<game_scene_action_layout::Rect>(game_scene_action_layout::Rect{
+                  center.x - bounds.width * 0.5f,
+                  center.y - bounds.height * 0.5f,
+                  center.x + bounds.width * 0.5f,
+                  center.y + bounds.height * 0.5f})
+            : std::nullopt;
+        if (rect.has_value() && contains(*rect, x, y)) {
+            return kFirstQuickUseEditTarget + static_cast<int>(index);
+        }
+    }
 
     const auto joystick = g_snapshot.positions.joystick;
     const float dx = x - joystick.x;
     const float dy = y - joystick.y;
     return std::sqrt(dx * dx + dy * dy) <
             game_scene_player_joystick_input::kHitRadius
-        ? game_scene_action_layout::kButtonCount
+        ? kJoystickEditTarget
         : -1;
 }
 
@@ -115,10 +134,19 @@ game_scene_action_layout::ControlPositions moved_editor_target(
     float x,
     float y) {
     auto positions = g_edit_start_positions;
-    if (target == game_scene_action_layout::kButtonCount) {
+    if (target == kJoystickEditTarget) {
         positions.joystick = {
             clamp_center(x, game_scene_player_joystick_input::kHitRadius, kDesignWidth),
             clamp_center(y, game_scene_player_joystick_input::kHitRadius, kDesignHeight),
+        };
+        return positions;
+    }
+    if (target >= kFirstQuickUseEditTarget && target < kJoystickEditTarget) {
+        const auto slot = static_cast<std::size_t>(target - kFirstQuickUseEditTarget);
+        const auto& bounds = g_snapshot.quick_use_sprite_bounds[slot];
+        positions.quick_use_buttons[slot] = {
+            clamp_center(x, bounds.width * 0.5f, kDesignWidth),
+            clamp_center(y, bounds.height * 0.5f, kDesignHeight),
         };
         return positions;
     }
@@ -210,9 +238,12 @@ bool on_edit_touch(
         if (g_edit_pointer != pointer_id) return true;
         if (action == kActionMove) {
             if (mapped) {
-                const auto initial = g_edit_target == game_scene_action_layout::kButtonCount
+                const auto initial = g_edit_target == kJoystickEditTarget
                     ? g_edit_start_positions.joystick
-                    : g_edit_start_positions.buttons[static_cast<std::size_t>(g_edit_target)];
+                    : g_edit_target >= kFirstQuickUseEditTarget
+                        ? g_edit_start_positions.quick_use_buttons[
+                              static_cast<std::size_t>(g_edit_target - kFirstQuickUseEditTarget)]
+                        : g_edit_start_positions.buttons[static_cast<std::size_t>(g_edit_target)];
                 updated_positions = moved_editor_target(
                     g_edit_target,
                     initial.x + design_x - g_edit_start_x,
@@ -231,7 +262,8 @@ bool on_edit_touch(
             true,
             updated_positions.joystick,
             updated_positions.buttons[1],
-            updated_positions.unique_skill_tip);
+            updated_positions.unique_skill_tip,
+            updated_positions.quick_use_buttons);
         (void)game_scene_player_joystick_input::set_center(
             updated_positions.joystick.x,
             updated_positions.joystick.y);
@@ -277,13 +309,36 @@ void clear_sprite_bounds() {
     ++g_snapshot.bounds_revision;
 }
 
+bool set_quick_use_sprite_bounds(int slot, int width, int height) {
+    if (slot < 0 || slot >= game_scene_action_layout::kQuickUseButtonCount ||
+        width <= 0 || height <= 0 || width > 4096 || height > 4096) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(g_mutex);
+    auto& bounds = g_snapshot.quick_use_sprite_bounds[static_cast<std::size_t>(slot)];
+    bounds.width = static_cast<float>(width);
+    bounds.height = static_cast<float>(height);
+    ++g_snapshot.bounds_revision;
+    return true;
+}
+
+void clear_quick_use_sprite_bounds() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_snapshot.quick_use_sprite_bounds = {};
+    ++g_snapshot.bounds_revision;
+}
+
 bool apply_saved_control_settings(
     bool enabled,
     game_scene_action_layout::Point joystick,
     game_scene_action_layout::Point button_b,
-    game_scene_action_layout::Point unique_skill_tip) {
+    game_scene_action_layout::Point unique_skill_tip,
+    std::array<game_scene_action_layout::Point,
+               game_scene_action_layout::kQuickUseButtonCount> quick_use_buttons) {
     if (enabled && (!valid_point(joystick) || !valid_point(button_b) ||
-                    !valid_point(unique_skill_tip))) {
+                    !valid_point(unique_skill_tip) ||
+                    !valid_point(quick_use_buttons[0]) ||
+                    !valid_point(quick_use_buttons[1]))) {
         return false;
     }
     std::lock_guard<std::mutex> lock(g_mutex);
@@ -292,7 +347,8 @@ bool apply_saved_control_settings(
         enabled,
         joystick,
         button_b,
-        unique_skill_tip);
+        unique_skill_tip,
+        quick_use_buttons);
     return true;
 }
 
@@ -423,6 +479,11 @@ std::string status_report() {
             << state.sprite_bounds[index].width << "x"
             << state.sprite_bounds[index].height
             << " pressed=" << (state.pressed[index] ? "yes" : "no") << "\n";
+    }
+    for (std::size_t index = 0; index < state.quick_use_sprite_bounds.size(); ++index) {
+        out << "quick-use sprite " << index << ": "
+            << state.quick_use_sprite_bounds[index].width << "x"
+            << state.quick_use_sprite_bounds[index].height << "\n";
     }
     out << "action captures: " << state.captured_pointer_count << "\n";
     out << "action begins: " << state.accepted_begins << "\n";

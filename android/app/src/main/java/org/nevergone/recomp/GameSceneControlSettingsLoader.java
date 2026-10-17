@@ -29,7 +29,11 @@ final class GameSceneControlSettingsLoader {
             float buttonBX,
             float buttonBY,
             float uniqueSkillX,
-            float uniqueSkillY);
+            float uniqueSkillY,
+            float quickUse1X,
+            float quickUse1Y,
+            float quickUse2X,
+            float quickUse2Y);
     private static native float[] nativePositions();
     private static native void nativeSetEditMode(boolean enabled);
 
@@ -78,7 +82,8 @@ final class GameSceneControlSettingsLoader {
         File importedPreferences = directory == null ? null : new File(directory, FILE_NAME);
         File source = editedLayout != null && editedLayout.isFile() ? editedLayout : importedPreferences;
         if (source == null || !source.isFile()) {
-            nativeApply(false, 204.0f, 173.0f, 1040.0f, 90.0f, 949.0f, 154.0f);
+            nativeApply(false, 204.0f, 173.0f, 1040.0f, 90.0f, 949.0f, 154.0f,
+                    1136.0f, 640.0f, 1136.0f, 640.0f);
             lastStatus = "shipped default layout";
             return false;
         }
@@ -87,12 +92,14 @@ final class GameSceneControlSettingsLoader {
         try {
             settings = read(source);
         } catch (Exception ignored) {
-            nativeApply(false, 204.0f, 173.0f, 1040.0f, 90.0f, 949.0f, 154.0f);
+            nativeApply(false, 204.0f, 173.0f, 1040.0f, 90.0f, 949.0f, 154.0f,
+                    1136.0f, 640.0f, 1136.0f, 640.0f);
             lastStatus = "invalid imported file; shipped default layout";
             return false;
         }
         if (!settings.enabled) {
-            nativeApply(false, 204.0f, 173.0f, 1040.0f, 90.0f, 949.0f, 154.0f);
+            nativeApply(false, 204.0f, 173.0f, 1040.0f, 90.0f, 949.0f, 154.0f,
+                    1136.0f, 640.0f, 1136.0f, 640.0f);
             lastStatus = "imported file has no custom controls; shipped default layout";
             return false;
         }
@@ -103,8 +110,13 @@ final class GameSceneControlSettingsLoader {
                 settings.buttonBX,
                 settings.buttonBY,
                 settings.uniqueSkillX,
-                settings.uniqueSkillY)) {
-            nativeApply(false, 204.0f, 173.0f, 1040.0f, 90.0f, 949.0f, 154.0f);
+                settings.uniqueSkillY,
+                settings.quickUse1X(),
+                settings.quickUse1Y(),
+                settings.quickUse2X(),
+                settings.quickUse2Y())) {
+            nativeApply(false, 204.0f, 173.0f, 1040.0f, 90.0f, 949.0f, 154.0f,
+                    1136.0f, 640.0f, 1136.0f, 640.0f);
             lastStatus = "incomplete imported layout; shipped default layout";
             return false;
         }
@@ -118,10 +130,11 @@ final class GameSceneControlSettingsLoader {
 
     static float[] actionCuePositions() {
         float[] positions = nativePositions();
-        return positions != null && positions.length == 10
+        return positions != null && positions.length == 14
                 ? positions
                 : new float[] {204.0f, 173.0f, 898.0f, 90.0f, 1040.0f, 90.0f,
-                        1000.0f, 224.0f, 949.0f, 154.0f};
+                        1000.0f, 224.0f, 949.0f, 154.0f,
+                        1136.0f, 640.0f, 1136.0f, 640.0f};
     }
 
     static void setEditMode(boolean enabled) {
@@ -141,6 +154,10 @@ final class GameSceneControlSettingsLoader {
                 floatPreference("BY", positions[5]) +
                 floatPreference("uniqueSkillX", positions[8]) +
                 floatPreference("uniqueSkillY", positions[9]) +
+                floatPreference("toolsBtn1X", positions[10]) +
+                floatPreference("toolsBtn1Y", positions[11]) +
+                floatPreference("toolsBtn2X", positions[12]) +
+                floatPreference("toolsBtn2Y", positions[13]) +
                 "</map>\n";
         try (OutputStream output = new FileOutputStream(temporary)) {
             output.write(xml.getBytes(StandardCharsets.UTF_8));
@@ -184,6 +201,10 @@ final class GameSceneControlSettingsLoader {
                     case "BY": settings.buttonBY = parseFloat(value); break;
                     case "uniqueSkillX": settings.uniqueSkillX = parseFloat(value); break;
                     case "uniqueSkillY": settings.uniqueSkillY = parseFloat(value); break;
+                    case "toolsBtn1X": settings.toolsBtn1X = parseFloat(value); settings.seenToolsBtn1X = true; break;
+                    case "toolsBtn1Y": settings.toolsBtn1Y = parseFloat(value); settings.seenToolsBtn1Y = true; break;
+                    case "toolsBtn2X": settings.toolsBtn2X = parseFloat(value); settings.seenToolsBtn2X = true; break;
+                    case "toolsBtn2Y": settings.toolsBtn2Y = parseFloat(value); settings.seenToolsBtn2Y = true; break;
                     default: break;
                 }
             }
@@ -212,11 +233,35 @@ final class GameSceneControlSettingsLoader {
         float buttonBY = Float.NaN;
         float uniqueSkillX = Float.NaN;
         float uniqueSkillY = Float.NaN;
+        float toolsBtn1X = Float.NaN;
+        float toolsBtn1Y = Float.NaN;
+        float toolsBtn2X = Float.NaN;
+        float toolsBtn2Y = Float.NaN;
+        boolean seenToolsBtn1X;
+        boolean seenToolsBtn1Y;
+        boolean seenToolsBtn2X;
+        boolean seenToolsBtn2Y;
 
         boolean complete() {
             return finite(joystickX) && finite(joystickY) &&
                     finite(buttonBX) && finite(buttonBY) &&
                     finite(uniqueSkillX) && finite(uniqueSkillY);
+        }
+
+        float quickUse1X() {
+            return seenToolsBtn1X && seenToolsBtn1Y ? toolsBtn1X : 1136.0f;
+        }
+
+        float quickUse1Y() {
+            return seenToolsBtn1X && seenToolsBtn1Y ? toolsBtn1Y : 640.0f;
+        }
+
+        float quickUse2X() {
+            return seenToolsBtn2X && seenToolsBtn2Y ? toolsBtn2X : 1136.0f;
+        }
+
+        float quickUse2Y() {
+            return seenToolsBtn2X && seenToolsBtn2Y ? toolsBtn2Y : 640.0f;
         }
 
         private static boolean finite(float value) {

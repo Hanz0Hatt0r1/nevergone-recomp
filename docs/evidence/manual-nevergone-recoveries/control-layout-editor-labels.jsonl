@@ -1,1 +1,2 @@
 {"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002a9ef8","source_name":"SetControlPosition::ccTouchMoved","task":"function_role","label":"ui_renderer","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/control-layout-editor.md"}
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"00465d98","source_name":"ToolsQuickUseUI::setHandleActived","task":"function_role","label":"ui_renderer","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/control-layout-editor.md"}

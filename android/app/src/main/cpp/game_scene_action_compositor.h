@@ -19,6 +19,13 @@ bool upload_sprite(
     const std::uint32_t* argb_pixels,
     std::size_t pixel_count);
 
+bool upload_quick_use_sprite(
+    int slot,
+    int width,
+    int height,
+    const std::uint32_t* argb_pixels,
+    std::size_t pixel_count);
+
 void clear_sprites();
 bool draw();
 std::string status_report();

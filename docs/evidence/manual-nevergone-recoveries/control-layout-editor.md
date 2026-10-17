@@ -12,30 +12,35 @@ its bounding box, records its current position, and stores a selection tag.
 selected sprite, keeps it inside the visible dimensions using its sprite
 size, and rejects candidate positions that intersect other control sprites.
 For the paired skill buttons it moves the shared anchor and preserves the
-recovered A/C offsets. `SetControlPosition::savePositionData @ 0x002aaba4`
-stores `controls_settings` plus ten float values, applies the positions to
-`Controls`, updates `ToolsQuickUseUI`, and closes the editor.
+recovered A/C offsets. `ToolsQuickUseUI::setHandleActived @ 0x00465d98` loads
+`toolsBtn1X/Y` and `toolsBtn2X/Y` and sets both quick-use menu-item positions.
+The default positions are the visible-size point. The function uses the shared
+`controls_settings` flag. `SetControlPosition::savePositionData @ 0x002aaba4`
+stores that flag plus ten float values, applies the three gameplay-control
+points to `Controls`, updates `ToolsQuickUseUI`, and closes the editor.
 
 ## Reconstructed subset
 
 The Android developer-tools panel can now enter edit mode on the game surface.
-Dragging moves the joystick, B, or the paired A/C controls; action controls
-stay within the 1136x640 design area using imported sprite dimensions. A/C
-continue to share their original anchor. Saving writes the corresponding six
-coordinates in the same preference-key format consumed by `Controls::init()`.
-Leaving the activity also saves an active edit. Edits use a small override file
-beside the imported preference XML so the source import and its unrelated
-preferences remain intact.
+Dragging moves the joystick, B, paired A/C, or either quick-use slot. Action
+controls and quick-use slots stay within the 1136x640 design area using
+imported sprite dimensions. A/C continue to share their original anchor. The
+compositor displays the original `stage_use_a.png` and `stage_use_b.png` slot
+sprites. Saving writes all ten coordinates in the original preference-key
+format. Leaving the activity also saves an active edit. Edits use a small
+override file beside the imported preference XML so the source import and its
+unrelated preferences remain intact.
 
-This implementation covers only the joystick and three action buttons. It does
-not yet reproduce the original collision rejection, the other draggable
-sprites, the ten-float preference set, or the quick-use toolbar updates. The
-source-function label describes the directly observed function role, not
-complete behavioral parity.
+This implementation restores control placement, not the quick-use item's
+inventory icons, cooldowns, or activation actions. The original collision
+rejection and editor decorations are also outstanding. The source-function
+label describes the directly observed function role, not complete behavioral
+parity.
 
 ## Corpus label
 
 [`control-layout-editor-labels.jsonl`](control-layout-editor-labels.jsonl)
-adds a gold `function_role` label for `ccTouchMoved`. Ghidra's recovered
-branches directly show sprite selection state, bounded position updates,
-intersection checks, and Cocos sprite-position updates.
+adds gold `function_role` labels for `ccTouchMoved` and
+`ToolsQuickUseUI::setHandleActived`. Ghidra's recovered branches directly show
+sprite selection state, bounded position updates, intersection checks,
+preference reads, and Cocos sprite-position updates.

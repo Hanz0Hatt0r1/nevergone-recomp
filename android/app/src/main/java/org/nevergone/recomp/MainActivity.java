@@ -280,7 +280,8 @@ public final class MainActivity extends Activity {
             controlLayoutEditing = true;
             GameSceneControlSettingsLoader.setEditMode(true);
             editControlLayoutButton.setText("Save control layout");
-            status.setText(buildStatusText("Drag the joystick or an action button on the game surface."));
+            status.setText(buildStatusText(
+                    "Drag the joystick, action buttons, or quick-use slots on the game surface."));
             return;
         }
         saveControlLayoutIfEditing();

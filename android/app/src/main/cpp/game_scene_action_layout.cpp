@@ -13,6 +13,7 @@ constexpr std::array<ButtonDescriptor, kButtonCount> kDescriptors{{
 
 constexpr float kJoystickX = 204.0f;
 constexpr float kJoystickY = 173.0f;
+constexpr float kDesignHeight = 640.0f;
 constexpr float kSkillToButtonOffsetX = 51.0f;
 constexpr float kSkillToButtonOffsetY = 64.0f;
 
@@ -36,6 +37,8 @@ ControlPositions default_positions(float visible_width) {
         };
     }
     positions.unique_skill_tip = {visible_width - 187.0f, 154.0f};
+    positions.quick_use_buttons = {{{visible_width, kDesignHeight},
+                                    {visible_width, kDesignHeight}}};
     return positions;
 }
 
@@ -44,13 +47,15 @@ ControlPositions positions_from_saved_settings(
     bool controls_settings,
     Point joystick,
     Point button_b,
-    Point unique_skill_tip) {
+    Point unique_skill_tip,
+    std::array<Point, kQuickUseButtonCount> quick_use_buttons) {
     ControlPositions positions = default_positions(visible_width);
     if (!controls_settings) return positions;
 
     positions.joystick = joystick;
     positions.buttons[1] = button_b;
     positions.unique_skill_tip = unique_skill_tip;
+    positions.quick_use_buttons = quick_use_buttons;
     positions.buttons[0] = {
         unique_skill_tip.x - kSkillToButtonOffsetX,
         unique_skill_tip.y - kSkillToButtonOffsetY,

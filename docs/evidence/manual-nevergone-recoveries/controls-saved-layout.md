@@ -29,20 +29,19 @@ With no saved layout, the original centers are joystick `(204,173)`, A
 ## Runtime integration
 
 The Android developer-tools panel accepts the exported SharedPreferences XML.
-The loader reads only the seven recovered settings, rejects incomplete or
+The loader reads the recovered layout settings, rejects incomplete or
 non-finite custom coordinates, and returns to the shipped defaults on invalid
 input. The resulting positions are shared by joystick hit testing, joystick
 rendering, action-button hit testing and rendering, and tutorial control cues.
 Action-button bounds still use the imported normal sprite dimensions and retain
 the original left-half rejection rule.
 
-The developer-tools panel also provides a draggable editor for the joystick
-and A/B/C controls. It reuses the six persisted coordinates above and writes
-them back in Android SharedPreferences XML form. A and C remain paired around
+The developer-tools panel also provides a draggable editor for the joystick,
+A/B/C controls, and two quick-use slots. It saves all ten recovered coordinate
+values in Android SharedPreferences XML form. A and C remain paired around
 the recovered `uniqueSkillX/Y` anchor. This is a partial reconstruction of
-`SetControlPosition`: collision rejection, the other original draggable
-sprites, and the separate quick-use toolbar coordinates are still outstanding;
-see [`control-layout-editor.md`](control-layout-editor.md).
+`SetControlPosition`: collision rejection and quick-use item actions remain
+outstanding; see [`control-layout-editor.md`](control-layout-editor.md).
 
 ## Corpus label
 

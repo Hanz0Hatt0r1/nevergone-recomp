@@ -12,6 +12,8 @@ namespace nevergone::game_scene_action_surface_input {
 struct Snapshot {
     std::array<game_scene_action_layout::SpriteBounds, game_scene_action_layout::kButtonCount>
         sprite_bounds{};
+    std::array<game_scene_action_layout::SpriteBounds,
+               game_scene_action_layout::kQuickUseButtonCount> quick_use_sprite_bounds{};
     game_scene_action_layout::ControlPositions positions =
         game_scene_action_layout::default_positions(1136.0f);
     std::array<bool, game_scene_action_layout::kButtonCount> pressed{};
@@ -29,6 +31,8 @@ void reset();
 // Slot order is the recovered Controls::init() construction order A, B, C.
 bool set_sprite_bounds(int slot, int width, int height);
 void clear_sprite_bounds();
+bool set_quick_use_sprite_bounds(int slot, int width, int height);
+void clear_quick_use_sprite_bounds();
 
 // Applies the controls_settings branch from Controls::init(). Disabled or
 // malformed imported settings restore the shipped control positions.
@@ -36,7 +40,9 @@ bool apply_saved_control_settings(
     bool enabled,
     game_scene_action_layout::Point joystick,
     game_scene_action_layout::Point button_b,
-    game_scene_action_layout::Point unique_skill_tip);
+    game_scene_action_layout::Point unique_skill_tip,
+    std::array<game_scene_action_layout::Point,
+               game_scene_action_layout::kQuickUseButtonCount> quick_use_buttons);
 
 void set_edit_mode(bool enabled);
 
