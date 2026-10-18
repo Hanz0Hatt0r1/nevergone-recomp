@@ -7,6 +7,7 @@ on:
       - 'tools/ml/nevergone_frozen_router_gate_availability_smoke.py'
       - 'docs/ml/ACCEPT_ERROR_ROUTER_V10.md'
       - 'docs/evidence/frozen-router-gate-availability-v10/**'
+      - 'docs/evidence/nevergone-kpi-dashboard-v1/**'
       - '.github/workflows/ml-router-gate-availability-smoke.yml'
   pull_request:
     paths:
@@ -14,6 +15,7 @@ on:
       - 'tools/ml/nevergone_frozen_router_gate_availability_smoke.py'
       - 'docs/ml/ACCEPT_ERROR_ROUTER_V10.md'
       - 'docs/evidence/frozen-router-gate-availability-v10/**'
+      - 'docs/evidence/nevergone-kpi-dashboard-v1/**'
       - '.github/workflows/ml-router-gate-availability-smoke.yml'
 
 permissions:
@@ -24,6 +26,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Hanz0Hatt0r1/revenginstr
+          ref: 6466c4ebebf6c5499d8ddb546ddb2251846508e1
+          path: revenginstr
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -34,3 +42,12 @@ jobs:
             tools/ml/nevergone_frozen_router_gate_availability_smoke.py
       - name: Verify path-free gate availability evidence
         run: python tools/ml/nevergone_frozen_router_gate_availability_smoke.py
+      - name: Replay the pinned KPI dashboard
+        run: |
+          test "$(git -C revenginstr rev-parse HEAD)" = '6466c4ebebf6c5499d8ddb546ddb2251846508e1'
+          PYTHONPATH=revenginstr/src python -m revenginstr.kpi_dashboard \
+            docs/evidence/nevergone-kpi-dashboard-v1/manifest.json \
+            --json-output "$RUNNER_TEMP/dashboard.json" \
+            --markdown-output "$RUNNER_TEMP/dashboard.md"
+          cmp "$RUNNER_TEMP/dashboard.json" docs/evidence/nevergone-kpi-dashboard-v1/dashboard.json
+          cmp "$RUNNER_TEMP/dashboard.md" docs/evidence/nevergone-kpi-dashboard-v1/dashboard.md

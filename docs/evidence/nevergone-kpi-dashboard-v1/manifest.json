@@ -1,0 +1,67 @@
+{
+  "format": "REVENGINSTR.KPIDashboardManifest/1",
+  "dashboard": {
+    "id": "nevergone-frozen-analysis-kpis-v1",
+    "title": "Nevergone Frozen Analysis KPI Dashboard",
+    "description": "Frozen evidence status for receiver coverage and the accept-router gate. Crossfit calibration is not used as a substitute for independent gate metrics."
+  },
+  "sources": {
+    "receiver_coverage": {
+      "path": "../frozen-unseen500-v10-receiver-coverage/benchmark-summary.json",
+      "sha256": "67f234b25315bc75e0718576eb5c0f52fe7e97cee333fc614bf821a7efc76477",
+      "format": "REVENGINSTR.BenchmarkSummary/1"
+    },
+    "router_gate_availability": {
+      "path": "../frozen-router-gate-availability-v10/availability.json",
+      "sha256": "9b2565215f7df613a7600652b25fd30b855a4d3ace0b98dcef82302d9c9b446a",
+      "format": "NEVERGONE.RouterGateAvailability/1"
+    }
+  },
+  "kpis": [
+    {
+      "id": "unseen_receiver_function_coverage",
+      "label": "Unseen receiver function coverage",
+      "source": "receiver_coverage",
+      "json_pointer": "/projections/0/receiver/function_coverage/resolved_function_fraction",
+      "unit": "fraction",
+      "minimum": 0.35,
+      "note": "M2.6 hard target is 35%; current frozen report uses 500 identity-disjoint functions."
+    },
+    {
+      "id": "router_frozen_accepted_precision",
+      "label": "Frozen router accepted precision",
+      "source": "router_gate_availability",
+      "json_pointer": "/gate_metrics/accepted_precision",
+      "unit": "fraction",
+      "minimum": 0.97,
+      "note": "Unavailable until an independent labeled gate population is collected."
+    },
+    {
+      "id": "router_frozen_coverage",
+      "label": "Frozen router coverage",
+      "source": "router_gate_availability",
+      "json_pointer": "/gate_metrics/coverage",
+      "unit": "fraction",
+      "minimum": 0.55,
+      "note": "Unavailable until an independent labeled gate population is collected."
+    },
+    {
+      "id": "router_critical_false_accept_rate",
+      "label": "Critical false-accept rate",
+      "source": "router_gate_availability",
+      "json_pointer": "/gate_metrics/critical_false_accept_rate",
+      "unit": "fraction",
+      "maximum": 0.01,
+      "note": "Requires consumer-reviewed critical-case labels on the frozen gate population."
+    },
+    {
+      "id": "router_evidence_conflict_accepts",
+      "label": "Evidence-conflict accepts",
+      "source": "router_gate_availability",
+      "json_pointer": "/gate_metrics/evidence_conflict_accepts",
+      "unit": "count",
+      "maximum": 0,
+      "note": "Requires explicit evidence-conflict annotations on the frozen gate population."
+    }
+  ]
+}
