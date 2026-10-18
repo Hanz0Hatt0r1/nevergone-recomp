@@ -19,7 +19,15 @@ external observations as explicit inputs.
 When `isEnemyMoveState(state)` is true, native loads the enemy point at
 `+0x17c`, reads `MEPlayer::playerHLPoint()`, calls `cocos2d::ccpDistance()`,
 converts the result to signed int with truncation toward zero, and compares it
-with `4096`.
+after unsigned 32-bit subtraction of `60` against `4036`. The condition is
+preserved as:
+
+```text
+distance_condition = uint32(truncated_distance) - 60 > 4036
+```
+
+Thus distances below `60` also satisfy the branch because the subtraction
+wraps; the equivalent `distance > 4096` simplification is incorrect.
 
 The two raw boolean arguments are at the caller stack's `+0x30` and `+0x34`.
 They control whether native replaces the requested X coordinate with a random
@@ -27,7 +35,7 @@ one. In terms of those raw fields, the random branch is selected when:
 
 ```text
 argument_30 != 0
-    or (truncated_distance > 4096 and argument_34 == 0)
+    or (distance_condition and argument_34 == 0)
 ```
 
 For a random X, native compares enemy `+0x17c.x` with signed

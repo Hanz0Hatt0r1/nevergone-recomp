@@ -48,6 +48,7 @@ add_library(nevergone_recomp SHARED
     enemy_actions_get_cur_move_value.cpp
     enemy_object_set_enemy_move.cpp
     enemy_object_action_target_position.cpp
+    enemy_object_flip_enemy.cpp
     enemy_actions_runtime_state.cpp
     enemy_actions_layout_evidence.cpp
     enemy_actions_wbg_combo_section.cpp

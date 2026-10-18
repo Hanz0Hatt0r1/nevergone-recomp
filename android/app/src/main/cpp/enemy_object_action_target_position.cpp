@@ -62,8 +62,11 @@ Result resolve(const Inputs& inputs) noexcept {
         return result;
     }
 
+    const std::uint32_t distance_minus_60 =
+            static_cast<std::uint32_t>(distance) - 60u;
+    const bool distance_condition = distance_minus_60 > 4036u;
     const bool randomize_x = inputs.argument_30 ||
-            (distance > 4096 && !inputs.argument_34);
+            (distance_condition && !inputs.argument_34);
     result.valid = true;
     result.wrote_target_120 = true;
     result.target_120.y = inputs.requested_point.y;

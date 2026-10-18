@@ -14,7 +14,12 @@ binary; no original binary or full pseudocode dump is stored in the repository.
 
 ## Recovered control flow
 
-The function first queries `EnemyObject::isEnemyMoveState()`.
+The function first queries `EnemyObject::isEnemyMoveState()`. This note was
+written from the decompiler export, which left the randomized-X bounds and the
+unsigned distance predicate unresolved. Those values are now recovered from
+the complete Thumb body in
+[`enemy-object-action-target-position.md`](enemy-object-action-target-position.md);
+that instruction-level note supersedes the unresolved-value section below.
 
 - When it returns false, the function calls `enemyOrgHLPos()`, computes a
   `ccpDistance` involving the supplied point values, and returns when the
@@ -22,10 +27,8 @@ The function first queries `EnemyObject::isEnemyMoveState()`.
   the common `flipEnemy()` call.
 - When it returns true, it constructs a point from `EnemyObject +0x17c`, calls
   `MEPlayer::playerHLPoint()`, and computes the distance between those values.
-  The recovered branch condition is
-  `0xfc4 < (int)distance - 0x3cU`; it is kept in this form because the native
-  unsigned conversion makes a simpler distance threshold unsafe to infer from
-  the decompiler expression alone.
+  The exact unsigned branch condition is recorded in the instruction-level
+  note linked above.
 - The boolean gate starts with the original fifth argument. If the sixth
   argument is false, it replaces the fifth argument with
   `fifth_argument || distance_condition`; if the sixth argument is true, the
@@ -40,14 +43,11 @@ updated by this overload, and that states `0x2b` and `0x1b` have special
 post-copy return behavior. They complement the existing evidence that those
 states bypass the ordinary target update in native `actionTargetPos`.
 
-## Unresolved values
+## Earlier unresolved values
 
-The two boolean parameters are not assigned meanings here. The decompiler also
-does not recover the live floating-point bounds passed to `MyRandomFloat()` in
-the randomized-X branch. Its `extraout_s0/extraout_s1` values are not reliable
-constants, so neither the random interval nor a deterministic substitute is
-encoded into the recompilation. Call-site argument recovery is required before
-this function can drive the live enemy movement model.
+The two boolean parameters remain unnamed. The Thumb constants and randomized-X
+bounds have since been resolved; see the instruction-level note. Caller-owned
+inputs are still required before this function can drive live enemy movement.
 
 Related evidence: [`online-enemy-action-index-2026-10-17.md`](../online-enemy-action-index-2026-10-17.md)
 and [`enemy03-ai-action-routes-2026-10-17.md`](../enemy03-ai-action-routes-2026-10-17.md).
