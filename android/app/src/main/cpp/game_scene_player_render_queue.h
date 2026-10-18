@@ -18,6 +18,7 @@
 #include "me_actions_live_playback.h"
 #include "meplayer_live_action_state.h"
 #include "player_action_document_store.h"
+#include "player_attack_state_contract.h"
 #include "player_control_runtime_state.h"
 #include "player_offline_career.h"
 
@@ -45,6 +46,14 @@ inline game_scene_render_queue::Queue with_live_player(
     if (frame_index >= document->primary_records.size()) return queue;
     const auto& selected_frame = document->primary_records[frame_index];
 
+    const auto live_action = meplayer_live_action_state::snapshot();
+    const bool attack_state = live_action.ready &&
+            live_action.spawn_generation == spawn.generation &&
+            live_action.loaded_revision != 0u &&
+            live_action.current_action_state == live_action.desired_action_state &&
+            player_attack_state_contract::is_attack_state(
+                    live_action.current_action_state);
+
     // Section-E positions are local to MeActionsSystem. This live reconstruction
     // has the recovered play() zero-offset baseline; it does not equate the
     // system's +0x2ec point with MEPlayer movement offsets.
@@ -58,7 +67,8 @@ inline game_scene_render_queue::Queue with_live_player(
                 hitpoint.action_data_index,
                 hitpoint.frame_ordinal,
                 record.float_values[2] - runtime.system_offset_x_2ec,
-                record.float_values[3] - runtime.system_offset_y_2f0});
+                record.float_values[3] - runtime.system_offset_y_2f0,
+                attack_state});
     }
 
     // The recovered MeActionsSystem::updateData() body path reads position,

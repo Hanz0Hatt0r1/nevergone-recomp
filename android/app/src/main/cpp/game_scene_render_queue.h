@@ -32,6 +32,9 @@ struct PlayerActionHitPointPosition {
     // bounds remain separate combat inputs.
     float system_local_x = 0.0f;
     float system_local_y = 0.0f;
+    // BattleManager melee paths require MEPlayer::isAttackState() before using
+    // these points. False means the action state is not confirmed as attack.
+    bool attack_state = false;
 };
 
 struct SpriteCommand {
