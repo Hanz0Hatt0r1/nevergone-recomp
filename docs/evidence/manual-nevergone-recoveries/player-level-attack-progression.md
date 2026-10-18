@@ -42,6 +42,22 @@ The C++ contract now parses the ten-column row shape and retains column 8, then
 reproduces that attack accumulation order. It rejects level zero and levels
 larger than the parsed table so callers cannot read past the available data.
 
+## Live level owner
+
+`MEPlayer::loadPlayerData()` (`ELF 0x00324eb2`, RevEngInstr `0x00334eb2`,
+266 bytes) confirms where the runtime current level comes from. It obtains
+`PlayerData*` from `DataManager +0x44`, then reads `PlayerData +0x60` twice:
+first it passes that value to `GameSceneUI::setMePlayerLevels()`, then—after
+`GameScene::AllotPassLevelsExtraAward()`—it passes the same field to
+`PlayerStatusInfo::levelUp()`. The status object is held at `DataManager +0x48`.
+
+`MEPlayer::getPlayerLevelsNum()` (`ELF 0x0031c1f0`, RevEngInstr
+`0x0032c1f0`) independently returns `DataManager +0x44 +0x60`. This confirms
+that the level-table consumer and the ordinary player-level getter use the
+same profile field. The producer that fills `PlayerData +0x60` is still
+unrecovered; the tutorial clone has no profile-level value to pass into this
+path yet.
+
 ## Scope
 
 This restores the level-attack source and calculation. The reconstructed
