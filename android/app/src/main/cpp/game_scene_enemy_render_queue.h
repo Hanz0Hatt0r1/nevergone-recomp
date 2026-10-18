@@ -112,7 +112,10 @@ inline game_scene_render_queue::Queue with_live_enemies(
                 action_sprite.frame_name_68,
                 true};
         command.action_frame_transform = body;
-        command.action_frame_atlas_plist = frame.first_string;
+        // EnemyActionsSystem type 0 resolves ordinary enemy frames from the
+        // scene's shared CCSpriteFrameCache. Its updateData() +0x250==0 branch
+        // does not add the +0x60 plist here, so keep lookup on the ordered
+        // GameLevels preload list instead of forcing the logical frame plist.
         command.action_frame_opacity = action_sprite.opacity;
         command.enemy_action_not_hit = action_flags.not_hit;
         command.enemy_action_go = action_flags.go;
