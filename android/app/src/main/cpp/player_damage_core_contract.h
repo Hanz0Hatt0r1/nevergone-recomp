@@ -50,6 +50,48 @@ struct PrimaryDamageMultiplierTerms {
     std::int32_t weapon_field_e4 = 0;
 };
 
+struct HitOrdinalResult {
+    float damage = 0.0f;
+    bool weapon_power_gain_requested = false;
+    float weapon_power_gain = 0.0f;
+};
+
+struct WeaponPowerSetTerms {
+    float requested_meter = 0.0f;
+    bool action_system_available = false;
+    std::int32_t weapon_field_e4 = 0;
+};
+
+struct WeaponPowerSetResult {
+    float meter = 0.0f;
+    bool active = false;
+    bool action_color_updated = false;
+    std::int32_t action_color_index = 0;
+    bool progress_bar_updated = false;
+};
+
+struct WeaponPowerAddTerms {
+    float meter = 0.0f;
+    bool active = false;
+    float meat_attack = 0.0f;
+    float property_bonus_8c = 0.0f;
+    bool action_system_available = false;
+    std::int32_t weapon_field_e4 = 0;
+};
+
+struct WeaponPowerAddResult {
+    float meter = 0.0f;
+    bool active = false;
+    float accepted_attack_gain = 0.0f;
+    bool accumulated = false;
+    bool progress_bar_updated = false;
+    bool set_weapon_power_called = false;
+    bool action_color_updated = false;
+    std::int32_t action_color_index = 0;
+    bool spawn_activation_shoot = false;
+    bool play_activation_sound = false;
+};
+
 // Reconstructs the weapon-versus-enemy power curve and weighted core damage.
 // The attack-category inputs are already resolved through their native
 // equipment, level, property, weakness, and attack-state paths.
@@ -72,6 +114,23 @@ void apply_property_attack_bonuses(
 // below 1.0f, then the equipped weapon's +0xe4 multiplier when +0x300 is set.
 float apply_primary_damage_multipliers(
     float damage, const PrimaryDamageMultiplierTerms& terms) noexcept;
+
+// Applies the native hit-ordinal factor after primary damage multipliers.
+// Positive ordinals also request adding the Meat category to weapon power.
+HitOrdinalResult apply_hit_ordinal_damage(
+    float damage, std::int32_t hit_ordinal,
+    float supr_attack, float meat_attack) noexcept;
+
+// Mirrors MEPlayer::setWeaponPower(). The native setter is a no-op when the
+// current attack type has no action-system array.
+WeaponPowerSetResult set_weapon_power(
+    float current_meter, bool current_active,
+    const WeaponPowerSetTerms& terms) noexcept;
+
+// Mirrors MEPlayer::addWeaponPower(), including the active gate, property
+// bonus, zero floor, threshold transition, and observable side-effect requests.
+WeaponPowerAddResult add_weapon_power(
+    const WeaponPowerAddTerms& terms) noexcept;
 
 // Mirrors MeActionsSystem::DamageFactor(): reads the per-frame value from the
 // +0xcc table indexed by MEActionsSystem +0x1a4.

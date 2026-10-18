@@ -93,6 +93,86 @@ float apply_primary_damage_multipliers(
     return damage;
 }
 
+HitOrdinalResult apply_hit_ordinal_damage(
+        float damage, std::int32_t hit_ordinal,
+        float supr_attack, float meat_attack) noexcept {
+    HitOrdinalResult result;
+    result.damage = damage;
+    if (hit_ordinal >= 1) {
+        result.weapon_power_gain_requested = true;
+        result.weapon_power_gain = meat_attack;
+    }
+
+    float ordinal_factor = 1.0f;
+    if (hit_ordinal == 2) {
+        ordinal_factor = 0.2f + supr_attack * 0.0025f;
+    } else if (hit_ordinal == 3) {
+        ordinal_factor = 0.15f + supr_attack * 0.002f;
+    } else if (hit_ordinal == 4) {
+        ordinal_factor = 0.1f + supr_attack * 0.0015f;
+    } else if (hit_ordinal > 4) {
+        ordinal_factor = 0.05f + supr_attack * 0.001f;
+    }
+    if (hit_ordinal >= 2) result.damage = result.damage * ordinal_factor;
+    return result;
+}
+
+WeaponPowerSetResult set_weapon_power(
+        float current_meter, bool current_active,
+        const WeaponPowerSetTerms& terms) noexcept {
+    WeaponPowerSetResult result;
+    result.meter = current_meter;
+    result.active = current_active;
+    if (!terms.action_system_available) return result;
+
+    result.meter = terms.requested_meter;
+    result.active = !(result.meter < 100.0f);
+    result.action_color_updated = true;
+    result.action_color_index = result.active ? terms.weapon_field_e4 + 1 : 0;
+    result.progress_bar_updated = true;
+    return result;
+}
+
+WeaponPowerAddResult add_weapon_power(
+        const WeaponPowerAddTerms& terms) noexcept {
+    WeaponPowerAddResult result;
+    result.meter = terms.meter;
+    result.active = terms.active;
+    if (terms.active) return result;
+
+    result.accumulated = true;
+    result.accepted_attack_gain = terms.meat_attack;
+    if (terms.meat_attack > 0.0f) {
+        result.accepted_attack_gain +=
+            terms.meat_attack * (terms.property_bonus_8c / 100.0f);
+    }
+
+    result.meter += result.accepted_attack_gain;
+    if (result.meter < 0.0f) result.meter = 0.0f;
+    if (result.meter < 100.0f) {
+        result.progress_bar_updated = true;
+        return result;
+    }
+
+    result.meter = 100.0f;
+    result.set_weapon_power_called = true;
+    result.spawn_activation_shoot = true;
+    result.play_activation_sound = true;
+    const WeaponPowerSetTerms set_terms{
+        result.meter,
+        terms.action_system_available,
+        terms.weapon_field_e4,
+    };
+    const WeaponPowerSetResult set_result =
+        set_weapon_power(result.meter, result.active, set_terms);
+    result.meter = set_result.meter;
+    result.active = set_result.active;
+    result.progress_bar_updated = set_result.progress_bar_updated;
+    result.action_color_updated = set_result.action_color_updated;
+    result.action_color_index = set_result.action_color_index;
+    return result;
+}
+
 std::optional<float> resolve_action_damage_factor(
         const std::vector<float>& factors, std::int32_t frame_index) noexcept {
     if (frame_index < 0 ||

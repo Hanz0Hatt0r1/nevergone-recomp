@@ -21,6 +21,9 @@ The following callees are independently reconstructed in the damage path:
 | `EquipPropertyManager::is_weapon_atk_up_on_not_attr` | `0x003265de` | 20 | 2 | 2 | 3 | 0 |
 | `MeActionsSystem::DamageFactor` | `0x0033bc06` | 13 | 0 | 0 | 3 | 0 |
 | `EnemyObject::isLowHealthPercent` | `0x002c4f80` | 28 | 0 | 2 | 2 | 0 |
+| `MEPlayer::setWeaponPower` | `0x00329adc` | 118 | 11 | 7 | 13 | 3 |
+| `MEPlayer::addWeaponPower` | `0x00329ba8` | 113 | 11 | 5 | 4 | 2 |
+| `MeActionsSystem::setWeaponPowerColor` | `0x0033bbe8` | 19 | 0 | 2 | 1 | 1 |
 
 The corpus serializes this function's first 256 P-code operations and marks the
 row truncated. The complete Ghidra 12.1.2 decompilation and ARM instructions
@@ -104,17 +107,52 @@ same later stage. These exact stages are represented by
 `apply_primary_damage_multipliers()`, `resolve_action_damage_factor()`, and
 `apply_action_damage_factor()`.
 
+## Recovered hit ordinals and weapon-power meter
+
+After the primary multipliers, `inputAtkValue()` applies these ordinal factors
+to damage: ordinal 1 leaves it unchanged; ordinal 2 uses
+`0.2 + supr * 0.0025`; ordinal 3 uses `0.15 + supr * 0.002`; ordinal 4 uses
+`0.1 + supr * 0.0015`; and ordinals above 4 use `0.05 + supr * 0.001`.
+The coefficients were read as IEEE-754 floats from the original ELF at
+`0x003203a4`, `0x003203a8`, `0x00320654`, `0x00320658`, `0x0032065c`,
+`0x00320660`, and `0x00320668`; the final base coefficient is `DAT_00330398`
+at ELF `0x00320398`. A signed ordinal below 1 applies no factor and does not
+request meter gain. Every ordinal at least 1 calls `addWeaponPower()` with the
+already-resolved Meat attack category, including ordinal 1.
+
+`MEPlayer::addWeaponPower()` ignores additions while player byte `+0x300` is
+set. Otherwise, a positive incoming value gains an additional
+`incoming * (EquipPropertyManager +0x8c / 100)`, then it is added to player
+float `+0x30c` and floored at zero. Values below 100 update the meter UI. At
+or above 100 the meter is written as exactly 100, `setWeaponPower(100)` is
+called, and the native code requests shoot object `0x3eb` and plays its
+activation sound. The comparison and reset values are both the original
+ELF float 100 at `0x00319ba4`, `0x00319c68`, and `0x00319c6c`.
+
+`setWeaponPower()` first checks that the action-system array for the current
+player attack type exists. If it does not, the setter makes no changes. With
+an array present it stores the requested meter, clears the active byte and
+sets color index 0 below 100, or sets the active byte and color index
+`equipped_weapon +0xe4 + 1` at 100 or above. It then updates the meter UI.
+`MeActionsSystem::setWeaponPowerColor()` writes that integer converted to a
+float into `+0x1c0` of each non-null frame sprite in its eight-slot array.
+When threshold activation has no action-system array, `addWeaponPower()` has
+already stored 100 and still issues the projectile and sound calls, while the
+setter leaves the active byte and UI untouched. The new pure contracts expose
+these transitions and side-effect requests; they are not yet connected to the
+live enemy damage path.
+
 ## Scope
 
-The recovered contracts now cover the core expression, the listed property
-bonuses, the four primary player multipliers, the weapon multiplier, and the
-action-frame factor. The native function still has hit-ordinal multipliers,
-many action-specific buffs, weapon/item effects, health effects, super-energy
-side effects, and damage UI. The reconstruction renderer still reports
-geometric contact and hit-window candidates only; it does not yet send this
-resolved damage into the live enemy roster. `player-damage-core-labels.jsonl`
-contains the `inputAtkValue` labels and four new helper labels; the low-health
-predicate's gold label is reused from the shared corpus. Adding the four new
-functions to manual-restoration-v62 and rebuilding as v63 yields 9,237 labelled functions,
-9,889 label rows, and 6,943 structural groups; the split is 7,418 train / 996
-validation / 823 test. The generated corpus and dataset remain outside Git.
+The reconstructed contracts cover the core expression, the listed property
+bonuses, the four primary player multipliers, the weapon multiplier, hit
+ordinals, the weapon-power meter, and the action-frame factor. The native
+function still has many action-specific buffs, weapon/item effects, health
+effects, super-energy side effects, and damage UI. The reconstruction renderer
+still reports geometric contact and hit-window candidates only; it does not
+yet send this resolved damage into the live enemy roster.
+`player-damage-core-labels.jsonl` contains the `inputAtkValue` labels and the
+new helper labels; the low-health predicate's gold label is reused from the
+shared corpus. The local manual-restoration-v64 dataset contains 9,240 labelled
+functions, 9,894 label rows, and 6,946 structural groups (7,420 train / 997
+validation / 823 test). The generated corpus and dataset remain outside Git.
