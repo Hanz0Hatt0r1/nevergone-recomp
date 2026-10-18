@@ -40,6 +40,113 @@ WeaponFinalAddBaseResult resolve_weapon_final_add_base_attack(
     return WeaponFinalAddBaseResult{value, extra_flag_64};
 }
 
+WeaponFinalAddCategoryResult resolve_weapon_final_add_category_attack(
+        const WeaponFinalAddCategoryTerms& terms) noexcept {
+    float value = 0.0f;
+    if (terms.weapon_field_18_is_zero) {
+        value = terms.add_temper_attack + value;
+    }
+    if (terms.management_hole_gate_nonzero) {
+        value = value + terms.add_hole_attack;
+    }
+    value = value + terms.extra_attack + terms.weapon_attack_field;
+    if (value < 0.0f) value = 0.0f;
+    return WeaponFinalAddCategoryResult{
+        value,
+        terms.extra_attack > 0.0f,
+    };
+}
+
+WeaponFinalAddSuprResult resolve_weapon_final_add_supr_attack(
+        const WeaponFinalAddSuprTerms& terms) noexcept {
+    float value = 0.0f;
+    if (terms.management_hole_gate_nonzero) {
+        value = terms.add_hole_attack + value;
+    }
+
+    bool extra_flag_4c = terms.extra_attack > 0.0f;
+    value = value + terms.extra_attack;
+
+    bool special_flag_e2 = false;
+    if (terms.weapon_field_18 == 0) {
+        special_flag_e2 = terms.weapon_field_d4_is_zero &&
+                terms.data_manager_54_field_4c_is_zero;
+        value = value + terms.add_temper_attack;
+    } else if (terms.weapon_field_18 == 1 && terms.weapon_field_d4_is_zero) {
+        special_flag_e2 = true;
+    }
+
+    value = value + terms.weapon_field_48;
+    if (value < 0.0f) value = 0.0f;
+    if (special_flag_e2) {
+        extra_flag_4c = false;
+        value = 0.0f;
+    }
+    return WeaponFinalAddSuprResult{value, extra_flag_4c, special_flag_e2};
+}
+
+float resolve_weapon_add_category_temper_attack(
+        bool category_temper_gate_clear, std::int32_t weapon_field_ac,
+        float category_scale) noexcept {
+    return category_temper_gate_clear
+        ? resolve_weapon_add_temper_base_attack(weapon_field_ac, category_scale)
+        : 0.0f;
+}
+
+float resolve_weapon_add_category_hole_attack(
+        std::int32_t star_level, float category_scale) noexcept {
+    return resolve_weapon_add_hole_base_attack(star_level, category_scale);
+}
+
+float resolve_weapon_add_category_attack(
+        const WeaponCategoryAttackTerms& terms,
+        std::uint32_t category_type) noexcept {
+    float result = 0.0f;
+    for (const auto& item : terms.weapon_items) {
+        if (item.type == category_type) {
+            if (terms.weapon_field_18 == 0 && item.weapon_name_matches) {
+                result = result + item.matching_weapon_attack_addition;
+            } else {
+                result = result + item.regular_attack_addition;
+            }
+        } else if (item.type == 1000u) {
+            for (const auto& nested : item.nested_modifiers) {
+                if (nested.type != category_type) continue;
+                if (terms.weapon_field_18 == 0) {
+                    const float multiplier =
+                        terms.data_manager_54_field_50 + 1.0f;
+                    result = result +
+                        nested.value_when_weapon_field_18_is_zero * multiplier;
+                } else if (terms.weapon_field_18 == 1) {
+                    result = result +
+                        nested.value_when_weapon_field_18_is_one;
+                }
+            }
+        }
+    }
+    return result;
+}
+
+float resolve_weapon_extra_category_attack(
+        const WeaponCategoryExtraAttackTerms& terms) noexcept {
+    float result = terms.weapon_add_attack + 0.0f;
+    if (!terms.weapon_field_18_is_zero) return result;
+
+    if (terms.use_management_level_effects) {
+        for (const auto& effect : terms.management_effects) {
+            if (effect.type != terms.category_type || effect.level == 0u) continue;
+            result = result + effect.base_bonus;
+            result = result +
+                static_cast<float>(effect.level - 1u) * effect.growth_bonus;
+        }
+    } else {
+        result = result + terms.parameter_attack_bonus;
+    }
+
+    result = result + terms.data_manager_54_field_38;
+    return result + terms.equipment_property_bonus;
+}
+
 float resolve_attack(const State& player, const AttackTerms& terms) noexcept {
     return terms.weapon_base_attack_38 + terms.weapon_final_add_base_attack +
         terms.player_level_attack_110 + player.equipment_add_attack_114 +

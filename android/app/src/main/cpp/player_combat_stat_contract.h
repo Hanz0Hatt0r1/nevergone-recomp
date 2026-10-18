@@ -155,6 +155,68 @@ struct WeaponFinalAddBaseResult {
     bool extra_flag_64 = false;
 };
 
+struct WeaponFinalAddCategoryTerms {
+    bool weapon_field_18_is_zero = false;
+    bool management_hole_gate_nonzero = false;
+    float add_temper_attack = 0.0f;
+    float add_hole_attack = 0.0f;
+    float extra_attack = 0.0f;
+    float weapon_attack_field = 0.0f;
+};
+
+struct WeaponFinalAddCategoryResult {
+    float value = 0.0f;
+    bool extra_flag = false;
+};
+
+struct WeaponFinalAddSuprTerms {
+    std::int32_t weapon_field_18 = 0;
+    bool management_hole_gate_nonzero = false;
+    bool weapon_field_d4_is_zero = false;
+    bool data_manager_54_field_4c_is_zero = false;
+    float add_hole_attack = 0.0f;
+    float extra_attack = 0.0f;
+    float add_temper_attack = 0.0f;
+    float weapon_field_48 = 0.0f;
+};
+
+struct WeaponFinalAddSuprResult {
+    float value = 0.0f;
+    bool extra_flag_4c = false;
+    bool special_flag_e2 = false;
+};
+
+struct NestedWeaponCategoryAttackModifier {
+    std::uint32_t type = 0;
+    float value_when_weapon_field_18_is_zero = 0.0f;
+    float value_when_weapon_field_18_is_one = 0.0f;
+};
+
+struct WeaponCategoryAttackItem {
+    std::uint32_t type = 0;
+    bool weapon_name_matches = false;
+    float regular_attack_addition = 0.0f;
+    float matching_weapon_attack_addition = 0.0f;
+    std::vector<NestedWeaponCategoryAttackModifier> nested_modifiers;
+};
+
+struct WeaponCategoryAttackTerms {
+    std::int32_t weapon_field_18 = 0;
+    float data_manager_54_field_50 = 0.0f;
+    std::vector<WeaponCategoryAttackItem> weapon_items;
+};
+
+struct WeaponCategoryExtraAttackTerms {
+    std::uint32_t category_type = 0;
+    float weapon_add_attack = 0.0f;
+    bool weapon_field_18_is_zero = false;
+    bool use_management_level_effects = false;
+    float parameter_attack_bonus = 0.0f;
+    std::vector<ManagementAttackEffect> management_effects;
+    float data_manager_54_field_38 = 0.0f;
+    float equipment_property_bonus = 0.0f;
+};
+
 // WeaponsItemData::getStarLevel() returns the +0x98 CCArray count minus one,
 // or zero for an empty array.
 std::int32_t resolve_weapon_star_level(std::uint32_t hole_array_count) noexcept;
@@ -172,6 +234,37 @@ float resolve_weapon_add_temper_base_attack(
 // results. The initial literal at 0x003458d0 is 0.0f.
 WeaponFinalAddBaseResult resolve_weapon_final_add_base_attack(
     const WeaponFinalAddBaseTerms& terms) noexcept;
+
+// Mirrors the shared getFinalAddMeat_atk()/getFinalAddSupe_atk() gates and
+// output clamp. Category-specific helper results and weapon fields are inputs.
+WeaponFinalAddCategoryResult resolve_weapon_final_add_category_attack(
+    const WeaponFinalAddCategoryTerms& terms) noexcept;
+
+// Mirrors getFinalAddSupr_atk(), including the DataManager and weapon-state
+// gate which suppresses its returned value and clears its extra flag.
+WeaponFinalAddSuprResult resolve_weapon_final_add_supr_attack(
+    const WeaponFinalAddSuprTerms& terms) noexcept;
+
+// Category temper helpers share the doubled signed +0xac formula. Meat and
+// Supr pass their recovered byte gates; Supe always enables the helper.
+float resolve_weapon_add_category_temper_attack(
+    bool category_temper_gate_clear, std::int32_t weapon_field_ac,
+    float category_scale) noexcept;
+
+// Meat, Supe, and Supr hole helpers all use the getStarLevel-derived formula.
+float resolve_weapon_add_category_hole_attack(
+    std::int32_t star_level, float category_scale) noexcept;
+
+// Mirrors the getAddMeat/Supe/Supr_atk() item-array scan. Category types and
+// virtual getter results are decoded inputs; array and nested order is kept.
+float resolve_weapon_add_category_attack(
+    const WeaponCategoryAttackTerms& terms,
+    std::uint32_t category_type) noexcept;
+
+// Mirrors the shared getExtraMeat/Supe/Supr_atk() composition. Manager and
+// getter outputs remain inputs; category gates and addition order are exact.
+float resolve_weapon_extra_category_attack(
+    const WeaponCategoryExtraAttackTerms& terms) noexcept;
 
 // Mirrors MEPlayer::getAttack()'s left-to-right float sum. The weapon getter
 // and PlayerStatusInfo values remain inputs until their source data is restored.
