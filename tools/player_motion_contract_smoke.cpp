@@ -39,7 +39,11 @@ int main() {
     assert(near(fast_two->y, -6.4f));
 
     assert(!motion::movement_value(4, motion::kNormalMoveActionState, direction).has_value());
-    assert(!motion::movement_value(1, 2, direction).has_value());
+    const auto base_attack = motion::movement_value(
+            1, motion::kBaseAttackActionState, direction, 5.0f);
+    assert(base_attack.has_value());
+    assert(near(base_attack->x, 5.0f) && near(base_attack->y, 0.0f));
+    assert(!motion::movement_value(1, 3, direction).has_value());
     assert(!motion::movement_value(
             1,
             motion::kNormalMoveActionState,
