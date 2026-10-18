@@ -142,12 +142,37 @@ setter leaves the active byte and UI untouched. The new pure contracts expose
 these transitions and side-effect requests; they are not yet connected to the
 live enemy damage path.
 
+## Recovered action-specific damage multipliers
+
+After `DamageFactor()`, `inputAtkValue()` checks the player's attack type at
+`+0x144`, action id at `+0x278`, and action context at `+0x274`. Each matching
+branch multiplies damage by `1 + player_field`; branches run in the listed
+order, so multiple matches compound. The new
+`apply_action_specific_damage_multipliers()` accepts these values as ordered
+arrays keyed by the enums in `player_damage_core_contract.h`.
+
+For attack type 1, the field is selected by these action ids: `0x2e -> +0x458`;
+context `0x24` or `0x1e` with action 9 -> `+0x45c`; 2–4 -> `+0x46c`; 5–6 ->
+`+0x470`; 7–8 -> `+0x474`; `0x10 -> +0x478`; `0x27 -> +0x47c`; decimal 10 ->
+`+0x480`; `0x0f -> +0x484`; `0x19`–`0x1a -> +0x488`; `0x13 -> +0x48c`;
+`0x14 -> +0x490`; and `0x0c`–`0x0e -> +0x494`. For attack type 2: `0x2e ->
++0x4a4`; 2–5 -> `+0x4a8`; 6–7 -> `+0x4ac`; 8 -> `+0x4b0`; `0x19`–`0x1a ->
++0x4b4`; `0x35`–`0x36 -> +0x4b8`; `0x38 -> +0x4bc`; `0x13 -> +0x4c0`; decimal
+10 -> `+0x4c4`; `0x0d -> +0x4c8`; `0x0e -> +0x4cc`; `0x0f -> +0x4d0`;
+`0x10 -> +0x4d4` and again `+0x4dc`; `0x27 -> +0x4d8`; context `0x24` or
+`0x1e` with action 8 -> `+0x4e0`.
+
+Both attack types also apply one final multiplier for action ids `0x3a`–`0x3c`
+or `0x3f`: type 1 reads `+0x49c`, type 2 reads `+0x4e8`. Other attack types
+skip this action-specific block. Debug `printf`/`puts` calls were omitted from
+the contract because they do not affect combat state.
+
 ## Scope
 
 The reconstructed contracts cover the core expression, the listed property
 bonuses, the four primary player multipliers, the weapon multiplier, hit
-ordinals, the weapon-power meter, and the action-frame factor. The native
-function still has many action-specific buffs, weapon/item effects, health
+ordinals, the weapon-power meter, action-specific damage multipliers, and the
+action-frame factor. The native function still has weapon/item effects, health
 effects, super-energy side effects, and damage UI. The reconstruction renderer
 still reports geometric contact and hit-window candidates only; it does not
 yet send this resolved damage into the live enemy roster.

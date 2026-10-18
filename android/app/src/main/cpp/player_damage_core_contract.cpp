@@ -173,6 +173,128 @@ WeaponPowerAddResult add_weapon_power(
     return result;
 }
 
+float apply_action_specific_damage_multipliers(
+        float damage, const ActionSpecificDamageTerms& terms) noexcept {
+    const auto type_one = [&terms](ActionTypeOneDamageValue index) noexcept {
+        return terms.attack_type_one_values[static_cast<std::size_t>(index)];
+    };
+    const auto type_two = [&terms](ActionTypeTwoDamageValue index) noexcept {
+        return terms.attack_type_two_values[static_cast<std::size_t>(index)];
+    };
+    const auto multiply = [&damage](float additive_factor) noexcept {
+        damage = damage * (additive_factor + 1.0f);
+    };
+    const std::int32_t action = terms.action_id_278;
+    const bool has_shared_action_multiplier =
+        (action >= 0x3a && action <= 0x3c) || action == 0x3f;
+
+    if (terms.player_attack_type_144 == 1) {
+        if (action == 0x2e) {
+            multiply(type_one(ActionTypeOneDamageValue::action_2e_458));
+        }
+        if (action == 9 &&
+                (terms.action_context_274 == 0x24 ||
+                 terms.action_context_274 == 0x1e)) {
+            multiply(type_one(
+                ActionTypeOneDamageValue::context_24_or_1e_action_9_45c));
+        }
+        if (action >= 2 && action <= 4) {
+            multiply(type_one(ActionTypeOneDamageValue::actions_2_to_4_46c));
+        }
+        if (action >= 5 && action <= 6) {
+            multiply(type_one(ActionTypeOneDamageValue::actions_5_to_6_470));
+        }
+        if (action >= 7 && action <= 8) {
+            multiply(type_one(ActionTypeOneDamageValue::actions_7_to_8_474));
+        }
+        if (action == 0x10) {
+            multiply(type_one(ActionTypeOneDamageValue::action_10_hex_478));
+        }
+        if (action == 0x27) {
+            multiply(type_one(ActionTypeOneDamageValue::action_27_hex_47c));
+        }
+        if (action == 10) {
+            multiply(type_one(ActionTypeOneDamageValue::action_10_decimal_480));
+        }
+        if (action == 0x0f) {
+            multiply(type_one(ActionTypeOneDamageValue::action_0f_484));
+        }
+        if (action >= 0x19 && action <= 0x1a) {
+            multiply(type_one(ActionTypeOneDamageValue::actions_19_to_1a_488));
+        }
+        if (action == 0x13) {
+            multiply(type_one(ActionTypeOneDamageValue::action_13_hex_48c));
+        }
+        if (action == 0x14) {
+            multiply(type_one(ActionTypeOneDamageValue::action_14_hex_490));
+        }
+        if (action >= 0x0c && action <= 0x0e) {
+            multiply(type_one(ActionTypeOneDamageValue::actions_0c_to_0e_494));
+        }
+        if (has_shared_action_multiplier) {
+            multiply(type_one(
+                ActionTypeOneDamageValue::actions_3a_to_3c_or_3f_49c));
+        }
+    } else if (terms.player_attack_type_144 == 2) {
+        if (action == 0x2e) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_2e_4a4));
+        }
+        if (action >= 2 && action <= 5) {
+            multiply(type_two(ActionTypeTwoDamageValue::actions_2_to_5_4a8));
+        }
+        if (action >= 6 && action <= 7) {
+            multiply(type_two(ActionTypeTwoDamageValue::actions_6_to_7_4ac));
+        }
+        if (action == 8) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_8_4b0));
+        }
+        if (action >= 0x19 && action <= 0x1a) {
+            multiply(type_two(ActionTypeTwoDamageValue::actions_19_to_1a_4b4));
+        }
+        if (action >= 0x35 && action <= 0x36) {
+            multiply(type_two(ActionTypeTwoDamageValue::actions_35_to_36_4b8));
+        }
+        if (action == 0x38) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_38_4bc));
+        }
+        if (action == 0x13) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_13_hex_4c0));
+        }
+        if (action == 10) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_10_decimal_4c4));
+        }
+        if (action == 0x0d) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_0d_4c8));
+        }
+        if (action == 0x0e) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_0e_4cc));
+        }
+        if (action == 0x0f) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_0f_4d0));
+        }
+        if (action == 0x10) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_10_hex_4d4));
+        }
+        if (action == 0x27) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_27_hex_4d8));
+        }
+        if (action == 0x10) {
+            multiply(type_two(ActionTypeTwoDamageValue::action_10_hex_4dc));
+        }
+        if (action == 8 &&
+                (terms.action_context_274 == 0x24 ||
+                 terms.action_context_274 == 0x1e)) {
+            multiply(type_two(
+                ActionTypeTwoDamageValue::context_24_or_1e_action_8_4e0));
+        }
+        if (has_shared_action_multiplier) {
+            multiply(type_two(
+                ActionTypeTwoDamageValue::actions_3a_to_3c_or_3f_4e8));
+        }
+    }
+    return damage;
+}
+
 std::optional<float> resolve_action_damage_factor(
         const std::vector<float>& factors, std::int32_t frame_index) noexcept {
     if (frame_index < 0 ||

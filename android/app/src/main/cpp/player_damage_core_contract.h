@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -92,6 +93,55 @@ struct WeaponPowerAddResult {
     bool play_activation_sound = false;
 };
 
+enum class ActionTypeOneDamageValue : std::size_t {
+    action_2e_458,
+    context_24_or_1e_action_9_45c,
+    actions_2_to_4_46c,
+    actions_5_to_6_470,
+    actions_7_to_8_474,
+    action_10_hex_478,
+    action_27_hex_47c,
+    action_10_decimal_480,
+    action_0f_484,
+    actions_19_to_1a_488,
+    action_13_hex_48c,
+    action_14_hex_490,
+    actions_0c_to_0e_494,
+    actions_3a_to_3c_or_3f_49c,
+    count,
+};
+
+enum class ActionTypeTwoDamageValue : std::size_t {
+    action_2e_4a4,
+    actions_2_to_5_4a8,
+    actions_6_to_7_4ac,
+    action_8_4b0,
+    actions_19_to_1a_4b4,
+    actions_35_to_36_4b8,
+    action_38_4bc,
+    action_13_hex_4c0,
+    action_10_decimal_4c4,
+    action_0d_4c8,
+    action_0e_4cc,
+    action_0f_4d0,
+    action_10_hex_4d4,
+    action_27_hex_4d8,
+    action_10_hex_4dc,
+    context_24_or_1e_action_8_4e0,
+    actions_3a_to_3c_or_3f_4e8,
+    count,
+};
+
+struct ActionSpecificDamageTerms {
+    std::int32_t player_attack_type_144 = 0;
+    std::int32_t action_id_278 = 0;
+    std::int32_t action_context_274 = 0;
+    std::array<float, static_cast<std::size_t>(ActionTypeOneDamageValue::count)>
+        attack_type_one_values{};
+    std::array<float, static_cast<std::size_t>(ActionTypeTwoDamageValue::count)>
+        attack_type_two_values{};
+};
+
 // Reconstructs the weapon-versus-enemy power curve and weighted core damage.
 // The attack-category inputs are already resolved through their native
 // equipment, level, property, weakness, and attack-state paths.
@@ -131,6 +181,11 @@ WeaponPowerSetResult set_weapon_power(
 // bonus, zero floor, threshold transition, and observable side-effect requests.
 WeaponPowerAddResult add_weapon_power(
     const WeaponPowerAddTerms& terms) noexcept;
+
+// Applies the native per-action additive multipliers selected from MEPlayer
+// fields +0x458..+0x4e8 for attack types 1 and 2.
+float apply_action_specific_damage_multipliers(
+    float damage, const ActionSpecificDamageTerms& terms) noexcept;
 
 // Mirrors MeActionsSystem::DamageFactor(): reads the per-frame value from the
 // +0xcc table indexed by MEActionsSystem +0x1a4.
