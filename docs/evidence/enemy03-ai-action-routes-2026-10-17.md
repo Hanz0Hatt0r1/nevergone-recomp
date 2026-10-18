@@ -40,3 +40,9 @@ state. This does not execute `enemy03_AI` or synthesize state transitions; the
 native movement/AI loop is still outside the reconstructed runtime. States 36
 and 42 remain unsupported because no corresponding action-table entries were
 found. No behavior is inferred for those states.
+
+The candidate-state decision function and its timer transforms now have a
+separate executable reconstruction. See
+[`manual-nevergone-recoveries/enemy03-ai-decision.md`](manual-nevergone-recoveries/enemy03-ai-decision.md).
+This recovers the per-candidate return code but does not execute the outer
+`eventAction` scan or movement branches.
