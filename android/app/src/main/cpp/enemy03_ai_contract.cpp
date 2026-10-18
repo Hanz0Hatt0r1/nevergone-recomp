@@ -13,6 +13,11 @@ std::uint32_t clamp_nonnegative(std::uint32_t value) noexcept {
 
 }  // namespace
 
+std::int32_t random_gate_from_lrand48(std::int32_t value) noexcept {
+    const float normalized = static_cast<float>(value) * 0x1p-31f;
+    return static_cast<std::int32_t>(normalized * 10000.0f);
+}
+
 Decision decide(const Inputs& in) noexcept {
     if (in.current_state == 0x1cu) return Decision::kContinue;
     if (in.current_state == 0x2fu) {

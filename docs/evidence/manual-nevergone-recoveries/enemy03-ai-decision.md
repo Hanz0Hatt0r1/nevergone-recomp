@@ -35,6 +35,13 @@ The exact selection rules are implemented in
   5000 and 7000;
 - candidate 1 returns code 2 at horizontal delta 301 or greater, otherwise 0.
 
+`eventAction` forms the random gate from `lrand48()` with literal-pool
+constants `0x30000000` (`2^-31`) and `0x461c4000` (`10000.0f`):
+`int(float(lrand48_value) * 2^-31 * 10000.0f)`. The contract exposes this
+single-precision conversion so the decision evaluator receives the same
+integer as native code. The random draw itself is not scheduled by the
+clean-room actor runtime.
+
 The recovered `eventAction` caller consumes code 1 by returning the candidate
 state. Codes 2 through 6 select separate movement/transition branches. The
 contract intentionally leaves those caller branches outside this function.
@@ -59,9 +66,9 @@ for the two timer operations are implemented in the same contract.
 
 ## Remaining boundary
 
-The decision function and timer transforms are now executable contracts, but
-the tutorial actor renderer/live gate does not yet execute the full native
-`eventAction` loop. The random-gate generation, `checkInputStateIsBeaten`
-candidate filtering, one-second scheduling, and codes 2 through 6's movement
-branches still need to be connected before this contract can drive a live
-enemy. No random interval or movement result is inferred here.
+The decision function, random scaling, and timer transforms are now executable
+contracts, but the tutorial actor renderer/live gate does not yet execute the
+full native `eventAction` loop. The `lrand48()` draw scheduling,
+`checkInputStateIsBeaten` candidate filtering, one-second scheduling, and codes
+2 through 6's movement branches still need to be connected before this
+contract can drive a live enemy. No movement result is inferred here.

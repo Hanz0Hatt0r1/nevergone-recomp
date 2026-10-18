@@ -28,6 +28,9 @@ enum class Decision : std::int32_t {
     kSpecial6 = 6,
 };
 
+// eventAction scales lrand48() through the original 2^-31 and 10000.0f literals.
+std::int32_t random_gate_from_lrand48(std::int32_t value) noexcept;
+
 Decision decide(const Inputs& inputs) noexcept;
 
 // EnemyObject::enemy03_Phy adjusts the integer AI timer on a state change.
