@@ -23,8 +23,9 @@ otherwise it uses the inclusive `CCRect::containsPoint()` test against
 `EnemyObject::enemyBoundingBox()`.
 
 `enemyBoundingBox()` uses the action sprite rectangle when the action system's
-`+0x26c` readiness byte is set, and translates it by `EnemyObject +0x280/+0x284`
-for movement state `0x1c`. That readiness byte is set by the successful
+`+0x26c` readiness byte is set. In state `0x1c`, it translates by
+`EnemyObject +0x280/+0x284` only when action-system `+0x2b6` is nonzero; otherwise
+it uses `EnemyObject +0x118/+0x11c`. That readiness byte is set by the successful
 `EnemyActionsSystem::loadingTex()` path. The selected tutorial enemy's state,
 origin, flags, action frame, and source sprite geometry are all associated with
 the current attack-wave generation in the live queue.
@@ -51,12 +52,16 @@ gate is still the exact spawn point selected by `enemyOrgHLPos()` for state
 inclusive point-in-rectangle comparison. Only visible, texture-ready enemy
 bodies and generation-matched live waves can contribute a candidate.
 
-The renderer exposes the number of player hitpoints that pass these geometric
-and state checks as `tutorial player-enemy contact candidates`. This counter
-stops before `MEPlayer::isHitFlag()`, `MEPlayer::inputAtkValue()`, enemy damage,
-combo accounting, and enemy reaction effects. Those branches still require the
-remaining live player-window and attack-stat inputs and are not represented as
-completed by this increment.
+The renderer exposes geometric contacts as `tutorial player-enemy contact
+candidates`. It separately exposes `tutorial player-enemy hit-window
+candidates` after applying `MEPlayer::isHitFlag()`. For states reset by
+`setPlayerStateWithIdx()`, the native saved hit counter is exactly `-1`, and the
+current action-system counter comes from the live playback cursor's `+0x1fc`
+boundary index. Other states fail closed because their saved counter is not
+known. The counter is not advanced here: no attack or enemy damage has been
+applied, so native `addHitFlagCount()` has not occurred in this reconstruction.
+`MEPlayer::inputAtkValue()`, combo accounting, and enemy reaction effects
+remain incomplete.
 
 The function-role label for `BattleManager::playerHitEnemy()` is recorded in
 `player-enemy-contact-candidates-labels.jsonl`; its `combat` subsystem label

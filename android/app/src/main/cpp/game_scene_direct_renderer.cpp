@@ -27,6 +27,7 @@
 #include "meplayer_live_action_state.h"
 #include "enemy_collision_contract.h"
 #include "player_hl_point_contract.h"
+#include "player_hit_window_contract.h"
 #include "tutorial_attack_live_gate.h"
 #include "tutorial_enemy_action_document_store.h"
 
@@ -67,6 +68,11 @@ struct RuntimeAnimation {
     game_scene_type0_post_init::RandomFadeLoopParams fade;
 };
 
+bool set_player_state_resets_hit_counter(std::uint32_t state) noexcept {
+    return state - 2u < 9u || state - 0xcu < 5u || state - 0x35u < 2u ||
+            state == 0x14u || state - 0x18u < 4u || state == 0x38u;
+}
+
 std::atomic<int> g_surface_width{0};
 std::atomic<int> g_surface_height{0};
 std::atomic<bool> g_shader_ready{false};
@@ -77,6 +83,7 @@ std::atomic<std::size_t> g_last_animated_sprite_count{0};
 std::atomic<std::size_t> g_tutorial_enemy_action_sprite_count{0};
 std::atomic<std::size_t> g_tutorial_enemy_hittable_action_count{0};
 std::atomic<std::size_t> g_tutorial_player_enemy_contact_candidates{0};
+std::atomic<std::size_t> g_tutorial_player_enemy_hit_window_candidates{0};
 std::atomic<std::uint8_t> g_last_min_opacity{255u};
 std::atomic<float> g_last_camera_eye_x{0.0f};
 GLuint g_program = 0;
@@ -270,6 +277,7 @@ bool draw() {
     g_last_min_opacity.store(255u, std::memory_order_relaxed);
     g_tutorial_enemy_hittable_action_count.store(0u, std::memory_order_relaxed);
     g_tutorial_player_enemy_contact_candidates.store(0u, std::memory_order_relaxed);
+    g_tutorial_player_enemy_hit_window_candidates.store(0u, std::memory_order_relaxed);
     game_scene_player_hl_point_state::invalidate();
 
     const int surface_width = g_surface_width.load(std::memory_order_relaxed);
@@ -489,10 +497,28 @@ bool draw() {
     }
 
     std::size_t player_enemy_contacts = 0u;
+    std::size_t player_enemy_hit_window_contacts = 0u;
     if (player_anchor.has_value() && !queue->player_action_hitpoints.empty() &&
         !enemy_collision_bodies.empty()) {
         const auto player_point = game_scene_player_hl_point_state::snapshot();
         const auto attack = tutorial_attack_live_gate::live_snapshot();
+        const auto playback = me_actions_live_playback::snapshot();
+        const bool player_hit_window_known = playback.ready &&
+                playback.action_generation == player_anchor->action_generation &&
+                playback.loaded_revision == player_anchor->loaded_revision &&
+                playback.action_state == player_anchor->action_state &&
+                playback.cursor.current_frame_1a4 == player_anchor->action_frame_index &&
+                set_player_state_resets_hit_counter(player_anchor->action_state);
+        const player_hit_window_contract::State hit_window{
+            true,
+            0xffffffffu,
+            0u,
+            player_hit_window_known
+                    ? playback.cursor.secondary_boundary_index_1fc : 0u,
+            0u,
+        };
+        const bool hit_window_open = player_hit_window_known &&
+                player_hit_window_contract::is_hit_flag(hit_window);
         if (player_point.ready &&
             attack.attack.wave_started && attack.attack.wave_generation != 0u &&
             player_point.spawn_generation == player_anchor->spawn_generation &&
@@ -519,6 +545,7 @@ bool draw() {
                     if (enemy_collision_contract::is_beaten(
                                 enemy.beaten_state, candidate, enemy.bounds).hit) {
                         ++player_enemy_contacts;
+                        if (hit_window_open) ++player_enemy_hit_window_contacts;
                     }
                 }
             }
@@ -530,6 +557,8 @@ bool draw() {
             hittable_enemy_actions, std::memory_order_relaxed);
     g_tutorial_player_enemy_contact_candidates.store(
             player_enemy_contacts, std::memory_order_relaxed);
+    g_tutorial_player_enemy_hit_window_candidates.store(
+            player_enemy_hit_window_contacts, std::memory_order_relaxed);
     g_last_drawn_sprite_count.store(prepared.size(), std::memory_order_relaxed);
     g_drawn_frame_count.fetch_add(1u, std::memory_order_relaxed);
     return true;
@@ -550,6 +579,8 @@ Snapshot snapshot() {
             g_tutorial_enemy_hittable_action_count.load(std::memory_order_relaxed);
     state.tutorial_player_enemy_contact_candidates =
             g_tutorial_player_enemy_contact_candidates.load(std::memory_order_relaxed);
+    state.tutorial_player_enemy_hit_window_candidates =
+            g_tutorial_player_enemy_hit_window_candidates.load(std::memory_order_relaxed);
     state.last_min_opacity = g_last_min_opacity.load(std::memory_order_relaxed);
     state.last_camera_eye_x = g_last_camera_eye_x.load(std::memory_order_relaxed);
     return state;
@@ -572,6 +603,8 @@ std::string status_report() {
         << state.tutorial_enemy_hittable_action_count << "\n";
     out << "tutorial player-enemy contact candidates: "
         << state.tutorial_player_enemy_contact_candidates << "\n";
+    out << "tutorial player-enemy hit-window candidates: "
+        << state.tutorial_player_enemy_hit_window_candidates << "\n";
     out << "last minimum opacity: " << static_cast<unsigned int>(state.last_min_opacity) << "\n";
     out << game_scene_player_hl_point_state::status_report();
     out << tutorial_enemy_action_document_store::status_report();
