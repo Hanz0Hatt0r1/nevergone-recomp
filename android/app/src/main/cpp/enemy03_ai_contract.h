@@ -1,6 +1,11 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <optional>
+#include <vector>
+
+#include "enemy_hit_gate_contract.h"
 
 namespace nevergone::enemy03_ai_contract {
 
@@ -28,10 +33,27 @@ enum class Decision : std::int32_t {
     kSpecial6 = 6,
 };
 
+struct CandidateDecision {
+    std::size_t candidate_index = 0;
+    std::int32_t candidate_state = 0;
+    Decision decision = Decision::kContinue;
+};
+
 // eventAction scales lrand48() through the original 2^-31 and 10000.0f literals.
 std::int32_t random_gate_from_lrand48(std::int32_t value) noexcept;
 
 Decision decide(const Inputs& inputs) noexcept;
+
+// eventAction scans candidate indices in order and calls enemy03_AI only when
+// checkInputStateIsBeaten() rejects that candidate.
+std::optional<CandidateDecision> first_candidate_decision(
+        const std::vector<Inputs>& candidates,
+        bool suppress_states_5_6,
+        bool lesson_step6_no_progress) noexcept;
+
+// EnemyObject::eventAction accumulates delta and consumes at most one second
+// per invocation. Returns false for subsecond and unordered (NaN) totals.
+bool event_interval_elapsed(float delta, float* accumulated_seconds) noexcept;
 
 // EnemyObject::enemy03_Phy adjusts the integer AI timer on a state change.
 std::uint32_t timer_after_state_change(

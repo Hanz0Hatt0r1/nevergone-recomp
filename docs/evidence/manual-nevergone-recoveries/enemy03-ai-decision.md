@@ -45,6 +45,12 @@ clean-room actor runtime.
 The recovered `eventAction` caller consumes code 1 by returning the candidate
 state. Codes 2 through 6 select separate movement/transition branches. The
 contract intentionally leaves those caller branches outside this function.
+The same contract now models the ordered candidate scan: native calls
+`checkInputStateIsBeaten()` first, evaluates only indices for which it returns
+false, and uses the first nonzero `enemy03_AI` result. It also accepts the
+lesson-step-6/no-progress override, which clears results for candidates other
+than `0x1c`. The one-second accumulator consumes one second per invocation,
+even if the accumulated total remains above one.
 
 ## Input provenance
 
@@ -66,9 +72,9 @@ for the two timer operations are implemented in the same contract.
 
 ## Remaining boundary
 
-The decision function, random scaling, and timer transforms are now executable
-contracts, but the tutorial actor renderer/live gate does not yet execute the
-full native `eventAction` loop. The `lrand48()` draw scheduling,
-`checkInputStateIsBeaten` candidate filtering, one-second scheduling, and codes
-2 through 6's movement branches still need to be connected before this
-contract can drive a live enemy. No movement result is inferred here.
+The decision function, random scaling, candidate filtering, one-second gate,
+and timer transforms are now executable contracts, but the tutorial actor
+renderer/live gate does not yet execute the full native `eventAction` loop.
+The `lrand48()` draw scheduling and codes 2 through 6's movement branches
+still need to be connected before this contract can drive a live enemy. No
+movement result is inferred here.

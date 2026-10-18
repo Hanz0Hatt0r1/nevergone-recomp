@@ -65,6 +65,39 @@ Decision decide(const Inputs& in) noexcept {
     return Decision::kContinue;
 }
 
+std::optional<CandidateDecision> first_candidate_decision(
+        const std::vector<Inputs>& candidates,
+        bool suppress_states_5_6,
+        bool lesson_step6_no_progress) noexcept {
+    for (std::size_t i = 0; i < candidates.size(); ++i) {
+        const Inputs& candidate = candidates[i];
+        if (enemy_hit_gate_contract::check_input_state_is_beaten(
+                    static_cast<std::uint32_t>(candidate.candidate_state),
+                    suppress_states_5_6)) {
+            continue;
+        }
+        Decision result = decide(candidate);
+        if (lesson_step6_no_progress && candidate.candidate_state != 0x1c) {
+            result = Decision::kContinue;
+        }
+        if (result != Decision::kContinue) {
+            return CandidateDecision{i, candidate.candidate_state, result};
+        }
+    }
+    return std::nullopt;
+}
+
+bool event_interval_elapsed(float delta, float* accumulated_seconds) noexcept {
+    if (accumulated_seconds == nullptr) return false;
+    const float next = *accumulated_seconds + delta;
+    if (!(next >= 1.0f)) {
+        *accumulated_seconds = next;
+        return false;
+    }
+    *accumulated_seconds = next - 1.0f;
+    return true;
+}
+
 std::uint32_t timer_after_state_change(
         std::uint32_t current_timer, std::uint32_t new_state) noexcept {
     if (new_state == 2u || new_state == 3u) {
