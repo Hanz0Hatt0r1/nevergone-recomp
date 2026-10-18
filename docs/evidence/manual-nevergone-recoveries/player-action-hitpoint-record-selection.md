@@ -39,14 +39,14 @@ for player action files. `action_hitpoint_record_contract` exposes the current
 frame's source record indices and matching ordinals. The player's frame-lookup
 result carries these references alongside the existing sprite frame lookup.
 
-This restores the data-backed count/ordinal/index selection stage. It does not
-create the native `+0x198` sprite objects, reproduce their position updates,
-calculate the transformed `sprBoundingBox()` center, or perform the later
-point comparisons. `MEPlayer::beatHitPoint()` now has a separate bounded
-contract for its failure checks and `+0x268/+0x26c` player-coordinate
-translation. Native sprite creation/positioning and the later comparisons
-remain unresolved in the large `BattleManager::{playerHitEnemy,enemyHitPlayer}`
-and `MEPlayer::isBeaten()` routines.
+The render queue now reconstructs the Section-E sprite transforms and
+`sprBoundingBox()` centers for the supported player `createActions()->play()`
+baseline; see `player-action-hitpoint-sprite-transform.md`. The recovered
+center remains in MeActionsSystem-local coordinates until the separate
+`MEPlayer::beatHitPoint()` `+0x268/+0x26c` translation. The later point
+comparisons and combat side effects remain unresolved in the large
+`BattleManager::{playerHitEnemy,enemyHitPlayer}` and `MEPlayer::isBeaten()`
+routines.
 
 Gold subsystem and function-role labels for the three complete entries are
 recorded in `player-action-hitpoint-record-selection-labels.jsonl`. Adding

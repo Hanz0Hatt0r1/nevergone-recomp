@@ -18,6 +18,14 @@ namespace nevergone::me_actions_runtime_state {
 struct State {
     std::int32_t current_frame_1a4 = 0;
     std::int32_t previous_frame_1a8 = -1;
+    // MeActionsSystem::updateData() transforms Section-E sprite positions with
+    // +0x204/+0x208, +0x2f8 and +0x648. The supported createActions()->play()
+    // path initializes these to 0, 0, 1 and 0; live cut-action writes are not
+    // modeled yet.
+    float action_position_x_204 = 0.0f;
+    float action_position_y_208 = 0.0f;
+    float action_scale_2f8 = 1.0f;
+    float hitpoint_y_offset_648 = 0.0f;
     // MeActionsSystem::swapBufferPos subtracts this explicit +0x2ec point
     // from each Section-E hit-point position. The recovered play path starts
     // at zero; live AdjustPos writes are not modeled here yet.

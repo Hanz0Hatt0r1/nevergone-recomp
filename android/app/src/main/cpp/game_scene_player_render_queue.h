@@ -5,6 +5,7 @@
 
 #include "controls_function_state_runtime.h"
 #include "game_clock.h"
+#include "game_scene_direct_geometry.h"
 #include "game_levels_runtime_state.h"
 #include "game_scene_camera_contract.h"
 #include "game_scene_camera_render_queue.h"
@@ -23,6 +24,8 @@
 #include "player_offline_career.h"
 
 namespace nevergone::game_scene_player_render_queue {
+
+constexpr int kHitPointSpriteSize = 8;
 
 inline game_scene_render_queue::Queue with_live_player(
         game_scene_render_queue::Queue queue,
@@ -53,21 +56,51 @@ inline game_scene_render_queue::Queue with_live_player(
             live_action.current_action_state == live_action.desired_action_state &&
             player_attack_state_contract::is_attack_state(
                     live_action.current_action_state);
+    const auto control = player_control_runtime_state::snapshot();
+    const bool system_flipped = control.primary_state.has_value() && control.flip_x;
 
-    // Section-E positions are local to MeActionsSystem. This live reconstruction
-    // has the recovered play() zero-offset baseline; it does not equate the
-    // system's +0x2ec point with MEPlayer movement offsets.
+    // Section-E AFDs supply hitPoint sprite transforms. Recover the actual
+    // bounds center rather than treating the anchor floats as a position.
     for (const auto& hitpoint : request.lookup.current_frame_hitpoints) {
         if (hitpoint.action_data_index >= document->fixed_tail_block.records.size()) {
             continue;
         }
         const auto& record = document->fixed_tail_block.records[hitpoint.action_data_index];
+        const float scale = runtime.action_scale_2f8;
+        me_actions_initial_sprite_transform::Plan transform;
+        transform.position_x =
+                (record.float_values[0] + runtime.action_position_x_204) / scale;
+        transform.position_y =
+                (record.float_values[1] + runtime.action_position_y_208) / scale -
+                runtime.hitpoint_y_offset_648;
+        transform.anchor_x = record.float_values[2];
+        transform.anchor_y = record.float_values[3];
+        transform.scale_x = record.float_values[9];
+        transform.scale_y = 1.0f;
+        transform.flip_x = system_flipped;
+        if (system_flipped) {
+            const float pivot_x = record.float_values[6] / scale;
+            const float pivot_y = record.float_values[7] / scale;
+            const float delta_x = pivot_x - transform.position_x;
+            const float delta_y = pivot_y - transform.position_y;
+            transform.position_x = pivot_x + delta_x;
+            transform.position_y = pivot_y - delta_y;
+            transform.anchor_x = 0.5f - (transform.anchor_x - 0.5f);
+            transform.scale_x = -transform.scale_x;
+        }
+        // swapBufferPos applies its independent system+0x2ec translation
+        // after updateData has written the action-space position.
+        transform.position_x -= runtime.system_offset_x_2ec;
+        transform.position_y -= runtime.system_offset_y_2f0;
+        const auto bounds = game_scene_direct_geometry::player_action_sprite_bounds(
+                transform, kHitPointSpriteSize, kHitPointSpriteSize);
+        if (!bounds.has_value()) continue;
         queue.player_action_hitpoints.push_back({
                 runtime.current_frame_1a4,
                 hitpoint.action_data_index,
                 hitpoint.frame_ordinal,
-                record.float_values[2] - runtime.system_offset_x_2ec,
-                record.float_values[3] - runtime.system_offset_y_2f0,
+                bounds->x + bounds->width * 0.5f,
+                bounds->y + bounds->height * 0.5f,
                 attack_state});
     }
 
@@ -97,7 +130,6 @@ inline game_scene_render_queue::Queue with_live_player(
     player.transform.position_x = player_x;
     player.transform.position_y = player_y;
     auto transform = *body_transform;
-    const auto control = player_control_runtime_state::snapshot();
     if (control.primary_state.has_value()) {
         transform.flip_x = control.flip_x;
     }

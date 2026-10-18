@@ -28,8 +28,8 @@ struct PlayerActionHitPointPosition {
     std::int32_t action_frame_index = 0;
     std::size_t action_data_index = 0;
     std::size_t frame_ordinal = 0;
-    // Coordinates in MeActionsSystem space. World translation and sprite
-    // bounds remain separate combat inputs.
+    // Center of the native 8x8 Section-E CCSprite bounds in MeActionsSystem
+    // space. Player/world translation remains a separate combat input.
     float system_local_x = 0.0f;
     float system_local_y = 0.0f;
     // BattleManager melee paths require MEPlayer::isAttackState() before using
