@@ -246,5 +246,5 @@ Use task-filtered family similarity, exclude query families that already have
 labels for that task, and keep the result advisory. The current manual labels
 have many one-off function roles, so nearest labelled examples are more useful
 for triage than an unvalidated role classifier. See
-[`MANUAL_RECOVERY_RETRIEVAL.md`](MANUAL_RECOVERY_RETRIEVAL.md) for the v68
-build and query commands.
+[`MANUAL_RECOVERY_RETRIEVAL.md`](MANUAL_RECOVERY_RETRIEVAL.md) for the current
+v70 build and query commands and retrieval results.

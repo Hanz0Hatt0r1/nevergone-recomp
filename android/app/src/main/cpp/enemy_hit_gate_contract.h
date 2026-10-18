@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "hit_window_counter_contract.h"
+
 namespace nevergone::enemy_hit_gate_contract {
 
 struct State {
@@ -9,7 +11,19 @@ struct State {
     std::uint8_t allow_hit_player_244 = 0;
     std::uint32_t last_hit_counter_16c = 0;
     std::uint32_t action_hit_counter_2a4 = 0;
+    std::uint32_t last_combo_counter_168 = 0;
+    std::uint32_t action_combo_counter_2a0 = 0;
 };
+
+inline hit_window_counter_contract::State counters(const State& state) noexcept {
+    return {
+        state.has_action_system,
+        state.last_hit_counter_16c,
+        state.action_hit_counter_2a4,
+        state.last_combo_counter_168,
+        state.action_combo_counter_2a0,
+    };
+}
 
 // Mirrors the original EnemyObject accessors and hit-frame guard.
 inline bool allow_hit_player(const State& state) noexcept {
@@ -17,18 +31,30 @@ inline bool allow_hit_player(const State& state) noexcept {
 }
 
 inline bool is_hit_flag(const State& state) noexcept {
-    return !state.has_action_system ||
-        state.last_hit_counter_16c != state.action_hit_counter_2a4;
+    return hit_window_counter_contract::is_hit_flag(counters(state));
+}
+
+inline bool is_combo_hit(const State& state) noexcept {
+    return hit_window_counter_contract::is_combo_hit(counters(state));
 }
 
 inline std::uint32_t temp_hit_flag_count(const State& state) noexcept {
-    return state.has_action_system ? state.action_hit_counter_2a4 : 0u;
+    return hit_window_counter_contract::temp_hit_flag_count(counters(state));
+}
+
+inline std::uint32_t temp_combo_hit_count(const State& state) noexcept {
+    return hit_window_counter_contract::temp_combo_hit_count(counters(state));
 }
 
 inline State record_hit_flag(State state) noexcept {
-    if (state.has_action_system) {
-        state.last_hit_counter_16c = state.action_hit_counter_2a4;
-    }
+    const auto updated = hit_window_counter_contract::record_hit_flag(counters(state));
+    state.last_hit_counter_16c = updated.recorded_hit;
+    return state;
+}
+
+inline State record_combo_hit(State state) noexcept {
+    const auto updated = hit_window_counter_contract::record_combo_hit(counters(state));
+    state.last_combo_counter_168 = updated.recorded_combo;
     return state;
 }
 

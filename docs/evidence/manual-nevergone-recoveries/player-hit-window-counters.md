@@ -45,6 +45,11 @@ points collide, or how damage is applied. Those operations remain in the
 incomplete large `MEPlayer::isBeaten()` and `BattleManager::enemyHitPlayer()`
 paths.
 
+The common null/compare/copy/read rules are factored into
+`hit_window_counter_contract`; class-specific offsets and the additional enemy
+and projectile variants are documented in
+[`hit-window-counter-variants.md`](hit-window-counter-variants.md).
+
 Gold subsystem and function-role labels for the six entries are recorded in
 `player-hit-window-counters-labels.jsonl`. Adding them to the previous manual
 restoration v12 labels and rebuilding as v13 produced 9,140 labelled

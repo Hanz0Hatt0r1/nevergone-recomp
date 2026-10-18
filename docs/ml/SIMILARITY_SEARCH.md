@@ -45,8 +45,8 @@ references to families with gold function-role labels. Add `--families` and
 `--unlabelled-only` to omit query families already labeled for that task;
 `--top-candidates N` writes the N highest-similarity query functions, with
 ties resolved by the top-two gap and input order. See
-[`MANUAL_RECOVERY_RETRIEVAL.md`](MANUAL_RECOVERY_RETRIEVAL.md) for the full
-v68 workflow. This is candidate retrieval, not automatic label transfer.
+[`MANUAL_RECOVERY_RETRIEVAL.md`](MANUAL_RECOVERY_RETRIEVAL.md) for the current
+v70 workflow. This is candidate retrieval, not automatic label transfer.
 
 ## Family-held-out label-transfer validation
 
