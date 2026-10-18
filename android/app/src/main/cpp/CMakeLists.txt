@@ -114,6 +114,7 @@ add_library(nevergone_recomp SHARED
     player_combo_num_contract.cpp
     player_health_contract.cpp
     player_combat_stat_contract.cpp
+    player_damage_core_contract.cpp
     action_hitpoint_record_contract.cpp
     player_hl_point_contract.cpp
     enemy_hitpoint_contract.cpp

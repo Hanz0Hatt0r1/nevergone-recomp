@@ -1,0 +1,2 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"0032ffa0","source_name":"MEPlayer::inputAtkValue","task":"subsystem","label":"combat","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/player-damage-core.md"}
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"0032ffa0","source_name":"MEPlayer::inputAtkValue","task":"function_role","label":"combat_player_attack_damage_resolution","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/player-damage-core.md"}
