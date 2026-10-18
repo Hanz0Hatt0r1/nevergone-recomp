@@ -120,10 +120,18 @@ bool observe_base_function_state(
     }
 
     g_snapshot.observed_function_generation = function_generation;
-    if (function_state == g_snapshot.observed_function_state) return false;
-
+    const bool function_state_changed =
+        function_state != g_snapshot.observed_function_state;
     if (function_state == 0u) {
-        g_snapshot.observed_function_state = 0u;
+        if (function_state_changed) g_snapshot.observed_function_state = 0u;
+        if (g_snapshot.player_index == 1u &&
+            g_snapshot.current_action_state == kDirectionalACombo1ActionState &&
+            g_snapshot.desired_action_state == kDirectionalACombo1ActionState &&
+            g_snapshot.current_action_done &&
+            g_snapshot.loaded_revision == g_snapshot.desired_revision) {
+            return queue_desired_action_locked(kInitialActionState);
+        }
+        if (!function_state_changed) return false;
         if (g_snapshot.desired_action_state == kHeldBFollowupActionState &&
             (g_snapshot.current_action_state == kBaselineBActionState ||
              g_snapshot.current_action_state == kHeldBFollowupActionState)) {
@@ -131,6 +139,7 @@ bool observe_base_function_state(
         }
         return false;
     }
+    if (!function_state_changed) return false;
 
     if (g_snapshot.current_action_state != g_snapshot.desired_action_state ||
         g_snapshot.loaded_revision != g_snapshot.desired_revision) {
@@ -169,6 +178,13 @@ bool observe_base_function_state(
                g_snapshot.current_action_state == kInitialActionState &&
                g_snapshot.desired_action_state == kInitialActionState) {
         accepted_action = 0x0fu;
+    } else if (function_state == 0x16u &&
+               pending_meplayer_state == kDirectionalACombo1ActionState &&
+               !pending_has_additional_guard &&
+               g_snapshot.player_index == 1u &&
+               g_snapshot.current_action_state == kInitialActionState &&
+               g_snapshot.desired_action_state == kInitialActionState) {
+        accepted_action = kDirectionalACombo1ActionState;
     } else if (function_state == 0x14u &&
                pending_meplayer_state == kDirectionalAComboActionState &&
                !pending_has_additional_guard &&
@@ -208,6 +224,12 @@ bool observe_action_completion(
     std::uint32_t target_state = 0u;
     if (completed_action_state == kWalkAttackActionState ||
         completed_action_state == kRunAttackActionState) {
+        g_snapshot.current_action_done = true;
+        g_snapshot.last_completed_action_state = completed_action_state;
+        g_snapshot.last_completion_target_state = completed_action_state;
+        return true;
+    } else if (completed_action_state == kDirectionalACombo1ActionState &&
+               g_snapshot.player_index == 1u) {
         g_snapshot.current_action_done = true;
         g_snapshot.last_completed_action_state = completed_action_state;
         g_snapshot.last_completion_target_state = completed_action_state;

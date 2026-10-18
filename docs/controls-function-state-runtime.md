@@ -21,6 +21,7 @@ The stateful core feeds those values through `controls_function_state_contract::
 - Controls state `8` / B -> MEPlayer state `0x11`, `force=true`, with the still-unimplemented additional player guard;
 - Controls state `9` / C -> MEPlayer state `0x20`, `force=false`.
 - Directional A state `0x14` -> MEPlayer state `0x0c`, `force=true`, only for Career 1 from initial state `0x1b`; completion proceeds through `0x0d`, `0x0e`, then `0x1b` ([native evidence](evidence/meplayer-career1-directional-a-combo-attack-2026-10-18.md)).
+- Directional A state `0x16` -> MEPlayer state `0x0a`, `force=false`, only for Career 1 from initial state `0x1b`; the non-looping action remains selected until Controls state `0` and its done flag are both observed, then returns to `0x1b` ([native evidence](evidence/meplayer-career1-directional-a-combo1-attack-2026-10-18.md)).
 - Directional A state `0x15` -> MEPlayer state `0x0f`, `force=false`, only for Career 1 from initial state `0x1b`.
 
 The base A action request is resolved from the committed live MEPlayer state; unknown or unsupported current states produce no request. The recovered directional A state `0x15` has its own restricted request above. Other synthesized function states such as A+C `0x1c` remain visible but produce no action request until their `MEPlayer::setFunctionState` branches and required state inputs are recovered.
