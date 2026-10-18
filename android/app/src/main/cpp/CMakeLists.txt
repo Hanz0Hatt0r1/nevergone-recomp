@@ -111,6 +111,7 @@ add_library(nevergone_recomp SHARED
     me_actions_live_playback.cpp
     me_actions_playback_timing.cpp
     player_hit_window_contract.cpp
+    player_combo_num_contract.cpp
     player_health_contract.cpp
     player_combat_stat_contract.cpp
     action_hitpoint_record_contract.cpp
