@@ -12,14 +12,13 @@ struct ActionRequest {
     bool has_additional_player_guard = false;
 };
 
-// Maps base Controls::tick() A/B/C function states into recovered
-// MEPlayer::setActionState(state, force) requests. A depends on the current
-// locomotion state: walk 0 -> 0x10, run 1 -> 0x14, and initial 0x1b (or 0x1c)
-// -> 0x02. B uses the project's initial-player baseline 0x1b and requests
-// 0x1d,false; another guarded native branch can request 0x11,true.
+// Maps recovered Controls function states into MEPlayer action requests. The
+// directional A state 0x15 is supported only for Career 1 from initial state
+// 0x1b; its other native gates/state-specific behavior remain unsupported.
 std::optional<ActionRequest> base_action_request(
     std::uint32_t controls_function_state,
     std::optional<std::uint32_t> current_action_state =
-        std::optional<std::uint32_t>{0x1bu});
+        std::optional<std::uint32_t>{0x1bu},
+    std::uint32_t player_index = 0u);
 
 }  // namespace nevergone::player_function_action_contract

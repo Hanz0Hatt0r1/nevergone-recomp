@@ -28,16 +28,19 @@ void reset() {
 
 bool sync_spawn(
         std::uint64_t spawn_generation,
-        std::uint64_t tutorial_jump_request_count) {
+        std::uint64_t tutorial_jump_request_count,
+        std::uint32_t player_index) {
     if (spawn_generation == 0u) return false;
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_snapshot.ready && g_snapshot.spawn_generation == spawn_generation) return true;
+    if (g_snapshot.ready && g_snapshot.spawn_generation == spawn_generation &&
+        g_snapshot.player_index == player_index) return true;
 
     ++g_generation;
     g_snapshot = {};
     g_snapshot.ready = true;
     g_snapshot.generation = g_generation;
     g_snapshot.spawn_generation = spawn_generation;
+    g_snapshot.player_index = player_index;
     g_snapshot.current_action_state = kInitialActionState;
     g_snapshot.desired_action_state = kInitialActionState;
     g_snapshot.desired_revision = 1u;
@@ -159,6 +162,13 @@ bool observe_base_function_state(
                g_snapshot.current_action_state == kInitialActionState &&
                g_snapshot.desired_action_state == kInitialActionState) {
         accepted_action = kBaselineBActionState;
+    } else if (function_state == 0x15u &&
+               pending_meplayer_state == 0x0fu &&
+               !pending_has_additional_guard &&
+               g_snapshot.player_index == 1u &&
+               g_snapshot.current_action_state == kInitialActionState &&
+               g_snapshot.desired_action_state == kInitialActionState) {
+        accepted_action = 0x0fu;
     } else {
         ++g_snapshot.rejected_function_action_count;
         return false;
@@ -202,6 +212,9 @@ bool observe_action_completion(
         target_state = current_function_state == 8u
             ? kHeldBFollowupActionState
             : kInitialActionState;
+    } else if (completed_action_state == 0x0fu &&
+               g_snapshot.player_index == 1u) {
+        target_state = kInitialActionState;
     } else {
         ++g_snapshot.rejected_completion_transition_count;
         return false;
@@ -239,6 +252,7 @@ std::string status_report() {
     out << "ready: " << (state.ready ? "yes" : "no") << "\n";
     out << "generation: " << state.generation << "\n";
     out << "spawn generation: " << state.spawn_generation << "\n";
+    out << "player index: " << state.player_index << "\n";
     out << "current action: 0x" << std::hex << state.current_action_state << std::dec << "\n";
     out << "current action looping: " << (state.current_action_looping ? "yes" : "no") << "\n";
     out << "current action done: " << (state.current_action_done ? "yes" : "no") << "\n";

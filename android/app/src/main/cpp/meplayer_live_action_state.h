@@ -19,6 +19,7 @@ struct Snapshot {
     bool ready = false;
     std::uint64_t generation = 0;
     std::uint64_t spawn_generation = 0;
+    std::uint32_t player_index = 0;
     std::uint32_t current_action_state = kInitialActionState;
     bool current_action_looping = false;
     bool current_action_done = false;
@@ -46,7 +47,8 @@ void reset();
 // from a previous spawn cannot replay into the new player instance.
 bool sync_spawn(
     std::uint64_t spawn_generation,
-    std::uint64_t tutorial_jump_request_count);
+    std::uint64_t tutorial_jump_request_count,
+    std::uint32_t player_index = 0u);
 
 // Consume accepted C/jump requests from game_scene_action_input. A new request
 // queues the recovered tutorial jump MEPLAYERSTATE 0x20 only while the currently

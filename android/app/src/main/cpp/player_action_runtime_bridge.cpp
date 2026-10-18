@@ -65,7 +65,8 @@ void sync_runtime_to_spawn(const nevergone::game_scene_player_spawn_state::Snaps
     const auto action_input = nevergone::game_scene_action_input::snapshot();
     (void)nevergone::meplayer_live_action_state::sync_spawn(
             spawn.generation,
-            action_input.tutorial_jump_request_count);
+            action_input.tutorial_jump_request_count,
+            player_index);
 }
 
 void observe_live_action_sources() {
@@ -169,7 +170,9 @@ Java_org_nevergone_recomp_PlayerActionRuntimeLoader_nativeDesiredPlayerActionSta
 
     const auto input = nevergone::game_scene_action_input::snapshot();
     (void)nevergone::meplayer_live_action_state::sync_spawn(
-            spawn.generation, input.tutorial_jump_request_count);
+            spawn.generation,
+            input.tutorial_jump_request_count,
+            static_cast<std::uint32_t>(current_offline_career()));
     observe_live_action_sources();
     const auto live = nevergone::meplayer_live_action_state::snapshot();
     return live.ready ? static_cast<jint>(live.desired_action_state) : -1;

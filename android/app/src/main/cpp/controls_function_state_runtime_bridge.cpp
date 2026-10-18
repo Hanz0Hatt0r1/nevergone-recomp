@@ -24,7 +24,8 @@ bool tick() {
         game_clock::tick_count(),
         player_action.ready
             ? std::optional<std::uint32_t>{player_action.current_action_state}
-            : std::nullopt);
+            : std::nullopt,
+        player_action.ready ? player_action.player_index : 0u);
 }
 
 }  // namespace nevergone::controls_function_state_runtime

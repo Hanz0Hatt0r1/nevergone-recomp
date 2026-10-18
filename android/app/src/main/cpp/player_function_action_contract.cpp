@@ -4,7 +4,8 @@ namespace nevergone::player_function_action_contract {
 
 std::optional<ActionRequest> base_action_request(
         std::uint32_t controls_function_state,
-        std::optional<std::uint32_t> current_action_state) {
+        std::optional<std::uint32_t> current_action_state,
+        std::uint32_t player_index) {
     switch (controls_function_state) {
         case 7u:
             if (!current_action_state.has_value()) return std::nullopt;
@@ -32,6 +33,14 @@ std::optional<ActionRequest> base_action_request(
         case 9u:
             // Base C path -> setActionState(0x20,false).
             return ActionRequest{9u, 0x20u, false, false};
+        case 0x15u:
+            // Native setFunctionState(0x15) uses this request from initial
+            // state 0x1b. Career 1 has a recovered 0x0f -> 0x1b completion
+            // path; other careers use additional player data not modeled here.
+            if (player_index == 1u && current_action_state == 0x1bu) {
+                return ActionRequest{0x15u, 0x0fu, false, false};
+            }
+            return std::nullopt;
         default:
             return std::nullopt;
     }

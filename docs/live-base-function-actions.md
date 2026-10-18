@@ -14,6 +14,7 @@ This change connects only action transitions whose live preconditions are curren
 - Base A / Controls function state `7` calls `setActionState(0x02, false)`. The concrete action depends on the current state: walking (`0x00`) selects `0x10` (`action17`), running (`0x01`) selects `0x14` (`action21`), and the initial (`0x1b`) or adjacent (`0x1c`) state selects `0x02` (`action03`). Other current states remain fail-closed until their combo/interrupt gates are reconstructed.
 - Base B / function state `8` selects `MEPLAYERSTATE 0x1d` (`action30`) **only** while the reconstructed player remains in the known initial `0x1b` baseline. The original B branch also depends on MEPlayer fields `+0x1f0/+0x1f8` and can select guarded `0x11` (`action18`); those live fields are not reconstructed yet, so B fails closed outside the initial baseline.
 - Base C remains on the already-tested tutorial jump event path for this increment. The direct native C mapping remains `0x20` / `action33`.
+- Directional A / Controls state `0x15` requests `MEPLAYERSTATE 0x0f` (`action16`) only from the initial state `0x1b` for Career 1. The original completion path returns Career 1 to `0x1b`; other Careers read additional player-data fields, so this route stays disabled for them.
 
 The runtime consumes function-state **edges**, not every frame generation. Holding A or B therefore cannot continuously reload the same imported action document. The A request is selected using the live committed MEPlayer state; an unavailable state does not fall back to the initial attack.
 
