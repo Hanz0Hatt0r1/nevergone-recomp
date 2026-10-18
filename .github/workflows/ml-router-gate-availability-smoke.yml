@@ -1,0 +1,36 @@
+name: Nevergone frozen router gate availability
+
+on:
+  push:
+    paths:
+      - 'tools/ml/audit_nevergone_frozen_router_gate_availability.py'
+      - 'tools/ml/nevergone_frozen_router_gate_availability_smoke.py'
+      - 'docs/ml/ACCEPT_ERROR_ROUTER_V10.md'
+      - 'docs/evidence/frozen-router-gate-availability-v10/**'
+      - '.github/workflows/ml-router-gate-availability-smoke.yml'
+  pull_request:
+    paths:
+      - 'tools/ml/audit_nevergone_frozen_router_gate_availability.py'
+      - 'tools/ml/nevergone_frozen_router_gate_availability_smoke.py'
+      - 'docs/ml/ACCEPT_ERROR_ROUTER_V10.md'
+      - 'docs/evidence/frozen-router-gate-availability-v10/**'
+      - '.github/workflows/ml-router-gate-availability-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  availability-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Python syntax
+        run: |
+          python -m py_compile \
+            tools/ml/audit_nevergone_frozen_router_gate_availability.py \
+            tools/ml/nevergone_frozen_router_gate_availability_smoke.py
+      - name: Verify path-free gate availability evidence
+        run: python tools/ml/nevergone_frozen_router_gate_availability_smoke.py
