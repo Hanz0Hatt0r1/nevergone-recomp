@@ -62,10 +62,43 @@ void on_management_callback(const std::string& callback_name) {
     if (route == ManagementRoute::kInactive) return;
 
     std::lock_guard<std::mutex> lock(g_mutex);
+    if (route == ManagementRoute::kAnnouncement) {
+        if (g_state.management_route != ManagementRoute::kAnnouncement &&
+                g_state.pending_management_route != ManagementRoute::kAnnouncement) {
+            const ManagementRoute current =
+                g_state.phase == Phase::kManagementLoginInitialized
+                    ? g_state.management_route
+                    : g_state.pending_management_route;
+            g_state.announcement_return_route =
+                current == ManagementRoute::kInactive
+                    ? ManagementRoute::kLoginRoot
+                    : current;
+        }
+    } else {
+        g_state.announcement_return_route = ManagementRoute::kInactive;
+    }
     g_state.pending_management_route = route;
     if (g_state.phase == Phase::kManagementLoginInitialized) {
         set_management_route_locked(route);
     }
+}
+
+bool dismiss_announcement() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_state.phase != Phase::kManagementLoginInitialized ||
+            g_state.management_route != ManagementRoute::kAnnouncement) {
+        return false;
+    }
+
+    const ManagementRoute restore =
+        g_state.announcement_return_route == ManagementRoute::kInactive ||
+                g_state.announcement_return_route == ManagementRoute::kAnnouncement
+            ? ManagementRoute::kLoginRoot
+            : g_state.announcement_return_route;
+    g_state.pending_management_route = restore;
+    g_state.announcement_return_route = ManagementRoute::kInactive;
+    set_management_route_locked(restore);
+    return true;
 }
 
 bool on_server_enter_dispatch_succeeded() {
@@ -144,6 +177,8 @@ std::string status_report() {
     out << "transition count: " << state.transition_count << "\n";
     out << "management route: " << management_route_name(state.management_route) << "\n";
     out << "pending management route: " << management_route_name(state.pending_management_route) << "\n";
+    out << "announcement return route: "
+        << management_route_name(state.announcement_return_route) << "\n";
     out << "management route transitions: " << state.management_route_transition_count << "\n";
     return out.str();
 }

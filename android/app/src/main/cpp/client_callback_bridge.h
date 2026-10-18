@@ -22,6 +22,10 @@ struct ClientUiSnapshot {
     std::string role_list;
     std::string created_role;
     std::string announcement;
+    bool announcement_ready = false;
+    std::string announcement_title;
+    std::string announcement_content;
+    std::uint64_t announcement_revision = 0;
     std::string enter_game;
     std::string chat_messages;
     std::string update_data;

@@ -256,3 +256,34 @@ Java_org_nevergone_recomp_MainActivity_nativeClientUiState(JNIEnv* env, jclass) 
     const std::string report = nevergone::lua_runtime::client_ui_state_report();
     return env->NewStringUTF(report.c_str());
 }
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeManagementAnnouncement(JNIEnv* env, jclass) {
+    const auto snapshot = nevergone::lua_runtime::snapshot_client_ui_state();
+    if (!snapshot.announcement_ready) return nullptr;
+
+    jclass string_class = env->FindClass("java/lang/String");
+    if (string_class == nullptr) return nullptr;
+    jobjectArray result = env->NewObjectArray(3, string_class, nullptr);
+    env->DeleteLocalRef(string_class);
+    if (result == nullptr) return nullptr;
+
+    const std::string revision = std::to_string(snapshot.announcement_revision);
+    const std::string* values[] = {
+        &snapshot.announcement_title,
+        &snapshot.announcement_content,
+        &revision,
+    };
+    for (jsize index = 0; index < 3; ++index) {
+        jstring value = env->NewStringUTF(values[index]->c_str());
+        if (value == nullptr) return nullptr;
+        env->SetObjectArrayElement(result, index, value);
+        env->DeleteLocalRef(value);
+    }
+    return result;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeDismissManagementAnnouncement(JNIEnv*, jclass) {
+    (void)nevergone::initial_ui_transition::dismiss_announcement();
+}

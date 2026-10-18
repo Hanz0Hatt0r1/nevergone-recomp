@@ -1,6 +1,7 @@
 package org.nevergone.recomp;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -27,6 +28,7 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_ORIGINAL_OBB = 1002;
     private static final int REQUEST_CONTROL_SETTINGS = 1003;
     private static final long CHOOSE_HERO_THUNDER_POLL_MS = 16L;
+    private static final long MANAGEMENT_ANNOUNCEMENT_POLL_MS = 200L;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private TextView status;
@@ -39,7 +41,10 @@ public final class MainActivity extends Activity {
     private ScrollView technicalPanel;
     private GameSurfaceView gameSurface;
     private ChooseHeroThunderAudio chooseHeroThunderAudio;
+    private AlertDialog managementAnnouncementDialog;
+    private long shownAnnouncementRevision = Long.MIN_VALUE;
     private boolean chooseHeroThunderPolling;
+    private boolean managementAnnouncementPolling;
     private boolean technicalPanelManuallyExpanded;
     private boolean controlLayoutEditing;
 
@@ -60,6 +65,54 @@ public final class MainActivity extends Activity {
         }
     };
 
+    private final Runnable managementAnnouncementPoll = new Runnable() {
+        @Override
+        public void run() {
+            if (!managementAnnouncementPolling || isFinishing()) return;
+
+            String[] announcement = nativeManagementAnnouncement();
+            if (announcement == null || announcement.length < 3) {
+                shownAnnouncementRevision = Long.MIN_VALUE;
+                if (managementAnnouncementDialog != null) {
+                    managementAnnouncementDialog.dismiss();
+                    managementAnnouncementDialog = null;
+                }
+            } else {
+                long revision;
+                try {
+                    revision = Long.parseLong(announcement[2]);
+                } catch (NumberFormatException ignored) {
+                    revision = 0;
+                }
+                if (managementAnnouncementDialog == null ||
+                        !managementAnnouncementDialog.isShowing() ||
+                        revision != shownAnnouncementRevision) {
+                    if (managementAnnouncementDialog != null) {
+                        managementAnnouncementDialog.dismiss();
+                    }
+                    managementAnnouncementDialog = new AlertDialog.Builder(MainActivity.this)
+                            .setTitle(announcement[0])
+                            .setMessage(announcement[1])
+                            .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                                nativeDismissManagementAnnouncement();
+                                shownAnnouncementRevision = Long.MIN_VALUE;
+                            })
+                            .create();
+                    managementAnnouncementDialog.setOnCancelListener(dialog -> {
+                        nativeDismissManagementAnnouncement();
+                        shownAnnouncementRevision = Long.MIN_VALUE;
+                    });
+                    shownAnnouncementRevision = revision;
+                    managementAnnouncementDialog.show();
+                }
+            }
+
+            if (managementAnnouncementPolling) {
+                mainHandler.postDelayed(this, MANAGEMENT_ANNOUNCEMENT_POLL_MS);
+            }
+        }
+    };
+
     static {
         System.loadLibrary("nevergone_recomp");
     }
@@ -67,6 +120,8 @@ public final class MainActivity extends Activity {
     private static native void nativeConfigureRuntime(String filesDir, String deviceId, String appVersion);
     private static native String nativeBootstrapInfo();
     private static native String nativeClientUiState();
+    private static native String[] nativeManagementAnnouncement();
+    private static native void nativeDismissManagementAnnouncement();
     private static native void nativeOnAppPause();
     private static native void nativeOnAppResume();
     private static native void nativeAppDelegateOnPause();
@@ -185,6 +240,7 @@ public final class MainActivity extends Activity {
     protected void onPause() {
         saveControlLayoutIfEditing();
         stopChooseHeroThunderPolling();
+        stopManagementAnnouncementPolling();
         if (chooseHeroThunderAudio != null) {
             chooseHeroThunderAudio.onPause();
         }
@@ -215,11 +271,13 @@ public final class MainActivity extends Activity {
         }
         updateTechnicalPanelVisibility();
         startChooseHeroThunderPolling();
+        startManagementAnnouncementPolling();
     }
 
     @Override
     protected void onDestroy() {
         stopChooseHeroThunderPolling();
+        stopManagementAnnouncementPolling();
         if (chooseHeroThunderAudio != null) {
             chooseHeroThunderAudio.release();
         }
@@ -441,6 +499,24 @@ public final class MainActivity extends Activity {
         if (!chooseHeroThunderPolling) return;
         chooseHeroThunderPolling = false;
         mainHandler.removeCallbacks(chooseHeroThunderPoll);
+    }
+
+    private void startManagementAnnouncementPolling() {
+        if (managementAnnouncementPolling) return;
+        managementAnnouncementPolling = true;
+        mainHandler.post(managementAnnouncementPoll);
+    }
+
+    private void stopManagementAnnouncementPolling() {
+        if (managementAnnouncementPolling) {
+            managementAnnouncementPolling = false;
+            mainHandler.removeCallbacks(managementAnnouncementPoll);
+        }
+        if (managementAnnouncementDialog != null) {
+            managementAnnouncementDialog.dismiss();
+            managementAnnouncementDialog = null;
+        }
+        shownAnnouncementRevision = Long.MIN_VALUE;
     }
 
     private String buildStatusText(String notice) {
