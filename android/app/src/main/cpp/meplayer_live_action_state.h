@@ -14,6 +14,7 @@ constexpr std::uint32_t kTutorialJumpActionState = 0x20u;
 constexpr std::uint32_t kBaseAActionState = 0x02u;
 constexpr std::uint32_t kBaselineBActionState = 0x1du;
 constexpr std::uint32_t kHeldBFollowupActionState = 0x1eu;
+constexpr std::uint32_t kDirectionalAComboActionState = 0x0cu;
 
 struct Snapshot {
     bool ready = false;
@@ -74,8 +75,9 @@ bool observe_base_function_state(
 // currently supported live actions. The generation/revision/state tuple binds a
 // completion to the exact loaded MeActionsSystem instance that became done.
 // A(0x02) and tutorial jump(0x20) queue 0x1b. B(0x1d) queues 0x1e while
-// function state 8 remains held, otherwise 0x1b. Completed movement attacks
-// (0x10/0x14) remain in their native state until a later control sample.
+// function state 8 remains held, otherwise 0x1b. Career 1's directional A
+// combo queues 0x0d -> 0x0e -> 0x1b after action 0x0c. Completed movement
+// attacks (0x10/0x14) remain in their native state until a later control sample.
 // Unsupported states fail closed.
 bool observe_action_completion(
     std::uint64_t action_generation,

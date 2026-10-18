@@ -41,6 +41,14 @@ std::optional<ActionRequest> base_action_request(
                 return ActionRequest{0x15u, 0x0fu, false, false};
             }
             return std::nullopt;
+        case 0x14u:
+            // The A + direction-combo-10 route calls setActionState(0x0c,true)
+            // from the initial state. Career 1 has a recovered 0x0c -> 0x0d ->
+            // 0x0e -> 0x1b completion chain.
+            if (player_index == 1u && current_action_state == 0x1bu) {
+                return ActionRequest{0x14u, 0x0cu, true, false};
+            }
+            return std::nullopt;
         default:
             return std::nullopt;
     }
