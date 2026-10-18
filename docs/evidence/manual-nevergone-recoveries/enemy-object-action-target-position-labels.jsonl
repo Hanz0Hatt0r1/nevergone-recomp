@@ -1,0 +1,1 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002c188c","source_name":"EnemyObject::actionTargetPos(ENEMYSTATE,MEPlayer*,CCPoint,bool,bool)","task":"function_role","label":"enemy_action_target_position_selector","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-object-action-target-position.md"}

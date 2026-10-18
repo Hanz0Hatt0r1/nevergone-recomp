@@ -54,9 +54,12 @@ fail closed.
 
 The corrected delta feeds the existing fixed-tick player motion cursor. The
 joystick report exposes collision checks, contacts, and applied corrections.
-This restores the initial Attack-wave body-contact response. Player attacks,
-enemy damage, later AI movement, and state-specific bounding origins remain
-separate work.
+This restores the initial Attack-wave body-contact response. The bounded
+`EnemyObject::actionTargetPos()` branch logic is now reconstructed separately;
+its caller-owned target point and random-state inputs are not yet connected to
+the tutorial actor, so live AI movement, player attacks, enemy damage, and
+state-specific bounding origins remain separate work. See
+[`enemy-object-action-target-position.md`](enemy-object-action-target-position.md).
 
 Function-role labels are recorded in `enemy-hl-position-labels.jsonl`. The
 four evidence-backed gold rows were appended to the local labels, then rebuilt
