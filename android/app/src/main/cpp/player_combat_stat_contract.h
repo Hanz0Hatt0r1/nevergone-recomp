@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -52,6 +53,14 @@ struct NativeWeaponAttackBuild {
     float weapon_curve_origin_8c = 0.0f;
     float weapon_curve_offset_90 = 0.0f;
     float weapon_curve_scale_94 = 0.0f;
+};
+
+struct NativeWeaponPropertyBuild {
+    // Weapon property flags at +0xc8, +0xcc, +0xd0, +0xd4, +0xd8, +0xdc.
+    std::array<bool, 6> property_flags{{true, true, true, true, true, true}};
+    std::array<std::uint32_t, 2> selected_properties{};
+    std::size_t selected_property_count = 0;
+    std::size_t selector_rolls_consumed = 0;
 };
 
 struct PlayerLevelAttackRow {
@@ -259,6 +268,12 @@ bool parse_native_weapon_attack_file(
 std::optional<NativeWeaponAttackBuild> resolve_native_weapon_attack_build(
     const NativeWeaponAttackFileFields& fields,
     float quality_roll, float attack_roll) noexcept;
+
+// Mirrors the later property-flag rolls in elevateBaseRAttribute(). Selector
+// rolls are normalized lrand48() values, consumed until one or two distinct
+// properties from the native {3, 4, 1} selector list have been chosen.
+std::optional<NativeWeaponPropertyBuild> resolve_native_weapon_property_build(
+    float property_roll, const std::vector<float>& selector_rolls) noexcept;
 
 // Mirrors getAddHoleBase_atk(); star_level comes from the accessor above and
 // weapon_field_7c is WeaponsItemData +0x7c.

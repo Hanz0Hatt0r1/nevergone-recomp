@@ -161,6 +161,54 @@ std::optional<NativeWeaponAttackBuild> resolve_native_weapon_attack_build(
     return result;
 }
 
+std::optional<NativeWeaponPropertyBuild> resolve_native_weapon_property_build(
+        float property_roll, const std::vector<float>& selector_rolls) noexcept {
+    if (!std::isfinite(property_roll) || property_roll < 0.0f || property_roll > 1.0f) {
+        return std::nullopt;
+    }
+
+    NativeWeaponPropertyBuild result;
+    if (property_roll <= 0.1f) {
+        result.property_flags[1] = false;
+        result.property_flags[3] = false;
+        result.property_flags[4] = false;
+        return result;
+    }
+
+    std::size_t required_properties = 0;
+    if (property_roll <= 0.3f) {
+        required_properties = 2;
+    } else if (property_roll <= 0.8f) {
+        required_properties = 1;
+    } else {
+        return result;
+    }
+
+    constexpr std::array<std::uint32_t, 3> kNativeSelectors{{3u, 4u, 1u}};
+    while (result.selected_property_count < required_properties &&
+            result.selector_rolls_consumed < selector_rolls.size()) {
+        const float selector_roll = selector_rolls[result.selector_rolls_consumed++];
+        if (!std::isfinite(selector_roll) || selector_roll < 0.0f || selector_roll > 1.0f) {
+            return std::nullopt;
+        }
+
+        const float scaled_selector = selector_roll * 3.0f;
+        if (scaled_selector >= 3.0f) return std::nullopt;
+        const auto selector_index = static_cast<std::size_t>(scaled_selector);
+        const std::uint32_t property = kNativeSelectors[selector_index];
+        if (result.selected_property_count != 0 &&
+                result.selected_properties[0] == property) {
+            continue;
+        }
+
+        result.selected_properties[result.selected_property_count++] = property;
+        result.property_flags[property] = false;
+    }
+
+    if (result.selected_property_count != required_properties) return std::nullopt;
+    return result;
+}
+
 float resolve_weapon_add_hole_base_attack(
         std::int32_t star_level, float weapon_field_7c) noexcept {
     if (star_level <= 1) return 0.0f;

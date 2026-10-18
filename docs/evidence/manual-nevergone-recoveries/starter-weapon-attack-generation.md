@@ -98,10 +98,15 @@ next normalized roll clears `+0xd4`, `+0xd8`, and `+0xcc` when the roll is at
 most `0.1`; for rolls in `(0.1, 0.3]` it repeatedly selects two distinct
 properties; for `(0.3, 0.8]` it selects one; above `0.8` it leaves the flags
 unchanged. `elevateBaseProperty()` chooses among selectors `{3, 4, 1}` and
-clears `+0xd4`, `+0xd8`, and `+0xcc`, respectively. These flag changes are
-outside the attack-value contract added here. The existing
-`resolve_attack()` contract is not called by a live gameplay path yet, so this
-recovery records the exact file inputs and attack-generation formula without
+clears `+0xd4`, `+0xd8`, and `+0xcc`, respectively. The new
+`resolve_native_weapon_property_build()` contract preserves the six flags,
+selected property ids, and the number of selector rolls consumed, including
+retries when the two-property branch selects the same property twice. A
+normalized selector that reaches index 3 is rejected because the native code
+would read beyond its three-entry selector table. This edge case is distinct
+from the base-stat interpolation, where a rounded `1.0f` is a valid endpoint.
+The existing `resolve_attack()` contract is not called by a live gameplay path
+yet, so this recovery records the exact generation inputs and formulas without
 claiming runtime combat is restored.
 
 `player_combat_stat_contract::parse_native_weapon_attack_file()` reads all six
@@ -109,7 +114,8 @@ base fields, their scales, and the derived range without embedding the original
 binary assets. `resolve_native_weapon_attack_build()` takes the two normalized
 native rolls as explicit inputs (including `1.0f` if conversion rounding
 reaches that endpoint), then returns the six generated fields and native
-weapon-curve inputs. RNG seeding and property-flag generation remain separate
-work. Gold subsystem and role labels for the loader, builder, stat/property
-rolls, save serializer, and save-file decoder are in
+weapon-curve inputs. `resolve_native_weapon_property_build()` accepts the
+following property roll and selector rolls separately. RNG seeding remains
+outside these contracts. Gold subsystem and role labels for the loader,
+builder, stat/property rolls, save serializer, and save-file decoder are in
 `starter-weapon-attack-generation-labels.jsonl`.
