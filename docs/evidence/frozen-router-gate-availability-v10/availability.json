@@ -1,0 +1,81 @@
+{
+  "available_holdouts": {
+    "manual_restoration_v70_new_identities": {
+      "interpretation": "too few newly labeled domain examples to substantiate the router gate",
+      "new_code_domain_labeled_rows": 1,
+      "new_identities_vs_classifier_oof": 183,
+      "total_unique_rows": 9301
+    },
+    "nominal_test_split": {
+      "independent_from_router_calibration": false,
+      "overlap_with_classifier_oof_rows": 808,
+      "rows": 808
+    },
+    "unseen500_v10": {
+      "frozen_corpus_sha256": "c4ac5b71a5ca89e3d18490141892b59a7b71d53920290eca9ce09c712ba69c94",
+      "interpretation": "identity-disjoint deployment diagnostic; semantic precision is unavailable",
+      "labels_available": false,
+      "routed_action_counts": {
+        "accept": 208,
+        "escalate": 121,
+        "review": 171
+      },
+      "router_changed": 25,
+      "rows": 500,
+      "tag": "unseen500-v10"
+    }
+  },
+  "current_crossfit_candidate": {
+    "accepted_examples": 5113,
+    "accepted_precision": 0.9730099745746137,
+    "coverage": 0.5607589383636763,
+    "interpretation": "crossfit calibration only; not an independent frozen gate",
+    "method": "outer-fold-crossfit-oof",
+    "population_rows": 9118,
+    "router_threshold": 0.15,
+    "training_feedback": false
+  },
+  "format": "NEVERGONE.RouterGateAvailability/1",
+  "gate_contract": {
+    "evidence_conflicts_must_never_be_accepted": true,
+    "independent_labeled_population_required": true,
+    "maximum_critical_false_accept_rate_exclusive": 0.01,
+    "minimum_accepted_precision": 0.97,
+    "minimum_coverage": 0.55
+  },
+  "gate_metrics": {
+    "accepted_precision": null,
+    "coverage": null,
+    "critical_false_accept_rate": null,
+    "evaluated": false,
+    "evidence_conflict_accepts": null
+  },
+  "generic_gate_evaluator": {
+    "consumer_adapter_required": true,
+    "repository": "Hanz0Hatt0r1/revenginstr",
+    "revision": "0d05223391729fcb2dec2d7187a371d0ba84d690"
+  },
+  "reasons": [
+    "The v10 threshold's precision and coverage come from crossfit calibration, not a separate frozen gate.",
+    "All rows in the nominal test split occur in the v5.2 OOF population used by router calibration.",
+    "The identity-disjoint unseen500-v10 population has no semantic labels.",
+    "The v70 label refresh adds only one new code_domain-labeled identity beyond the router OOF population."
+  ],
+  "source_sha256": {
+    "classifier_manifest": "5b2ad0c20d34c866bd44ab19ef1520fd420f03c94f17add60ea8169c90dc102e",
+    "classifier_oof": "789a20c2f7720737140db37e398455c6028c67189529aefbdb5753192ab0601f",
+    "dataset_manifest": "ff38fb5a028d0d23e0caba23cf8aad41d170c8ecbdd3617b0f61ab18ca2696bf",
+    "dataset_test": "3b9fd22e8b431a6f5948c8c2f76841b4d963a896825d136ac2d51bf563bbff1c",
+    "dataset_train": "da16d5019add074a10675784481ed0da8839b68d59cfde41b41c0a0896999e53",
+    "dataset_validation": "ee5c907b8cded53c4ddf257d2aee4b4ac65933a590e58c12cdda6416aa7bd8d7",
+    "frozen_manifest": "6d941481b80aa30feef1e302fecc855f28f4d27fd5efb74aa2ddc618e504e856",
+    "frozen_validation_summary": "997b0e914b422b9df27b9618dc9dfb5a99fd789e5f573b0b3d321187f13cbdcb",
+    "manual_v70_manifest": "c9be16f59fc7408c4baf8cc35e0cadd3bd3169a6722c611ec92c8894a6e8a5b4",
+    "manual_v70_test": "bdd2af13462da5345683ba6f216e99c9d0cb0ebf6597571750e928391fd77095",
+    "manual_v70_train": "f7aa79508af4360d2eb35d529b6028db2c7f0dfbaf4c40f50bacdace2bc857c4",
+    "manual_v70_validation": "febe43350fd500614f04c7eabba41acc7535baaaf96bf102c98c9176ae44f6dc",
+    "router_artifact": "d9793ce63f5791f73b4b9df79d6f23ea59f2068b9cc0e9e29104c57ee17627ed",
+    "router_manifest": "20e3f4c460b6f5c4d02880dc5dea9b66ee03f8a31dcfe31dbc4186d63cbe6ed7"
+  },
+  "status": "not_evaluated"
+}

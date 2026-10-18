@@ -73,3 +73,10 @@ bash tools/ml/run_nevergone_accept_error_router_v10.sh \
 
 Frozen sets must use evidence categories compatible with the v5.2 evidence schema.
 Do not tune the packaged threshold on frozen unseen/OOD results.
+
+The v10 crossfit precision/coverage are calibration evidence, not the separate
+frozen gate required by the roadmap. The current availability audit records why
+the gate cannot yet be evaluated: the nominal test split is present in the v5.2
+OOF calibration population, unseen500 is unlabeled, and the later v70 label
+refresh contains only one new `code_domain`-labeled identity. See the
+[frozen router gate availability report](../evidence/frozen-router-gate-availability-v10/README.md).
