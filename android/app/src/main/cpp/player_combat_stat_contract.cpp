@@ -54,6 +54,18 @@ bool parse_integer_cell(std::string_view cell, std::int32_t* output) {
     return true;
 }
 
+bool parse_float_cell(std::string_view cell, float* output) {
+    if (output == nullptr) return false;
+    const std::string text(cell);
+    char* end = nullptr;
+    const float value = std::strtof(text.c_str(), &end);
+    if (end == text.c_str()) return false;
+    while (*end != '\0' && std::isspace(static_cast<unsigned char>(*end))) ++end;
+    if (*end != '\0' || !std::isfinite(value)) return false;
+    *output = value;
+    return true;
+}
+
 }  // namespace
 
 std::int32_t resolve_weapon_star_level(std::uint32_t hole_array_count) noexcept {
@@ -352,11 +364,11 @@ float resolve_attack(const State& player, const AttackTerms& terms) noexcept {
         terms.player_status_value_144;
 }
 
-bool parse_player_level_attack_csv(
-        std::string_view csv, std::vector<PlayerLevelAttackRow>* output) {
+bool parse_player_level_status_csv(
+        std::string_view csv, std::vector<PlayerLevelStatusRow>* output) {
     if (output == nullptr) return false;
 
-    std::vector<PlayerLevelAttackRow> rows;
+    std::vector<PlayerLevelStatusRow> rows;
     std::size_t line_start = 0;
     while (line_start < csv.size()) {
         const std::size_t newline = csv.find('\n', line_start);
@@ -380,8 +392,13 @@ bool parse_player_level_attack_csv(
             }
         }
 
-        PlayerLevelAttackRow row;
-        if (!parse_integer_cell(columns[8], &row.attack_increment_column_8)) return false;
+        PlayerLevelStatusRow row;
+        if (!parse_integer_cell(columns[5], &row.health_increment_column_5) ||
+                !parse_integer_cell(columns[6], &row.strength_increment_column_6) ||
+                !parse_float_cell(columns[7], &row.damage_absorb_increment_column_7) ||
+                !parse_integer_cell(columns[8], &row.attack_increment_column_8)) {
+            return false;
+        }
         rows.push_back(row);
 
         if (newline == std::string_view::npos) break;
@@ -390,6 +407,49 @@ bool parse_player_level_attack_csv(
     if (rows.empty()) return false;
     output->swap(rows);
     return true;
+}
+
+bool parse_player_level_attack_csv(
+        std::string_view csv, std::vector<PlayerLevelAttackRow>* output) {
+    return parse_player_level_status_csv(csv, output);
+}
+
+std::optional<PlayerLevelStatusValues> resolve_player_level_status(
+        std::uint32_t level,
+        const std::vector<PlayerLevelStatusRow>& rows,
+        const PlayerStatusInfoState& status,
+        float eat_health_value,
+        float eat_damage_absorb_value,
+        float eat_attack_value) noexcept {
+    if (level > rows.size()) return std::nullopt;
+
+    PlayerLevelStatusValues values;
+    for (std::uint32_t row = 1u; row < level; ++row) {
+        values.health_104 = values.health_104 +
+            static_cast<float>(rows[row].health_increment_column_5);
+        values.strength_108 = values.strength_108 +
+            static_cast<float>(rows[row].strength_increment_column_6);
+        values.damage_absorb_10c = values.damage_absorb_10c +
+            rows[row].damage_absorb_increment_column_7;
+        values.attack_110 = values.attack_110 +
+            static_cast<float>(rows[row].attack_increment_column_8);
+    }
+    values.health_104 = values.health_104 + status.add_health_114;
+    values.strength_108 = values.strength_108 + status.add_strength_118;
+    values.damage_absorb_10c =
+        values.damage_absorb_10c + status.add_damage_absorb_11c;
+    values.attack_110 = values.attack_110 + status.add_attack_120;
+    values.health_104 = values.health_104 + eat_health_value;
+    values.damage_absorb_10c =
+        values.damage_absorb_10c + eat_damage_absorb_value;
+    values.attack_110 = values.attack_110 + eat_attack_value;
+    return values;
+}
+
+float resolve_strength_restore(
+        const PlayerStatusInfoState& status,
+        float eat_strength_restore_value) noexcept {
+    return status.add_strength_restore_124 + eat_strength_restore_value;
 }
 
 std::optional<float> resolve_player_level_attack(

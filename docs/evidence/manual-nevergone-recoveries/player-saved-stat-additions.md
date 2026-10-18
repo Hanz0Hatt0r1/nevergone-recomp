@@ -63,10 +63,10 @@ strength-restore value. In particular, `+0x120` is the saved attack addition
 already passed to the `levelUp()` contract documented in
 [player-level-attack-progression.md](player-level-attack-progression.md).
 
-The C++ contract exposes the five fields, their shared gated accumulation, and
-the native reset. It records these recovered writes as a bounded behavior
-contract; the prototype's separate save runtime does not yet load original
-`GameSaveData` files into this state.
+The C++ contract exposes the five fields, their shared gated accumulation,
+native reset, and how level refresh consumes them. It records these recovered
+writes as a bounded behavior contract; the prototype's separate save runtime
+does not yet load original `GameSaveData` files into this state.
 
 Function-role and subsystem gold labels are recorded in
 `player-saved-stat-additions-labels.jsonl`.

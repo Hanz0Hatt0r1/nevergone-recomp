@@ -1,4 +1,4 @@
-# Manual reconstruction: player level attack progression
+# Manual reconstruction: player level stat progression
 
 Target: Never Gone 1.0.9 ARMv7 `libcocos2dcpp.so`, SHA-256
 `94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`.
@@ -30,20 +30,37 @@ columns for each row, and stores them in parallel arrays at four-byte strides:
 | 8 | `+0xc94` | integer |
 | 9 | `+0xe24` | float |
 
+`PlayerStatusInfo::levelUp()` starts at ELF `0x0031726c` (RevEngInstr
+`0x0032726c`); `getALLStrengthRestore()` starts at ELF `0x003173b8`
+(RevEngInstr `0x003273b8`).
+
 `PlayerStatusInfo::levelUp(level)` starts with row index 1 and accumulates while
-the index is less than `level`. For attack, it converts column 8 to float,
-adds rows in order, then adds `PlayerStatusInfo +0x120`, then the resolved
-`MRGetHeroEatAttribute(2, PlayerStatusInfo +0x154)` value. It stores the result
-at `PlayerStatusInfo +0x110`; `getLevelAttack()` returns that field. Callers
-obtain `level` from `MEPlayer::getPlayerLevelsNum()`, which reads
+the index is less than `level`. It converts integer columns 5, 6, and 8 to
+float, accumulates float column 7 directly, then adds the matching saved
+addition fields:
+
+| CSV column | Saved addition | Output field | Stat |
+| ---: | ---: | ---: | --- |
+| 5 | `PlayerStatusInfo +0x114` | `+0x104` | Health |
+| 6 | `PlayerStatusInfo +0x118` | `+0x108` | Strength |
+| 7 | `PlayerStatusInfo +0x11c` | `+0x10c` | Damage absorption |
+| 8 | `PlayerStatusInfo +0x120` | `+0x110` | Attack |
+
+Health then adds `MRGetHeroEatAttribute(1, +0x148)`, damage absorption adds
+`MRGetHeroEatAttribute(5, +0x150)`, and attack adds
+`MRGetHeroEatAttribute(2, +0x154)`. Strength has no food term in this method.
+The saved strength-restore addition at `+0x124` is consumed separately by
+`getALLStrengthRestore()`, which adds `MRGetHeroEatAttribute(4, +0x14c)`.
+Callers obtain `level` from `MEPlayer::getPlayerLevelsNum()`, which reads
 `PlayerData +0x60`.
 
-The C++ contract now parses the ten-column row shape and retains column 8, then
-reproduces that attack accumulation order. Level zero is valid: the native loop
-starts at row index 1 and runs only while the row index is less than the level,
-so level zero adds no CSV increments and still returns the two status bonuses.
+The C++ contract parses all four level-stat columns, preserves row order, and
+reproduces the native accumulator and addition order. Level zero is valid: the
+native loop starts at row index 1 and runs only while the row index is less than
+the level, so it adds no CSV increments while retaining saved and food bonuses.
 Levels larger than the parsed table are rejected as a safety guard against
-reading beyond available rows.
+reading beyond available rows. `parse_player_level_attack_csv()` remains as a
+compatibility name; `parse_player_level_status_csv()` exposes all four fields.
 
 ## Live level owner
 
@@ -117,11 +134,12 @@ still does not receive this level automatically.
 
 ## Scope
 
-This restores the level-attack source and calculation. The reconstructed
-tutorial currently has no player-profile level producer and its enemy contact
-path only resolves collision and movement correction; those are still required
-before this value can drive live enemy health. No level or weapon values are
-invented here. Address evidence above comes from manual inspection of the local
-original ARMv7 disassembly for the binary identified by the SHA-256 at the top;
+This restores the level-stat source and calculations in the behavior contract.
+The reconstructed tutorial currently has no player-profile level producer and
+its enemy contact path only resolves collision and movement correction; those
+are still required before these values can drive live enemy health. No level or
+weapon values are invented here. Address evidence above comes from manual
+inspection of the local original ARMv7 disassembly for the binary identified
+by the SHA-256 at the top;
 the RevEngInstr address shown for each function uses the repository's `+0x10000`
 address convention. These are manual disassembly labels, not REA output.

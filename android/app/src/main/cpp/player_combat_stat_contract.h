@@ -76,8 +76,20 @@ struct NativeWeaponPropertyBuild {
     std::size_t selector_rolls_consumed = 0;
 };
 
-struct PlayerLevelAttackRow {
+struct PlayerLevelStatusRow {
     std::int32_t attack_increment_column_8 = 0;
+    std::int32_t health_increment_column_5 = 0;
+    std::int32_t strength_increment_column_6 = 0;
+    float damage_absorb_increment_column_7 = 0.0f;
+};
+
+using PlayerLevelAttackRow = PlayerLevelStatusRow;
+
+struct PlayerLevelStatusValues {
+    float health_104 = 0.0f;
+    float strength_108 = 0.0f;
+    float damage_absorb_10c = 0.0f;
+    float attack_110 = 0.0f;
 };
 
 struct EquipmentAbsorbEffect {
@@ -337,12 +349,30 @@ float resolve_weapon_extra_category_attack(
 // and PlayerStatusInfo values remain inputs until their source data is restored.
 float resolve_attack(const State& player, const AttackTerms& terms) noexcept;
 
-// Reads column 8 from the ten-column player/player_level.csv records.
+// Reads the level-stat columns 5..8 from the ten-column player_level.csv.
+bool parse_player_level_status_csv(
+    std::string_view csv, std::vector<PlayerLevelStatusRow>* output);
+
+// Compatibility name for callers that only use the parsed attack increment.
 bool parse_player_level_attack_csv(
     std::string_view csv, std::vector<PlayerLevelAttackRow>* output);
 
-// Mirrors the attack portion of PlayerStatusInfo::levelUp(): sum rows
-// 1..level-1, then add PlayerStatusInfo +0x120 and the resolved eat bonus.
+// Mirrors the four level-stat outputs of PlayerStatusInfo::levelUp().
+std::optional<PlayerLevelStatusValues> resolve_player_level_status(
+    std::uint32_t level,
+    const std::vector<PlayerLevelStatusRow>& rows,
+    const PlayerStatusInfoState& status,
+    float eat_health_value,
+    float eat_damage_absorb_value,
+    float eat_attack_value) noexcept;
+
+// Mirrors getALLStrengthRestore(): saved +0x124 plus resolved food value.
+float resolve_strength_restore(
+    const PlayerStatusInfoState& status,
+    float eat_strength_restore_value) noexcept;
+
+// Mirrors the attack output of levelUp(): sum rows 1..level-1, then add
+// PlayerStatusInfo +0x120 and the resolved eat bonus.
 std::optional<float> resolve_player_level_attack(
     std::uint32_t level,
     const std::vector<PlayerLevelAttackRow>& rows,
