@@ -1,5 +1,7 @@
 #pragma once
 
+#include "enemy_action_metadata_contract.h"
+
 namespace nevergone::tutorial_enemy_action_selection {
 
 struct StateAction {
@@ -7,6 +9,7 @@ struct StateAction {
     const char* action_data = nullptr;
     const char* atlas = nullptr;
     bool loops = false;
+    enemy_action_metadata_contract::Flags flags{};
 };
 
 struct Selection {
@@ -17,6 +20,7 @@ struct Selection {
     const char* start_action_atlas = nullptr;
     bool start_action_loops = false;
     unsigned frames_per_second = 0;
+    enemy_action_metadata_contract::Flags start_action_flags{};
 };
 
 // onlineEnemyState passes the requested state directly to CCArray::objectAtIndex

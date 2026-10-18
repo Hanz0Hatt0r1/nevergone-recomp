@@ -80,6 +80,9 @@ inline game_scene_render_queue::Queue with_live_enemies(
         }
 
         const auto& frame = animation.document->primary_records[animation.frame_index];
+        const auto action_flags = animation.document == &documents->appearance
+                ? selection->start_action_flags
+                : state_action->flags;
         enemy_actions_base_sprite_update::SystemInputs system;
         system.field_194 = binding.spawn_x + camera_x;
         system.field_198 = binding.spawn_y;
@@ -111,6 +114,8 @@ inline game_scene_render_queue::Queue with_live_enemies(
         command.action_frame_transform = body;
         command.action_frame_atlas_plist = frame.first_string;
         command.action_frame_opacity = action_sprite.opacity;
+        command.enemy_action_not_hit = action_flags.not_hit;
+        command.enemy_action_go = action_flags.go;
         // play() initializes EnemyActionsSystem+0x284 to (0, 0). The current
         // queue carries Section-E positions with the known spawn/camera inputs;
         // later movement and EnemyObject offsets remain separate combat inputs.
@@ -124,7 +129,9 @@ inline game_scene_render_queue::Queue with_live_enemies(
                     hitpoint.action_data_index,
                     hitpoint.frame_ordinal,
                     hitpoint.x,
-                    hitpoint.y});
+                    hitpoint.y,
+                    action_flags.not_hit,
+                    action_flags.go});
         }
         command.layer_z_index = 7u;
         command.source_layer_index = 11u;

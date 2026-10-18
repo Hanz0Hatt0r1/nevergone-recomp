@@ -23,6 +23,8 @@ struct EnemyActionHitPointPosition {
     // later by EnemyObject::beatHitPoint().
     float system_local_x = 0.0f;
     float system_local_y = 0.0f;
+    bool action_not_hit = false;
+    bool action_go = false;
 };
 
 struct PlayerActionHitPointPosition {
@@ -53,6 +55,8 @@ struct SpriteCommand {
     std::optional<me_actions_initial_sprite_transform::Plan> action_frame_transform;
     std::optional<std::string> action_frame_atlas_plist;
     std::uint8_t action_frame_opacity = 255u;
+    bool enemy_action_not_hit = false;
+    bool enemy_action_go = false;
     int player_career = 0;
     int player_clothes_id = -1;
     std::string player_name;

@@ -15,6 +15,7 @@ struct Snapshot {
     std::size_t last_drawn_sprite_count = 0;
     std::size_t last_animated_sprite_count = 0;
     std::size_t tutorial_enemy_action_sprite_count = 0;
+    std::size_t tutorial_enemy_hittable_action_count = 0;
     std::uint8_t last_min_opacity = 255u;
     float last_camera_eye_x = 0.0f;
 };

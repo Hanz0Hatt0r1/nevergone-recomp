@@ -65,6 +65,7 @@ std::atomic<std::uint64_t> g_drawn_frame_count{0};
 std::atomic<std::size_t> g_last_drawn_sprite_count{0};
 std::atomic<std::size_t> g_last_animated_sprite_count{0};
 std::atomic<std::size_t> g_tutorial_enemy_action_sprite_count{0};
+std::atomic<std::size_t> g_tutorial_enemy_hittable_action_count{0};
 std::atomic<std::uint8_t> g_last_min_opacity{255u};
 std::atomic<float> g_last_camera_eye_x{0.0f};
 GLuint g_program = 0;
@@ -256,6 +257,7 @@ bool draw() {
     g_draw_attempt_count.fetch_add(1u, std::memory_order_relaxed);
     g_last_drawn_sprite_count.store(0u, std::memory_order_relaxed);
     g_last_min_opacity.store(255u, std::memory_order_relaxed);
+    g_tutorial_enemy_hittable_action_count.store(0u, std::memory_order_relaxed);
     game_scene_player_hl_point_state::invalidate();
 
     const int surface_width = g_surface_width.load(std::memory_order_relaxed);
@@ -301,6 +303,7 @@ bool draw() {
             game_scene_camera_contract::world_screen_translation_x(camera_eye_x)
                     .value_or(0.0f);
     std::uint8_t min_opacity = 255u;
+    std::size_t hittable_enemy_actions = 0u;
     for (std::size_t index = 0; index < order.size(); ++index) {
         const std::size_t sprite_command_index = order[index];
         if (sprite_command_index >= queue->sprites.size() ||
@@ -319,6 +322,11 @@ bool draw() {
         const auto animated = animation_sample(sprite_command_index, tick);
         game_scene_direct_geometry::Quad quad;
         const auto& command = queue->sprites[sprite_command_index];
+        if (command.source_layer_index == 11u &&
+            command.action_frame_transform.has_value() &&
+            !command.enemy_action_not_hit) {
+            ++hittable_enemy_actions;
+        }
         const auto* action_frame_transform = command.player_body_transform.has_value()
                 ? &*command.player_body_transform
                 : (command.action_frame_transform.has_value()
@@ -431,6 +439,8 @@ bool draw() {
     }
 
     g_last_min_opacity.store(min_opacity, std::memory_order_relaxed);
+    g_tutorial_enemy_hittable_action_count.store(
+            hittable_enemy_actions, std::memory_order_relaxed);
     g_last_drawn_sprite_count.store(prepared.size(), std::memory_order_relaxed);
     g_drawn_frame_count.fetch_add(1u, std::memory_order_relaxed);
     return true;
@@ -447,6 +457,8 @@ Snapshot snapshot() {
     state.last_animated_sprite_count = g_last_animated_sprite_count.load(std::memory_order_relaxed);
     state.tutorial_enemy_action_sprite_count =
             g_tutorial_enemy_action_sprite_count.load(std::memory_order_relaxed);
+    state.tutorial_enemy_hittable_action_count =
+            g_tutorial_enemy_hittable_action_count.load(std::memory_order_relaxed);
     state.last_min_opacity = g_last_min_opacity.load(std::memory_order_relaxed);
     state.last_camera_eye_x = g_last_camera_eye_x.load(std::memory_order_relaxed);
     return state;
@@ -465,6 +477,8 @@ std::string status_report() {
     out << "post-init animated sprites: " << state.last_animated_sprite_count << "\n";
     out << "tutorial enemy action sprites: "
         << state.tutorial_enemy_action_sprite_count << "\n";
+    out << "tutorial enemy hittable actions: "
+        << state.tutorial_enemy_hittable_action_count << "\n";
     out << "last minimum opacity: " << static_cast<unsigned int>(state.last_min_opacity) << "\n";
     out << game_scene_player_hl_point_state::status_report();
     out << tutorial_enemy_action_document_store::status_report();
