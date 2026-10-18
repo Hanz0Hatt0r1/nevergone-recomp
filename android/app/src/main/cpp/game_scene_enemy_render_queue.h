@@ -50,11 +50,19 @@ inline game_scene_render_queue::Queue with_live_enemies(
 
         const auto& slot = live.attack.roster.enemies[binding.slot];
         if (!slot.materialized) continue;
+        const bool enemy_dead = enemy_health_state::is_dead(slot.health);
         const double actor_elapsed = wave_elapsed - slot.request.delay_seconds;
         if (actor_elapsed < 0.0) continue;
 
         tutorial_enemy_action_animation::Sample animation;
-        if (binding.state_changed) {
+        if (enemy_dead) {
+            // tickEnemy() pauses the action system before stepping a dead actor.
+            animation = tutorial_enemy_action_animation::sample_action(
+                    documents->state_action,
+                    documents->state_action_id,
+                    documents->state_action_loops,
+                    0.0);
+        } else if (binding.state_changed) {
             if (binding.state_started_game_tick > game_tick) continue;
             const double state_elapsed = static_cast<double>(
                     game_tick - binding.state_started_game_tick) *
@@ -120,7 +128,8 @@ inline game_scene_render_queue::Queue with_live_enemies(
         command.enemy_action_not_hit = action_flags.not_hit;
         command.enemy_action_go = action_flags.go;
         command.tutorial_enemy_collision_body =
-                binding.enemy_id == 3u && binding.current_enemy_state == 0x1c;
+                binding.enemy_id == 3u && binding.current_enemy_state == 0x1c &&
+                !enemy_dead;
         command.enemy_wave_generation = binding.wave_generation;
         command.enemy_id = binding.enemy_id;
         command.enemy_state = binding.current_enemy_state;

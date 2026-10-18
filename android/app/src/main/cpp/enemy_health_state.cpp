@@ -68,6 +68,14 @@ void apply_beaten_damage(State* state, float damage) {
     state->current_health -= damage;
 }
 
+void apply_beaten_damage_and_death_state(
+        State* state, float damage, unsigned enemy_id) {
+    if (state == nullptr) return;
+    apply_beaten_damage(state, damage);
+    if (!is_dead(*state)) return;
+    state->enemy_state = enemy_id == 5u ? 0x28 : 0x15;
+}
+
 void add_health(State* state, float delta) {
     if (state == nullptr) return;
     state->current_health += delta;

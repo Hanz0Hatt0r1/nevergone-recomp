@@ -40,6 +40,12 @@ OnlineHealthUpdateResult apply_online_health_update(
 // mutation used by the ordinary tutorial enemy path.
 void apply_beaten_damage(State* state, float damage);
 
+// Mirrors the terminal state handoff in EnemyObject::beaten(): after the
+// caller's damage and death predicate succeed, ordinary enemies use 0x15 and
+// enemy id 5 uses 0x28. Special health clamps remain caller-owned.
+void apply_beaten_damage_and_death_state(
+        State* state, float damage, unsigned enemy_id);
+
 // EnemyObject::addHealth(float): current += delta; the original does not clamp.
 void add_health(State* state, float delta);
 

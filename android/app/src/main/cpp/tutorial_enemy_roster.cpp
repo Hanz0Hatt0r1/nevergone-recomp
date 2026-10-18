@@ -83,7 +83,10 @@ bool Roster::apply_damage(
         slot >= plan_.enemy_count || !enemies_[slot].materialized) {
         return false;
     }
-    enemy_health_state::apply_beaten_damage(&enemies_[slot].health, damage);
+    enemy_health_state::apply_beaten_damage_and_death_state(
+            &enemies_[slot].health,
+            damage,
+            enemies_[slot].request.enemy_id);
     return true;
 }
 

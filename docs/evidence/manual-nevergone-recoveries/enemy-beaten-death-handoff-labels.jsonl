@@ -1,0 +1,2 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002c58f8","source_name":"EnemyObject::beaten","task":"subsystem","label":"combat","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-beaten-death-handoff.md"}
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002c58f8","source_name":"EnemyObject::beaten","task":"function_role","label":"combat_enemy_damage_and_death_state_handoff","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-beaten-death-handoff.md"}

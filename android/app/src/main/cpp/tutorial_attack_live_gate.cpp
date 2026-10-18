@@ -156,7 +156,13 @@ bool Gate::apply_damage(
         std::uint64_t expected_wave_generation) {
     if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return false;
     const bool result = attack_.apply_damage(slot, damage, expected_wave_generation);
-    if (result) ++generation_;
+    if (result) {
+        const auto attack_state = attack_.snapshot();
+        if (!enemy_bindings_.sync(
+                attack_state,
+                attack_state.last_game_tick)) return false;
+        ++generation_;
+    }
     return result;
 }
 
