@@ -1,0 +1,67 @@
+{
+  "artifacts": {
+    "function_population": {
+      "format": "NEVERGONE.FrozenUnseenReceiverFunctionPopulation/1",
+      "kind": "file",
+      "path": "function-population.jsonl",
+      "pinned": true,
+      "sha256": "576bf5b9e06015374d64a8d5165ac3d935123e7042ecbcfadfda0e466f5ff8ab",
+      "size_bytes": 52000
+    },
+    "receiver_queries": {
+      "format": "NEVERGONE.StaticReceiverVtableInference/1",
+      "kind": "file",
+      "path": "receiver-vtable-inference.jsonl",
+      "pinned": true,
+      "sha256": "4c6495ad713057b26e45c905afaa4b1626492685d3d69f19e855e02561401916",
+      "size_bytes": 275476
+    }
+  },
+  "benchmark": {
+    "dataset_artifact": "function_population",
+    "dataset_id": "nevergone-frozen-unseen500-v10",
+    "description": "Aggregate receiver status coverage for the frozen unlabeled 500-function holdout; this is not an accuracy estimate.",
+    "family_set_id": null,
+    "id": "nevergone-unseen500-v10-receiver-coverage",
+    "split_id": "identity-disjoint-unseen500-v10"
+  },
+  "configuration_sha256": "44c85491723d2e7bd75e0a36add4b2dd288914515e86ada4e1b205cf4f97b532",
+  "format": "REVENGINSTR.BenchmarkSummary/1",
+  "gate_failures": [],
+  "manifest_sha256": "8f0603accb54294313fb94ef6c55076548f280ed8137fef4fb6f3f3a69f9f8c3",
+  "metrics": [],
+  "mode": "smoke",
+  "projections": [
+    {
+      "artifact": "receiver_queries",
+      "exact_evidence": null,
+      "id": "receiver",
+      "kind": "receiver",
+      "receiver": {
+        "coverage": 0.3251231527093596,
+        "function_coverage": {
+          "functions_with_receiver_queries": 100,
+          "functions_with_resolved_queries": 53,
+          "population_functions": 500,
+          "query_function_fraction": 0.2,
+          "resolved_function_fraction": 0.106
+        },
+        "resolved_rows": 66,
+        "status_counts": {
+          "receiver_not_single_pointer": 61,
+          "resolved_unique_vtable": 66,
+          "unresolved_receiver_class": 76
+        }
+      },
+      "row_count": 203
+    }
+  ],
+  "schema_versions": {},
+  "stages": [],
+  "status": "passed",
+  "tool_version": "0.5.2",
+  "toolchain": {
+    "revenginstr_version": "0.5.2",
+    "source_revision": "2b3774f0f74811c336c5cae7dd8e615b26581160"
+  }
+}
