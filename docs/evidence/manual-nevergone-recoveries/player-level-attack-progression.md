@@ -52,13 +52,51 @@ reading beyond available rows.
 profile at `DataManager +0x18`, it copies the profile C string at `+0x2dc` into
 `PlayerData +0x3c`. It decrypts the unsigned profile field at `+0x114` and
 stores the result in `PlayerData +0x60`. This is the runtime level field;
-`DataManager::createData(uid)` calls `loadGameSaveData(uid)` first, then calls
-`getNoBasePlayerData()` after its other profile-data loaders. The loader
+`DataManager::createData(uid)` (`ELF 0x0029e220`, RevEngInstr `0x0039e220`,
+160 bytes) calls `loadGameSaveData(uid)` first, checks its other data loaders,
+then calls `getNoBasePlayerData()`. After that succeeds, it loads armband data
+and calls `MEPlayer::loadPlayerData()`. The save loader
 (`ELF 0x0029d110`, RevEngInstr `0x0039d110`, 164 bytes) creates the save-data
 object and reads it into `DataManager +0x18`. `loadGameSaveData` also reads the
 saved-data block at `+0x144` and feeds its derived values into `PlayerStatusInfo`
 accumulators for attack, damage absorption, health, strength restore, and
 strength.
+
+### New save defaults
+
+`GameSaveData::createGameSaveData(uid)` (`ELF 0x0033d168`, RevEngInstr
+`0x0034d168`, 56 bytes) allocates the `0x324`-byte object, runs its constructor,
+and calls `initGameSaveData(uid)`. The factory autoreleases the object only when
+initialization succeeds; otherwise it destroys the object and returns null.
+`DataManager::loadGameSaveData()` stores and retains this object before building
+the path and calling `read(path, uid)`. It does not branch on `read()`'s return
+value before reading the initialized `+0x144` status block and applying its
+values to `PlayerStatusInfo`.
+
+`GameSaveData::initGameSaveData(uid)` (`ELF 0x0033b6cc`, RevEngInstr
+`0x0034b6cc`, 900 bytes) creates the save's arrays, a `PlayerStatusInfo` at
+`GameSaveData +0x144`, and an `ArmbandItemData` at `+0x148`. It encrypts the
+unsigned value `1` into `+0x114`, the field later copied to `PlayerData +0x60`
+as the current player level. This establishes level 1 as the native default
+object's starting level; later valid save data may replace it.
+
+When `ManagementLayer +0x744` is zero, the initializer formats
+`weapons/wa/wa_p%02d_001_001.wa` with `uid`, creates a `WeaponsItemData` using
+type argument `1`, calls `buildFullWeaponsData()`, then calls
+`addCurEquipArmorAndWeapon()`. That helper clones the weapon into the current
+equipment array at `GameSaveData +0xc8` and updates its count at `+0xc4`. The
+native initial equipment therefore depends on `uid`; no weapon attack value is
+inferred here. The meaning of the `ManagementLayer +0x744` gate and the save
+path's exact relationship to each career remain unresolved. The inspected
+`buildFullWeaponsData()` body includes a conditional `lrand48()` call, so its
+generated weapon values are not treated as deterministic defaults.
+
+The initializer also builds a string in `GameSaveData +0x2dc`, the field copied
+to `PlayerData +0x3c`. Its loop repeatedly calls `sprintf(field, "%s%d", field,
+0)`. This establishes the string-writing operation but is not evidence that a
+selected character name is stored there. The tutorial reconstruction's
+selected-name-to-player path remains project-owned behavior pending a native
+name producer.
 
 `MEPlayer::loadPlayerData()` (`ELF 0x00324eb2`, RevEngInstr `0x00334eb2`,
 266 bytes) confirms how the runtime current level is consumed. It obtains
@@ -70,9 +108,10 @@ first it passes that value to `GameSceneUI::setMePlayerLevels()`, then—after
 `MEPlayer::getPlayerLevelsNum()` (`ELF 0x0031c1f0`, RevEngInstr
 `0x0032c1f0`) independently returns `DataManager +0x44 +0x60`. This confirms
 that the level-table consumer and the ordinary player-level getter use the
-same profile field. The native saved-profile-to-runtime mapping is recovered,
-but first-save creation and server-side/profile-update values remain unknown.
-The tutorial clone still has no profile-loading producer to supply this value.
+same profile field. The native saved-profile-to-runtime mapping and the
+new-object default level are recovered. Server-side/profile-update values and
+the tutorial clone's profile-loading producer remain unknown, so its runtime
+still does not receive this level automatically.
 
 ## Scope
 
