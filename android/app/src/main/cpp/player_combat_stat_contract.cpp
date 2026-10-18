@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <limits>
@@ -10,6 +11,20 @@
 namespace nevergone::player_combat_stat_contract {
 
 namespace {
+
+bool read_little_endian_float(
+        std::string_view bytes, std::size_t offset, float* output) noexcept {
+    if (output == nullptr || offset > bytes.size() || bytes.size() - offset < 4u) {
+        return false;
+    }
+    const auto* source = reinterpret_cast<const unsigned char*>(bytes.data() + offset);
+    const std::uint32_t bits = static_cast<std::uint32_t>(source[0]) |
+        (static_cast<std::uint32_t>(source[1]) << 8u) |
+        (static_cast<std::uint32_t>(source[2]) << 16u) |
+        (static_cast<std::uint32_t>(source[3]) << 24u);
+    std::memcpy(output, &bits, sizeof(bits));
+    return std::isfinite(*output);
+}
 
 bool parse_integer_cell(std::string_view cell, std::int32_t* output) {
     if (output == nullptr) return false;
@@ -32,6 +47,77 @@ std::int32_t resolve_weapon_star_level(std::uint32_t hole_array_count) noexcept 
     return hole_array_count == 0
         ? 0
         : static_cast<std::int32_t>(hole_array_count - 1U);
+}
+
+bool parse_native_weapon_attack_file(
+        std::string_view bytes, NativeWeaponAttackFileFields* output) noexcept {
+    if (output == nullptr || bytes.size() < 80u) return false;
+
+    NativeWeaponAttackFileFields fields;
+    if (!read_little_endian_float(bytes, 28u, &fields.base_attack_38) ||
+            !read_little_endian_float(bytes, 48u, &fields.base_add_attack_60) ||
+            !read_little_endian_float(bytes, 56u, &fields.base_attack_scale_68) ||
+            !read_little_endian_float(bytes, 76u, &fields.base_add_attack_scale_7c)) {
+        return false;
+    }
+    *output = fields;
+    return true;
+}
+
+std::optional<NativeWeaponAttackBuild> resolve_native_weapon_attack_build(
+        const NativeWeaponAttackFileFields& fields,
+        float quality_roll, float attack_roll) noexcept {
+    if (!std::isfinite(fields.base_attack_38) ||
+            !std::isfinite(fields.base_add_attack_60) ||
+            !std::isfinite(fields.base_attack_scale_68) ||
+            !std::isfinite(fields.base_add_attack_scale_7c) ||
+            !std::isfinite(quality_roll) || !std::isfinite(attack_roll) ||
+            quality_roll < 0.0f || quality_roll > 1.0f ||
+            attack_roll < 0.0f || attack_roll > 1.0f) {
+        return std::nullopt;
+    }
+
+    std::uint32_t quality_tier = 0u;
+    std::int32_t minimum = 0;
+    std::int32_t maximum = 5;
+    if (quality_roll <= 0.05f) {
+        quality_tier = 2u;
+        minimum = 10;
+        maximum = 10;
+    } else if (quality_roll < 0.2f) {
+        quality_tier = 1u;
+        minimum = 5;
+        maximum = 10;
+    }
+
+    const float minimum_value = static_cast<float>(minimum);
+    const float maximum_value = static_cast<float>(maximum);
+    const float base_add_lower = fields.base_add_attack_60 +
+        fields.base_add_attack_scale_7c * minimum_value;
+    const float base_add_upper = fields.base_add_attack_60 +
+        fields.base_add_attack_scale_7c * maximum_value;
+    const float base_add = base_add_lower +
+        (base_add_upper - base_add_lower) * attack_roll;
+
+    if (quality_tier == 2u) {
+        return NativeWeaponAttackBuild{
+            quality_tier,
+            1.0f,
+            fields.base_attack_38 + fields.base_attack_scale_68 * maximum_value,
+            base_add,
+        };
+    }
+
+    const float range = static_cast<float>(maximum - minimum);
+    const float shared_fraction = (base_add - base_add_lower) /
+        (fields.base_add_attack_scale_7c * range);
+    const float base_attack_lower = fields.base_attack_38 +
+        fields.base_attack_scale_68 * minimum_value;
+    const float base_attack = base_attack_lower + shared_fraction *
+        (fields.base_attack_scale_68 * range);
+    return NativeWeaponAttackBuild{
+        quality_tier, shared_fraction, base_attack, base_add,
+    };
 }
 
 float resolve_weapon_add_hole_base_attack(

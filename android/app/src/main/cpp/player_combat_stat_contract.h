@@ -34,6 +34,20 @@ struct AttackTerms {
     float player_status_value_144 = 0.0f;
 };
 
+struct NativeWeaponAttackFileFields {
+    float base_attack_38 = 0.0f;
+    float base_add_attack_60 = 0.0f;
+    float base_attack_scale_68 = 0.0f;
+    float base_add_attack_scale_7c = 0.0f;
+};
+
+struct NativeWeaponAttackBuild {
+    std::uint32_t quality_tier = 0;
+    float shared_attack_fraction = 0.0f;
+    float base_attack_38 = 0.0f;
+    float base_add_attack_60 = 0.0f;
+};
+
 struct PlayerLevelAttackRow {
     std::int32_t attack_increment_column_8 = 0;
 };
@@ -226,6 +240,19 @@ struct WeaponCategoryExtraAttackTerms {
 // WeaponsItemData::getStarLevel() returns the +0x98 CCArray count minus one,
 // or zero for an empty array.
 std::int32_t resolve_weapon_star_level(std::uint32_t hole_array_count) noexcept;
+
+// Reads the four attack inputs consumed by buildFullWeaponsData() from a
+// little-endian WeaponsItemData .wa file. The native file is 80 bytes; extra
+// trailing bytes are ignored.
+bool parse_native_weapon_attack_file(
+    std::string_view bytes, NativeWeaponAttackFileFields* output) noexcept;
+
+// Mirrors the quality selection and shared base-stat roll in
+// buildFullWeaponsData()/elevateBaseRAttribute(). Rolls are the normalized
+// floats produced by consecutive lrand48() calls; float rounding can yield 1.
+std::optional<NativeWeaponAttackBuild> resolve_native_weapon_attack_build(
+    const NativeWeaponAttackFileFields& fields,
+    float quality_roll, float attack_roll) noexcept;
 
 // Mirrors getAddHoleBase_atk(); star_level comes from the accessor above and
 // weapon_field_7c is WeaponsItemData +0x7c.
