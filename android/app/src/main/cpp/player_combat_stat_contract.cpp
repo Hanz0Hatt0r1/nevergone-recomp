@@ -222,7 +222,7 @@ std::optional<float> resolve_player_level_attack(
         const std::vector<PlayerLevelAttackRow>& rows,
         float player_status_add_attack_120,
         float eat_attack_value) noexcept {
-    if (level == 0u || level > rows.size()) return std::nullopt;
+    if (level > rows.size()) return std::nullopt;
 
     float attack = 0.0f;
     for (std::uint32_t row = 1u; row < level; ++row) {
