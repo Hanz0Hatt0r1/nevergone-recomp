@@ -238,3 +238,13 @@ added separately instead of forcing all semantics into one class.
   ABI information; calling convention and parameter count remain explicit.
 - This is a representation/dataset experiment, not proof that a neural model can
   reconstruct exact source code.
+
+## Manual-recovery candidate retrieval
+
+The labelled corpus can also prioritize unknown functions for human recovery.
+Use task-filtered family similarity, exclude query families that already have
+labels for that task, and keep the result advisory. The current manual labels
+have many one-off function roles, so nearest labelled examples are more useful
+for triage than an unvalidated role classifier. See
+[`MANUAL_RECOVERY_RETRIEVAL.md`](MANUAL_RECOVERY_RETRIEVAL.md) for the v68
+build and query commands.

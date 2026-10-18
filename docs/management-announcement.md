@@ -45,3 +45,8 @@ frame geometry, localization, and queued-announcement sequencing remain open.
 
 Function labels for the recovered callback/route are stored in
 `docs/evidence/manual-nevergone-recoveries/management-announcement-labels.jsonl`.
+Their source entries and normalized names match the Ghidra P-code corpus. Adding
+these six gold rows to the local manual-restoration dataset builds v65 with
+9,246 labelled functions, 9,900 label rows, and 6,952 structural groups; the
+dataset is ready for the advisory retrieval workflow in
+[`ml/MANUAL_RECOVERY_RETRIEVAL.md`](ml/MANUAL_RECOVERY_RETRIEVAL.md).

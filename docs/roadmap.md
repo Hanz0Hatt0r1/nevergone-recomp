@@ -157,7 +157,8 @@ Priority: **current implementation target**
 - [x] Establish structured diagnostic bridging for early native-facing login callbacks.
 - [x] Recreate the startup/lifecycle state required around the original `AppDelegate` boundary.
 - [x] Initialize the project-owned GLES2 rendering/input substrate.
-- [ ] Confirm end-to-end `Game.StartLua` completion with a user-provided original APK on the real Android runtime/host startup probe and close any remaining runtime blockers.
+- [x] Confirm the decoded original `Game.StartLua` module chain completes in the host startup probe.
+- [ ] Confirm the same imported-original-APK startup path on the real Android runtime and close any runtime blockers found there.
 - [x] Connect captured login/server/role/announcement callbacks to visible UI consumers.
 - [x] Reach and explicitly model the verified initial UI transition (`HelloWorld::createUI` → `ManagementLayer::initLoginLayer`).
 
@@ -196,9 +197,9 @@ Exit condition: the project produces a maintainable modern Android build without
 
 ## Immediate next tasks
 
-1. Recover the remaining original `ManagementLayer` widgets and interactions; the announcement currently uses a project-owned Android dialog while its original Cocos layout remains open.
-2. Run `tools/run_startup_probe_auto.py` against the user's original APK on the Linux/Manjaro development host and use the first real traceback/missing-global result as the next compatibility target.
-3. Validate the current arm64/16 KiB build on a physical or emulated modern Android target, including pause/resume and surface recreation.
+1. Build the manual-recovery similarity index from v68 and rank unlabeled native functions against gold function-role examples. Keep retrieval advisory until each candidate is confirmed from binary evidence.
+2. Recover the remaining original `ManagementLayer` widgets and interactions; the announcement currently uses a project-owned Android dialog while its original Cocos layout remains open.
+3. Validate the imported-original-APK boot path on the physical Android device, including pause/resume and surface recreation, once the remaining ManagementLayer controls are connected.
 4. Continue decoding the `.hpc` configuration schemas needed by the first offline gameplay route.
 5. Expand the native subsystem map around `ManagementLayer`, `DataManager`, `LogicManager`, `GameSaveData`, rendering and input.
 6. Reverse-engineer only the remaining behavior-sensitive battle/slave networking calls when the offline/UI path actually reaches them.

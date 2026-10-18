@@ -66,3 +66,19 @@ there. The local RevEngInstr manual-restoration
 dataset v24 has 9,165 labelled functions, 6,873 structural groups, and 9,754
 gold label rows (train 7,364, test 811, validation 990). The corpus and
 generated dataset remain outside Git.
+
+### Parallel Lansquenet helper
+
+The manual-recovery candidate search surfaced
+`LansquenetObject::isEnemyMoveState` at RevEngInstr entry `0x002e90b8`. Its Thumb
+body at ELF VMA `0x002d90b8` uses the same state checks as the gold-labelled
+`EnemyObject::isEnemyMoveState` at RevEngInstr entry `0x002bef08` / ELF VMA
+`0x002aef08`: states `0`, `1`, `0x1b`, `0x2a`, `0x2b`, and `0x35` return true;
+other states return false when the action-system pointer is null, or return
+its byte at `+0x2b6`. The only observed field difference is the owner pointer
+offset (`LansquenetObject +0x178`, `EnemyObject +0x10c`). This direct binary
+comparison confirms the same movement-state gate role and combat subsystem.
+
+The two gold rows are in `lansquenet-move-state-labels.jsonl`. They were added
+after the v65 retrieval run and expand the local aggregate dataset to v66; the
+corpus and generated dataset remain outside Git.

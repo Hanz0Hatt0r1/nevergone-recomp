@@ -44,3 +44,17 @@ Missing globals retain ordinary Lua `nil` semantics while being recorded, matchi
 By default all decoded scripts are removed when the probe exits. `--keep-temp` may be used for local debugging; the resulting decoded scripts are proprietary game data and must not be committed.
 
 The probe deliberately keeps network operations offline. It is a boot/reconstruction diagnostic, not a replacement for the eventual networking implementation.
+
+## Recorded host run
+
+On 2026-10-18, the probe ran against the user-provided original base APK
+(`SHA-256 c8aaabfe28893998aaf891716147328245e16a043d95b7abdeac43ef6adc9cab`). It decoded 107 Lua scripts,
+requested 101 modules through `CAddDoString`, completed `Game.StartLua` with
+exit code 0, and produced no traceback. No client callbacks were expected in
+this offline probe.
+
+The two recorded nil global reads were `G_bTest` and `lua_CheckIsRelease`.
+`G_bTest` is commented out in the shipped `Game/StartLua.lua`, so nil follows
+the non-test startup path. `DebugLog.lua` explicitly checks
+`lua_CheckIsRelease ~= nil` before calling it. These reads did not block the
+host startup; the probe does not prove the Android/JNI/rendering path.

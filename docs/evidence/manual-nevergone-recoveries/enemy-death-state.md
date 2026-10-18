@@ -47,3 +47,24 @@ The subsystem and function-role gold labels are in
 labelled functions, 6,880 structural groups, and 9,768 gold label rows (train
 7,367, test 813, validation 992). Its corpus and generated dataset remain
 outside Git.
+
+### Lansquenet parallel
+
+The manual-recovery search ranked `LansquenetObject::isDead` at RevEngInstr entry
+`0x002e9254` next to this gold example. Its Thumb body at ELF VMA `0x002d9254`
+has the same branch structure and state exceptions: positive health returns
+false, states `0x0f` and `0x2c` return false, and otherwise the no-death byte is
+inverted. The corresponding fields are at `+0x160`, `+0x138`, and `+0x1f1`
+(versus EnemyObject `+0x164`, `+0x274`, and `+0x19d`). This confirms the same
+combat enemy death predicate. The two new gold rows are stored in
+`lansquenet-death-labels.jsonl`.
+
+### Pet parallel
+
+The next v67 search ranked `PetObject::isDead` at RevEngInstr entry `0x0032173c`
+with cosine similarity `1.0` to the death-predicate family. Its Thumb body at
+ELF VMA `0x0031173c` confirms the same control flow: positive health returns
+false, state `0x0f` or `0x2c` returns false, and all other cases invert the
+no-death byte. Its fields are `+0x160`, `+0x124`, and `+0x1a1`. This is
+recorded under the more specific `combat_pet_death_predicate` role in
+`pet-death-labels.jsonl`.
