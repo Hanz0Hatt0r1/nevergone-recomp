@@ -11,6 +11,8 @@
 
 #include "controls_function_state_runtime.h"
 #include "game_clock.h"
+#include "game_scene_player_enemy_collision.h"
+#include "game_scene_player_hl_point_state.h"
 #include "game_scene_player_motion_state.h"
 #include "minimal_runtime_save_runtime.h"
 #include "meplayer_live_action_state.h"
@@ -18,6 +20,7 @@
 #include "player_control_runtime_state.h"
 #include "player_direction_combo_contract.h"
 #include "player_motion_contract.h"
+#include "tutorial_attack_live_gate.h"
 #include "tutorial_gameplay_state.h"
 
 namespace nevergone::game_scene_player_joystick_input {
@@ -418,13 +421,44 @@ void tick() {
                 live_action.loaded_revision,
                 player_action_state);
     }
+
+    const auto motion = game_scene_player_motion_state::snapshot();
+    const auto proposed_movement = player_motion_contract::movement_value(
+            motion.player_index,
+            player_action_state,
+            {direction_x, direction_y},
+            action_frame_move_value_x);
+    std::optional<player_motion_contract::Vector> movement_override;
+    if (proposed_movement.has_value()) {
+        const auto collision = game_scene_player_enemy_collision::resolve_attack_motion(
+                game_scene_player_hl_point_state::snapshot(),
+                motion,
+                player_control_runtime_state::snapshot(),
+                player_action_state,
+                *proposed_movement,
+                tutorial_attack_live_gate::live_snapshot());
+        if (collision.ready) {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            ++g_snapshot.enemy_collision_checks;
+            if (collision.intersects) {
+                ++g_snapshot.enemy_collision_count;
+                g_snapshot.last_enemy_collision_slot =
+                        static_cast<int>(collision.enemy_slot);
+            }
+            if (collision.corrected) {
+                ++g_snapshot.enemy_collision_correction_count;
+                movement_override = collision.movement;
+            }
+        }
+    }
     (void)game_scene_player_motion_state::advance_sample(
             game_tick,
             active,
             player_action_state,
             direction_x,
             direction_y,
-            action_frame_move_value_x);
+            action_frame_move_value_x,
+            movement_override);
 }
 
 void cancel_capture() {
@@ -437,11 +471,19 @@ void reset() {
         std::lock_guard<std::mutex> lock(g_mutex);
         const auto accepted_begins = g_snapshot.accepted_begins;
         const auto accepted_moves = g_snapshot.accepted_moves;
+        const auto collision_checks = g_snapshot.enemy_collision_checks;
+        const auto collision_count = g_snapshot.enemy_collision_count;
+        const auto collision_corrections = g_snapshot.enemy_collision_correction_count;
+        const int last_collision_slot = g_snapshot.last_enemy_collision_slot;
         const float center_x = g_snapshot.center_x;
         const float center_y = g_snapshot.center_y;
         g_snapshot = {};
         g_snapshot.accepted_begins = accepted_begins;
         g_snapshot.accepted_moves = accepted_moves;
+        g_snapshot.enemy_collision_checks = collision_checks;
+        g_snapshot.enemy_collision_count = collision_count;
+        g_snapshot.enemy_collision_correction_count = collision_corrections;
+        g_snapshot.last_enemy_collision_slot = last_collision_slot;
         g_snapshot.center_x = center_x;
         g_snapshot.center_y = center_y;
         g_snapshot.design_x = center_x;
@@ -471,6 +513,11 @@ std::string status_report() {
     out << "direction combo released: " << (state.direction_combo_released ? "true" : "false") << "\n";
     out << "movement action state: 0x" << std::hex << state.movement_action_state << std::dec << "\n";
     out << "fast reactivations: " << state.fast_reactivation_count << "\n";
+    out << "tutorial enemy collision checks: " << state.enemy_collision_checks << "\n";
+    out << "tutorial enemy contacts: " << state.enemy_collision_count << "\n";
+    out << "tutorial enemy movement corrections: "
+        << state.enemy_collision_correction_count << "\n";
+    out << "last tutorial enemy slot: " << state.last_enemy_collision_slot << "\n";
     out << game_scene_player_motion_state::status_report();
     {
         std::lock_guard<std::mutex> lock(g_trace_mutex);

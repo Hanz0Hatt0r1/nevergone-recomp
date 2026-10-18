@@ -43,6 +43,8 @@ the live renderer still has no nonzero value to supply and collision response
 remains disconnected from movement.
 
 The predicate and setter function-role gold labels are recorded in
-`player-collision-state-labels.jsonl`. Their exact state lifecycle is evidence
-for the next collision integration; it does not yet simulate an incoming hit.
-The RevEngInstr corpus and generated dataset remain outside Git.
+`player-collision-state-labels.jsonl`. The initial Lesson Attack enemy-contact
+path now uses this predicate. Its `collision_disabled` input is currently false
+because the reconstructed tutorial does not yet simulate the incoming-hit path
+that sets `+0x3e8`; wire that state when player damage is restored. The
+RevEngInstr corpus and generated dataset remain outside Git.

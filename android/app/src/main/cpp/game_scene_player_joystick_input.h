@@ -36,6 +36,10 @@ struct Snapshot {
     std::uint64_t direction_combo_started_tick = 0u;
     std::uint32_t movement_action_state = 0u;
     std::uint64_t fast_reactivation_count = 0u;
+    std::uint64_t enemy_collision_checks = 0u;
+    std::uint64_t enemy_collision_count = 0u;
+    std::uint64_t enemy_collision_correction_count = 0u;
+    int last_enemy_collision_slot = -1;
 };
 
 // Android surface coordinates are top-left based. The shipped GameScene uses

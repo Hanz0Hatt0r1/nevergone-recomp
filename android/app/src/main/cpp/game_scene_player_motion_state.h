@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -78,7 +80,8 @@ inline bool advance_sample(
         std::uint32_t action_state,
         float direction_x,
         float direction_y,
-        float action_frame_move_value_x = 0.0f) {
+        float action_frame_move_value_x = 0.0f,
+        std::optional<player_motion_contract::Vector> movement_override = std::nullopt) {
     std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_snapshot.ready) return false;
     if (game_tick <= g_snapshot.last_game_tick) return true;
@@ -87,17 +90,23 @@ inline bool advance_sample(
     g_snapshot.last_game_tick = game_tick;
     g_snapshot.last_action_state = action_state;
     const bool direct_input = player_motion_contract::uses_direct_input(action_state);
-    if (!active && direct_input) return true;
+    if (!active && direct_input && !movement_override.has_value()) return true;
 
-    const auto movement = player_motion_contract::movement_value(
+    auto movement = player_motion_contract::movement_value(
             g_snapshot.player_index,
             action_state,
             {direction_x, direction_y},
             action_frame_move_value_x);
     if (!movement.has_value()) return false;
+    if (movement_override.has_value()) {
+        if (!std::isfinite(movement_override->x) || !std::isfinite(movement_override->y)) {
+            return false;
+        }
+        movement = movement_override;
+    }
 
     const std::uint64_t applied_steps = direct_input
-            ? elapsed
+            ? (active ? elapsed : 1u)
             : (movement->x != 0.0f || movement->y != 0.0f ? 1u : 0u);
     const float repetition = direct_input ? static_cast<float>(elapsed) : 1.0f;
     g_snapshot.offset_x += movement->x * repetition;
