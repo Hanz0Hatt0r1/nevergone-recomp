@@ -14,6 +14,8 @@ Therefore accepted precision, coverage, critical false-accept rate, and
 evidence-conflict acceptance on a frozen labeled holdout remain unavailable.
 `availability.json` records only aggregate counts and SHA-256 hashes; it does
 not contain function identities, addresses, labels, or local paths.
+The [frozen analysis KPI dashboard](../nevergone-kpi-dashboard-v1/README.md)
+summarizes the router gate status alongside the receiver coverage target.
 
 ## Reproduce the availability audit
 
