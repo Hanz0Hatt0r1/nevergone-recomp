@@ -16,11 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Hanz0Hatt0r1/revenginstr
+          ref: 0d05223391729fcb2dec2d7187a371d0ba84d690
+          path: revenginstr
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install ML dependencies
+      - name: Install pinned shared tooling and ML dependencies
         run: python -m pip install -U numpy scikit-learn joblib
+      - name: Install revenginstr
+        run: |
+          test "$(git -C revenginstr rev-parse HEAD)" = '0d05223391729fcb2dec2d7187a371d0ba84d690'
+          python -m pip install -e 'revenginstr[ml]'
       - name: Validate v10 accept-error router packaging
         run: |
           python -m py_compile \
