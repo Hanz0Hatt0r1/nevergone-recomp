@@ -93,6 +93,17 @@ def main() -> int:
     assert all(re.fullmatch(r"[a-f0-9]{64}", value) for value in committed["source_sha256"].values())
     assert "/home/" not in json.dumps(committed)
 
+    dashboard_dir = Path(__file__).resolve().parents[2] / "docs/evidence/nevergone-kpi-dashboard-v1"
+    dashboard = json.loads((dashboard_dir / "dashboard.json").read_text(encoding="utf-8"))
+    markdown = (dashboard_dir / "dashboard.md").read_text(encoding="utf-8")
+    assert dashboard["format"] == "REVENGINSTR.KPIDashboard/1"
+    assert dashboard["status"] == "fail"
+    kpis = {row["id"]: row for row in dashboard["kpis"]}
+    assert kpis["unseen_receiver_function_coverage"]["value"] == 0.106
+    assert kpis["unseen_receiver_function_coverage"]["status"] == "fail"
+    assert kpis["router_frozen_accepted_precision"]["status"] == "unavailable"
+    assert "/home/" not in json.dumps(dashboard) + markdown
+
     print("nevergone frozen router gate availability smoke: OK")
     return 0
 

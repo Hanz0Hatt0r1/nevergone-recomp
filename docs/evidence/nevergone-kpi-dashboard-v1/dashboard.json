@@ -1,0 +1,99 @@
+{
+  "dashboard": {
+    "description": "Frozen evidence status for receiver coverage and the accept-router gate. Crossfit calibration is not used as a substitute for independent gate metrics.",
+    "id": "nevergone-frozen-analysis-kpis-v1",
+    "title": "Nevergone Frozen Analysis KPI Dashboard"
+  },
+  "format": "REVENGINSTR.KPIDashboard/1",
+  "kpis": [
+    {
+      "display_value": "10.60%",
+      "id": "unseen_receiver_function_coverage",
+      "json_pointer": "/projections/0/receiver/function_coverage/resolved_function_fraction",
+      "label": "Unseen receiver function coverage",
+      "maximum": null,
+      "minimum": 0.35,
+      "note": "M2.6 hard target is 35%; current frozen report uses 500 identity-disjoint functions.",
+      "reason": null,
+      "source": "receiver_coverage",
+      "status": "fail",
+      "target": "\u2265 35.00%",
+      "unit": "fraction",
+      "value": 0.106
+    },
+    {
+      "display_value": "unavailable",
+      "id": "router_frozen_accepted_precision",
+      "json_pointer": "/gate_metrics/accepted_precision",
+      "label": "Frozen router accepted precision",
+      "maximum": null,
+      "minimum": 0.97,
+      "note": "Unavailable until an independent labeled gate population is collected.",
+      "reason": "source metric is absent or null",
+      "source": "router_gate_availability",
+      "status": "unavailable",
+      "target": "\u2265 97.00%",
+      "unit": "fraction",
+      "value": null
+    },
+    {
+      "display_value": "unavailable",
+      "id": "router_frozen_coverage",
+      "json_pointer": "/gate_metrics/coverage",
+      "label": "Frozen router coverage",
+      "maximum": null,
+      "minimum": 0.55,
+      "note": "Unavailable until an independent labeled gate population is collected.",
+      "reason": "source metric is absent or null",
+      "source": "router_gate_availability",
+      "status": "unavailable",
+      "target": "\u2265 55.00%",
+      "unit": "fraction",
+      "value": null
+    },
+    {
+      "display_value": "unavailable",
+      "id": "router_critical_false_accept_rate",
+      "json_pointer": "/gate_metrics/critical_false_accept_rate",
+      "label": "Critical false-accept rate",
+      "maximum": 0.01,
+      "minimum": null,
+      "note": "Requires consumer-reviewed critical-case labels on the frozen gate population.",
+      "reason": "source metric is absent or null",
+      "source": "router_gate_availability",
+      "status": "unavailable",
+      "target": "\u2264 1.00%",
+      "unit": "fraction",
+      "value": null
+    },
+    {
+      "display_value": "unavailable",
+      "id": "router_evidence_conflict_accepts",
+      "json_pointer": "/gate_metrics/evidence_conflict_accepts",
+      "label": "Evidence-conflict accepts",
+      "maximum": 0,
+      "minimum": null,
+      "note": "Requires explicit evidence-conflict annotations on the frozen gate population.",
+      "reason": "source metric is absent or null",
+      "source": "router_gate_availability",
+      "status": "unavailable",
+      "target": "\u2264 0",
+      "unit": "count",
+      "value": null
+    }
+  ],
+  "manifest_sha256": "0f6c9e66c2c09796f2fc96cf9ceef1ef8273e2d970cd689146955f3543271e1f",
+  "sources": [
+    {
+      "format": "REVENGINSTR.BenchmarkSummary/1",
+      "id": "receiver_coverage",
+      "sha256": "67f234b25315bc75e0718576eb5c0f52fe7e97cee333fc614bf821a7efc76477"
+    },
+    {
+      "format": "NEVERGONE.RouterGateAvailability/1",
+      "id": "router_gate_availability",
+      "sha256": "9b2565215f7df613a7600652b25fd30b855a4d3ace0b98dcef82302d9c9b446a"
+    }
+  ],
+  "status": "fail"
+}
