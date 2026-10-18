@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
+#include <string_view>
 #include <vector>
 
 namespace nevergone::player_combat_stat_contract {
@@ -30,6 +32,10 @@ struct AttackTerms {
     float weapon_final_add_base_attack = 0.0f;
     float player_level_attack_110 = 0.0f;
     float player_status_value_144 = 0.0f;
+};
+
+struct PlayerLevelAttackRow {
+    std::int32_t attack_increment_column_8 = 0;
 };
 
 struct EquipmentAbsorbEffect {
@@ -269,6 +275,18 @@ float resolve_weapon_extra_category_attack(
 // Mirrors MEPlayer::getAttack()'s left-to-right float sum. The weapon getter
 // and PlayerStatusInfo values remain inputs until their source data is restored.
 float resolve_attack(const State& player, const AttackTerms& terms) noexcept;
+
+// Reads column 8 from the ten-column player/player_level.csv records.
+bool parse_player_level_attack_csv(
+    std::string_view csv, std::vector<PlayerLevelAttackRow>* output);
+
+// Mirrors the attack portion of PlayerStatusInfo::levelUp(): sum rows
+// 1..level-1, then add PlayerStatusInfo +0x120 and the resolved eat bonus.
+std::optional<float> resolve_player_level_attack(
+    std::uint32_t level,
+    const std::vector<PlayerLevelAttackRow>& rows,
+    float player_status_add_attack_120,
+    float eat_attack_value) noexcept;
 
 // Mirrors MEPlayer::getAllDamageAbsorb(). Data-manager and status objects are
 // supplied as decoded values; the aggregation and final multiplier are exact.

@@ -1,8 +1,32 @@
 #include "player_combat_stat_contract.h"
 
+#include <array>
+#include <cctype>
+#include <cstdlib>
 #include <cstring>
+#include <limits>
+#include <string>
 
 namespace nevergone::player_combat_stat_contract {
+
+namespace {
+
+bool parse_integer_cell(std::string_view cell, std::int32_t* output) {
+    if (output == nullptr) return false;
+    const std::string text(cell);
+    char* end = nullptr;
+    const long value = std::strtol(text.c_str(), &end, 10);
+    if (end == text.c_str()) return false;
+    while (*end != '\0' && std::isspace(static_cast<unsigned char>(*end))) ++end;
+    if (*end != '\0' || value < std::numeric_limits<std::int32_t>::min() ||
+            value > std::numeric_limits<std::int32_t>::max()) {
+        return false;
+    }
+    *output = static_cast<std::int32_t>(value);
+    return true;
+}
+
+}  // namespace
 
 std::int32_t resolve_weapon_star_level(std::uint32_t hole_array_count) noexcept {
     return hole_array_count == 0
@@ -151,6 +175,61 @@ float resolve_attack(const State& player, const AttackTerms& terms) noexcept {
     return terms.weapon_base_attack_38 + terms.weapon_final_add_base_attack +
         terms.player_level_attack_110 + player.equipment_add_attack_114 +
         terms.player_status_value_144;
+}
+
+bool parse_player_level_attack_csv(
+        std::string_view csv, std::vector<PlayerLevelAttackRow>* output) {
+    if (output == nullptr) return false;
+
+    std::vector<PlayerLevelAttackRow> rows;
+    std::size_t line_start = 0;
+    while (line_start < csv.size()) {
+        const std::size_t newline = csv.find('\n', line_start);
+        std::string_view line = csv.substr(
+            line_start,
+            newline == std::string_view::npos ? csv.size() - line_start : newline - line_start);
+        if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+        if (line.empty()) return false;
+
+        std::array<std::string_view, 10> columns{};
+        std::size_t column_start = 0;
+        for (std::size_t column = 0; column < columns.size(); ++column) {
+            const std::size_t comma = line.find(',', column_start);
+            if (column + 1u < columns.size()) {
+                if (comma == std::string_view::npos) return false;
+                columns[column] = line.substr(column_start, comma - column_start);
+                column_start = comma + 1u;
+            } else {
+                if (comma != std::string_view::npos) return false;
+                columns[column] = line.substr(column_start);
+            }
+        }
+
+        PlayerLevelAttackRow row;
+        if (!parse_integer_cell(columns[8], &row.attack_increment_column_8)) return false;
+        rows.push_back(row);
+
+        if (newline == std::string_view::npos) break;
+        line_start = newline + 1u;
+    }
+    if (rows.empty()) return false;
+    output->swap(rows);
+    return true;
+}
+
+std::optional<float> resolve_player_level_attack(
+        std::uint32_t level,
+        const std::vector<PlayerLevelAttackRow>& rows,
+        float player_status_add_attack_120,
+        float eat_attack_value) noexcept {
+    if (level == 0u || level > rows.size()) return std::nullopt;
+
+    float attack = 0.0f;
+    for (std::uint32_t row = 1u; row < level; ++row) {
+        attack = attack + static_cast<float>(rows[row].attack_increment_column_8);
+    }
+    attack = attack + player_status_add_attack_120;
+    return attack + eat_attack_value;
 }
 
 float resolve_damage_absorb(

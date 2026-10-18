@@ -54,7 +54,8 @@ establish this order for `MEPlayer::getAttack()`:
 2. Load the weapon's base attack at `WeaponsItemData +0x38`.
 3. Add `WeaponsItemData::getFinalAddBase_atk()`.
 4. Add `PlayerStatusInfo::getLevelAttack()`, which reads `+0x110` from the
-   `PlayerStatusInfo` object at `DataManager +0x48`.
+   `PlayerStatusInfo` object at `DataManager +0x48`. Its level-table producer is
+   reconstructed in [player-level-attack-progression.md](player-level-attack-progression.md).
 5. Add `MEPlayer +0x114`, written by `MEPlayer::setEquipAddAttack()`.
 6. Add the separate float at `PlayerStatusInfo +0x144`.
 
