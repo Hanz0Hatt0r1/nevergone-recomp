@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -35,17 +36,22 @@ struct AttackTerms {
 };
 
 struct NativeWeaponAttackFileFields {
-    float base_attack_38 = 0.0f;
-    float base_add_attack_60 = 0.0f;
-    float base_attack_scale_68 = 0.0f;
-    float base_add_attack_scale_7c = 0.0f;
+    // Object-field order: +0x38, +0x40, +0x48, +0x50, +0x58, +0x60.
+    std::array<float, 6> base_attack_fields{};
+    // Matching scale-field order: +0x68 through +0x7c, in four-byte steps.
+    std::array<float, 6> scale_fields{};
+    float range_low_84 = 0.0f;
+    float range_high_88 = 10.0f;
 };
 
 struct NativeWeaponAttackBuild {
     std::uint32_t quality_tier = 0;
     float shared_attack_fraction = 0.0f;
-    float base_attack_38 = 0.0f;
-    float base_add_attack_60 = 0.0f;
+    // Generated +0x38, +0x40, +0x48, +0x50, +0x58, +0x60 values.
+    std::array<float, 6> attack_fields{};
+    float weapon_curve_origin_8c = 0.0f;
+    float weapon_curve_offset_90 = 0.0f;
+    float weapon_curve_scale_94 = 0.0f;
 };
 
 struct PlayerLevelAttackRow {
@@ -241,7 +247,7 @@ struct WeaponCategoryExtraAttackTerms {
 // or zero for an empty array.
 std::int32_t resolve_weapon_star_level(std::uint32_t hole_array_count) noexcept;
 
-// Reads the four attack inputs consumed by buildFullWeaponsData() from a
+// Reads the six base stats, six scales, and derived +0x84/+0x88 range from a
 // little-endian WeaponsItemData .wa file. The native file is 80 bytes; extra
 // trailing bytes are ignored.
 bool parse_native_weapon_attack_file(

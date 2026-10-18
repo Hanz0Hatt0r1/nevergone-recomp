@@ -26,6 +26,19 @@ bool read_little_endian_float(
     return std::isfinite(*output);
 }
 
+bool read_little_endian_u32(
+        std::string_view bytes, std::size_t offset, std::uint32_t* output) noexcept {
+    if (output == nullptr || offset > bytes.size() || bytes.size() - offset < 4u) {
+        return false;
+    }
+    const auto* source = reinterpret_cast<const unsigned char*>(bytes.data() + offset);
+    *output = static_cast<std::uint32_t>(source[0]) |
+        (static_cast<std::uint32_t>(source[1]) << 8u) |
+        (static_cast<std::uint32_t>(source[2]) << 16u) |
+        (static_cast<std::uint32_t>(source[3]) << 24u);
+    return true;
+}
+
 bool parse_integer_cell(std::string_view cell, std::int32_t* output) {
     if (output == nullptr) return false;
     const std::string text(cell);
@@ -54,12 +67,27 @@ bool parse_native_weapon_attack_file(
     if (output == nullptr || bytes.size() < 80u) return false;
 
     NativeWeaponAttackFileFields fields;
-    if (!read_little_endian_float(bytes, 28u, &fields.base_attack_38) ||
-            !read_little_endian_float(bytes, 48u, &fields.base_add_attack_60) ||
-            !read_little_endian_float(bytes, 56u, &fields.base_attack_scale_68) ||
-            !read_little_endian_float(bytes, 76u, &fields.base_add_attack_scale_7c)) {
-        return false;
+    constexpr std::array<std::size_t, 6> attack_offsets{{
+        28u, 32u, 36u, 40u, 44u, 48u,
+    }};
+    constexpr std::array<std::size_t, 6> scale_offsets{{
+        56u, 60u, 64u, 68u, 72u, 76u,
+    }};
+    for (std::size_t i = 0; i < attack_offsets.size(); ++i) {
+        if (!read_little_endian_float(
+                    bytes, attack_offsets[i], &fields.base_attack_fields[i]) ||
+                !read_little_endian_float(bytes, scale_offsets[i], &fields.scale_fields[i])) {
+            return false;
+        }
     }
+
+    std::uint32_t range_value = 0u;
+    if (!read_little_endian_u32(bytes, 52u, &range_value)) return false;
+    if (range_value > 4u) {
+        fields.range_low_84 = static_cast<float>(range_value - 5u);
+        fields.range_high_88 = static_cast<float>(range_value + 5u);
+    }
+
     *output = fields;
     return true;
 }
@@ -67,14 +95,17 @@ bool parse_native_weapon_attack_file(
 std::optional<NativeWeaponAttackBuild> resolve_native_weapon_attack_build(
         const NativeWeaponAttackFileFields& fields,
         float quality_roll, float attack_roll) noexcept {
-    if (!std::isfinite(fields.base_attack_38) ||
-            !std::isfinite(fields.base_add_attack_60) ||
-            !std::isfinite(fields.base_attack_scale_68) ||
-            !std::isfinite(fields.base_add_attack_scale_7c) ||
+    if (!std::isfinite(fields.range_low_84) || !std::isfinite(fields.range_high_88) ||
             !std::isfinite(quality_roll) || !std::isfinite(attack_roll) ||
             quality_roll < 0.0f || quality_roll > 1.0f ||
             attack_roll < 0.0f || attack_roll > 1.0f) {
         return std::nullopt;
+    }
+    for (std::size_t i = 0; i < fields.base_attack_fields.size(); ++i) {
+        if (!std::isfinite(fields.base_attack_fields[i]) ||
+                !std::isfinite(fields.scale_fields[i])) {
+            return std::nullopt;
+        }
     }
 
     std::uint32_t quality_tier = 0u;
@@ -92,32 +123,42 @@ std::optional<NativeWeaponAttackBuild> resolve_native_weapon_attack_build(
 
     const float minimum_value = static_cast<float>(minimum);
     const float maximum_value = static_cast<float>(maximum);
-    const float base_add_lower = fields.base_add_attack_60 +
-        fields.base_add_attack_scale_7c * minimum_value;
-    const float base_add_upper = fields.base_add_attack_60 +
-        fields.base_add_attack_scale_7c * maximum_value;
+    constexpr std::size_t kBaseAddIndex = 5u;
+    const float base_add_lower = fields.base_attack_fields[kBaseAddIndex] +
+        fields.scale_fields[kBaseAddIndex] * minimum_value;
+    const float base_add_upper = fields.base_attack_fields[kBaseAddIndex] +
+        fields.scale_fields[kBaseAddIndex] * maximum_value;
     const float base_add = base_add_lower +
         (base_add_upper - base_add_lower) * attack_roll;
 
+    NativeWeaponAttackBuild result;
+    result.quality_tier = quality_tier;
+    result.shared_attack_fraction = 1.0f;
     if (quality_tier == 2u) {
-        return NativeWeaponAttackBuild{
-            quality_tier,
-            1.0f,
-            fields.base_attack_38 + fields.base_attack_scale_68 * maximum_value,
-            base_add,
-        };
+        for (std::size_t i = 0; i < result.attack_fields.size(); ++i) {
+            result.attack_fields[i] = fields.base_attack_fields[i] +
+                fields.scale_fields[i] * maximum_value;
+        }
+    } else {
+        const float range = static_cast<float>(maximum - minimum);
+        result.shared_attack_fraction = (base_add - base_add_lower) /
+            (fields.scale_fields[kBaseAddIndex] * range);
+        for (std::size_t i = 0; i < kBaseAddIndex; ++i) {
+            const float lower = fields.base_attack_fields[i] +
+                fields.scale_fields[i] * minimum_value;
+            result.attack_fields[i] = lower + result.shared_attack_fraction *
+                (fields.scale_fields[i] * range);
+        }
+        result.attack_fields[kBaseAddIndex] = base_add;
     }
 
-    const float range = static_cast<float>(maximum - minimum);
-    const float shared_fraction = (base_add - base_add_lower) /
-        (fields.base_add_attack_scale_7c * range);
-    const float base_attack_lower = fields.base_attack_38 +
-        fields.base_attack_scale_68 * minimum_value;
-    const float base_attack = base_attack_lower + shared_fraction *
-        (fields.base_attack_scale_68 * range);
-    return NativeWeaponAttackBuild{
-        quality_tier, shared_fraction, base_attack, base_add,
-    };
+    const float weapon_range = fields.range_high_88 - fields.range_low_84;
+    result.weapon_curve_origin_8c =
+        (fields.range_low_84 + fields.range_high_88) * 0.5f;
+    result.weapon_curve_offset_90 = fields.base_attack_fields[0];
+    result.weapon_curve_scale_94 =
+        (fields.base_attack_fields[0] * -4.0f) / (weapon_range * weapon_range);
+    return result;
 }
 
 float resolve_weapon_add_hole_base_attack(
