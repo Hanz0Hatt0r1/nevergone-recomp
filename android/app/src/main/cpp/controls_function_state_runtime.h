@@ -39,7 +39,8 @@ bool advance_sample(
     std::uint64_t game_tick,
     std::optional<std::uint32_t> current_action_state =
         std::optional<std::uint32_t>{0x1bu},
-    std::uint32_t player_index = 0u);
+    std::uint32_t player_index = 0u,
+    bool super_ready = false);
 
 // Collects the live action-button, joystick and player-spawn samples.
 bool tick();

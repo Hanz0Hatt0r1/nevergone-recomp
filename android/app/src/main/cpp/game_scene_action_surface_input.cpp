@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
@@ -24,9 +25,14 @@ constexpr int kFirstQuickUseEditTarget = game_scene_action_layout::kButtonCount;
 constexpr int kJoystickEditTarget = game_scene_action_layout::kButtonCount +
                                     game_scene_action_layout::kQuickUseButtonCount;
 
+struct CapturedTarget {
+    game_scene_action_input::Control control = game_scene_action_input::Control::kNone;
+    int quick_use_slot = -1;
+};
+
 std::mutex g_mutex;
 Snapshot g_snapshot;
-std::unordered_map<int, game_scene_action_input::Control> g_captures;
+std::unordered_map<int, CapturedTarget> g_captures;
 bool g_edit_mode = false;
 int g_edit_pointer = -1;
 int g_edit_target = -1;
@@ -48,7 +54,7 @@ int slot_for(game_scene_action_input::Control control) {
 void refresh_pressed_locked() {
     g_snapshot.pressed = {};
     for (const auto& entry : g_captures) {
-        const int slot = slot_for(entry.second);
+        const int slot = slot_for(entry.second.control);
         if (slot >= 0) g_snapshot.pressed[static_cast<std::size_t>(slot)] = true;
     }
 }
@@ -194,14 +200,51 @@ game_scene_action_input::Control classify_locked(float design_x, float design_y)
         g_snapshot.positions);
 }
 
-void publish_release(game_scene_action_input::Control control, bool tapped) {
-    (void)game_scene_action_input::observe(
-        control,
-        game_scene_action_input::Gesture::kRelease);
-    if (tapped) {
+int quick_use_slot_locked(float design_x, float design_y) {
+    for (std::size_t index = 0;
+         index < game_scene_action_layout::kQuickUseButtonCount;
+         ++index) {
+        const auto center = g_snapshot.positions.quick_use_buttons[index];
+        const auto& bounds = g_snapshot.quick_use_sprite_bounds[index];
+        if (bounds.width <= 0.0f || bounds.height <= 0.0f) continue;
+        const game_scene_action_layout::Rect rect{
+            center.x - bounds.width * 0.5f,
+            center.y - bounds.height * 0.5f,
+            center.x + bounds.width * 0.5f,
+            center.y + bounds.height * 0.5f,
+        };
+        if (contains(rect, design_x, design_y)) return static_cast<int>(index);
+    }
+    return -1;
+}
+
+std::optional<CapturedTarget> target_at_locked(float design_x, float design_y) {
+    const auto control = classify_locked(design_x, design_y);
+    if (control != game_scene_action_input::Control::kNone) {
+        return CapturedTarget{control, -1};
+    }
+    const int quick_use_slot = quick_use_slot_locked(design_x, design_y);
+    if (quick_use_slot >= 0) return CapturedTarget{{}, quick_use_slot};
+    return std::nullopt;
+}
+
+bool same_target(const CapturedTarget& lhs, const CapturedTarget& rhs) {
+    return lhs.control == rhs.control && lhs.quick_use_slot == rhs.quick_use_slot;
+}
+
+void publish_release(const CapturedTarget& target, bool tapped) {
+    if (target.control != game_scene_action_input::Control::kNone) {
         (void)game_scene_action_input::observe(
-            control,
-            game_scene_action_input::Gesture::kTap);
+            target.control,
+            game_scene_action_input::Gesture::kRelease);
+        if (tapped) {
+            (void)game_scene_action_input::observe(
+                target.control,
+                game_scene_action_input::Gesture::kTap);
+        }
+    } else if (tapped && target.quick_use_slot >= 0) {
+        (void)game_scene_action_input::observe_quick_use_slot_tap(
+            target.quick_use_slot);
     }
 }
 
@@ -274,7 +317,7 @@ bool on_edit_touch(
 }  // namespace
 
 void reset() {
-    std::vector<game_scene_action_input::Control> captured;
+    std::vector<CapturedTarget> captured;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         captured.reserve(g_captures.size());
@@ -287,7 +330,7 @@ void reset() {
         g_edit_pointer = -1;
         g_edit_target = -1;
     }
-    for (const auto control : captured) publish_release(control, false);
+    for (const auto& target : captured) publish_release(target, false);
 }
 
 bool set_sprite_bounds(int slot, int width, int height) {
@@ -353,7 +396,7 @@ bool apply_saved_control_settings(
 }
 
 void set_edit_mode(bool enabled) {
-    std::vector<game_scene_action_input::Control> released;
+    std::vector<CapturedTarget> released;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         if (g_edit_mode == enabled) return;
@@ -369,7 +412,7 @@ void set_edit_mode(bool enabled) {
         g_edit_target = -1;
         g_snapshot.pressed = {};
     }
-    for (const auto control : released) publish_release(control, false);
+    for (const auto& target : released) publish_release(target, false);
     if (enabled) game_scene_player_joystick_input::cancel_capture();
 }
 
@@ -398,7 +441,7 @@ bool on_touch(
     if (editing) return on_edit_touch(action, pointer_id, mapped, design_x, design_y);
 
     if (action == kActionCancel) {
-        std::vector<game_scene_action_input::Control> captured;
+        std::vector<CapturedTarget> captured;
         {
             std::lock_guard<std::mutex> lock(g_mutex);
             if (g_captures.empty()) return false;
@@ -409,35 +452,37 @@ bool on_touch(
             g_snapshot.captured_pointer_count = 0;
             refresh_pressed_locked();
         }
-        for (const auto control : captured) publish_release(control, false);
+        for (const auto& target : captured) publish_release(target, false);
         return true;
     }
 
     if (action == kActionDown || action == kActionPointerDown) {
         if (!mapped) return false;
-        game_scene_action_input::Control control;
+        std::optional<CapturedTarget> target;
         {
             std::lock_guard<std::mutex> lock(g_mutex);
             if (g_captures.find(pointer_id) != g_captures.end()) return false;
-            control = classify_locked(design_x, design_y);
-            if (control == game_scene_action_input::Control::kNone) return false;
-            g_captures.emplace(pointer_id, control);
+            target = target_at_locked(design_x, design_y);
+            if (!target.has_value()) return false;
+            g_captures.emplace(pointer_id, *target);
             ++g_snapshot.accepted_begins;
             g_snapshot.captured_pointer_count = static_cast<int>(g_captures.size());
             refresh_pressed_locked();
         }
-        (void)game_scene_action_input::observe(
-            control,
-            game_scene_action_input::Gesture::kPress);
+        if (target->control != game_scene_action_input::Control::kNone) {
+            (void)game_scene_action_input::observe(
+                target->control,
+                game_scene_action_input::Gesture::kPress);
+        }
         return true;
     }
 
-    game_scene_action_input::Control captured_control;
+    CapturedTarget captured_target;
     {
         std::lock_guard<std::mutex> lock(g_mutex);
         const auto found = g_captures.find(pointer_id);
         if (found == g_captures.end()) return false;
-        captured_control = found->second;
+        captured_target = found->second;
     }
 
     if (action == kActionMove) return true;
@@ -446,14 +491,18 @@ bool on_touch(
         bool tapped = false;
         {
             std::lock_guard<std::mutex> lock(g_mutex);
-            if (mapped) tapped = classify_locked(design_x, design_y) == captured_control;
+            if (mapped) {
+                const auto released_target = target_at_locked(design_x, design_y);
+                tapped = released_target.has_value() &&
+                    same_target(*released_target, captured_target);
+            }
             g_captures.erase(pointer_id);
             ++g_snapshot.accepted_ends;
             if (tapped) ++g_snapshot.taps;
             g_snapshot.captured_pointer_count = static_cast<int>(g_captures.size());
             refresh_pressed_locked();
         }
-        publish_release(captured_control, tapped);
+        publish_release(captured_target, tapped);
         return true;
     }
 

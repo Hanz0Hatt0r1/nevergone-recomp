@@ -28,6 +28,8 @@ This publishes `kJumpPerformed`, advancing `Jump -> Attack`.
 
 Other A/B/C inputs are recorded but do not directly advance combat lessons. Attack waits for the tutorial enemy objective to be defeated; Block waits for a successful blocked hit; Counter-attack and Dodge wait for their corresponding gameplay outcomes; Air Attack waits for the bat objective. This prevents raw button presses from skipping evidence-backed objectives.
 
+Quick-use slot 0 is also routed while the interactive tutorial owns Fill Rage. Its tap consumes the tutorial's granted potion event and advances to Execution; quick-use taps outside that step are diagnostic input only. A+C then requests the recovered Career 1 super sequence when the tutorial marks Rage full. See [the super attack reconstruction](evidence/meplayer-career1-super-attack-2026-10-18.md).
+
 ## Next boundary
 
 The remaining missing layer is the original `Controls` A/B/C hit-test/dispatch geometry. Once recovered, it should map Android touches to these semantic controls and call `game_scene_action_input::observe(...)`. No tutorial state-machine change should be required.

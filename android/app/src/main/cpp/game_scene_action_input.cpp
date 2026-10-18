@@ -10,6 +10,7 @@ namespace nevergone::game_scene_action_input {
 namespace {
 
 constexpr std::uint32_t kTutorialJumpMeplayerState = 0x20u;
+constexpr int kQuickUseSlotCount = 2;
 
 std::mutex g_mutex;
 Snapshot g_state{};
@@ -53,6 +54,29 @@ bool observe(Control control, Gesture gesture) {
     g_state.last_gesture = gesture;
     ++g_state.accepted_input_count;
     if (tutorial_jump_request) ++g_state.tutorial_jump_request_count;
+    return true;
+}
+
+bool observe_quick_use_slot_tap(int slot) {
+    if (slot < 0 || slot >= kQuickUseSlotCount) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        ++g_state.rejected_input_count;
+        return false;
+    }
+
+    const auto session = tutorial_session_state::snapshot();
+    const bool rage_item_tap = slot == 0 &&
+        session.phase == tutorial_session_state::Phase::kInteractive &&
+        tutorial_gameplay_state::snapshot().step ==
+            tutorial_gameplay_state::Step::kFillRage;
+    const bool rage_filled = rage_item_tap && tutorial_gameplay_state::observe(
+        tutorial_gameplay_state::Event::kTutorialItemFilledRage);
+
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_state.last_quick_use_slot = slot;
+    ++g_state.accepted_input_count;
+    ++g_state.quick_use_tap_count;
+    if (rage_filled) ++g_state.tutorial_rage_fill_count;
     return true;
 }
 
@@ -133,9 +157,15 @@ std::string status_report() {
     } else {
         out << "last original Controls state: none\n";
     }
+    out << "last quick-use slot: "
+        << (state.last_quick_use_slot < 0
+            ? "none"
+            : std::to_string(state.last_quick_use_slot)) << "\n";
     out << "last gesture: " << gesture_name(state.last_gesture) << "\n";
     out << "accepted inputs: " << state.accepted_input_count << "\n";
     out << "rejected inputs: " << state.rejected_input_count << "\n";
+    out << "quick-use taps: " << state.quick_use_tap_count << "\n";
+    out << "tutorial Rage fills: " << state.tutorial_rage_fill_count << "\n";
     out << "tutorial jump requests: " << state.tutorial_jump_request_count << "\n";
     out << "tutorial events: " << state.tutorial_event_count << "\n";
     return out.str();

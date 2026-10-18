@@ -5,7 +5,8 @@ namespace nevergone::player_function_action_contract {
 std::optional<ActionRequest> base_action_request(
         std::uint32_t controls_function_state,
         std::optional<std::uint32_t> current_action_state,
-        std::uint32_t player_index) {
+        std::uint32_t player_index,
+        bool super_ready) {
     switch (controls_function_state) {
         case 7u:
             if (!current_action_state.has_value()) return std::nullopt;
@@ -54,6 +55,15 @@ std::optional<ActionRequest> base_action_request(
             // 0x0e -> 0x1b completion chain.
             if (player_index == 1u && current_action_state == 0x1bu) {
                 return ActionRequest{0x14u, 0x0cu, true, false};
+            }
+            return std::nullopt;
+        case 0x1cu:
+            // Controls synthesizes A+C as 0x1c. Native setFunctionState starts
+            // the super sequence at 0x3a only after Rage reaches 100; the
+            // tutorial's Fill Rage event is the reconstructed full-meter edge.
+            if (super_ready && player_index == 1u &&
+                current_action_state == 0x1bu) {
+                return ActionRequest{0x1cu, 0x3au, true, false};
             }
             return std::nullopt;
         default:

@@ -192,6 +192,13 @@ bool observe_base_function_state(
                g_snapshot.current_action_state == kInitialActionState &&
                g_snapshot.desired_action_state == kInitialActionState) {
         accepted_action = 0x0cu;
+    } else if (function_state == 0x1cu &&
+               pending_meplayer_state == 0x3au &&
+               !pending_has_additional_guard &&
+               g_snapshot.player_index == 1u &&
+               g_snapshot.current_action_state == kInitialActionState &&
+               g_snapshot.desired_action_state == kInitialActionState) {
+        accepted_action = 0x3au;
     } else {
         ++g_snapshot.rejected_function_action_count;
         return false;
@@ -251,6 +258,15 @@ bool observe_action_completion(
                g_snapshot.player_index == 1u) {
         target_state = 0x0eu;
     } else if (completed_action_state == 0x0eu &&
+               g_snapshot.player_index == 1u) {
+        target_state = kInitialActionState;
+    } else if (completed_action_state == 0x3au &&
+               g_snapshot.player_index == 1u) {
+        target_state = 0x3bu;
+    } else if (completed_action_state == 0x3bu &&
+               g_snapshot.player_index == 1u) {
+        target_state = 0x3cu;
+    } else if (completed_action_state == 0x3cu &&
                g_snapshot.player_index == 1u) {
         target_state = kInitialActionState;
     } else {

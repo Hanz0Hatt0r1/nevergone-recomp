@@ -78,7 +78,8 @@ bool observe_base_function_state(
 // A(0x02) and tutorial jump(0x20) queue 0x1b. B(0x1d) queues 0x1e while
 // function state 8 remains held, otherwise 0x1b. Career 1's directional A
 // combo 1 holds completed action 0x0a until function state 0, then queues
-// 0x1b. Its combo action 0x0c queues 0x0d -> 0x0e -> 0x1b. Completed movement
+// 0x1b. Its combo action 0x0c queues 0x0d -> 0x0e -> 0x1b. Career 1's full-Rage
+// super sequence queues 0x3a -> 0x3b -> 0x3c -> 0x1b. Completed movement
 // attacks (0x10/0x14) remain in their native state until a later control sample.
 // Unsupported states fail closed.
 bool observe_action_completion(
