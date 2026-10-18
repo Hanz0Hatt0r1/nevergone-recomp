@@ -1,0 +1,1 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002bf212","source_name":"EnemyObject::setEnemyMove","task":"function_role","label":"enemy_object_action_move_applier","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-object-set-move.md"}
