@@ -18,8 +18,9 @@ struct EnemyActionHitPointPosition {
     std::int32_t action_frame_index = 0;
     std::size_t action_data_index = 0;
     std::size_t frame_ordinal = 0;
-    // Coordinates in EnemyActionsSystem space; object/world translation and
-    // sprite bounds are resolved by later combat integration.
+    // Center of the transformed 8x8 Section-E sprite in
+    // EnemyActionsSystem coordinates. EnemyObject hitpoint offsets are applied
+    // later by EnemyObject::beatHitPoint().
     float system_local_x = 0.0f;
     float system_local_y = 0.0f;
 };

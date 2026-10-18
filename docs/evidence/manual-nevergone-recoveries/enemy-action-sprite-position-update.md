@@ -38,15 +38,18 @@ while `EnemyObject::setEnemyMove(CCPoint,bool)` and
 derived from their movement state.
 
 `enemy_actions_hitpoint_sprite_position::for_frame()` reproduces the recovered
-record selection and coordinate arithmetic. The live enemy render queue now
-carries these candidates for the selected animation frame in
-`Queue::enemy_action_hitpoints`, keyed by enemy slot and frame, using the
-action-start zero offset.
-They remain action-system-local: the `EnemyObject` translation, texture-backed
-sprite bounds, and movement updates are not applied by this slice. Because the
-reconstructed document does not preserve the native sprite-loading predicate,
-the entries identify matching Section-E records rather than asserting that
-every record created a sprite in the original `+0x150` array.
+record selection and Section-E transform; see
+`enemy-action-hitpoint-sprite-transform.md` for the full bounds-center
+calculation. The live enemy render queue carries these centers for the selected
+animation frame in `Queue::enemy_action_hitpoints`, keyed by enemy slot and
+frame, using the action-start zero offset.
+
+The queue does not apply `EnemyObject::beatHitPoint()`'s later `+0x118` and
+`+0x284` translations or a nonzero movement input to
+`EnemyActionsSystem::swapBufferPos()`. Because the reconstructed document does
+not preserve the native sprite-loading predicate, the entries identify
+matching Section-E records rather than asserting that every record created a
+sprite in the original `+0x150` array.
 
 `enemy-action-sprite-position-update-labels.jsonl` adds the gold combat
 function-role label; the combat subsystem label already existed. Rebuilding

@@ -83,6 +83,9 @@ inline game_scene_render_queue::Queue with_live_enemies(
         enemy_actions_base_sprite_update::SystemInputs system;
         system.field_194 = binding.spawn_x + camera_x;
         system.field_198 = binding.spawn_y;
+        // No reconstructed movement producer currently changes the action
+        // system's swapBufferPos argument from its play() baseline (0, 0).
+        system.field_284_x = 0.0f;
         const auto action_sprite = enemy_actions_sprite_update::build(
                 frame, true, 0.0f, system);
         if (!action_sprite.visible || action_sprite.frame_name_68.empty() ||
@@ -109,12 +112,11 @@ inline game_scene_render_queue::Queue with_live_enemies(
         command.action_frame_atlas_plist = frame.first_string;
         command.action_frame_opacity = action_sprite.opacity;
         // play() initializes EnemyActionsSystem+0x284 to (0, 0). The current
-        // reconstruction has no movement-state producer, so carry the static
-        // action-system-local Section-E positions and leave later translations
-        // to the movement recovery.
+        // queue carries Section-E positions with the known spawn/camera inputs;
+        // later movement and EnemyObject offsets remain separate combat inputs.
         const auto hitpoints = enemy_actions_hitpoint_sprite_position::for_frame(
-                *animation.document, static_cast<std::int32_t>(animation.frame_index),
-                0.0f);
+                *animation.document,
+                static_cast<std::int32_t>(animation.frame_index), system);
         for (const auto& hitpoint : hitpoints) {
             queue.enemy_action_hitpoints.push_back({
                     binding.slot,

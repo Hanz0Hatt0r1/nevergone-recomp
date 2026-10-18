@@ -11,6 +11,9 @@ struct SystemInputs {
     float field_194 = 0.0f;
     float field_198 = 0.0f;
     float field_280 = 0.0f;
+    // swapBufferPos subtracts this X component from each Section-E sprite
+    // position after updateData().
+    float field_284_x = 0.0f;
     std::uint8_t flag_16a = 0;
 };
 
