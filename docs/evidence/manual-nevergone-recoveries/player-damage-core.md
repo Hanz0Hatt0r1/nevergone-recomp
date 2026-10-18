@@ -181,3 +181,32 @@ new helper labels; the low-health predicate's gold label is reused from the
 shared corpus. The local manual-restoration-v64 dataset contains 9,240 labelled
 functions, 9,894 label rows, and 6,946 structural groups (7,420 train / 997
 validation / 823 test). The generated corpus and dataset remain outside Git.
+
+## Runtime data boundary checked on device
+
+The installed original package is Never Gone `1.0.9` (version code `9`). Its
+pulled base APK has SHA-256
+`c8aaabfe28893998aaf891716147328245e16a043d95b7abdeac43ef6adc9cab`; REA
+reported a complete APK inventory with no integrity contradictions. The
+imported local `GameEquipConfig.hpc` is JSON and its `WeaponMap` records expose
+weapon type by item id, but no weapon attack value. `GameItemConfig.hpc`
+contains item-use definitions, and `GameUserConfig.hpc` contains fatigue,
+experience thresholds, and level rewards; neither supplies the native
+`WeaponsItemData` base/category attack values or `PlayerStatusInfo` level
+attack. The other inspected local common/global configs do not supply those
+fields either. SHA-256 identities of the five imported JSON configs checked:
+
+| File | SHA-256 |
+| --- | --- |
+| `GameEquipConfig.hpc` | `293ef1898b3e7abad8f357d663c6cbf91c092d1cda4c541662a289e98dcf0dc8` |
+| `GameItemConfig.hpc` | `bd98e7ed94cc1b43493ea60db50fcc84463f7bef9f96b6beb063f57f90a889b6` |
+| `GameUserConfig.hpc` | `f158f3bff9800b0b9b4bcf251a0c1fd903d346453fa841b3b7654f552f156454` |
+| `GameCommonConfig.hpc` | `5577d67173238e1fe870e73b4000d492256152efba03ba17ffe2f00eff93d40a` |
+| `GameGlobalConfig.hpc` | `a4ef525aec39f16139d50fdee027a1f5657b7b0820baa57d51c5caab8310a7b0` |
+
+Therefore these recovered damage contracts still lack a trustworthy live
+`AttackTerms` producer. Do not pass zero-filled or guessed player statistics
+to `player_damage_core_contract::resolve()` as a substitute. The next required
+evidence is the selected weapon and player status data from the original
+runtime or its server response; until then the existing renderer's contact
+candidates remain diagnostics rather than damage events.
