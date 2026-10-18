@@ -29,6 +29,8 @@ struct EnemyActionHitPointPosition {
 
 struct PlayerActionHitPointPosition {
     std::int32_t action_frame_index = 0;
+    std::uint64_t action_generation = 0;
+    std::uint64_t loaded_revision = 0;
     std::size_t action_data_index = 0;
     std::size_t frame_ordinal = 0;
     // Center of the native 8x8 Section-E CCSprite bounds in MeActionsSystem
@@ -57,6 +59,11 @@ struct SpriteCommand {
     std::uint8_t action_frame_opacity = 255u;
     bool enemy_action_not_hit = false;
     bool enemy_action_go = false;
+    bool tutorial_enemy_collision_body = false;
+    std::uint64_t enemy_wave_generation = 0;
+    std::uint32_t enemy_id = 0;
+    std::int32_t enemy_state = 0;
+    float enemy_spawn_y = 0.0f;
     int player_career = 0;
     int player_clothes_id = -1;
     std::string player_name;

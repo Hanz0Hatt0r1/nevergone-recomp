@@ -97,6 +97,8 @@ inline game_scene_render_queue::Queue with_live_player(
         if (!bounds.has_value()) continue;
         queue.player_action_hitpoints.push_back({
                 runtime.current_frame_1a4,
+                live_action.generation,
+                live_action.loaded_revision,
                 hitpoint.action_data_index,
                 hitpoint.frame_ordinal,
                 bounds->x + bounds->width * 0.5f,

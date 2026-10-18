@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -24,7 +25,9 @@
 #include "game_scene_type0_animation.h"
 #include "me_actions_live_playback.h"
 #include "meplayer_live_action_state.h"
+#include "enemy_collision_contract.h"
 #include "player_hl_point_contract.h"
+#include "tutorial_attack_live_gate.h"
 #include "tutorial_enemy_action_document_store.h"
 
 namespace nevergone::game_scene_direct_renderer {
@@ -50,6 +53,13 @@ struct PlayerAnchorFrame {
     player_hl_point_contract::Point position_268;
 };
 
+struct TutorialEnemyCollisionBody {
+    std::uint64_t wave_generation = 0;
+    float origin_y = 0.0f;
+    enemy_collision_contract::Rect bounds;
+    enemy_collision_contract::BeatenState beaten_state;
+};
+
 struct RuntimeAnimation {
     game_scene_type0_post_init::Behavior behavior =
             game_scene_type0_post_init::Behavior::kNone;
@@ -66,6 +76,7 @@ std::atomic<std::size_t> g_last_drawn_sprite_count{0};
 std::atomic<std::size_t> g_last_animated_sprite_count{0};
 std::atomic<std::size_t> g_tutorial_enemy_action_sprite_count{0};
 std::atomic<std::size_t> g_tutorial_enemy_hittable_action_count{0};
+std::atomic<std::size_t> g_tutorial_player_enemy_contact_candidates{0};
 std::atomic<std::uint8_t> g_last_min_opacity{255u};
 std::atomic<float> g_last_camera_eye_x{0.0f};
 GLuint g_program = 0;
@@ -258,6 +269,7 @@ bool draw() {
     g_last_drawn_sprite_count.store(0u, std::memory_order_relaxed);
     g_last_min_opacity.store(255u, std::memory_order_relaxed);
     g_tutorial_enemy_hittable_action_count.store(0u, std::memory_order_relaxed);
+    g_tutorial_player_enemy_contact_candidates.store(0u, std::memory_order_relaxed);
     game_scene_player_hl_point_state::invalidate();
 
     const int surface_width = g_surface_width.load(std::memory_order_relaxed);
@@ -304,6 +316,7 @@ bool draw() {
                     .value_or(0.0f);
     std::uint8_t min_opacity = 255u;
     std::size_t hittable_enemy_actions = 0u;
+    std::vector<TutorialEnemyCollisionBody> enemy_collision_bodies;
     for (std::size_t index = 0; index < order.size(); ++index) {
         const std::size_t sprite_command_index = order[index];
         if (sprite_command_index >= queue->sprites.size() ||
@@ -379,6 +392,43 @@ bool draw() {
             }
         }
 
+        if (command.tutorial_enemy_collision_body &&
+            command.enemy_wave_generation != 0u &&
+            command.enemy_id == 3u && command.enemy_state == 0x1c &&
+            command.action_frame_transform.has_value() &&
+            !command.enemy_action_not_hit && !command.enemy_action_go) {
+            const auto action_bounds =
+                    game_scene_direct_geometry::player_action_sprite_bounds(
+                            *command.action_frame_transform,
+                            texture.width,
+                            texture.height);
+            if (action_bounds.has_value()) {
+                const enemy_collision_contract::BoundingBoxInput input{
+                    true,
+                    1u,
+                    true,
+                    {action_bounds->x - camera_translation_x,
+                     action_bounds->y,
+                     action_bounds->width,
+                     action_bounds->height},
+                    static_cast<std::uint32_t>(command.enemy_state),
+                    static_cast<std::uint8_t>(command.enemy_action_go),
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                };
+                const auto bounds = enemy_collision_contract::enemy_bounding_box(input);
+                enemy_collision_bodies.push_back({
+                    command.enemy_wave_generation,
+                    command.enemy_spawn_y,
+                    bounds,
+                    {true, 0u, 0, static_cast<std::int32_t>(command.enemy_id),
+                     command.enemy_state},
+                });
+            }
+        }
+
         const std::uint8_t opacity = command.action_frame_transform.has_value()
                 ? static_cast<std::uint8_t>(
                         (static_cast<unsigned>(animated.opacity) *
@@ -438,9 +488,48 @@ bool draw() {
         game_scene_player_hl_point_state::invalidate();
     }
 
+    std::size_t player_enemy_contacts = 0u;
+    if (player_anchor.has_value() && !queue->player_action_hitpoints.empty() &&
+        !enemy_collision_bodies.empty()) {
+        const auto player_point = game_scene_player_hl_point_state::snapshot();
+        const auto attack = tutorial_attack_live_gate::live_snapshot();
+        if (player_point.ready &&
+            attack.attack.wave_started && attack.attack.wave_generation != 0u &&
+            player_point.spawn_generation == player_anchor->spawn_generation &&
+            player_point.game_tick == player_anchor->game_tick &&
+            player_point.action_state == player_anchor->action_state) {
+            constexpr float kPlayerEnemyVerticalGate = 50.0f;
+            for (const auto& hitpoint : queue->player_action_hitpoints) {
+                if (!hitpoint.attack_state ||
+                    hitpoint.action_frame_index != player_anchor->action_frame_index ||
+                    hitpoint.action_generation != player_anchor->action_generation ||
+                    hitpoint.loaded_revision != player_anchor->loaded_revision) {
+                    continue;
+                }
+                const enemy_collision_contract::Point candidate{
+                    player_anchor->position_268.x + hitpoint.system_local_x,
+                    player_anchor->position_268.y + hitpoint.system_local_y,
+                };
+                for (const auto& enemy : enemy_collision_bodies) {
+                    if (enemy.wave_generation != attack.attack.wave_generation ||
+                        std::fabs(enemy.origin_y - player_point.player_hl_point.y) >=
+                                kPlayerEnemyVerticalGate) {
+                        continue;
+                    }
+                    if (enemy_collision_contract::is_beaten(
+                                enemy.beaten_state, candidate, enemy.bounds).hit) {
+                        ++player_enemy_contacts;
+                    }
+                }
+            }
+        }
+    }
+
     g_last_min_opacity.store(min_opacity, std::memory_order_relaxed);
     g_tutorial_enemy_hittable_action_count.store(
             hittable_enemy_actions, std::memory_order_relaxed);
+    g_tutorial_player_enemy_contact_candidates.store(
+            player_enemy_contacts, std::memory_order_relaxed);
     g_last_drawn_sprite_count.store(prepared.size(), std::memory_order_relaxed);
     g_drawn_frame_count.fetch_add(1u, std::memory_order_relaxed);
     return true;
@@ -459,6 +548,8 @@ Snapshot snapshot() {
             g_tutorial_enemy_action_sprite_count.load(std::memory_order_relaxed);
     state.tutorial_enemy_hittable_action_count =
             g_tutorial_enemy_hittable_action_count.load(std::memory_order_relaxed);
+    state.tutorial_player_enemy_contact_candidates =
+            g_tutorial_player_enemy_contact_candidates.load(std::memory_order_relaxed);
     state.last_min_opacity = g_last_min_opacity.load(std::memory_order_relaxed);
     state.last_camera_eye_x = g_last_camera_eye_x.load(std::memory_order_relaxed);
     return state;
@@ -479,6 +570,8 @@ std::string status_report() {
         << state.tutorial_enemy_action_sprite_count << "\n";
     out << "tutorial enemy hittable actions: "
         << state.tutorial_enemy_hittable_action_count << "\n";
+    out << "tutorial player-enemy contact candidates: "
+        << state.tutorial_player_enemy_contact_candidates << "\n";
     out << "last minimum opacity: " << static_cast<unsigned int>(state.last_min_opacity) << "\n";
     out << game_scene_player_hl_point_state::status_report();
     out << tutorial_enemy_action_document_store::status_report();

@@ -116,6 +116,12 @@ inline game_scene_render_queue::Queue with_live_enemies(
         command.action_frame_opacity = action_sprite.opacity;
         command.enemy_action_not_hit = action_flags.not_hit;
         command.enemy_action_go = action_flags.go;
+        command.tutorial_enemy_collision_body =
+                binding.enemy_id == 3u && binding.current_enemy_state == 0x1c;
+        command.enemy_wave_generation = binding.wave_generation;
+        command.enemy_id = binding.enemy_id;
+        command.enemy_state = binding.current_enemy_state;
+        command.enemy_spawn_y = binding.spawn_y;
         // play() initializes EnemyActionsSystem+0x284 to (0, 0). The current
         // queue carries Section-E positions with the known spawn/camera inputs;
         // later movement and EnemyObject offsets remain separate combat inputs.
