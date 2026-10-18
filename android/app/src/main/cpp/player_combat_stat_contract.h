@@ -18,7 +18,20 @@ struct State {
     float tools_damage_absorb_factor_430 = 0.0f;
 };
 
+enum class StatusAddition {
+    health,
+    strength,
+    damage_absorb,
+    attack,
+    strength_restore,
+};
+
 struct PlayerStatusInfoState {
+    float add_health_114 = 0.0f;
+    float add_strength_118 = 0.0f;
+    float add_damage_absorb_11c = 0.0f;
+    float add_attack_120 = 0.0f;
+    float add_strength_restore_124 = 0.0f;
     float cloth_add_health_138 = 0.0f;
     float cloth_add_strength_13c = 0.0f;
     float cloth_add_damage_absorb_140 = 0.0f;
@@ -369,6 +382,15 @@ void add_cloth_strength_value(
 void add_cloth_damage_absorb_value(
         PlayerStatusInfoState* status, bool management_gate_nonzero,
         float value) noexcept;
+
+// Mirrors PlayerStatusInfo::add_Add*Value(); all five fields share the native
+// ManagementLayer +0x744 == 0 gate.
+void add_status_addition_value(
+        PlayerStatusInfoState* status, StatusAddition addition,
+        bool management_gate_nonzero, float value) noexcept;
+
+// Mirrors resetPlayerStatusInfoAddData() at +0x114 through +0x124.
+void reset_status_addition_values(PlayerStatusInfoState* status) noexcept;
 
 // Mirrors resetPlayerStatusClothAddData() at +0x138, +0x13c, +0x140, +0x144.
 void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept;

@@ -575,6 +575,38 @@ void add_cloth_damage_absorb_value(
         status->cloth_add_damage_absorb_140 + value;
 }
 
+void add_status_addition_value(
+        PlayerStatusInfoState* status, StatusAddition addition,
+        bool management_gate_nonzero, float value) noexcept {
+    if (status == nullptr || management_gate_nonzero) return;
+    switch (addition) {
+        case StatusAddition::health:
+            status->add_health_114 += value;
+            break;
+        case StatusAddition::strength:
+            status->add_strength_118 += value;
+            break;
+        case StatusAddition::damage_absorb:
+            status->add_damage_absorb_11c += value;
+            break;
+        case StatusAddition::attack:
+            status->add_attack_120 += value;
+            break;
+        case StatusAddition::strength_restore:
+            status->add_strength_restore_124 += value;
+            break;
+    }
+}
+
+void reset_status_addition_values(PlayerStatusInfoState* status) noexcept {
+    if (status == nullptr) return;
+    status->add_health_114 = 0.0f;
+    status->add_strength_118 = 0.0f;
+    status->add_damage_absorb_11c = 0.0f;
+    status->add_attack_120 = 0.0f;
+    status->add_strength_restore_124 = 0.0f;
+}
+
 void reset_cloth_add_values(PlayerStatusInfoState* status) noexcept {
     if (status == nullptr) return;
     status->cloth_add_health_138 = 0.0f;

@@ -60,7 +60,9 @@ and calls `MEPlayer::loadPlayerData()`. The save loader
 object and reads it into `DataManager +0x18`. `loadGameSaveData` also reads the
 saved-data block at `+0x144` and feeds its derived values into `PlayerStatusInfo`
 accumulators for attack, damage absorption, health, strength restore, and
-strength.
+strength. The five serialized fields, offsets, and their shared management
+gate are mapped in
+[player-saved-stat-additions.md](player-saved-stat-additions.md).
 
 ### New save defaults
 
