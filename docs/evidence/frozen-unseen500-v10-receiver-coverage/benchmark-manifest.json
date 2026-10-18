@@ -1,0 +1,48 @@
+{
+  "format": "REVENGINSTR.BenchmarkManifest/1",
+  "benchmark": {
+    "id": "nevergone-unseen500-v10-receiver-coverage",
+    "dataset_id": "nevergone-frozen-unseen500-v10",
+    "dataset_artifact": "function_population",
+    "split_id": "identity-disjoint-unseen500-v10",
+    "family_set_id": null,
+    "description": "Aggregate receiver status coverage for the frozen unlabeled 500-function holdout; this is not an accuracy estimate."
+  },
+  "toolchain": {
+    "revenginstr_version": "0.5.2",
+    "source_revision": "2b3774f0f74811c336c5cae7dd8e615b26581160"
+  },
+  "schemas": {},
+  "artifacts": {
+    "function_population": {
+      "path": "function-population.jsonl",
+      "role": "input",
+      "kind": "file",
+      "content": "jsonl",
+      "format": "NEVERGONE.FrozenUnseenReceiverFunctionPopulation/1",
+      "sha256": "576bf5b9e06015374d64a8d5165ac3d935123e7042ecbcfadfda0e466f5ff8ab"
+    },
+    "receiver_queries": {
+      "path": "receiver-vtable-inference.jsonl",
+      "role": "input",
+      "kind": "file",
+      "content": "jsonl",
+      "format": "NEVERGONE.StaticReceiverVtableInference/1",
+      "sha256": "4c6495ad713057b26e45c905afaa4b1626492685d3d69f19e855e02561401916"
+    }
+  },
+  "configs": {},
+  "stages": [],
+  "projections": [
+    {
+      "id": "receiver",
+      "kind": "receiver",
+      "artifact": "receiver_queries",
+      "population_artifact": "function_population",
+      "function_id_field": "source_id",
+      "resolved_statuses": [
+        "resolved_unique_vtable"
+      ]
+    }
+  ]
+}

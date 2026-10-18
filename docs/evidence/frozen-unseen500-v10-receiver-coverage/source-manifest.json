@@ -1,0 +1,30 @@
+{
+  "format": "NEVERGONE.FrozenValidationCorpus/1",
+  "frozen_corpus": {
+    "rows": 500,
+    "sha256": "c4ac5b71a5ca89e3d18490141892b59a7b71d53920290eca9ce09c712ba69c94"
+  },
+  "limit": 500,
+  "record_id_scheme": "program:source_entry",
+  "selection": "stable_hash_internal_identity_disjoint",
+  "source_corpus": {
+    "eligible_unseen_internal": 1063,
+    "input_rows": 2000,
+    "sha256": "cd781fa8258a3a45e6be6a76ec6726257b48d922b45aa9e51233df466a67192c",
+    "training_overlap_removed": 50
+  },
+  "tag": "unseen500-v10",
+  "trace": {
+    "rows": 500,
+    "sha256": "04de143555c5ff76dc24f614583afdb7f77fe0b58f64d58739dfbc82946125fd"
+  },
+  "training_dataset": {
+    "split_sha256": {
+      "test": "3b9fd22e8b431a6f5948c8c2f76841b4d963a896825d136ac2d51bf563bbff1c",
+      "train": "da16d5019add074a10675784481ed0da8839b68d59cfde41b41c0a0896999e53",
+      "validation": "ee5c907b8cded53c4ddf257d2aee4b4ac65933a590e58c12cdda6416aa7bd8d7"
+    }
+  },
+  "training_identity_count": 9118,
+  "source_manifest_sha256": "6d941481b80aa30feef1e302fecc855f28f4d27fd5efb74aa2ddc618e504e856"
+}
