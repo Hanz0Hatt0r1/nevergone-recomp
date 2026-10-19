@@ -53,18 +53,43 @@ far change:  2.69 + 3.9 = 6.59 s -> ceil(6.59 * 35) = 231 ticks
 
 `begin_career_change(tick, generation, oldCareer, newCareer)` records both careers and selects the matching fixed-clock deadline. Same-career or invalid-career requests do not arm a transition.
 
+## Door motion versus input unlock
+
+The original `OpenTheDoor(true, ...)` call reenables the selector's
+interaction byte synchronously when invoked by `FunOpenTheDoor`, but
+the newly scheduled **opening visual sequence** continues afterward.
+
+The exact `CCMoveTo/CCDelayTime` durations recovered from the full
+original ARM32 `OpenTheDoor` export sum to:
+
+```text
+opening lid: 0.2 + 0.5 + 2.0 + 0.3 + 0.39 = 3.39 seconds
+```
+
+Therefore the 84/179/231-tick deadlines in this document are
+**interaction gate** deadlines, not the final moment at which the
+lid is fully open. Do not extend those deadlines by 3.39 seconds:
+that would change original input behavior. Initial visual activity
+can continue through `2.4 + 3.39 = 5.79` seconds (assuming complete,
+uninterrupted actions); a near career change through
+`2.69 + 2.4 + 3.39 = 8.48` seconds.
+
+`single_select_hero_coffin_motion.h` records the recovered spatial
+targets and easing for the reel and door. Those curves remain separate
+from the existing interaction gate until the other node visibility
+and callback actions have been proven.
+
 ## Runtime integration
 
 The OpeningDialogue scene bridge starts the initial timeline in the same frame that it calls `single_select_hero_state::begin(0)`, passing the resulting selected career into `begin_initial`. Every active frame advances the timeline using `game_clock::tick_count()`. When the deadline fires, the bridge calls `single_select_hero_state::complete_transition()`, reproducing the recovered `FunOpenTheDoor -> OpenTheDoor(true, ...)` gate effect.
 
 Selector generations are attached to every timeline so a stale callback from an old scene cannot unlock a newer selector. The temporary Android fresh-role compatibility overlay may deliberately collapse the transition early; if it clears `transition_pending`, the native bridge discards the armed deadline rather than firing it later.
 
-## Next boundary
+## Remaining visual boundary
 
-The exact rune hit rectangles are already reconstructed. The next native-input increment should:
-
-1. use the staged `xrfuwenfaguangNN` frame while a valid rune press is active;
-2. dispatch `single_select_hero_state::select_career(tag)` on a completed DOWN/UP press;
-3. preserve the old career before dispatch;
-4. when the career actually changes, arm `begin_career_change(game_clock::tick_count(), generation, oldCareer, newCareer)`;
-5. route the recovered confirm control separately through `confirm_online()`.
+The visible rune hit rectangles, pressed/selected glow, and confirm
+input have their own reconstructed paths. The remaining task here is
+to connect the recovered door and reel motion to the original parent,
+clipping and opacity hierarchy without allowing a lid to obscure
+the avatar incorrectly. That should not change the already recovered
+interaction unlock deadlines.
