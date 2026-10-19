@@ -8,6 +8,7 @@
 #include "game_clock.h"
 #include "single_select_hero_rune_layout.h"
 #include "single_select_hero_character_layout.h"
+#include "single_select_hero_coffin_layout.h"
 #include "single_select_hero_state.h"
 #include "single_select_hero_table_layout.h"
 
@@ -16,6 +17,7 @@ namespace {
 
 constexpr int kHeroTableCount = 4;
 constexpr int kHeroCharacterFrameCount = single_select_hero_character_layout::kFrameCount;
+constexpr int kCoffinFrameCount = single_select_hero_coffin_layout::kFrameCount;
 constexpr int kCareerRuneFrameCount = single_select_hero_rune_layout::kFrameCount;
 
 struct PositionedTexture {
@@ -37,6 +39,8 @@ PositionedTexture g_hero_tables[kHeroTableCount]{};
 std::vector<std::uint32_t> g_hero_table_pixels[kHeroTableCount];
 PositionedTexture g_hero_characters[kHeroCharacterFrameCount]{};
 std::vector<std::uint32_t> g_hero_character_pixels[kHeroCharacterFrameCount];
+PositionedTexture g_coffin_frames[kCoffinFrameCount]{};
+std::vector<std::uint32_t> g_coffin_pixels[kCoffinFrameCount];
 PositionedTexture g_career_runes[kCareerRuneFrameCount]{};
 std::vector<std::uint32_t> g_career_rune_pixels[kCareerRuneFrameCount];
 int g_surface_width = 0;
@@ -139,6 +143,15 @@ void clear_hero_characters() {
     }
 }
 
+void clear_coffin_frames() {
+    for (int index = 0; index < kCoffinFrameCount; ++index) {
+        delete_texture(&g_coffin_frames[index]);
+        g_coffin_frames[index] = {};
+        g_coffin_pixels[index].clear();
+        g_coffin_pixels[index].shrink_to_fit();
+    }
+}
+
 void clear_career_runes() {
     for (int index = 0; index < kCareerRuneFrameCount; ++index) {
         delete_texture(&g_career_runes[index]);
@@ -206,6 +219,7 @@ void on_surface_created() {
     g_background.texture = 0;
     for (auto& table : g_hero_tables) table.texture = 0;
     for (auto& hero : g_hero_characters) hero.texture = 0;
+    for (auto& frame : g_coffin_frames) frame.texture = 0;
     for (auto& rune : g_career_runes) rune.texture = 0;
     if (g_program != 0) glDeleteProgram(g_program);
     g_program = build_program();
@@ -327,6 +341,39 @@ bool upload_hero_character(
         return true;
     }
     return ensure_texture(&asset, g_hero_character_pixels[frame_index]);
+}
+
+bool upload_coffin_frame(
+        int frame_index,
+        int width,
+        int height,
+        int left,
+        int top,
+        int source_width,
+        int source_height,
+        const std::uint32_t* argb,
+        size_t count) {
+    if (frame_index < 0 || frame_index >= kCoffinFrameCount ||
+            !validate_asset_geometry(
+                width, height, left, top, source_width, source_height, argb, count)) {
+        return false;
+    }
+
+    PositionedTexture& asset = g_coffin_frames[frame_index];
+    delete_texture(&asset);
+    asset = {};
+    asset.width = width;
+    asset.height = height;
+    asset.left = left;
+    asset.top = top;
+    asset.source_width = source_width;
+    asset.source_height = source_height;
+    g_coffin_pixels[frame_index].assign(argb, argb + count);
+
+    if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue) {
+        return true;
+    }
+    return ensure_texture(&asset, g_coffin_pixels[frame_index]);
 }
 
 bool upload_career_rune(
@@ -459,6 +506,34 @@ void draw_career_runes() {
     }
 }
 
+void draw_fixed_coffin_back() {
+    // Confirmed initUI() z-order: xrshiguan.png is placed behind the
+    // character body. xrguangai.png is a moving, foreground door and is
+    // intentionally NOT drawn until its opening animation is recovered.
+    PositionedTexture& asset = g_coffin_frames[single_select_hero_coffin_layout::kBaseFrame];
+    if (!ensure_texture(
+            &asset, g_coffin_pixels[single_select_hero_coffin_layout::kBaseFrame])) {
+        return;
+    }
+    single_select_hero_coffin_layout::FrameGeometry geometry;
+    geometry.width = asset.width;
+    geometry.height = asset.height;
+    geometry.left = asset.left;
+    geometry.top = asset.top;
+    geometry.source_width = asset.source_width;
+    geometry.source_height = asset.source_height;
+    const auto quad = single_select_hero_coffin_layout::base_quad_for_surface(
+        geometry, g_surface_width, g_surface_height);
+    if (!quad.valid) return;
+    const GLfloat vertices[] = {
+        quad.x0, quad.y0,
+        quad.x0, quad.y1,
+        quad.x1, quad.y0,
+        quad.x1, quad.y1,
+    };
+    bind_and_draw(asset.texture, vertices, true);
+}
+
 void draw_hero_character() {
     const auto state = single_select_hero_state::snapshot();
     const int frame_index = single_select_hero_character_layout::frame_index(
@@ -522,6 +597,7 @@ void draw() {
         delete_texture(&g_background);
         for (auto& table : g_hero_tables) delete_texture(&table);
         for (auto& hero : g_hero_characters) delete_texture(&hero);
+        for (auto& frame : g_coffin_frames) delete_texture(&frame);
         for (auto& rune : g_career_runes) delete_texture(&rune);
         g_rune_glow_generation = 0;
         g_rune_glow_start_tick = 0;
@@ -542,6 +618,7 @@ void draw() {
     }
 
     draw_background();
+    draw_fixed_coffin_back();
     draw_hero_character();
     draw_career_runes();
     draw_hero_table();
@@ -658,6 +735,43 @@ Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeUploadHeroCharacter
     jint* values = env->GetIntArrayElements(pixels, nullptr);
     if (values == nullptr) return JNI_FALSE;
     const bool uploaded = nevergone::single_select_hero::upload_hero_character(
+        static_cast<int>(frame_index),
+        static_cast<int>(width),
+        static_cast<int>(height),
+        static_cast<int>(left),
+        static_cast<int>(top),
+        static_cast<int>(source_width),
+        static_cast<int>(source_height),
+        reinterpret_cast<const std::uint32_t*>(values),
+        expected);
+    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
+    return uploaded ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeClearCoffinFrames(JNIEnv*, jclass) {
+    nevergone::single_select_hero::clear_coffin_frames();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeUploadCoffinFrame(
+        JNIEnv* env,
+        jclass,
+        jint frame_index,
+        jint width,
+        jint height,
+        jint left,
+        jint top,
+        jint source_width,
+        jint source_height,
+        jintArray pixels) {
+    if (pixels == nullptr || width <= 0 || height <= 0) return JNI_FALSE;
+    const jsize length = env->GetArrayLength(pixels);
+    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (static_cast<size_t>(length) != expected) return JNI_FALSE;
+    jint* values = env->GetIntArrayElements(pixels, nullptr);
+    if (values == nullptr) return JNI_FALSE;
+    const bool uploaded = nevergone::single_select_hero::upload_coffin_frame(
         static_cast<int>(frame_index),
         static_cast<int>(width),
         static_cast<int>(height),
