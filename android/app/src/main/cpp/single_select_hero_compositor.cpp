@@ -509,8 +509,8 @@ void draw_career_runes() {
 
 void draw_fixed_coffin_back() {
     // Confirmed initUI() z-order: xrshiguan.png is placed behind the
-    // character body. xrguangai.png is a moving, foreground door and is
-    // intentionally NOT drawn until its opening animation is recovered.
+    // character body. The foreground door is drawn separately using the
+    // visual timeline, which survives the selector input-unlock callback.
     PositionedTexture& asset = g_coffin_frames[single_select_hero_coffin_layout::kBaseFrame];
     if (!ensure_texture(
             &asset, g_coffin_pixels[single_select_hero_coffin_layout::kBaseFrame])) {
