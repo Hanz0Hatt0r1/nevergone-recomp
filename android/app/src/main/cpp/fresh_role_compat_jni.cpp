@@ -6,6 +6,12 @@
 
 #include "character_name_action_executor.h"
 #include "fresh_role_compat_state.h"
+#include "character_name_state.h"
+#include "login_localization_csv.h"
+#include "offline_hero_creation.h"
+#include "offline_startup_flow.h"
+#include "single_select_hero_state.h"
+#include "startup_contract.h"
 
 namespace {
 
@@ -178,4 +184,51 @@ Java_org_nevergone_recomp_FreshRoleCompatOverlay_nativeDispatchNameAction(
         result += error;
     }
     return to_java_string(env, result);
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_org_nevergone_recomp_FreshRoleCompatOverlay_nativeCreateOfflineHero(
+        JNIEnv* env, jclass, jint language_column) {
+    if (nevergone::offline_startup_flow::snapshot().route !=
+            nevergone::offline_startup_flow::Route::kOpeningDialogue) {
+        return to_java_string(env, "not-offline");
+    }
+
+    const auto character = nevergone::character_name_state::snapshot();
+    const auto selector = nevergone::single_select_hero_state::snapshot();
+    if (!character.active || !selector.active ||
+            character.career != selector.selected_career) {
+        return to_java_string(env, "stale-hero-selection");
+    }
+
+    const auto candidate = nevergone::offline_hero_creation::resolve(
+        nevergone::startup::config().files_dir,
+        character.career,
+        language_column >= 0 && language_column <= 8
+            ? static_cast<std::size_t>(language_column)
+            : nevergone::login_localization_csv::kEnglishColumn);
+    if (candidate.status != nevergone::offline_hero_creation::Status::kReady) {
+        return to_java_string(
+            env, nevergone::offline_hero_creation::status_name(candidate.status));
+    }
+
+    if (!nevergone::character_name_state::set_role_name(candidate.display_name)) {
+        return to_java_string(env, "name-state-unavailable");
+    }
+
+    // Offline creation must not randomize the selected hero's profile name.
+    if (character.randomize_pending) {
+        std::int64_t randomize_career = 0;
+        if (!nevergone::character_name_state::take_randomize_request(
+                &randomize_career) || randomize_career != character.career) {
+            return to_java_string(env, "stale-random-name-request");
+        }
+    }
+
+    std::string error;
+    const auto result = nevergone::character_name_action_executor::dispatch_tag(1, &error);
+    std::string message =
+        nevergone::character_name_action_executor::outcome_name(result);
+    if (!error.empty()) message += ": " + error;
+    return to_java_string(env, message);
 }
