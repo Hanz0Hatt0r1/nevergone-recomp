@@ -158,6 +158,7 @@ add_library(nevergone_recomp SHARED
     splash_timeline.cpp
     standalone_hero_save_metadata.cpp
     standalone_hero_save_probe.cpp
+    offline_hero_creation.cpp
     startup_audio_bridge.cpp
     startup_contract.cpp
     string_validation.cpp
