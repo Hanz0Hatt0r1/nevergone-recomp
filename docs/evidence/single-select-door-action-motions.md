@@ -98,11 +98,18 @@ as pure, deterministic easing functions. The smoke test verifies
 the endpoints, signed overshoot, near/far durations, start-position
 dependence, and the 35 Hz sampling contract.
 
-**Not yet enabled for lid rendering.** The action graph also changes
-visibility, opacity and callbacks on other Cocos nodes, and the current
-GLES renderer has not yet reproduced their exact parent/z-order and
-clip interaction. Showing all five covers before that mapping could
-occlude the avatar or selection controls. These movement facts are
-ready for integration once the visibility hierarchy is corroborated.
+The current GLES renderer draws the selected lid during initial
+and non-overlapping change transitions using this model. The
+`VisualSnapshot` of `single_select_hero_transition_timeline` survives
+the interaction-unlock event and expires at the full animation deadline;
+its `initial_positions_verified` gate suppresses early-interrupted
+sequences where the native `numberOfRunningActions()` guard makes
+the lid's starting pose unknown.
+
+**Limit:** only the actively selected moving cover is rendered, not the
+full five-cover reel's visibility/clip effects. The action graph
+also changes opacity and callbacks on other nodes; those effects are
+still not reproduced and require separate original evidence. This is
+not yet pixel-perfect animation parity.
 
 The original APK/OBB, saves and raw Ghidra output are not committed.
