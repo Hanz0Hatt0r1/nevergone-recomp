@@ -1,0 +1,40 @@
+{
+  "acquisition_state_counts": {
+    "complete": 500
+  },
+  "callind_sites": 203,
+  "canonical_truncated_functions": 24,
+  "count_reconciliation_counts": {
+    "matched": 500
+  },
+  "expected_callind_count_known_functions": 500,
+  "expected_callind_count_total": 203,
+  "flow_artifacts": [
+    {
+      "artifact_path": "docs/evidence/frozen-unseen500-v10-callind-inventory/high-pcode-flow.tsv",
+      "artifact_sha256": "48ee04a8047dc5429ca1caabdf1b74e1f9646ae45d95f20c4df21beece8b287f",
+      "record_count": 40519
+    }
+  ],
+  "format": "REVENGINSTR.CallindInventorySummary/1",
+  "functions_with_flow": 500,
+  "indirect_call_evidence_artifacts": [
+    {
+      "artifact_path": "docs/evidence/frozen-unseen500-v10-callind-inventory/callind-target-expressions.jsonl",
+      "artifact_sha256": "ed14188ffd75cb1bd96cb3e9f929a4a07661470d8818f850e5af6ed6a1687a55",
+      "record_count": 203
+    }
+  ],
+  "observed_callind_count_functions": 500,
+  "observed_callind_count_total": 203,
+  "population_functions": 500,
+  "population_manifest_sha256": "0ef987f750973c1db6ca5488d0eb526348791da059bbd0205bb321869a9cbf6b",
+  "program_id": "libcocos2dcpp.so",
+  "site_classification_counts": {
+    "unknown": 203
+  },
+  "sites_missing_expression_evidence": 0,
+  "sites_with_cycle_marker": 0,
+  "sites_with_depth_limit_marker": 140,
+  "sites_with_expression_evidence": 203
+}

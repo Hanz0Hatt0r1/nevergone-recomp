@@ -28,6 +28,11 @@ accuracy claim and does not evaluate exact-evidence mismatch gates. The M2.6
 resolution is below that threshold, and function-level resolved coverage is
 10.6%.
 
+The companion [CALLIND acquisition inventory](../frozen-unseen500-v10-callind-inventory/README.md)
+reconciles exact High-P-code sites over all 500 functions. Its unreviewed sites
+remain `unknown`; it does not turn the receiver-query counts above into a
+virtual-dispatch accuracy measurement.
+
 ## Inputs and reproduction
 
 `function-population.jsonl` contains the 500 frozen function identities copied
