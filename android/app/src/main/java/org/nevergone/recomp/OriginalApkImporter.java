@@ -37,6 +37,7 @@ final class OriginalApkImporter {
     private OriginalApkImporter() {}
 
     static Result importAssets(ContentResolver resolver, Uri apkUri, File filesDir) throws IOException {
+        OriginalAssetImportRecovery.recover(filesDir);
         File staging = new File(filesDir, "assets.importing");
         File target = new File(filesDir, "assets");
         File backup = new File(filesDir, "assets.previous");
