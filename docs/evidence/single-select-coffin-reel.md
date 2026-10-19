@@ -70,11 +70,21 @@ The original imported `Singleselechero.plist` records:
   character body.
 - The same APK atlas importer also stages the `xrguangai.png` frame,
   so five lid copies can be constructed without another OBB search.
-- Lid offsets are modeled/tested in
-  `single_select_hero_coffin_layout.h`, but **covers are not yet
-  rendered**: they are foreground occluders, and a static draw would
-  hide the avatar. Resolving the exact open state is a prerequisite
-  for a visual lid action.
+- Lid offsets, action timing and animated sprite quads are modeled
+  in `single_select_hero_coffin_layout.h`,
+  `single_select_hero_coffin_motion.h` and
+  `single_select_hero_lid_presentation.h`.
+- The native compositor now draws the single **active** lid as a foreground
+  occluder during the recovered intro and uninterrupted career-change
+  sequences. It draws the body above the fixed base but below the active
+  lid. The lid pose remains available for 3.39 s after the input gate
+  unlocks.
+- Early overlapping career changes have ambiguous starting poses due to
+  the native `numberOfRunningActions()` guard. The visual timeline
+  therefore marks them `initial_positions_verified=false` and draws
+  no lid, without changing the input/career selection behavior.
+- This is conservative partial scene recovery, not full parity of
+  simultaneous covers, original clipping and other callback effects.
 - No original assets, binary bytes or raw instructions are committed.
   All original APK/OBB files, user-imported resources and saves are
   untouched.
