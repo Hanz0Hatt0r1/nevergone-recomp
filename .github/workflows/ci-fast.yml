@@ -48,6 +48,15 @@ jobs:
             -o /tmp/offline_hero_creation_smoke
           /tmp/offline_hero_creation_smoke
 
+      - name: Validate original SingleSelectHero carousel and door timing
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -Wall -Wextra -Werror -O2 -I android/app/src/main/cpp \
+            tools/single_select_hero_coffin_motion_smoke.cpp \
+            -o /tmp/single_select_hero_coffin_motion_smoke
+          /tmp/single_select_hero_coffin_motion_smoke
+
       - name: Validate SingleSelectHero coffin and reel geometry
         shell: bash
         run: |
