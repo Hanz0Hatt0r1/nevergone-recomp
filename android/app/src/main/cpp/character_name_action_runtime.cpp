@@ -11,6 +11,10 @@ namespace nevergone::character_name_action_executor {
 namespace {
 
 bool production_create_dispatch() {
+    // Startup diagnostics may have run before the original assets were
+    // imported. Retry the persistent script session at the point where the
+    // staged request is actually dispatched.
+    if (!login_lua_session::ensure_started()) return false;
     return login_lua_session::dispatch_pending_role_create_request();
 }
 
