@@ -6,6 +6,7 @@ import android.net.Uri;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,6 +46,16 @@ final class OriginalApkImporter {
         deleteTree(backup);
         if (!staging.mkdirs() && !staging.isDirectory()) {
             throw new IOException("cannot create staging directory");
+        }
+        // An explicit APK reimport must not silently erase already imported
+        // expansion data. Overlay the new APK entries on the previous tree.
+        if (target.isDirectory()) {
+            try {
+                copyTree(target, staging);
+            } catch (IOException | RuntimeException error) {
+                deleteTree(staging);
+                throw error;
+            }
         }
 
         int importedFiles = 0;
@@ -194,6 +205,26 @@ final class OriginalApkImporter {
             if (inspected == 0 || printable * 100 < inspected * 85) {
                 throw new IOException("StartLua.lua did not decode to plausible Lua text");
             }
+        }
+    }
+
+    private static void copyTree(File source, File destination) throws IOException {
+        if (source.isDirectory()) {
+            if (!destination.mkdirs() && !destination.isDirectory()) {
+                throw new IOException("cannot create staging directory: " + destination);
+            }
+            File[] children = source.listFiles();
+            if (children == null) throw new IOException("cannot list directory: " + source);
+            for (File child : children) {
+                copyTree(child, new File(destination, child.getName()));
+            }
+            return;
+        }
+        byte[] buffer = new byte[64 * 1024];
+        try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(source));
+             BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(destination))) {
+            int read;
+            while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
         }
     }
 
