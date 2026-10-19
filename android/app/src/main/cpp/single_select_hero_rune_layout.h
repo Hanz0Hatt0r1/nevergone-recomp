@@ -89,6 +89,23 @@ inline float center_y(int tag) {
     return valid_tag(tag) ? kFirstCenterY - kStepY * static_cast<float>(tag - 1) : 0.0f;
 }
 
+// SingleSelectHero::initUI() 0x0043953e..0x00439574 creates the
+// xrfuwenfaguangNN glow with initial CCNode opacity 0x4c (76), then
+// CCFadeTo(2.0f,255) -> CCFadeTo(2.0f,76), repeated forever.
+// At the game's recovered fixed simulation frequency, one leg is 70 ticks.
+constexpr std::uint64_t kGlowFadeTicks = 70u;
+constexpr std::uint64_t kGlowCycleTicks = 2u * kGlowFadeTicks;
+constexpr float kGlowMinimumOpacity = 76.0f / 255.0f;
+
+inline float glow_opacity_after_ticks(std::uint64_t elapsed_ticks) {
+    const std::uint64_t phase = elapsed_ticks % kGlowCycleTicks;
+    const float ramp = phase <= kGlowFadeTicks
+        ? static_cast<float>(phase) / static_cast<float>(kGlowFadeTicks)
+        : static_cast<float>(kGlowCycleTicks - phase) /
+            static_cast<float>(kGlowFadeTicks);
+    return kGlowMinimumOpacity + (1.0f - kGlowMinimumOpacity) * ramp;
+}
+
 inline float opacity(int tag) {
     return runtime_visible_tag(tag) ? 1.0f : 0.0f;
 }
