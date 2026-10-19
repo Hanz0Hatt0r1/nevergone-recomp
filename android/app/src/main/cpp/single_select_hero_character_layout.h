@@ -8,12 +8,18 @@
 
 namespace nevergone::single_select_hero_character_layout {
 
-// The source frames and their untrimmed sizes are verified against the
-// shipped Singleselechero atlas. The pose is a provisional placement in the
-// left character-preview region until the original sprite-node transform is
-// resolved from SingleSelectHero::Carousel. Never treat it as native evidence.
-constexpr float kPreviewCenterX = 320.0f;
-constexpr float kPreviewCenterY = 320.0f;
+// Recovered from original ARM32 SingleSelectHero::initUI (0x00438c20).
+// xrshiguan.png is centered at (150 + width/2, visibleHeight/2).
+// Its original content size is 274x514 (verified against Singleselechero.plist).
+// initUI copies the shiguan position into P01DL_Ani_0001 (0x00439646..0x00439662).
+// Carousel (0x004388ac) moves the reel by the control-point difference and
+// counter-moves the hero layer, so the selected preview remains at this center
+// when the carousel movement completes. The *transition* is not reproduced here.
+constexpr float kShiguanLeftMargin = 150.0f;
+constexpr float kShiguanSourceWidth = 274.0f;
+constexpr float kCarouselSpacing = 271.0f;  // xrguangai.png content width
+constexpr float kPreviewCenterX = kShiguanLeftMargin + kShiguanSourceWidth * 0.5f;
+constexpr float kPreviewCenterY = single_select_hero_table_layout::kDesignHeight * 0.5f;
 constexpr int kFrameCount = 4;
 
 // Atlas upload order: Dawn normal, Dawn grey, Higgs normal, Higgs grey.
