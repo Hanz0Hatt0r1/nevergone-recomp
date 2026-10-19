@@ -1,0 +1,138 @@
+{
+  "analysis": {
+    "max_alternatives": 16,
+    "max_depth": 32,
+    "max_functions": 500,
+    "max_operations": 50000,
+    "output_filter": "record_kind == 'callind_target'",
+    "parameter_root_input": null,
+    "read_only_evidence": true,
+    "target_definition_join": [
+      "function_entry",
+      "operation_opcode",
+      "operation_address",
+      "operation_time",
+      "output_width"
+    ],
+    "target_join": [
+      "function_entry",
+      "call_address",
+      "call_time"
+    ]
+  },
+  "artifacts": [
+    {
+      "bytes": 319811,
+      "path": "docs/evidence/frozen-unseen500-v10-pointer-provenance/callind-target-provenance.jsonl",
+      "rows": 203,
+      "sha256": "b2f8cc995b33c396fc8898a620d6bcc92eb73b345a22c4867613ee0926285338",
+      "source_format": "REVENGINSTR.PointerProvenance/1 filtered to record_kind=callind_target"
+    },
+    {
+      "bytes": 851,
+      "path": "docs/evidence/frozen-unseen500-v10-pointer-provenance/summary.json",
+      "rows": 1,
+      "sha256": "5600b81c6ec442a379335e174d37f4d497d8d138cd143e707f7b7355f250cadd",
+      "source_format": "NEVERGONE.PointerProvenanceReplaySummary/1"
+    }
+  ],
+  "baseline_callind_manifest_sha256": "322523a0eeb788dde4a7a20a4f34a0221f7fc45bc775bacff56607048d5cdcad",
+  "consumer": {
+    "binary_sha256": "94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e",
+    "program_id": "libcocos2dcpp.so"
+  },
+  "created": "2026-10-19",
+  "format": "NEVERGONE.PointerProvenanceReplay/1",
+  "ghidra": {
+    "analysis_disabled": true,
+    "decompile_timeout_seconds": 60,
+    "java_version": "21.0.12.1",
+    "max_functions": 500,
+    "max_total_seconds": 1800,
+    "project_tree_hash_algorithm": "SHA-256 over sorted relative paths; D/F marker and path for every entry, plus file size and bytes for files",
+    "project_tree_scope": "nevergone.gpr plus every entry below nevergone.rep",
+    "project_tree_sha256": "85d95b2cab8803c500377f769f3060d455e078c17d7c836d1b8ed02b90f3e6f7",
+    "read_only": true,
+    "version": "12.1.2-DEV"
+  },
+  "holdout": {
+    "frozen_corpus_rows": 500,
+    "frozen_corpus_sha256": "c4ac5b71a5ca89e3d18490141892b59a7b71d53920290eca9ce09c712ba69c94",
+    "record_id_scheme": "program:source_entry",
+    "scrubbed_source_manifest_sha256": "6d941481b80aa30feef1e302fecc855f28f4d27fd5efb74aa2ddc618e504e856",
+    "selection": "stable_hash_internal_identity_disjoint",
+    "tag": "unseen500-v10"
+  },
+  "inputs": [
+    {
+      "bytes": 3525730,
+      "path": "docs/evidence/frozen-unseen500-v10-callind-inventory/high-pcode-flow.tsv",
+      "role": "analyzer_input",
+      "rows": 40519,
+      "sha256": "48ee04a8047dc5429ca1caabdf1b74e1f9646ae45d95f20c4df21beece8b287f",
+      "source_format": "REVENGINSTR.GhidraFunctionPcodeFlow/1"
+    },
+    {
+      "bytes": 69512,
+      "path": "docs/evidence/frozen-unseen500-v10-callind-inventory/callind-target-expressions.jsonl",
+      "role": "analyzer_input",
+      "rows": 203,
+      "sha256": "ed14188ffd75cb1bd96cb3e9f929a4a07661470d8818f850e5af6ed6a1687a55",
+      "source_format": "REVENGINSTR.GhidraIndirectCallEvidence/1"
+    },
+    {
+      "bytes": 647067,
+      "path": "docs/evidence/frozen-unseen500-v10-callind-inventory/callind-inventory.jsonl",
+      "role": "classification_context",
+      "rows": 703,
+      "sha256": "1f88e89303d8122525c1cfd07c644dc9562942be2a5242628373402047030ec3",
+      "source_format": "REVENGINSTR.CallindInventory/1"
+    },
+    {
+      "bytes": 4304,
+      "path": "docs/evidence/frozen-unseen500-v10-callind-inventory/replay-manifest.json",
+      "role": "baseline_replay_manifest",
+      "rows": 1,
+      "sha256": "322523a0eeb788dde4a7a20a4f34a0221f7fc45bc775bacff56607048d5cdcad",
+      "source_format": "NEVERGONE.CallindInventoryReplay/1"
+    }
+  ],
+  "results": {
+    "accuracy_or_recall_claim": false,
+    "baseline_callind_inventory_classifications": {
+      "unknown": 203
+    },
+    "callind_sites": 203,
+    "callind_target_root_alternative_counts": {
+      "address_anchor": 1,
+      "memory_read_anchor": 195,
+      "unknown": 9
+    },
+    "callind_target_status_counts": {
+      "ambiguous": 2,
+      "indirect_barrier": 8,
+      "load_anchor": 191,
+      "resolved": 1,
+      "unknown": 1
+    },
+    "exact_callind_target_joins": 203,
+    "format": "NEVERGONE.PointerProvenanceReplaySummary/1",
+    "full_pointer_provenance_rows": 35575,
+    "holdout": {
+      "frozen_corpus_sha256": "c4ac5b71a5ca89e3d18490141892b59a7b71d53920290eca9ce09c712ba69c94",
+      "functions": 500,
+      "tag": "unseen500-v10"
+    },
+    "pcode_flow_rows": 40519,
+    "program_id": "libcocos2dcpp.so",
+    "schema_valid_target_rows": 203,
+    "virtual_dispatch_identity_claims": 0
+  },
+  "revenginstr": {
+    "pointer_provenance_module_sha256": "19ff9177e3ba0c8a36c6ddef577bf89c08effe502f35e2f637b135b42fe008ca",
+    "revision": "a211662077650dbfc5c24ab7b1b80de85e99142d",
+    "revision_url": "https://github.com/Hanz0Hatt0r1/revenginstr/commit/a211662077650dbfc5c24ab7b1b80de85e99142d",
+    "schema_sha256": "eff1ed17b9fa9482dc60fb376bfab8a6de3a01b76a5d813385ee8babf51289c2",
+    "stacked_on_pull_request": "https://github.com/Hanz0Hatt0r1/revenginstr/pull/149"
+  }
+}

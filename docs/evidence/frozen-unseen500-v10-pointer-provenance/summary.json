@@ -1,0 +1,31 @@
+{
+  "accuracy_or_recall_claim": false,
+  "baseline_callind_inventory_classifications": {
+    "unknown": 203
+  },
+  "callind_sites": 203,
+  "callind_target_root_alternative_counts": {
+    "address_anchor": 1,
+    "memory_read_anchor": 195,
+    "unknown": 9
+  },
+  "callind_target_status_counts": {
+    "ambiguous": 2,
+    "indirect_barrier": 8,
+    "load_anchor": 191,
+    "resolved": 1,
+    "unknown": 1
+  },
+  "exact_callind_target_joins": 203,
+  "format": "NEVERGONE.PointerProvenanceReplaySummary/1",
+  "full_pointer_provenance_rows": 35575,
+  "holdout": {
+    "frozen_corpus_sha256": "c4ac5b71a5ca89e3d18490141892b59a7b71d53920290eca9ce09c712ba69c94",
+    "functions": 500,
+    "tag": "unseen500-v10"
+  },
+  "pcode_flow_rows": 40519,
+  "program_id": "libcocos2dcpp.so",
+  "schema_valid_target_rows": 203,
+  "virtual_dispatch_identity_claims": 0
+}
