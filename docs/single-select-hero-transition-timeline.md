@@ -82,6 +82,41 @@ Ambiguous starts from overlapping Cocos actions abstain rather than
 force an unproven position. Rendering the other covers, masks and callback
 effects remains separate work.
 
+## Native GLES presentation bridge (2026-10-19)
+
+The original lid has a visible state lifetime longer than the
+original input lock. The scene's current reconstruction therefore
+exposes **two distinct snapshots**:
+
+- `Snapshot` still owns interaction locking, ending at the existing
+  84/179/231-tick gate. Its schema and callback behavior are unchanged.
+- `VisualSnapshot` pins `phase`, selector generation, old/new careers,
+  initial game-clock tick, and full expected visual completion:
+  initial **203 ticks**, changed-near **297 ticks**, changed-far
+  **350 ticks**. It remains available after the input unlock, but resets
+  with scene/generation invalidation.
+
+`single_select_hero_lid_presentation.h` samples this visual snapshot
+using the original `CCMoveTo` / easing model. The compositor places the
+original uploaded `xrguangai.png` active cover in front of the hero
+and behind the rune/menu controls, with the original TexturePacker
+trim geometry and parent reel translation.
+
+If a second selection begins while the previous cover is still running
+actions, the original `numberOfRunningActions()` check makes its start
+position conditional. The new visual snapshot marks that transition
+`initial_positions_verified=false`, so **no speculative cover is drawn**
+for the overlapping action. Character selection and its independent
+input-gate deadlines continue unaffected.
+
+This reproduces the proven active-lid movement, not the complete original
+five-cover visibility, clipping or all callback-driven fades. Device
+visual parity remains unverified until tested on actual imported assets.
+
+The fast CI covers initial input-unlock persistence, the
+early-interruption no-draw branch, near-reel close/open boundaries,
+scene-generation invalidation, and independent visual reset.
+
 ## Runtime integration
 
 The OpeningDialogue scene bridge starts the initial timeline in the same frame that it calls `single_select_hero_state::begin(0)`, passing the resulting selected career into `begin_initial`. Every active frame advances the timeline using `game_clock::tick_count()`. When the deadline fires, the bridge calls `single_select_hero_state::complete_transition()`, reproducing the recovered `FunOpenTheDoor -> OpenTheDoor(true, ...)` gate effect.
