@@ -48,6 +48,15 @@ jobs:
             -o /tmp/offline_hero_creation_smoke
           /tmp/offline_hero_creation_smoke
 
+      - name: Validate SingleSelectHero coffin and reel geometry
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -I android/app/src/main/cpp \
+            tools/single_select_hero_coffin_layout_smoke.cpp \
+            -o /tmp/single_select_hero_coffin_layout_smoke
+          /tmp/single_select_hero_coffin_layout_smoke
+
       - name: Validate SingleSelectHero character preview geometry
         shell: bash
         run: |
