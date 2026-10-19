@@ -444,10 +444,12 @@ void draw_career_runes() {
             quad.x1, quad.y0,
             quad.x1, quad.y1,
         };
+        const std::uint64_t now_tick = game_clock::tick_count();
+        const std::uint64_t glow_ticks = now_tick >= g_rune_glow_start_tick
+            ? now_tick - g_rune_glow_start_tick : 0;
         const float selected_alpha = (frame_index % 2 == 1 &&
                 g_rune_glow_generation != 0)
-            ? single_select_hero_rune_layout::glow_opacity_after_ticks(
-                game_clock::tick_count() - g_rune_glow_start_tick)
+            ? single_select_hero_rune_layout::glow_opacity_after_ticks(glow_ticks)
             : 1.0f;
         bind_and_draw(
             asset.texture,
