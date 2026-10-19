@@ -1,9 +1,9 @@
 # Tutorial enemy actor bindings
 
 The first Attack-wave roster now has enough reviewed data to materialize slots
-from the imported tutorial scene, but a roster slot is not yet a rendered or
+from the imported tutorial scene, but a roster slot is not yet a complete
 AI-driven `EnemyObject`. `tutorial_enemy_actor_bindings` is the narrow identity
-boundary between those two layers.
+and numeric combat-input boundary between those two layers.
 
 ## Binding identity
 
@@ -16,13 +16,18 @@ wave_generation
 enemy_id
 initial_enemy_state
 base_health
+input_value_2bc
 spawn_x
 spawn_y
 ```
 
-All values come directly from the materialized roster slot. The binding layer
-never chooses a sprite, action-data file, AI state, hit box, damage amount, or
-death result.
+The ID, state, health, and geometry come from the materialized roster slot.
+`input_value_2bc` comes from the unique reviewed `EnemyRecord` selected by that
+ID. Given the selected action document and current frame, the live gate resolves
+both inputs passed to `MEPlayer::isBeaten()`: `inputAtkValue()` from Section F's
+`+0xd8` factor and `curFramePower()` from the matching `+0x9c` entry. A compact
+hit-window helper also mirrors the recovered `+0x16c/+0x2a4` comparison and
+advance. This boundary does not infer hit contact or apply damage to the player.
 
 `(wave_generation, slot)` is the stable live identity. A slot index by itself is
 not accepted because tutorial waves reuse the same small slot range.
@@ -62,25 +67,62 @@ before touching roster health.
 
 The existing Tutorial Attack live-gate report now appends a `Tutorial enemy
 actor bindings` section containing the active wave generation and each bound
-slot's recovered ID/state/HP/spawn coordinates. This makes device evidence able
+slot's recovered ID/state/HP/attack input/spawn coordinates. This makes device evidence able
 to distinguish:
 
 - planned roster enemies;
 - materialized roster enemies;
 - published actor identities.
 
+## Enemy 3 action selection
+
+The imported original `enemy/enemy03/enemy_actions_1_03.plist` closes the first
+Attack-wave actor's startup mapping: `start=47`, action 47 is the non-looping
+`e03_e_born02b.actData` appearance clip, and action 28 is the looping
+`e03_e_w01_back.actData` state clip. RevEngInstr's export of
+`EnemyObject::onlineEnemyState` confirms that the native
+`CCArray::objectAtIndex` receives the state stored at `EnemyObject+0x274`.
+State `0x1c` therefore selects action index 28. The verified map supports
+enemy03 states 1 (walk), 2 (run), 3/4 (attack clips), 21 (idle), 27 (stagger),
+28 (backward walk), and 43 (alternate walk); unsupported states fail closed.
+The original table sets `go_fps=30`. Native `EnemyObject::eventAction` routes
+enemy03 AI branches to states 27 and 43; states 36 and 42 also appear in that
+function but have no matching entries in this action table. See
+[`online-enemy-action-index-2026-10-17.md`](evidence/online-enemy-action-index-2026-10-17.md)
+for the state lookup and
+[`enemy03-ai-action-routes-2026-10-17.md`](evidence/enemy03-ai-action-routes-2026-10-17.md)
+for the AI action routes.
+`tutorial_enemy_action_selection` records this mapping for enemy ID 3 and fails
+closed for IDs without reviewed data.
+
+## Enemy 3 action rendering
+
+The visual path connects each materialized ID 3 slot to the reviewed original
+action documents. It loads the appearance and current-state action documents
+from the imported asset tree, offsets the startup timeline by the recovered
+wave spawn delay, and starts a newly selected state action at its state-change
+tick. The frame's own atlas name, original sprite key, spawn position, and scene
+camera translation are passed through the existing direct renderer.
+Unsupported enemy IDs/states and invalid or missing action documents fail
+closed instead of drawing a guessed sprite.
+
+The live actor binding now tracks state changes independently of the immutable
+spawn state. The `live_set_enemy_state` route can therefore select a new clip
+and restart its local action clock. The tutorial still does not generate AI or
+combat state changes itself, and the new transition path needs device
+verification. One-shot state clips stop rendering when their recovered clip
+duration ends; exact terminal-frame behavior remains open.
+
+This still does not reproduce the native `EnemyActionsSystem` frame-tick
+boundary or full AI/combat behavior.
+
 ## Remaining actor work
 
-This boundary intentionally stops before visual or behavioral invention. The
-next reconstruction slice is to connect each active binding to the already
-recovered EnemyActions pipeline:
+Next, drive the recovered action-state route from native-backed movement and
+combat transitions, then recover and connect the original actor behavior:
 
-1. recover the original enemy-ID -> action/resource data selection used by
-   `EnemyObject::loadEnemyObjectFile()` / EnemyActions setup;
-2. load the corresponding imported EnemyActions document;
-3. produce a renderer-facing current frame/transform at the binding spawn
-   position;
-4. route evidence-backed hit/damage/death outcomes back through the same
+1. match native action timing and facing/movement transitions;
+2. route evidence-backed hit/damage/death outcomes through the same
    `(wave_generation, slot)` binding.
 
 The tutorial still cannot advance Attack -> Block merely because three bindings

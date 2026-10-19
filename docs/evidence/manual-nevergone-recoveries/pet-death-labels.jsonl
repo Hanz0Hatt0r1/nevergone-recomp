@@ -1,0 +1,2 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"0032173c","source_name":"PetObject::isDead","task":"subsystem","label":"combat","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-death-state.md"}
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"0032173c","source_name":"PetObject::isDead","task":"function_role","label":"combat_pet_death_predicate","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-death-state.md"}

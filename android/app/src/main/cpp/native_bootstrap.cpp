@@ -19,6 +19,8 @@
 #include "client_callback_bridge.h"
 #include "game_levels_asset_probe.h"
 #include "game_levels_enter_transition.h"
+#include "game_scene_action_compositor.h"
+#include "game_scene_action_surface_input.h"
 #include "game_scene_direct_renderer.h"
 #include "game_scene_player_joystick_input.h"
 #include "game_scene_player_spawn_state.h"
@@ -33,6 +35,7 @@
 #include "single_select_hero_state.h"
 #include "standalone_hero_save_metadata.h"
 #include "startup_contract.h"
+#include "tutorial_gameplay_state.h"
 
 namespace {
 
@@ -180,6 +183,9 @@ std::string bootstrap_info() {
     out << nevergone::game_scene_direct_renderer::status_report();
     out << nevergone::game_scene_player_spawn_state::status_report();
     out << nevergone::game_scene_player_joystick_input::status_report();
+    out << nevergone::tutorial_gameplay_state::status_report();
+    out << nevergone::game_scene_action_surface_input::status_report();
+    out << nevergone::game_scene_action_compositor::status_report();
     out << nevergone::player_control_runtime_state::status_report();
     out << nevergone::startup::smoke_test_report();
     out << nevergone::login_lua_session::startup_report();
@@ -249,4 +255,35 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_org_nevergone_recomp_MainActivity_nativeClientUiState(JNIEnv* env, jclass) {
     const std::string report = nevergone::lua_runtime::client_ui_state_report();
     return env->NewStringUTF(report.c_str());
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeManagementAnnouncement(JNIEnv* env, jclass) {
+    const auto snapshot = nevergone::lua_runtime::snapshot_client_ui_state();
+    if (!snapshot.announcement_ready) return nullptr;
+
+    jclass string_class = env->FindClass("java/lang/String");
+    if (string_class == nullptr) return nullptr;
+    jobjectArray result = env->NewObjectArray(3, string_class, nullptr);
+    env->DeleteLocalRef(string_class);
+    if (result == nullptr) return nullptr;
+
+    const std::string revision = std::to_string(snapshot.announcement_revision);
+    const std::string* values[] = {
+        &snapshot.announcement_title,
+        &snapshot.announcement_content,
+        &revision,
+    };
+    for (jsize index = 0; index < 3; ++index) {
+        jstring value = env->NewStringUTF(values[index]->c_str());
+        if (value == nullptr) return nullptr;
+        env->SetObjectArrayElement(result, index, value);
+        env->DeleteLocalRef(value);
+    }
+    return result;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_MainActivity_nativeDismissManagementAnnouncement(JNIEnv*, jclass) {
+    (void)nevergone::initial_ui_transition::dismiss_announcement();
 }

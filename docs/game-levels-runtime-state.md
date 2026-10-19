@@ -32,7 +32,11 @@ The final recovered array inside `HPData::LoadGL_Global` contains fixed 32-byte 
 i32, i32, f32, i32, i32, i32, i32, i32
 ```
 
-Static evidence has not yet proven semantic names for those eight fields. In particular, the project does **not** currently claim which integer is the tutorial `enemy_id` or which integer supplies `EnemyObject::loadEnemyObjectFile()` base health.
+Original consumer evidence now identifies the tutorial-relevant fields:
+`first_i32` supplies `enemy_id`, `second_i32` supplies base health, and
+`first_float` supplies the attack input stored at `EnemyObject +0x2bc` after
+`VCVT.U32.F32`. The other five integers retain structural names because their
+gameplay semantics are not yet proven.
 
 `game_levels_runtime_state` therefore exposes the parsed records without renaming fields:
 
@@ -42,7 +46,10 @@ Static evidence has not yet proven semantic names for those eight fields. In par
 - when more than 16 records exist, the report emits only the omitted count;
 - a failed load clears the count and makes the accessor empty, so diagnostics cannot accidentally describe a previous scene.
 
-This is intentionally a measurement boundary, not a semantic shortcut. A real `cp_lesson.glData` report can now be compared with independently recovered tutorial enemy IDs and original `GameLevelsEnemyData` consumers. Only that cross-evidence should be used to introduce `enemy_id` / `base_health` accessors and the production health resolver required by `tutorial_enemy_roster`.
+The runtime diagnostic continues to expose the unmodified parsed record for
+inspection. The reviewed enemy mapping and combat-input resolver live in
+`game_levels_enemy_record_mapping`; the tutorial Attack path uses them to
+materialize health and retain the converted combat input in actor bindings.
 
 No proprietary scene bytes are stored by this diagnostic; values appear only in the local runtime evidence report produced from user-imported assets.
 

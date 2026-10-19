@@ -61,4 +61,4 @@ Action textures are staged once per fresh-role handoff during the tutorial-loadi
 
 ## Remaining boundary
 
-A/B/C geometry, normal/selected visuals and semantic `CONTROLSSTATE` identity are now live. The remaining reconstruction is the downstream `Controls::OnHandleButton -> MEPlayer` action dispatch that maps states 7/8/9 onto the player's concrete jump/attack/block action-state transitions.
+A/B/C geometry, normal/selected visuals, semantic `CONTROLSSTATE` identity, and the recovered base A/B action requests are live. A requests use the original walk/run variants when those committed player states are active; C remains tied to the tutorial's completed jump transition. Remaining work includes synthesized Controls function states, the guarded B alternatives outside the initial baseline, block/combo branches, and the corresponding enemy damage outcomes.

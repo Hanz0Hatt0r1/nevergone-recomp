@@ -63,6 +63,7 @@ Snapshot snapshot_locked() {
         result.dispatched_character_id = g_dispatched_enter.character_id;
         result.dispatched_career = g_dispatched_enter.career;
         result.dispatched_character_name = g_dispatched_enter.character_name;
+        result.dispatched_clothes_id = g_dispatched_enter.clothes_id;
     }
     if (g_selected_index >= 0 &&
             static_cast<std::size_t>(g_selected_index) < g_payload.roles.size()) {
@@ -128,6 +129,7 @@ EnterRoleRequest confirm_selection() {
     request.character_id = role.character_id;
     request.career = role.career;
     request.character_name = role.character_name;
+    request.clothes_id = role.clothes_id;
     g_pending_enter = request;
     g_pending_create = CreateRoleRequest{};
     ++g_confirm_count;
@@ -142,6 +144,7 @@ bool request_enter_role(const login_callback_payload::RoleEntry& role) {
     g_pending_enter.character_id = role.character_id;
     g_pending_enter.career = role.career;
     g_pending_enter.character_name = role.character_name;
+    g_pending_enter.clothes_id = role.clothes_id;
     g_pending_create = CreateRoleRequest{};
     ++g_direct_enter_request_count;
     return true;

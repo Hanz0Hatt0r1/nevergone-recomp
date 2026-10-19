@@ -27,6 +27,7 @@ struct Snapshot {
     Phase phase = Phase::kWaitingForAppDelegate;
     ManagementRoute management_route = ManagementRoute::kInactive;
     ManagementRoute pending_management_route = ManagementRoute::kInactive;
+    ManagementRoute announcement_return_route = ManagementRoute::kInactive;
     std::uint64_t scene_generation = 0;
     std::uint64_t transition_count = 0;
     std::uint64_t management_route_transition_count = 0;
@@ -36,6 +37,7 @@ struct Snapshot {
 void reset(std::uint64_t scene_generation);
 void sync(bool initial_ui_ready, std::uint64_t scene_generation);
 void on_management_callback(const std::string& callback_name);
+bool dismiss_announcement();
 bool on_server_enter_dispatch_succeeded();
 bool on_role_enter_dispatch_succeeded();
 Snapshot snapshot();

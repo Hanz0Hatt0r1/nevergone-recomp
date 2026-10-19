@@ -130,10 +130,14 @@ bool Gate::tick(
         mapping_usable ? &resolver_context : nullptr);
     const auto attack_state = attack_.snapshot();
 
-    // Publish actor identities only after the underlying roster slots have
-    // materialized with imported HP. This boundary is intentionally earlier
-    // than sprite/AI creation and later than the recovered spawn plan.
-    if (!enemy_bindings_.sync(attack_state)) return false;
+    // Publish actor bindings after roster slots have materialized with imported
+    // HP and the reviewed record's combat input. This is still earlier than
+    // sprite/AI creation and later than the recovered spawn plan.
+    if (!enemy_bindings_.sync(
+            attack_state,
+            game_tick,
+            &review_.enemy_mapping,
+            &enemy_records)) return false;
 
     if (attack_state.wave_started && bound_load_attempt_ == 0) {
         bound_load_attempt_ = levels.load_attempt_count;
@@ -152,7 +156,29 @@ bool Gate::apply_damage(
         std::uint64_t expected_wave_generation) {
     if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return false;
     const bool result = attack_.apply_damage(slot, damage, expected_wave_generation);
-    if (result) ++generation_;
+    if (result) {
+        const auto attack_state = attack_.snapshot();
+        if (!enemy_bindings_.sync(
+                attack_state,
+                attack_state.last_game_tick)) return false;
+        ++generation_;
+    }
+    return result;
+}
+
+enemy_health_state::OnlineHealthUpdateResult Gate::apply_online_health_update(
+        std::size_t slot,
+        int update_type,
+        int value,
+        std::uint64_t expected_wave_generation) {
+    if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return {};
+    auto result = attack_.apply_online_health_update(
+            slot, update_type, value, expected_wave_generation);
+    if (result.accepted) {
+        const auto attack_state = attack_.snapshot();
+        if (!enemy_bindings_.sync(attack_state, attack_state.last_game_tick)) return {};
+        ++generation_;
+    }
     return result;
 }
 
@@ -170,7 +196,13 @@ bool Gate::set_enemy_state(
     if (!enemy_bindings_.accepts(slot, expected_wave_generation)) return false;
     const bool result = attack_.set_enemy_state(
         slot, enemy_state, expected_wave_generation);
-    if (result) ++generation_;
+    if (result) {
+        const auto attack_state = attack_.snapshot();
+        if (!enemy_bindings_.sync(
+                attack_state,
+                attack_state.last_game_tick)) return false;
+        ++generation_;
+    }
     return result;
 }
 
@@ -183,6 +215,38 @@ bool Gate::set_force_action_state_no_dead(
         slot, enabled, expected_wave_generation);
     if (result) ++generation_;
     return result;
+}
+
+std::optional<float> Gate::resolve_input_attack_value(
+        std::size_t slot,
+        std::int32_t current_frame,
+        const enemy_actions_wbg_document::Document& action,
+        std::uint64_t expected_wave_generation) const {
+    return enemy_bindings_.resolve_input_attack_value(
+        slot, current_frame, action, expected_wave_generation);
+}
+
+std::optional<enemy_attack_value_contract::CombatFrameValues> Gate::resolve_combat_frame(
+        std::size_t slot,
+        std::int32_t current_frame,
+        const enemy_actions_wbg_document::Document& action,
+        std::uint64_t expected_wave_generation) const {
+    return enemy_bindings_.resolve_combat_frame(
+        slot, current_frame, action, expected_wave_generation);
+}
+
+std::optional<enemy_hitpoint_contract::HitPoint> Gate::resolve_hitpoint(
+        std::size_t slot,
+        std::int32_t current_frame,
+        std::int32_t frame_ordinal,
+        const enemy_actions_wbg_document::Document& action,
+        std::optional<enemy_hitpoint_contract::Point> sprite_bounds_center,
+        float enemy_offset_118,
+        float enemy_offset_284,
+        std::uint64_t expected_wave_generation) const {
+    return enemy_bindings_.resolve_hitpoint(
+        slot, current_frame, frame_ordinal, action, sprite_bounds_center,
+        enemy_offset_118, enemy_offset_284, expected_wave_generation);
 }
 
 bool Gate::consume_completion_after_publish() {

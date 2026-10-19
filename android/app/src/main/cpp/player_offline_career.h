@@ -5,6 +5,7 @@
 #include <string>
 
 #include "character_name_state.h"
+#include "game_scene_player_bootstrap.h"
 #include "role_selection_state.h"
 
 namespace nevergone::player_offline_career {
@@ -18,6 +19,8 @@ enum class Source {
 struct Resolution {
     std::int64_t career = 0;
     Source source = Source::kNone;
+    // -1 means that no clothes selector was retained for this role.
+    int clothes_id = -1;
 
     bool ready() const { return career >= 1 && career <= 5; }
 };
@@ -32,7 +35,9 @@ inline Resolution resolve(
     // Existing-role entry has the strongest runtime proof: this is the Career
     // that actually crossed the reconstructed EnterGameWithCid dispatch.
     if (role.enter_dispatch_committed && valid_career(role.dispatched_career)) {
-        return {role.dispatched_career, Source::kExistingRoleDispatch};
+        const auto clothes = role.dispatched_clothes_id;
+        return {role.dispatched_career, Source::kExistingRoleDispatch,
+                clothes > 0 && clothes <= 65535 ? static_cast<int>(clothes) : -1};
     }
 
     // Fresh-role preservation has no synthetic CharacterID/EnterGame dispatch.
@@ -43,7 +48,8 @@ inline Resolution resolve(
     if (!character_name.active &&
             character_name.completion_count > 0u &&
             valid_career(character_name.career)) {
-        return {character_name.career, Source::kFreshRoleCompletion};
+        return {character_name.career, Source::kFreshRoleCompletion,
+                static_cast<int>(game_scene_player_bootstrap::kConstructionPlayerClothesId)};
     }
 
     return {};
@@ -51,6 +57,20 @@ inline Resolution resolve(
 
 inline Resolution current() {
     return resolve(role_selection_state::snapshot(), character_name_state::snapshot());
+}
+
+inline std::string current_player_name() {
+    const auto role = role_selection_state::snapshot();
+    if (role.enter_dispatch_committed && !role.dispatched_character_name.empty()) {
+        return role.dispatched_character_name;
+    }
+
+    const auto created_role = character_name_state::snapshot();
+    if (created_role.completion_count > 0u && !created_role.role_name.empty()) {
+        return created_role.role_name;
+    }
+
+    return game_scene_player_bootstrap::player_name();
 }
 
 inline const char* source_name(Source source) {
@@ -68,6 +88,7 @@ inline std::string status_report() {
     out << "Offline player career\n";
     out << "state: " << (resolution.ready() ? "ready" : "idle") << "\n";
     out << "career: " << resolution.career << "\n";
+    out << "clothes id: " << resolution.clothes_id << "\n";
     out << "source: " << source_name(resolution.source) << "\n";
     return out.str();
 }

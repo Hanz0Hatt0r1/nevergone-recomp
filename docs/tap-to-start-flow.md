@@ -27,6 +27,16 @@ The original TapToStart implementation also owns legacy Android OBB extraction/u
 
 Those stages use internal states `1..3` before the layer reaches interactable state `4`. The recomp already imports/decodes the user-owned original resources before the recovered splash sequence starts, so it does not reproduce the obsolete OBB extraction thread. When SingleLogin becomes active, the modern resource path enters the recovered interactable state `4` directly.
 
+## Title prompt
+
+The original `assets/Login/ALL_Loin.csv` row `GdUI03` supplies the English
+`Tap to start` text, and the SingleLogin atlas supplies the `zjmbiaoti-1.png`
+title logo. `TapToStart::init()` places the label at the horizontal center and
+15% of the visible height above the bottom, waits one second, then fades in over
+three seconds. The reconstruction draws the original logo and localized text
+over the recovered 1136x640 SingleLogin design space and hides both as soon as
+the recovered state-4 touch is accepted.
+
 ## Offline role route
 
 The obsolete Android login SDK is not reproduced. The clean-room compatibility path consumes the one-shot recovered `platformAutoLogin` request and applies the verified success callback (`androidSdkCallBack(0)`), which reaches `OnLogin()` and then `OnSelectCharacter()`.

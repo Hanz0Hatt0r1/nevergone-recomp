@@ -24,6 +24,8 @@ struct Snapshot {
     int dialogue_id = 0;
     int line_index = 0;
     int line_count = 0;
+    int visible_text_characters = 0;
+    int current_text_character_count = 0;
     bool assets_ready = false;
     bool auto_play = false;
     double fade_in_seconds = 0.0;
@@ -82,9 +84,10 @@ bool upload_line(
     const std::uint32_t* name_argb,
     std::size_t name_count,
     int text_width,
-    int text_height,
-    const std::uint32_t* text_argb,
-    std::size_t text_count);
+        int text_height,
+        const std::uint32_t* text_argb,
+        std::size_t text_count,
+        int text_character_count);
 bool finish_assets();
 
 Snapshot snapshot();

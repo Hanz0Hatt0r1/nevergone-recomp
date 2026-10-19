@@ -1,5 +1,6 @@
 #include "me_actions_live_playback.h"
 
+#include <cmath>
 #include <mutex>
 #include <sstream>
 
@@ -16,17 +17,20 @@ me_actions_combo_boundaries::Boundaries g_boundaries{};
 bool same_action_locked(
         std::uint64_t action_generation,
         std::uint64_t loaded_revision,
-        std::uint32_t action_state) {
+        std::uint32_t action_state,
+        bool looping) {
     return g_snapshot.ready &&
            g_snapshot.action_generation == action_generation &&
            g_snapshot.loaded_revision == loaded_revision &&
-           g_snapshot.action_state == action_state;
+           g_snapshot.action_state == action_state &&
+           g_snapshot.looping == looping;
 }
 
 void begin_action_locked(
         std::uint64_t action_generation,
         std::uint64_t loaded_revision,
         std::uint32_t action_state,
+        bool looping,
         const enemy_actions_wbg_document::Document& document,
         std::uint64_t game_tick) {
     const std::uint64_t prior_frame_revision = g_snapshot.frame_revision;
@@ -36,6 +40,7 @@ void begin_action_locked(
     g_snapshot.action_generation = action_generation;
     g_snapshot.loaded_revision = loaded_revision;
     g_snapshot.action_state = action_state;
+    g_snapshot.looping = looping;
     g_snapshot.last_game_tick = game_tick;
     g_snapshot.frame_revision = prior_frame_revision + 1u;
     g_snapshot.completed_action_count = prior_completed;
@@ -57,6 +62,7 @@ bool sync_and_tick(
         std::uint64_t action_generation,
         std::uint64_t loaded_revision,
         std::uint32_t action_state,
+        bool looping,
         const enemy_actions_wbg_document::Document& document,
         std::uint64_t game_tick) {
     if (action_generation == 0u || loaded_revision == 0u ||
@@ -65,9 +71,9 @@ bool sync_and_tick(
     }
 
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (!same_action_locked(action_generation, loaded_revision, action_state)) {
+    if (!same_action_locked(action_generation, loaded_revision, action_state, looping)) {
         begin_action_locked(
-            action_generation, loaded_revision, action_state, document, game_tick);
+            action_generation, loaded_revision, action_state, looping, document, game_tick);
         return true;
     }
 
@@ -83,24 +89,100 @@ bool sync_and_tick(
 
     const std::uint64_t elapsed_ticks = game_tick - g_snapshot.last_game_tick;
     g_snapshot.last_game_tick = game_tick;
-    const float delta_seconds = static_cast<float>(
-        static_cast<double>(elapsed_ticks) * game_clock::kFixedStepSeconds);
+    const float delta_seconds = static_cast<float>(game_clock::kFixedStepSeconds);
 
-    const std::int32_t previous_frame = g_snapshot.cursor.current_frame_1a4;
-    const bool was_done = g_snapshot.cursor.timing.done_220;
-    const auto update = me_actions_playback_timing::apply_wa_update_playback(
-        document, g_boundaries, delta_seconds, g_snapshot.cursor);
-    if (!update.valid_projection) return false;
+    // Preserve native step() boundaries when rendering skips logical ticks:
+    // a completed loop restarts before the next elapsed tick is processed.
+    for (std::uint64_t tick = 0; tick < elapsed_ticks; ++tick) {
+        if (g_snapshot.cursor.timing.done_220) break;
+        const std::int32_t previous_frame = g_snapshot.cursor.current_frame_1a4;
+        const bool was_done = g_snapshot.cursor.timing.done_220;
+        const auto update = me_actions_playback_timing::apply_wa_update_playback(
+            document, g_boundaries, delta_seconds, g_snapshot.cursor);
+        if (!update.valid_projection) return false;
 
-    g_snapshot.cursor = update.cursor;
-    ++g_snapshot.update_count;
-    if (g_snapshot.cursor.current_frame_1a4 != previous_frame || update.frames_advanced > 0u) {
-        ++g_snapshot.frame_revision;
-    }
-    if (!was_done && g_snapshot.cursor.timing.done_220) {
-        ++g_snapshot.completed_action_count;
+        g_snapshot.cursor = update.cursor;
+        ++g_snapshot.update_count;
+        if (g_snapshot.cursor.current_frame_1a4 != previous_frame ||
+            update.frames_advanced > 0u) {
+            ++g_snapshot.frame_revision;
+        }
+        if (!was_done && g_snapshot.cursor.timing.done_220) {
+            ++g_snapshot.completed_action_count;
+            if (g_snapshot.looping) {
+                g_snapshot.cursor = me_actions_playback_timing::initial_cursor();
+                // Native step() immediately calls play() + waStep() after a
+                // loop completes, clearing the reset flag in the same tick.
+                g_snapshot.cursor.timing.reset_accumulator_1bc = false;
+                ++g_snapshot.update_count;
+                ++g_snapshot.frame_revision;
+            }
+        }
     }
     return true;
+}
+
+bool observe_sprite_bounds(
+        std::uint64_t action_generation,
+        std::uint64_t loaded_revision,
+        std::uint32_t action_state,
+        std::int32_t frame_index,
+        float bounds_x,
+        float bounds_y,
+        float bounds_width) {
+    const float center_x = bounds_x + bounds_width * 0.5f;
+    if (action_generation == 0u || loaded_revision == 0u || frame_index < 0 ||
+        !std::isfinite(bounds_x) || !std::isfinite(bounds_y) ||
+        !std::isfinite(bounds_width) || !std::isfinite(center_x)) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_snapshot.ready || g_snapshot.action_generation != action_generation ||
+        g_snapshot.loaded_revision != loaded_revision ||
+        g_snapshot.action_state != action_state ||
+        g_snapshot.cursor.current_frame_1a4 != frame_index) {
+        return false;
+    }
+
+    if (!g_snapshot.movement_bounds_ready ||
+        frame_index < g_snapshot.movement_frame_index) {
+        g_snapshot.movement_bounds_ready = true;
+        g_snapshot.movement_frame_index = frame_index;
+        g_snapshot.movement_bounds_center_x = center_x;
+        g_snapshot.movement_bounds_origin_y = bounds_y;
+        g_snapshot.cur_move_value_x = 0.0f;
+        g_snapshot.cur_move_value_y = 0.0f;
+        ++g_snapshot.movement_value_update_count;
+        return true;
+    }
+
+    if (frame_index == g_snapshot.movement_frame_index) return true;
+
+    g_snapshot.cur_move_value_x += center_x - g_snapshot.movement_bounds_center_x;
+    g_snapshot.cur_move_value_y += bounds_y - g_snapshot.movement_bounds_origin_y;
+    g_snapshot.movement_frame_index = frame_index;
+    g_snapshot.movement_bounds_center_x = center_x;
+    g_snapshot.movement_bounds_origin_y = bounds_y;
+    ++g_snapshot.movement_value_update_count;
+    return true;
+}
+
+float consume_cur_move_value(
+        std::uint64_t action_generation,
+        std::uint64_t loaded_revision,
+        std::uint32_t action_state) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_snapshot.ready || g_snapshot.action_generation != action_generation ||
+        g_snapshot.loaded_revision != loaded_revision ||
+        g_snapshot.action_state != action_state) {
+        return 0.0f;
+    }
+
+    const float value = g_snapshot.cur_move_value_x;
+    g_snapshot.cur_move_value_x = 0.0f;
+    g_snapshot.cur_move_value_y = 0.0f;
+    return value;
 }
 
 Snapshot snapshot() {
@@ -124,8 +206,14 @@ std::string status_report() {
     out << "action generation: " << state.action_generation << "\n";
     out << "loaded revision: " << state.loaded_revision << "\n";
     out << "action state: 0x" << std::hex << state.action_state << std::dec << "\n";
+    out << "looping: " << (state.looping ? "yes" : "no") << "\n";
     out << "current frame: " << state.cursor.current_frame_1a4 << "\n";
     out << "previous frame: " << state.cursor.previous_frame_1a8 << "\n";
+    out << "movement bounds ready: " << (state.movement_bounds_ready ? "yes" : "no") << "\n";
+    out << "movement bounds frame: " << state.movement_frame_index << "\n";
+    out << "curMoveValue: " << state.cur_move_value_x << ","
+        << state.cur_move_value_y << "\n";
+    out << "movement value updates: " << state.movement_value_update_count << "\n";
     out << "frame revision: " << state.frame_revision << "\n";
     out << "updates: " << state.update_count << "\n";
     out << "done: " << (state.cursor.timing.done_220 ? "yes" : "no") << "\n";

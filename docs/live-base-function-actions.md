@@ -11,15 +11,18 @@ This change connects only action transitions whose live preconditions are curren
 
 ## Accepted function actions
 
-- Base A / Controls function state `7` selects `MEPLAYERSTATE 0x02` (`action03`). The recovered native `MEPlayer::setFunctionState()` branch is direct after its common action-state gates.
+- Base A / Controls function state `7` calls `setActionState(0x02, false)`. The concrete action depends on the current state: walking (`0x00`) selects `0x10` (`action17`), running (`0x01`) selects `0x14` (`action21`), and the initial (`0x1b`) or adjacent (`0x1c`) state selects `0x02` (`action03`). Other current states remain fail-closed until their combo/interrupt gates are reconstructed.
 - Base B / function state `8` selects `MEPLAYERSTATE 0x1d` (`action30`) **only** while the reconstructed player remains in the known initial `0x1b` baseline. The original B branch also depends on MEPlayer fields `+0x1f0/+0x1f8` and can select guarded `0x11` (`action18`); those live fields are not reconstructed yet, so B fails closed outside the initial baseline.
 - Base C remains on the already-tested tutorial jump event path for this increment. The direct native C mapping remains `0x20` / `action33`.
+- Directional A / Controls state `0x15` requests `MEPLAYERSTATE 0x0f` (`action16`) only from the initial state `0x1b` for Career 1. The original completion path returns Career 1 to `0x1b`; other Careers read additional player-data fields, so this route stays disabled for them.
+- Directional A / Controls state `0x14` requests `MEPLAYERSTATE 0x0c` (`action13`) with the native `force=true` argument only from the initial state `0x1b` for Career 1. The native completion chain is `0x0c -> 0x0d -> 0x0e -> 0x1b`; the runtime loads each action through the usual career-specific asset path ([native evidence](evidence/meplayer-career1-directional-a-combo-attack-2026-10-18.md)).
+- Directional A / Controls state `0x16` requests `MEPLAYERSTATE 0x0a` (`action11`) with `force=false` from initial state `0x1b` for Career 1. The native `actionState()` leaves completed `0x0a` selected; when Controls state becomes `0`, the native setter returns to `0x1b` only after the action is done. Career 1's imported plist confirms `action11` is non-looping `p01_s01.actData` ([native evidence](evidence/meplayer-career1-directional-a-combo1-attack-2026-10-18.md)).
 
-The runtime consumes function-state **edges**, not every frame generation. Holding A or B therefore cannot continuously reload the same imported action document.
+The runtime consumes function-state **edges**, not every frame generation. Holding A or B therefore cannot continuously reload the same imported action document. The A request is selected using the live committed MEPlayer state; an unavailable state does not fall back to the initial attack.
 
 ## Release boundary
 
-Controls returning `+0x118` to zero does not mean that MEPlayer immediately returns to initial action state `0x1b`. The original `MEPlayer::setFunctionState(0)` path consults current action state and action completion (`isActionDone()`). The current recompilation does not yet expose an equivalent completion signal from the parsed player action document.
+Controls returning `+0x118` to zero does not mean that MEPlayer immediately returns to initial action state `0x1b`. The original `MEPlayer::setFunctionState(0)` path consults current action state and action completion (`isActionDone()`). The recompilation uses the parsed action's recovered done flag. After walk/run attacks `0x10/0x14` finish, the native `actionState()` keeps that state; a later movement input may select walk, run, or idle.
 
 For that reason a release edge is recorded but leaves the current/desired live action unchanged. Return-to-idle and repeated same-action animation restart remain explicit follow-up boundaries rather than timer guesses.
 

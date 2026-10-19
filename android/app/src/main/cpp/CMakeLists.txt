@@ -41,7 +41,14 @@ add_library(nevergone_recomp SHARED
     controls_function_state_runtime_bridge.cpp
     created_role_transition.cpp
     created_role_transition_runtime.cpp
+    enemy03_ai_contract.cpp
+    enemy_attack_value_contract.cpp
+    battle_manager_player_intersection_contract.cpp
     enemy_actions_combo_consumer.cpp
+    enemy_actions_get_cur_move_value.cpp
+    enemy_object_set_enemy_move.cpp
+    enemy_object_action_target_position.cpp
+    enemy_object_flip_enemy.cpp
     enemy_actions_runtime_state.cpp
     enemy_actions_layout_evidence.cpp
     enemy_actions_wbg_combo_section.cpp
@@ -49,6 +56,8 @@ add_library(nevergone_recomp SHARED
     enemy_actions_wbg_final_table.cpp
     enemy_actions_wbg_prefix.cpp
     enemy_health_state.cpp
+    enemy_online_state_contract.cpp
+    enemy_physical_state.cpp
     filesystem_bindings.cpp
     fresh_role_compat_jni.cpp
     fresh_role_compat_state.cpp
@@ -107,6 +116,16 @@ add_library(nevergone_recomp SHARED
     me_actions_combo_boundaries.cpp
     me_actions_live_playback.cpp
     me_actions_playback_timing.cpp
+    player_hit_window_contract.cpp
+    player_combo_num_contract.cpp
+    player_health_contract.cpp
+    player_combat_stat_contract.cpp
+    player_damage_core_contract.cpp
+    action_hitpoint_record_contract.cpp
+    player_hl_point_contract.cpp
+    enemy_hitpoint_contract.cpp
+    player_hitpoint_contract.cpp
+    player_collision_state_contract.cpp
     meplayer_function_gate_contract.cpp
     meplayer_live_action_state.cpp
     minimal_runtime_save.cpp
@@ -173,6 +192,8 @@ add_library(nevergone_recomp SHARED
     tutorial_attack_live_gate_runtime.cpp
     tutorial_attack_wave_runtime.cpp
     tutorial_dialogue_runtime.cpp
+    tutorial_enemy_action_animation.cpp
+    tutorial_enemy_action_document_store.cpp
     tutorial_enemy_roster.cpp
     tutorial_enemy_spawn_plan.cpp
     tutorial_gameplay_state.cpp

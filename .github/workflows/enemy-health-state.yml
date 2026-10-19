@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - 'android/app/src/main/cpp/enemy_health_state.*'
+      - 'android/app/src/main/cpp/enemy_online_state_contract.*'
       - 'tools/enemy_health_state_smoke.cpp'
       - '.github/workflows/enemy-health-state.yml'
   push:
     branches: [main]
     paths:
       - 'android/app/src/main/cpp/enemy_health_state.*'
+      - 'android/app/src/main/cpp/enemy_online_state_contract.*'
       - 'tools/enemy_health_state_smoke.cpp'
       - '.github/workflows/enemy-health-state.yml'
 
@@ -27,5 +29,6 @@ jobs:
           c++ -std=c++17 -Wall -Wextra -Wpedantic -Werror \
             tools/enemy_health_state_smoke.cpp \
             android/app/src/main/cpp/enemy_health_state.cpp \
+            android/app/src/main/cpp/enemy_online_state_contract.cpp \
             -o /tmp/enemy_health_state_smoke
           /tmp/enemy_health_state_smoke

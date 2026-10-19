@@ -32,6 +32,7 @@ final class PlayerActionAssetResolver {
         final String actionKey;
         final String actionsPlistRelativePath;
         final String actionName;
+        final boolean looping;
         final String actionDataRelativePath;
         final String actionBundleRelativePath;
         final String actionBundleEntryName;
@@ -41,6 +42,7 @@ final class PlayerActionAssetResolver {
                 String actionKey,
                 String actionsPlistRelativePath,
                 String actionName,
+                boolean looping,
                 String actionDataRelativePath,
                 String actionBundleRelativePath,
                 String actionBundleEntryName) {
@@ -48,6 +50,7 @@ final class PlayerActionAssetResolver {
             this.actionKey = actionKey;
             this.actionsPlistRelativePath = actionsPlistRelativePath;
             this.actionName = actionName;
+            this.looping = looping;
             this.actionDataRelativePath = actionDataRelativePath;
             this.actionBundleRelativePath = actionBundleRelativePath;
             this.actionBundleEntryName = actionBundleEntryName;
@@ -92,7 +95,8 @@ final class PlayerActionAssetResolver {
                 return null;
             }
 
-            String actionName = resolveActionName(actionsPlist, actionKey);
+            ActionDefinition action = resolveAction(actionsPlist, actionKey);
+            String actionName = action != null ? action.name : null;
             if (!validActionName(actionName)) return null;
             String actionBasename = new File(actionName.replace('\\', '/')).getName();
             if (!validActionBasename(actionBasename)) return null;
@@ -118,6 +122,7 @@ final class PlayerActionAssetResolver {
                         actionKey,
                         plistRelative,
                         actionName,
+                        action.looping,
                         null,
                         bundleRelative,
                         actionBasename);
@@ -132,6 +137,7 @@ final class PlayerActionAssetResolver {
                     actionKey,
                     plistRelative,
                     actionName,
+                    action.looping,
                     dataRelative,
                     null,
                     null);
@@ -234,7 +240,17 @@ final class PlayerActionAssetResolver {
         return value;
     }
 
-    private static String resolveActionName(File plist, String actionKey) throws Exception {
+    private static final class ActionDefinition {
+        final String name;
+        final boolean looping;
+
+        ActionDefinition(String name, boolean looping) {
+            this.name = name;
+            this.looping = looping;
+        }
+    }
+
+    private static ActionDefinition resolveAction(File plist, String actionKey) throws Exception {
         Document document = ImportedPlistXml.parse(plist, MAX_PLIST_BYTES);
         if (document == null) return null;
         Element plistRoot = document.getDocumentElement();
@@ -242,9 +258,16 @@ final class PlayerActionAssetResolver {
         Element action = valueForKey(rootDict, actionKey);
         if (action == null || !"dict".equals(action.getTagName())) return null;
         Element name = valueForKey(action, "name");
-        if (name == null || !"string".equals(name.getTagName())) return null;
+        Element looping = valueForKey(action, "looping");
+        if (name == null || !"string".equals(name.getTagName()) || looping == null) return null;
         String value = name.getTextContent();
-        return value != null ? value.trim() : null;
+        if ("true".equals(looping.getTagName())) {
+            return value != null ? new ActionDefinition(value.trim(), true) : null;
+        }
+        if ("false".equals(looping.getTagName())) {
+            return value != null ? new ActionDefinition(value.trim(), false) : null;
+        }
+        return null;
     }
 
     private static Element valueForKey(Element dict, String wantedKey) {

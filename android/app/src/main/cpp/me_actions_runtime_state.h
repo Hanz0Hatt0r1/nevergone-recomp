@@ -3,8 +3,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "enemy_actions_wbg_document.h"
+#include "action_hitpoint_record_contract.h"
 
 namespace nevergone::me_actions_runtime_state {
 
@@ -16,6 +18,19 @@ namespace nevergone::me_actions_runtime_state {
 struct State {
     std::int32_t current_frame_1a4 = 0;
     std::int32_t previous_frame_1a8 = -1;
+    // MeActionsSystem::updateData() transforms Section-E sprite positions with
+    // +0x204/+0x208, +0x2f8 and +0x648. The supported createActions()->play()
+    // path initializes these to 0, 0, 1 and 0; live cut-action writes are not
+    // modeled yet.
+    float action_position_x_204 = 0.0f;
+    float action_position_y_208 = 0.0f;
+    float action_scale_2f8 = 1.0f;
+    float hitpoint_y_offset_648 = 0.0f;
+    // MeActionsSystem::swapBufferPos subtracts this explicit +0x2ec point
+    // from each Section-E hit-point position. The recovered play path starts
+    // at zero; live AdjustPos writes are not modeled here yet.
+    float system_offset_x_2ec = 0.0f;
+    float system_offset_y_2f0 = 0.0f;
 };
 
 struct UpdateDataFrameLookupResult {
@@ -26,6 +41,7 @@ struct UpdateDataFrameLookupResult {
     std::string frame_name_68;
     std::int32_t frame_name_length_6c = 0;
     bool should_lookup_sprite_frame = false;
+    std::vector<action_hitpoint_record_contract::RecordRef> current_frame_hitpoints;
 };
 
 inline State initial_play_state() {
@@ -52,6 +68,8 @@ inline UpdateDataFrameLookupResult apply_update_data_frame_lookup(
     result.frame_name_68 = frame.third_string;
     result.frame_name_length_6c = frame.third_string_length_i32;
     result.should_lookup_sprite_frame = true;
+    result.current_frame_hitpoints = action_hitpoint_record_contract::records_for_frame(
+        document, state.current_frame_1a4);
     return result;
 }
 

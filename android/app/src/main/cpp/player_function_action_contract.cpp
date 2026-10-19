@@ -2,11 +2,28 @@
 
 namespace nevergone::player_function_action_contract {
 
-std::optional<ActionRequest> base_action_request(std::uint32_t controls_function_state) {
+std::optional<ActionRequest> base_action_request(
+        std::uint32_t controls_function_state,
+        std::optional<std::uint32_t> current_action_state,
+        std::uint32_t player_index,
+        bool super_ready) {
     switch (controls_function_state) {
         case 7u:
-            // MEPlayer::setFunctionState: base A path -> setActionState(2,false).
-            return ActionRequest{7u, 0x02u, false, false};
+            if (!current_action_state.has_value()) return std::nullopt;
+            switch (*current_action_state) {
+                case 0x00u:
+                    // setActionState(2,false) from walk selects state 0x10.
+                    return ActionRequest{7u, 0x10u, false, false};
+                case 0x01u:
+                    // setActionState(2,false) from run selects state 0x14.
+                    return ActionRequest{7u, 0x14u, false, false};
+                case 0x1bu:
+                case 0x1cu:
+                    // The native path normalizes its temporary 0x27 state to 2.
+                    return ActionRequest{7u, 0x02u, false, false};
+                default:
+                    return std::nullopt;
+            }
         case 8u:
             // From the reconstructed initial player action 0x1b, with no prior
             // guarded-action history at +0x1f0/+0x1f8, the shipped B path falls
@@ -17,6 +34,38 @@ std::optional<ActionRequest> base_action_request(std::uint32_t controls_function
         case 9u:
             // Base C path -> setActionState(0x20,false).
             return ActionRequest{9u, 0x20u, false, false};
+        case 0x15u:
+            // Native setFunctionState(0x15) uses this request from initial
+            // state 0x1b. Career 1 has a recovered 0x0f -> 0x1b completion
+            // path; other careers use additional player data not modeled here.
+            if (player_index == 1u && current_action_state == 0x1bu) {
+                return ActionRequest{0x15u, 0x0fu, false, false};
+            }
+            return std::nullopt;
+        case 0x16u:
+            // A + direction-combo-1 requests action state 0x0a, then returns
+            // to the initial state after the non-looping action finishes.
+            if (player_index == 1u && current_action_state == 0x1bu) {
+                return ActionRequest{0x16u, 0x0au, false, false};
+            }
+            return std::nullopt;
+        case 0x14u:
+            // The A + direction-combo-10 route calls setActionState(0x0c,true)
+            // from the initial state. Career 1 has a recovered 0x0c -> 0x0d ->
+            // 0x0e -> 0x1b completion chain.
+            if (player_index == 1u && current_action_state == 0x1bu) {
+                return ActionRequest{0x14u, 0x0cu, true, false};
+            }
+            return std::nullopt;
+        case 0x1cu:
+            // Controls synthesizes A+C as 0x1c. Native setFunctionState starts
+            // the super sequence at 0x3a only after Rage reaches 100; the
+            // tutorial's Fill Rage event is the reconstructed full-meter edge.
+            if (super_ready && player_index == 1u &&
+                current_action_state == 0x1bu) {
+                return ActionRequest{0x1cu, 0x3au, true, false};
+            }
+            return std::nullopt;
         default:
             return std::nullopt;
     }

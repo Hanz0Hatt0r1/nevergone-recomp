@@ -28,6 +28,7 @@ struct Snapshot {
     std::uint64_t generation = 0;
     std::size_t source_scene_index = 0;
     std::string scene_guid;
+    std::string player_name;
     std::uint32_t event_port_type = 0;
     int surface_width = 0;
     int surface_height = 0;
@@ -50,11 +51,13 @@ struct Snapshot {
 };
 
 void reset();
+void set_player_name(std::string player_name);
 bool refresh(
         const game_levels_scene_instance::SceneInstance& scene,
         std::uint32_t event_port_type,
         int surface_width,
-        int surface_height);
+        int surface_height,
+        std::string player_name = {});
 Snapshot snapshot();
 std::optional<game_scene_player_bootstrap::InitialPoint> current_position();
 const char* status_name(Status status);

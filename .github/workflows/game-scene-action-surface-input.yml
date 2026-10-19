@@ -7,6 +7,31 @@ on:
       - 'android/app/src/main/cpp/game_scene_action_assets_jni.cpp'
       - 'android/app/src/main/cpp/game_scene_action_layout.*'
       - 'android/app/src/main/cpp/game_scene_action_input.*'
+      - 'android/app/src/main/cpp/game_scene_player_joystick_input.*'
+      - 'android/app/src/main/cpp/game_clock.*'
+      - 'android/app/src/main/cpp/player_control_runtime_state.*'
+      - 'android/app/src/main/cpp/player_control_contract.*'
+      - 'android/app/src/main/cpp/controls_function_state_runtime.*'
+      - 'android/app/src/main/cpp/controls_function_state_contract.*'
+      - 'android/app/src/main/cpp/player_function_action_contract.*'
+      - 'android/app/src/main/cpp/meplayer_live_action_state.*'
+      - 'android/app/src/main/cpp/me_actions_live_playback.*'
+      - 'android/app/src/main/cpp/minimal_runtime_save_runtime.*'
+      - 'android/app/src/main/cpp/minimal_runtime_save.*'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate.*'
+      - 'android/app/src/main/cpp/tutorial_attack_wave_runtime.*'
+      - 'android/app/src/main/cpp/tutorial_spawn_inputs.*'
+      - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
+      - 'android/app/src/main/cpp/tutorial_enemy_spawn_plan.*'
+      - 'android/app/src/main/cpp/enemy_health_state.*'
+      - 'android/app/src/main/cpp/enemy_online_state_contract.*'
+      - 'android/app/src/main/cpp/enemy_physical_state.*'
+      - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
+      - 'android/app/src/main/cpp/enemy_hitpoint_contract.*'
+      - 'android/app/src/main/cpp/enemy_attack_value_contract.*'
+      - 'android/app/src/main/cpp/action_hitpoint_record_contract.*'
+      - 'android/app/src/main/cpp/battle_manager_player_intersection_contract.*'
+      - 'android/app/src/main/cpp/player_collision_state_contract.*'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneActionAssetLoader.java'
       - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
@@ -19,6 +44,31 @@ on:
       - 'android/app/src/main/cpp/game_scene_action_assets_jni.cpp'
       - 'android/app/src/main/cpp/game_scene_action_layout.*'
       - 'android/app/src/main/cpp/game_scene_action_input.*'
+      - 'android/app/src/main/cpp/game_scene_player_joystick_input.*'
+      - 'android/app/src/main/cpp/game_clock.*'
+      - 'android/app/src/main/cpp/player_control_runtime_state.*'
+      - 'android/app/src/main/cpp/player_control_contract.*'
+      - 'android/app/src/main/cpp/controls_function_state_runtime.*'
+      - 'android/app/src/main/cpp/controls_function_state_contract.*'
+      - 'android/app/src/main/cpp/player_function_action_contract.*'
+      - 'android/app/src/main/cpp/meplayer_live_action_state.*'
+      - 'android/app/src/main/cpp/me_actions_live_playback.*'
+      - 'android/app/src/main/cpp/minimal_runtime_save_runtime.*'
+      - 'android/app/src/main/cpp/minimal_runtime_save.*'
+      - 'android/app/src/main/cpp/tutorial_attack_live_gate.*'
+      - 'android/app/src/main/cpp/tutorial_attack_wave_runtime.*'
+      - 'android/app/src/main/cpp/tutorial_spawn_inputs.*'
+      - 'android/app/src/main/cpp/tutorial_enemy_roster.*'
+      - 'android/app/src/main/cpp/tutorial_enemy_spawn_plan.*'
+      - 'android/app/src/main/cpp/enemy_health_state.*'
+      - 'android/app/src/main/cpp/enemy_online_state_contract.*'
+      - 'android/app/src/main/cpp/enemy_physical_state.*'
+      - 'android/app/src/main/cpp/game_levels_enemy_record_mapping.*'
+      - 'android/app/src/main/cpp/enemy_hitpoint_contract.*'
+      - 'android/app/src/main/cpp/enemy_attack_value_contract.*'
+      - 'android/app/src/main/cpp/action_hitpoint_record_contract.*'
+      - 'android/app/src/main/cpp/battle_manager_player_intersection_contract.*'
+      - 'android/app/src/main/cpp/player_collision_state_contract.*'
       - 'android/app/src/main/java/org/nevergone/recomp/GameSceneActionAssetLoader.java'
       - 'android/app/src/main/cpp/post_scene_overlay_jni.cpp'
       - 'android/app/src/main/cpp/CMakeLists.txt'
@@ -35,13 +85,39 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build and run action surface-input smoke
         run: |
-          g++ -std=c++17 -Wall -Wextra -Werror \
+          g++ -std=c++17 -Wall -Wextra -Werror -ffunction-sections -fdata-sections \
             -Iandroid/app/src/main/cpp \
             android/app/src/main/cpp/game_scene_action_surface_input.cpp \
             android/app/src/main/cpp/game_scene_action_layout.cpp \
             android/app/src/main/cpp/game_scene_action_input.cpp \
             android/app/src/main/cpp/tutorial_gameplay_state.cpp \
             android/app/src/main/cpp/tutorial_session_state.cpp \
+            android/app/src/main/cpp/game_clock.cpp \
+            android/app/src/main/cpp/game_scene_player_joystick_input.cpp \
+            android/app/src/main/cpp/player_control_runtime_state.cpp \
+            android/app/src/main/cpp/player_control_contract.cpp \
+            android/app/src/main/cpp/controls_function_state_runtime.cpp \
+            android/app/src/main/cpp/controls_function_state_contract.cpp \
+            android/app/src/main/cpp/player_function_action_contract.cpp \
+            android/app/src/main/cpp/meplayer_live_action_state.cpp \
+            android/app/src/main/cpp/me_actions_live_playback.cpp \
+            android/app/src/main/cpp/minimal_runtime_save_runtime.cpp \
+            android/app/src/main/cpp/minimal_runtime_save.cpp \
+            android/app/src/main/cpp/tutorial_attack_live_gate.cpp \
+            android/app/src/main/cpp/tutorial_attack_live_gate_runtime.cpp \
+            android/app/src/main/cpp/tutorial_attack_wave_runtime.cpp \
+            android/app/src/main/cpp/tutorial_spawn_inputs.cpp \
+            android/app/src/main/cpp/tutorial_enemy_roster.cpp \
+            android/app/src/main/cpp/tutorial_enemy_spawn_plan.cpp \
+            android/app/src/main/cpp/enemy_health_state.cpp \
+            android/app/src/main/cpp/enemy_online_state_contract.cpp \
+            android/app/src/main/cpp/enemy_physical_state.cpp \
+            android/app/src/main/cpp/game_levels_enemy_record_mapping.cpp \
+            android/app/src/main/cpp/enemy_hitpoint_contract.cpp \
+            android/app/src/main/cpp/enemy_attack_value_contract.cpp \
+            android/app/src/main/cpp/action_hitpoint_record_contract.cpp \
+            android/app/src/main/cpp/battle_manager_player_intersection_contract.cpp \
+            android/app/src/main/cpp/player_collision_state_contract.cpp \
             tools/game_scene_action_surface_input_smoke.cpp \
-            -o /tmp/game_scene_action_surface_input_smoke
+            -Wl,--gc-sections -o /tmp/game_scene_action_surface_input_smoke
           /tmp/game_scene_action_surface_input_smoke

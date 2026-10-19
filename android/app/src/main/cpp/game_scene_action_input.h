@@ -25,8 +25,11 @@ enum class Gesture : int {
 struct Snapshot {
     Control last_control = Control::kNone;
     Gesture last_gesture = Gesture::kNone;
+    int last_quick_use_slot = -1;
     std::uint64_t accepted_input_count = 0;
     std::uint64_t rejected_input_count = 0;
+    std::uint64_t quick_use_tap_count = 0;
+    std::uint64_t tutorial_rage_fill_count = 0;
 
     // C taps accepted while the interactive tutorial owns the Jump step. These
     // requests drive the reconstructed MEPlayer action loader, but do not by
@@ -45,6 +48,10 @@ void reset();
 // geometry. The recovered Controls hit-test layer calls this only after it has
 // proven which original A/B/C control received the gesture.
 bool observe(Control control, Gesture gesture);
+
+// Records a tap on a recovered quick-use slot. During the interactive tutorial
+// Rage-fill step, slot zero holds the granted potion and fills Rage.
+bool observe_quick_use_slot_tap(int slot);
 
 // Observe a committed live MEPLAYERSTATE after its action document has been
 // loaded. The original Jump lesson advances on state 0x20, not on the raw C

@@ -185,6 +185,46 @@ def wait_for_pid(serial: str, package: str, *, different_from: str | None = None
     raise ProofError(f"{package} did not obtain the expected process within {seconds}s")
 
 
+def resume_first_scene(serial: str) -> None:
+    """Replay the known fresh-role onboarding after a cold process restart."""
+    size = run(adb_args(serial, "shell", "wm", "size"), timeout=10).stdout.decode()
+    match = re.search(r"(?:Physical|Override) size:\s*(\d+)x(\d+)", size)
+    if not match:
+        raise ProofError(f"cannot read Android display size: {size.strip()}")
+    width, height = map(int, match.groups())
+    if width < height:
+        width, height = height, width
+    scale_x, scale_y = width / 2340.0, height / 1080.0
+
+    ui_dump = run(adb_args(
+        serial, "shell", "uiautomator", "dump", "/sdcard/nevergone-resume-ui.xml"),
+        timeout=20, check=False)
+    if ui_dump.returncode == 0:
+        xml = run(adb_args(
+            serial, "exec-out", "cat", "/sdcard/nevergone-resume-ui.xml"),
+            timeout=10, check=False).stdout.decode(errors="replace")
+        hidden_tools = re.search(
+            r'<node\b(?=[^>]*text="HIDE DEVELOPER TOOLS")(?=[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]")[^>]*>',
+            xml,
+        )
+        if hidden_tools:
+            x1, y1, x2, y2 = map(int, hidden_tools.groups())
+            run(adb_args(
+                serial, "shell", "input", "tap",
+                str((x1 + x2) // 2), str((y1 + y2) // 2)), timeout=5)
+            time.sleep(1.0)
+
+    # Coordinates are the tested Redmi Note 8 Pro fresh-role path. Scale them
+    # to the connected device's physical display dimensions.
+    taps = ((1200, 500, 4.0), (1580, 800, 2.0), (2210, 215, 7.0),
+            (1790, 840, 4.0), (800, 650, 2.0))
+    for x, y, settle in taps:
+        run(adb_args(
+            serial, "shell", "input", "tap",
+            str(round(x * scale_x)), str(round(y * scale_y))), timeout=5)
+        time.sleep(settle)
+
+
 def run_evidence_script(serial: str, script: str, evidence_dir: Path) -> None:
     env = os.environ.copy()
     env["ANDROID_SERIAL"] = serial
@@ -307,6 +347,8 @@ def main() -> int:
         restarted_pid = wait_for_pid(serial, args.package, different_from=initial_pid)
         summary["restarted_pid"] = restarted_pid
         time.sleep(max(0.0, args.restart_settle_seconds))
+        require_foreground(serial, args.package)
+        resume_first_scene(serial)
         require_foreground(serial, args.package)
 
         p10_dir = out / "p10-restart-restore"

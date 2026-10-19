@@ -1,6 +1,7 @@
 package org.nevergone.recomp;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -26,18 +27,27 @@ public final class MainActivity extends Activity {
     private static final String DEVICE_ID = "device_id";
     private static final int REQUEST_ORIGINAL_APK = 1001;
     private static final int REQUEST_ORIGINAL_OBB = 1002;
+    private static final int REQUEST_CONTROL_SETTINGS = 1003;
     private static final long CHOOSE_HERO_THUNDER_POLL_MS = 16L;
+    private static final long MANAGEMENT_ANNOUNCEMENT_POLL_MS = 200L;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private TextView status;
     private Button importButton;
     private Button importObbButton;
+    private Button importControlSettingsButton;
+    private Button editControlLayoutButton;
+    private Button resetControlLayoutButton;
     private Button developerToolsButton;
     private ScrollView technicalPanel;
     private GameSurfaceView gameSurface;
     private ChooseHeroThunderAudio chooseHeroThunderAudio;
+    private AlertDialog managementAnnouncementDialog;
+    private long shownAnnouncementRevision = Long.MIN_VALUE;
     private boolean chooseHeroThunderPolling;
+    private boolean managementAnnouncementPolling;
     private boolean technicalPanelManuallyExpanded;
+    private boolean controlLayoutEditing;
 
     private final Runnable chooseHeroThunderPoll = new Runnable() {
         @Override
@@ -56,6 +66,54 @@ public final class MainActivity extends Activity {
         }
     };
 
+    private final Runnable managementAnnouncementPoll = new Runnable() {
+        @Override
+        public void run() {
+            if (!managementAnnouncementPolling || isFinishing()) return;
+
+            String[] announcement = nativeManagementAnnouncement();
+            if (announcement == null || announcement.length < 3) {
+                shownAnnouncementRevision = Long.MIN_VALUE;
+                if (managementAnnouncementDialog != null) {
+                    managementAnnouncementDialog.dismiss();
+                    managementAnnouncementDialog = null;
+                }
+            } else {
+                long revision;
+                try {
+                    revision = Long.parseLong(announcement[2]);
+                } catch (NumberFormatException ignored) {
+                    revision = 0;
+                }
+                if (managementAnnouncementDialog == null ||
+                        !managementAnnouncementDialog.isShowing() ||
+                        revision != shownAnnouncementRevision) {
+                    if (managementAnnouncementDialog != null) {
+                        managementAnnouncementDialog.dismiss();
+                    }
+                    managementAnnouncementDialog = new AlertDialog.Builder(MainActivity.this)
+                            .setTitle(announcement[0])
+                            .setMessage(announcement[1])
+                            .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                                nativeDismissManagementAnnouncement();
+                                shownAnnouncementRevision = Long.MIN_VALUE;
+                            })
+                            .create();
+                    managementAnnouncementDialog.setOnCancelListener(dialog -> {
+                        nativeDismissManagementAnnouncement();
+                        shownAnnouncementRevision = Long.MIN_VALUE;
+                    });
+                    shownAnnouncementRevision = revision;
+                    managementAnnouncementDialog.show();
+                }
+            }
+
+            if (managementAnnouncementPolling) {
+                mainHandler.postDelayed(this, MANAGEMENT_ANNOUNCEMENT_POLL_MS);
+            }
+        }
+    };
+
     static {
         System.loadLibrary("nevergone_recomp");
     }
@@ -63,6 +121,8 @@ public final class MainActivity extends Activity {
     private static native void nativeConfigureRuntime(String filesDir, String deviceId, String appVersion);
     private static native String nativeBootstrapInfo();
     private static native String nativeClientUiState();
+    private static native String[] nativeManagementAnnouncement();
+    private static native void nativeDismissManagementAnnouncement();
     private static native void nativeOnAppPause();
     private static native void nativeOnAppResume();
     private static native void nativeAppDelegateOnPause();
@@ -86,6 +146,7 @@ public final class MainActivity extends Activity {
                 getFilesDir().getAbsolutePath(),
                 getOrCreateDeviceId(),
                 getAppVersion());
+        GameSceneControlSettingsLoader.reloadFromFilesDir(getFilesDir().getAbsolutePath());
         chooseHeroThunderAudio = new ChooseHeroThunderAudio(
                 new File(getFilesDir(), "assets"));
 
@@ -136,6 +197,28 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        importControlSettingsButton = new Button(this);
+        importControlSettingsButton.setText("Import saved control layout XML");
+        importControlSettingsButton.setOnClickListener(view -> chooseControlSettings());
+        content.addView(importControlSettingsButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        editControlLayoutButton = new Button(this);
+        editControlLayoutButton.setText("Adjust action controls");
+        editControlLayoutButton.setOnClickListener(view -> toggleControlLayoutEditing());
+        content.addView(editControlLayoutButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        resetControlLayoutButton = new Button(this);
+        resetControlLayoutButton.setText("Restore shipped defaults");
+        resetControlLayoutButton.setVisibility(View.GONE);
+        resetControlLayoutButton.setOnClickListener(view -> resetControlLayoutToDefaults());
+        content.addView(resetControlLayoutButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
         Button refreshButton = new Button(this);
         refreshButton.setText("Refresh runtime diagnostics");
         refreshButton.setOnClickListener(view -> status.setText(buildStatusText(null)));
@@ -165,7 +248,9 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        saveControlLayoutIfEditing();
         stopChooseHeroThunderPolling();
+        stopManagementAnnouncementPolling();
         if (chooseHeroThunderAudio != null) {
             chooseHeroThunderAudio.onPause();
         }
@@ -196,11 +281,13 @@ public final class MainActivity extends Activity {
         }
         updateTechnicalPanelVisibility();
         startChooseHeroThunderPolling();
+        startManagementAnnouncementPolling();
     }
 
     @Override
     protected void onDestroy() {
         stopChooseHeroThunderPolling();
+        stopManagementAnnouncementPolling();
         if (chooseHeroThunderAudio != null) {
             chooseHeroThunderAudio.release();
         }
@@ -226,6 +313,8 @@ public final class MainActivity extends Activity {
             importOriginalApk(uri);
         } else if (requestCode == REQUEST_ORIGINAL_OBB) {
             importOriginalObb(uri);
+        } else if (requestCode == REQUEST_CONTROL_SETTINGS) {
+            importControlSettings(uri);
         }
     }
 
@@ -243,9 +332,73 @@ public final class MainActivity extends Activity {
         startActivityForResult(intent, REQUEST_ORIGINAL_OBB);
     }
 
+    private void chooseControlSettings() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        startActivityForResult(intent, REQUEST_CONTROL_SETTINGS);
+    }
+
+    private void importControlSettings(Uri uri) {
+        try {
+            GameSceneControlSettingsLoader.copyPreferences(this, uri);
+            technicalPanelManuallyExpanded = true;
+            updateTechnicalPanelVisibility();
+            status.setText(buildStatusText(GameSceneControlSettingsLoader.status()));
+        } catch (java.io.IOException error) {
+            technicalPanelManuallyExpanded = true;
+            updateTechnicalPanelVisibility();
+            status.setText(buildStatusText("Control layout import failed: " + error.getMessage()));
+        }
+    }
+
+    private void toggleControlLayoutEditing() {
+        if (!controlLayoutEditing) {
+            controlLayoutEditing = true;
+            GameSceneControlSettingsLoader.setEditMode(true);
+            editControlLayoutButton.setText("Save control layout");
+            resetControlLayoutButton.setVisibility(View.VISIBLE);
+            status.setText(buildStatusText(
+                    "Drag the joystick, action buttons, or quick-use slots on the game surface."));
+            return;
+        }
+        saveControlLayoutIfEditing();
+    }
+
+    private void saveControlLayoutIfEditing() {
+        if (!controlLayoutEditing) return;
+        GameSceneControlSettingsLoader.setEditMode(false);
+        controlLayoutEditing = false;
+        if (editControlLayoutButton != null) editControlLayoutButton.setText("Adjust action controls");
+        if (resetControlLayoutButton != null) resetControlLayoutButton.setVisibility(View.GONE);
+        try {
+            GameSceneControlSettingsLoader.saveCurrentLayout(getFilesDir().getAbsolutePath());
+            if (status != null) status.setText(buildStatusText("Saved control layout."));
+        } catch (java.io.IOException error) {
+            if (status != null) {
+                status.setText(buildStatusText("Could not save control layout: " + error.getMessage()));
+            }
+        }
+    }
+
+    private void resetControlLayoutToDefaults() {
+        if (!controlLayoutEditing) return;
+        try {
+            GameSceneControlSettingsLoader.resetCurrentLayout(getFilesDir().getAbsolutePath());
+            if (status != null) status.setText(buildStatusText("Restored shipped default positions."));
+        } catch (java.io.IOException error) {
+            if (status != null) {
+                status.setText(buildStatusText("Could not reset control layout: " + error.getMessage()));
+            }
+        }
+    }
+
     private void setImportButtonsEnabled(boolean enabled) {
         importButton.setEnabled(enabled);
         importObbButton.setEnabled(enabled);
+        importControlSettingsButton.setEnabled(enabled);
+        editControlLayoutButton.setEnabled(enabled);
+        resetControlLayoutButton.setEnabled(enabled);
     }
 
     private boolean originalApkAssetsReady() {
@@ -354,6 +507,24 @@ public final class MainActivity extends Activity {
         mainHandler.removeCallbacks(chooseHeroThunderPoll);
     }
 
+    private void startManagementAnnouncementPolling() {
+        if (managementAnnouncementPolling) return;
+        managementAnnouncementPolling = true;
+        mainHandler.post(managementAnnouncementPoll);
+    }
+
+    private void stopManagementAnnouncementPolling() {
+        if (managementAnnouncementPolling) {
+            managementAnnouncementPolling = false;
+            mainHandler.removeCallbacks(managementAnnouncementPoll);
+        }
+        if (managementAnnouncementDialog != null) {
+            managementAnnouncementDialog.dismiss();
+            managementAnnouncementDialog = null;
+        }
+        shownAnnouncementRevision = Long.MIN_VALUE;
+    }
+
     private String buildStatusText(String notice) {
         StringBuilder text = new StringBuilder("Never Gone Recomp\n\n");
         if (notice != null && !notice.isEmpty()) {
@@ -365,6 +536,9 @@ public final class MainActivity extends Activity {
                 .append("\n")
                 .append("Original OBB assets: ")
                 .append(originalObbAssetsReady() ? "present" : "not imported")
+                .append("\n")
+                .append("Saved control layout: ")
+                .append(GameSceneControlSettingsLoader.status())
                 .append("\n");
         if (gameSurface != null) {
             text.append("SingleLogin BGM: ")

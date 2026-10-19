@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
@@ -11,6 +12,35 @@
 #include "me_actions_initial_sprite_transform.h"
 
 namespace nevergone::game_scene_render_queue {
+
+struct EnemyActionHitPointPosition {
+    std::size_t enemy_slot = 0;
+    std::int32_t action_frame_index = 0;
+    std::size_t action_data_index = 0;
+    std::size_t frame_ordinal = 0;
+    // Center of the transformed 8x8 Section-E sprite in
+    // EnemyActionsSystem coordinates. EnemyObject hitpoint offsets are applied
+    // later by EnemyObject::beatHitPoint().
+    float system_local_x = 0.0f;
+    float system_local_y = 0.0f;
+    bool action_not_hit = false;
+    bool action_go = false;
+};
+
+struct PlayerActionHitPointPosition {
+    std::int32_t action_frame_index = 0;
+    std::uint64_t action_generation = 0;
+    std::uint64_t loaded_revision = 0;
+    std::size_t action_data_index = 0;
+    std::size_t frame_ordinal = 0;
+    // Center of the native 8x8 Section-E CCSprite bounds in MeActionsSystem
+    // space. Player/world translation remains a separate combat input.
+    float system_local_x = 0.0f;
+    float system_local_y = 0.0f;
+    // BattleManager melee paths require MEPlayer::isAttackState() before using
+    // these points. False means the action state is not confirmed as attack.
+    bool attack_state = false;
+};
 
 struct SpriteCommand {
     std::size_t layer_z_index = 0;
@@ -24,6 +54,19 @@ struct SpriteCommand {
     float layer_camera_factor = 0.0f;
     std::optional<me_actions_initial_sprite_transform::Plan> player_body_transform;
     std::optional<std::string> player_body_atlas_plist;
+    std::optional<me_actions_initial_sprite_transform::Plan> action_frame_transform;
+    std::optional<std::string> action_frame_atlas_plist;
+    std::uint8_t action_frame_opacity = 255u;
+    bool enemy_action_not_hit = false;
+    bool enemy_action_go = false;
+    bool tutorial_enemy_collision_body = false;
+    std::uint64_t enemy_wave_generation = 0;
+    std::uint32_t enemy_id = 0;
+    std::int32_t enemy_state = 0;
+    float enemy_spawn_y = 0.0f;
+    int player_career = 0;
+    int player_clothes_id = -1;
+    std::string player_name;
 };
 
 // Runtime handoff for the exact type-0 klhuo-1.png branch. The original does
@@ -45,10 +88,13 @@ struct Queue {
     std::string guid;
     std::vector<SpriteCommand> sprites;
     std::vector<SceneActionPairCommand> scene_action_pairs;
+    std::vector<PlayerActionHitPointPosition> player_action_hitpoints;
+    std::vector<EnemyActionHitPointPosition> enemy_action_hitpoints;
     std::size_t sprite_frame_lookup_count = 0;
     std::size_t direct_file_count = 0;
     std::size_t scene_action_pair_count = 0;
     std::size_t unresolved_object_count = 0;
+    std::size_t tutorial_enemy_action_sprite_count = 0;
 };
 
 inline Queue build(const game_scene_construction_plan::ScenePlan& plan) {

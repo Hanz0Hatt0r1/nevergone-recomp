@@ -1,5 +1,6 @@
 #include "game_scene_direct_geometry.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "game_scene_type0_resource.h"
@@ -150,6 +151,64 @@ bool build_player_quad(
     out->tex_coords = {left_u, 0.0f, left_u, 1.0f,
                        right_u, 0.0f, right_u, 1.0f};
     return true;
+}
+
+std::optional<player_hl_point_contract::Rect> player_action_sprite_bounds(
+        const me_actions_initial_sprite_transform::Plan& body,
+        int texture_width,
+        int texture_height) {
+    if (texture_width <= 0 || texture_height <= 0 ||
+        !std::isfinite(body.position_x) || !std::isfinite(body.position_y) ||
+        !std::isfinite(body.anchor_x) || !std::isfinite(body.anchor_y) ||
+        !std::isfinite(body.scale_x) || !std::isfinite(body.scale_y) ||
+        !std::isfinite(body.rotation)) {
+        return std::nullopt;
+    }
+
+    const float width = static_cast<float>(texture_width);
+    const float height = static_cast<float>(texture_height);
+    const float local_x[4] = {
+        -body.anchor_x * width,
+        -body.anchor_x * width,
+        (1.0f - body.anchor_x) * width,
+        (1.0f - body.anchor_x) * width,
+    };
+    const float local_y[4] = {
+        (1.0f - body.anchor_y) * height,
+        -body.anchor_y * height,
+        (1.0f - body.anchor_y) * height,
+        -body.anchor_y * height,
+    };
+    const float radians = -body.rotation * kPi / 180.0f;
+    const float cosine = std::cos(radians);
+    const float sine = std::sin(radians);
+    float left = 0.0f;
+    float right = 0.0f;
+    float bottom = 0.0f;
+    float top = 0.0f;
+    for (std::size_t index = 0; index < 4u; ++index) {
+        const float scaled_x = local_x[index] * body.scale_x;
+        const float scaled_y = local_y[index] * body.scale_y;
+        const float x = body.position_x + scaled_x * cosine - scaled_y * sine;
+        const float y = body.position_y + scaled_x * sine + scaled_y * cosine;
+        if (!std::isfinite(x) || !std::isfinite(y)) return std::nullopt;
+        if (index == 0u) {
+            left = right = x;
+            bottom = top = y;
+        } else {
+            left = std::min(left, x);
+            right = std::max(right, x);
+            bottom = std::min(bottom, y);
+            top = std::max(top, y);
+        }
+    }
+
+    const player_hl_point_contract::Rect bounds{
+        left, bottom, right - left, top - bottom};
+    if (!std::isfinite(bounds.width) || !std::isfinite(bounds.height)) {
+        return std::nullopt;
+    }
+    return bounds;
 }
 
 std::vector<std::size_t> ordered_direct_sprite_indices(

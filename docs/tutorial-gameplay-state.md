@@ -60,7 +60,9 @@ A raw button press is therefore insufficient for several steps. In particular, A
 
 ## Live integration
 
-The **Run** step is now connected to the reconstructed native joystick combo path. `game_scene_player_joystick_input` already recognizes the shipped same-direction double-tap window and increments `fast_reactivation_count` only when the recovered fast movement state is entered. A new fast reactivation publishes `kRunPerformed` when, and only when, the tutorial currently owns `Step::kRun`; the tutorial then advances to **Jump**.
+The **Run** step is connected to the reconstructed native joystick combo path. `game_scene_player_joystick_input` recognizes the shipped same-direction double-tap window and increments `fast_reactivation_count` only when the recovered fast movement state is entered. A new fast reactivation publishes `kRunPerformed` when, and only when, the tutorial currently owns `Step::kRun`; the tutorial then advances to **Jump**.
+
+The **Fill Rage** step now accepts a tap on quick-use slot 0 as the tutorial's granted potion use and advances to **Execution**. While that step is active, simultaneous A+C input dispatches Career 1's imported super animation sequence `0x3a -> 0x3b -> 0x3c -> 0x1b`. The native dispatch requires Rage `>= 100`; the tutorial's Fill Rage event is the local full-Rage signal. See [Career 1 tutorial super attack evidence](evidence/meplayer-career1-super-attack-2026-10-18.md). Generic meter gain and the enemy kills needed to finish the Execution lesson remain outside this increment.
 
 This keeps the tutorial dependent on the same movement state that drives player motion rather than a separate UI-only double-tap detector. Publication occurs outside the joystick mutex so tutorial state cannot participate in the input lock order. Fast reactivations outside the Run step are ignored by the tutorial contract.
 

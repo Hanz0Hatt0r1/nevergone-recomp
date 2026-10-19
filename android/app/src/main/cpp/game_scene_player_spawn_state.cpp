@@ -2,6 +2,7 @@
 
 #include <mutex>
 #include <sstream>
+#include <utility>
 
 #include "game_scene_direct_geometry.h"
 
@@ -16,12 +17,16 @@ void begin_refresh_locked(
         const game_levels_scene_instance::SceneInstance& scene,
         std::uint32_t event_port_type,
         int surface_width,
-        int surface_height) {
+        int surface_height,
+        const std::string& player_name) {
     const std::uint64_t generation = g_state.generation + 1u;
     g_state = Snapshot{};
     g_state.generation = generation;
     g_state.source_scene_index = scene.source_scene_index;
     g_state.scene_guid = scene.guid;
+    g_state.player_name = player_name.empty()
+            ? game_scene_player_bootstrap::player_name()
+            : player_name;
     g_state.event_port_type = event_port_type;
     g_state.surface_width = surface_width;
     g_state.surface_height = surface_height;
@@ -36,13 +41,22 @@ void reset() {
     g_position.reset();
 }
 
+void set_player_name(std::string player_name) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_state.status == Status::kReady) {
+        g_state.player_name = std::move(player_name);
+    }
+}
+
 bool refresh(
         const game_levels_scene_instance::SceneInstance& scene,
         std::uint32_t event_port_type,
         int surface_width,
-        int surface_height) {
+        int surface_height,
+        std::string player_name) {
     std::lock_guard<std::mutex> lock(g_mutex);
-    begin_refresh_locked(scene, event_port_type, surface_width, surface_height);
+    begin_refresh_locked(
+            scene, event_port_type, surface_width, surface_height, player_name);
 
     // Surface dimensions still gate live renderer readiness and identify the
     // active GLES revision. Player coordinates themselves are Cocos design-space
@@ -146,6 +160,9 @@ std::string status_report() {
     out << "GameScene player spawn state\n";
     out << "state: " << status_name(state.status) << "\n";
     out << "generation: " << state.generation << "\n";
+    if (!state.player_name.empty()) {
+        out << "player name: " << state.player_name << "\n";
+    }
     if (!state.scene_guid.empty()) {
         out << "scene: " << state.source_scene_index << " (" << state.scene_guid << ")\n";
     }

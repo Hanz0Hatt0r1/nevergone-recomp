@@ -1,0 +1,1 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002bc28e","source_name":"EnemyActionsSystem::updateActionFrameMoveValue","task":"function_role","label":"combat_enemy_action_frame_and_hitpoint_transform","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-action-hitpoint-sprite-transform.md"}

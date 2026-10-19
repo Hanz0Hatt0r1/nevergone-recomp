@@ -40,6 +40,14 @@ Each result contains:
 
 These are descriptive retrieval signals only. There is deliberately no `accept`, `review`, or project-goal-dependent priority attached to similarity output.
 
+For manual restoration triage, pass `--label-task function_role` to restrict
+references to families with gold function-role labels. Add `--families` and
+`--unlabelled-only` to omit query families already labeled for that task;
+`--top-candidates N` writes the N highest-similarity query functions, with
+ties resolved by the top-two gap and input order. See
+[`MANUAL_RECOVERY_RETRIEVAL.md`](MANUAL_RECOVERY_RETRIEVAL.md) for the current
+v70 workflow. This is candidate retrieval, not automatic label transfer.
+
 ## Family-held-out label-transfer validation
 
 Before using nearest-family labels as evidence, evaluate transfer with the query family completely excluded from the reference index:

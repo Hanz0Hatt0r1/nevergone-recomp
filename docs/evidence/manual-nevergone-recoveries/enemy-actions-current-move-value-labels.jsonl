@@ -1,0 +1,1 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002bc158","source_name":"EnemyActionsSystem::GetCurMoveValue","task":"function_role","label":"enemy_action_pending_move_value_consumer","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-actions-current-move-value.md"}

@@ -12,6 +12,7 @@
 #include "single_login_light_timeline.h"
 #include "single_login_lightning_timeline.h"
 #include "single_login_sway_timeline.h"
+#include "tap_to_start_state.h"
 #include "splash_sequence_state.h"
 
 namespace nevergone::single_login {
@@ -51,6 +52,8 @@ GLint g_alpha = -1;
 std::array<PositionedTexture, kBackgroundCount> g_backgrounds{};
 std::array<SpriteTexture, kCloudFrameCount> g_cloud_frames{};
 std::array<PositionedTexture, kBuildingCount> g_buildings{};
+std::array<PositionedTexture, 1> g_title_logo{};
+std::array<PositionedTexture, 1> g_tap_to_start_prompt{};
 std::array<PositionedTexture, single_login_light_timeline::kLightCount> g_lights{};
 std::array<PositionedTexture, single_login_sway_timeline::kNodeCount> g_sways{};
 std::array<PositionedTexture, single_login_lightning_timeline::kLightningCount> g_lightning{};
@@ -147,6 +150,8 @@ void clear_clouds() {
 }
 
 void clear_buildings() { clear_layers(&g_buildings); }
+void clear_title_logo() { clear_layers(&g_title_logo); }
+void clear_tap_to_start_prompt() { clear_layers(&g_tap_to_start_prompt); }
 void clear_lights() { clear_layers(&g_lights); }
 void clear_sways() { clear_layers(&g_sways); }
 void clear_lightning() { clear_layers(&g_lightning); }
@@ -191,6 +196,8 @@ void on_surface_created() {
     g_backgrounds = {};
     g_cloud_frames = {};
     g_buildings = {};
+    g_title_logo = {};
+    g_tap_to_start_prompt = {};
     g_lights = {};
     g_sways = {};
     g_lightning = {};
@@ -254,6 +261,18 @@ bool upload_cloud(int index, int width, int height, const std::uint32_t* argb, s
 bool upload_building(int index, int width, int height, int left, int top, int source_width, int source_height,
                      const std::uint32_t* argb, size_t count) {
     return upload_positioned(&g_buildings, index, width, height, left, top, source_width, source_height, argb, count);
+}
+
+bool upload_title_logo(int index, int width, int height, int left, int top,
+                       int source_width, int source_height,
+                       const std::uint32_t* argb, size_t count) {
+    return upload_positioned(&g_title_logo, index, width, height, left, top,
+                             source_width, source_height, argb, count);
+}
+
+bool upload_tap_to_start_prompt(int width, int height, const std::uint32_t* argb, size_t count) {
+    return upload_positioned(
+        &g_tap_to_start_prompt, 0, width, height, 0, 0, width, height, argb, count);
 }
 
 bool upload_light(int index, int width, int height, int left, int top, int source_width, int source_height,
@@ -513,6 +532,16 @@ void draw() {
         draw_positioned(g_lights[index], light_sample.alpha[index]);
     }
     draw_sway_z(sway_sample, sway_configs, 5, source_width, source_height);
+    const auto tap_state = tap_to_start_state::snapshot();
+    if (tap_state.phase == tap_to_start_state::Phase::kReady) {
+        draw_positioned(g_title_logo[0], 1.0f);
+    }
+    float prompt_alpha = 0.0f;
+    if (tap_state.phase == tap_to_start_state::Phase::kReady && scene_seconds > 1.0) {
+        prompt_alpha = static_cast<float>((scene_seconds - 1.0) / 3.0);
+        if (prompt_alpha > 1.0f) prompt_alpha = 1.0f;
+    }
+    draw_positioned(g_tap_to_start_prompt[0], prompt_alpha);
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
@@ -568,6 +597,10 @@ Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginClouds(JNIEnv*, 
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginBuildings(JNIEnv*, jclass) { nevergone::single_login::clear_buildings(); }
 extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginTapToStartPrompt(JNIEnv*, jclass) { nevergone::single_login::clear_tap_to_start_prompt(); }
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginTitleLogo(JNIEnv*, jclass) { nevergone::single_login::clear_title_logo(); }
+extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginLights(JNIEnv*, jclass) { nevergone::single_login::clear_lights(); }
 extern "C" JNIEXPORT void JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeClearSingleLoginSways(JNIEnv*, jclass) { nevergone::single_login::clear_sways(); }
@@ -587,12 +620,28 @@ extern "C" JNIEXPORT jboolean JNICALL name( \
 
 NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginBackground, upload_background)
 NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginBuilding, upload_building)
+NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginTitleLogo, upload_title_logo)
 NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginLight, upload_light)
 NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginSway, upload_sway)
 NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginLightning, upload_lightning)
 NEVERGONE_UPLOAD_JNI(Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginIllumination, upload_illumination)
 
 #undef NEVERGONE_UPLOAD_JNI
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginTapToStartPrompt(
+    JNIEnv* env, jclass, jint width, jint height, jintArray pixels) {
+    if (pixels == nullptr || width <= 0 || height <= 0) return JNI_FALSE;
+    const jsize length = env->GetArrayLength(pixels);
+    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (static_cast<size_t>(length) != expected) return JNI_FALSE;
+    jint* values = env->GetIntArrayElements(pixels, nullptr);
+    if (values == nullptr) return JNI_FALSE;
+    const bool ok = nevergone::single_login::upload_tap_to_start_prompt(
+        width, height, reinterpret_cast<const std::uint32_t*>(values), expected);
+    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_GameSurfaceView_nativeUploadSingleLoginCloud(

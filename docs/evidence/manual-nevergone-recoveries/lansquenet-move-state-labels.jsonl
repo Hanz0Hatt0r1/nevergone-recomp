@@ -1,0 +1,2 @@
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002e90b8","source_name":"LansquenetObject::isEnemyMoveState","task":"subsystem","label":"combat","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-point-collision.md"}
+{"format":"NEVERGONE.MlSeedLabels/1","program":"libcocos2dcpp.so","source_entry":"002e90b8","source_name":"LansquenetObject::isEnemyMoveState","task":"function_role","label":"combat_enemy_move_state_gate","quality":"gold","evidence":"docs/evidence/manual-nevergone-recoveries/enemy-point-collision.md"}

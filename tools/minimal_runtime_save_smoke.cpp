@@ -73,6 +73,20 @@ int main() {
     assert(moved.offset_x == source.motion_offset_x);
     assert(runtime::snapshot().restore_count == 1u);
 
+    // The player-action loader may reset motion when its render queue is
+    // rebuilt without changing the scene. The same retained save must restore
+    // that cursor again, while repeated calls against the restored cursor stay
+    // one-shot.
+    motion::reset();
+    assert(motion::sync_spawn(spawn.generation, 1u, 502u));
+    assert(runtime::restore_for_spawn(files_dir, spawn, 1u, 502u));
+    moved = motion::snapshot();
+    assert(moved.offset_x == source.motion_offset_x);
+    assert(moved.offset_y == source.motion_offset_y);
+    assert(runtime::snapshot().restore_count == 2u);
+    assert(runtime::restore_for_spawn(files_dir, spawn, 1u, 503u));
+    assert(runtime::snapshot().restore_count == 2u);
+
     // A different reconstructed scene cannot be forced by the save. The record
     // stays pending and becomes applicable if normal flow later reaches it.
     runtime::reset_session();

@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -69,14 +71,17 @@ inline bool sync_spawn(
 
 // Advances the movement cursor to the supplied fixed game tick. Inactive input
 // consumes elapsed ticks without moving so a later joystick activation cannot
-// accumulate an artificial backlog. Active input applies the exact recovered
-// playerMoveValue() vector for action state 0 or 1 once per elapsed logical tick.
+// accumulate an artificial backlog. Active input uses the committed MEPLAYERSTATE:
+// direct input movement is recovered for states 0/1, idle 0x1b is stationary,
+// and unsupported action-frame movement states fail closed.
 inline bool advance_sample(
         std::uint64_t game_tick,
         bool active,
         std::uint32_t action_state,
         float direction_x,
-        float direction_y) {
+        float direction_y,
+        float action_frame_move_value_x = 0.0f,
+        std::optional<player_motion_contract::Vector> movement_override = std::nullopt) {
     std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_snapshot.ready) return false;
     if (game_tick <= g_snapshot.last_game_tick) return true;
@@ -84,24 +89,38 @@ inline bool advance_sample(
     const std::uint64_t elapsed = game_tick - g_snapshot.last_game_tick;
     g_snapshot.last_game_tick = game_tick;
     g_snapshot.last_action_state = action_state;
-    if (!active) return true;
+    const bool direct_input = player_motion_contract::uses_direct_input(action_state);
+    if (!active && direct_input && !movement_override.has_value()) return true;
 
-    const auto movement = player_motion_contract::movement_value(
+    auto movement = player_motion_contract::movement_value(
             g_snapshot.player_index,
             action_state,
-            {direction_x, direction_y});
+            {direction_x, direction_y},
+            action_frame_move_value_x);
     if (!movement.has_value()) return false;
+    if (movement_override.has_value()) {
+        if (!std::isfinite(movement_override->x) || !std::isfinite(movement_override->y)) {
+            return false;
+        }
+        movement = movement_override;
+    }
 
-    g_snapshot.offset_x += movement->x * static_cast<float>(elapsed);
-    g_snapshot.offset_y += movement->y * static_cast<float>(elapsed);
-    g_snapshot.applied_steps += elapsed;
-    if (action_state == player_motion_contract::kNormalMoveActionState) {
+    const std::uint64_t applied_steps = direct_input
+            ? (active ? elapsed : 1u)
+            : (movement->x != 0.0f || movement->y != 0.0f ? 1u : 0u);
+    const float repetition = direct_input ? static_cast<float>(elapsed) : 1.0f;
+    g_snapshot.offset_x += movement->x * repetition;
+    g_snapshot.offset_y += movement->y * repetition;
+    g_snapshot.applied_steps += applied_steps;
+    if (active && action_state == player_motion_contract::kNormalMoveActionState) {
         g_snapshot.normal_steps += elapsed;
-    } else if (action_state == player_motion_contract::kFastMoveActionState) {
+    } else if (active && action_state == player_motion_contract::kFastMoveActionState) {
         g_snapshot.fast_steps += elapsed;
     }
-    ++g_generation;
-    g_snapshot.generation = g_generation;
+    if (applied_steps != 0u) {
+        ++g_generation;
+        g_snapshot.generation = g_generation;
+    }
     return true;
 }
 

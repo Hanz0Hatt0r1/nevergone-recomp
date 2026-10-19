@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "character_name_action_executor.h"
+#include "character_name_state.h"
 #include "fresh_role_compat_state.h"
 
 namespace {
@@ -153,6 +154,13 @@ Java_org_nevergone_recomp_FreshRoleCompatOverlay_nativeRoleName(JNIEnv* env, jcl
 extern "C" JNIEXPORT jboolean JNICALL
 Java_org_nevergone_recomp_FreshRoleCompatOverlay_nativeRandomizePending(JNIEnv*, jclass) {
     return nevergone::fresh_role_compat_state::snapshot().randomize_pending
+        ? JNI_TRUE
+        : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_FreshRoleCompatOverlay_nativeNameSubmissionAttempted(JNIEnv*, jclass) {
+    return nevergone::character_name_state::snapshot().submit_count > 0
         ? JNI_TRUE
         : JNI_FALSE;
 }

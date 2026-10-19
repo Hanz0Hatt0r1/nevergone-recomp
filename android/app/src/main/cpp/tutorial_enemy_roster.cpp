@@ -83,8 +83,88 @@ bool Roster::apply_damage(
         slot >= plan_.enemy_count || !enemies_[slot].materialized) {
         return false;
     }
-    enemy_health_state::apply_beaten_damage(&enemies_[slot].health, damage);
+    enemy_health_state::apply_beaten_damage_and_death_state(
+            &enemies_[slot].health,
+            damage,
+            enemies_[slot].request.enemy_id);
     return true;
+}
+
+enemy_health_state::OnlineHealthUpdateResult Roster::apply_online_health_update(
+        std::size_t slot,
+        int update_type,
+        int value,
+        std::uint64_t expected_generation) {
+    if (!active_ || generation_ != expected_generation ||
+        slot >= plan_.enemy_count || !enemies_[slot].materialized) {
+        return {};
+    }
+    EnemySlot& enemy = enemies_[slot];
+    auto result = enemy_health_state::apply_online_health_update(
+            &enemy.health, update_type, value);
+    if (enemy.physical_configured) {
+        result.physical_state_advanced = enemy_physical_state::update(
+                &enemy.physical, result.physical_damage);
+    }
+    return result;
+}
+
+bool Roster::configure_physical_state(
+        std::size_t slot,
+        const enemy_physical_state::State& physical,
+        std::uint64_t expected_generation) {
+    if (!active_ || generation_ != expected_generation ||
+        slot >= plan_.enemy_count || !enemies_[slot].materialized) {
+        return false;
+    }
+    if (!physical.disabled &&
+        (physical.last_state_index < 0 ||
+         physical.last_state_index >=
+                 static_cast<int>(physical.damage_percent_by_state.size()))) {
+        return false;
+    }
+    enemy_physical_state::copy_state(physical, &enemies_[slot].physical);
+    enemies_[slot].physical_configured = true;
+    return true;
+}
+
+bool Roster::initialize_physical_state(
+        std::size_t slot,
+        const enemy_physical_state::Config& physical,
+        int duration,
+        std::uint64_t expected_generation) {
+    if (!active_ || generation_ != expected_generation ||
+        slot >= plan_.enemy_count || !enemies_[slot].materialized) {
+        return false;
+    }
+    EnemySlot& enemy = enemies_[slot];
+    if (!enemy_physical_state::initialize(physical, duration, &enemy.physical)) {
+        return false;
+    }
+    enemy.physical_configured = true;
+    return true;
+}
+
+bool Roster::advance_physical_state(
+        std::size_t slot,
+        float damage,
+        std::uint64_t expected_generation) {
+    if (!active_ || generation_ != expected_generation ||
+        slot >= plan_.enemy_count || !enemies_[slot].materialized ||
+        !enemies_[slot].physical_configured) {
+        return false;
+    }
+    return enemy_physical_state::update(&enemies_[slot].physical, damage);
+}
+
+bool Roster::next_physical_state(
+        std::size_t slot, std::uint64_t expected_generation) {
+    if (!active_ || generation_ != expected_generation ||
+        slot >= plan_.enemy_count || !enemies_[slot].materialized ||
+        !enemies_[slot].physical_configured) {
+        return false;
+    }
+    return enemy_physical_state::next_state(&enemies_[slot].physical);
 }
 
 bool Roster::set_dead(std::size_t slot, std::uint64_t expected_generation) {
@@ -132,7 +212,11 @@ Snapshot Roster::snapshot() const {
         if (slot.due && !slot.materialized) ++out.unresolved_health_count;
         if (!slot.materialized) continue;
         ++out.materialized_count;
-        if (enemy_health_state::is_dead(slot.health)) ++out.dead_count;
+        if (enemy_health_state::is_dead(slot.health)) {
+            ++out.dead_count;
+        } else if (enemy_health_state::is_low_health_percent(slot.health)) {
+            ++out.low_health_count;
+        }
     }
 
     out.all_materialized =

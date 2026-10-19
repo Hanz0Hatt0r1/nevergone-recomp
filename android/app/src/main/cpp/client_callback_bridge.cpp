@@ -57,6 +57,17 @@ void apply_event_to_ui_state(const ClientCallbackEvent& event) {
         g_client_ui_state.created_role = payload;
     } else if (event.name == "cpp_OnGameAnnoucement") {
         g_client_ui_state.announcement = payload;
+        g_client_ui_state.announcement_ready = event.arguments.size() >= 4u &&
+            event.arguments[2] != "nil" && event.arguments[3] != "nil";
+        if (g_client_ui_state.announcement_ready) {
+            g_client_ui_state.announcement_title = event.arguments[2];
+            g_client_ui_state.announcement_content = event.arguments[3];
+            g_client_ui_state.announcement_revision = g_client_ui_state.event_count;
+        } else {
+            g_client_ui_state.announcement_title.clear();
+            g_client_ui_state.announcement_content.clear();
+            g_client_ui_state.announcement_revision = 0;
+        }
     } else if (event.name == "cpp_OnEnterGame") {
         g_client_ui_state.enter_game = payload;
     } else if (event.name == "cpp_OnReceivedChatMessages") {
@@ -75,7 +86,13 @@ void filter_login_payloads_for_management_route(ClientUiSnapshot* state) {
     const auto route = nevergone::initial_ui_transition::snapshot().management_route;
     using nevergone::initial_ui_transition::ManagementRoute;
 
-    if (route != ManagementRoute::kAnnouncement) state->announcement.clear();
+    if (route != ManagementRoute::kAnnouncement) {
+        state->announcement.clear();
+        state->announcement_ready = false;
+        state->announcement_title.clear();
+        state->announcement_content.clear();
+        state->announcement_revision = 0;
+    }
     if (route != ManagementRoute::kServerSelection) {
         state->server_list.clear();
         state->server_list_model = login_callback_payload::ServerListPayload{};
@@ -249,6 +266,10 @@ std::string client_ui_state_report() {
     }
     if (!snapshot.created_role.empty()) out << "created role: " << snapshot.created_role << "\n";
     if (!snapshot.announcement.empty()) out << "announcement: " << snapshot.announcement << "\n";
+    if (snapshot.announcement_ready) {
+        out << "announcement title: " << snapshot.announcement_title << "\n";
+        out << "announcement content: " << snapshot.announcement_content << "\n";
+    }
     if (!snapshot.enter_game.empty()) out << "enter game: " << snapshot.enter_game << "\n";
     if (!snapshot.chat_messages.empty()) out << "chat: " << snapshot.chat_messages << "\n";
     if (!snapshot.update_data.empty()) out << "data update: " << snapshot.update_data << "\n";

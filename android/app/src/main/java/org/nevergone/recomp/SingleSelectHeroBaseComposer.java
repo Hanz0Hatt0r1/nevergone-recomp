@@ -13,9 +13,11 @@ final class SingleSelectHeroBaseComposer {
     private static volatile boolean backgroundExtracted;
     private static volatile int heroTablesRetained;
     private static volatile int careerRunesRetained;
+    private static volatile int coffinFramesRetained;
     private static volatile int confirmFramesRetained;
     private static volatile String heroTableFailure = "not staged";
     private static volatile String careerRuneFailure = "not staged";
+    private static volatile String coffinFailure = "not staged";
     private static volatile String confirmFailure = "not staged";
 
     private static native void nativeClearHeroTables();
@@ -31,6 +33,16 @@ final class SingleSelectHeroBaseComposer {
     private static native void nativeClearCareerRunes();
     private static native boolean nativeUploadCareerRune(
             int runeIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
+    private static native void nativeClearCoffinAssets();
+    private static native boolean nativeUploadCoffinAsset(
+            int assetIndex,
             int width,
             int height,
             int left,
@@ -56,9 +68,11 @@ final class SingleSelectHeroBaseComposer {
         backgroundExtracted = false;
         heroTablesRetained = 0;
         careerRunesRetained = 0;
+        coffinFramesRetained = 0;
         confirmFramesRetained = 0;
         heroTableFailure = "none";
         careerRuneFailure = "none";
+        coffinFailure = "none";
         confirmFailure = "none";
     }
 
@@ -68,9 +82,11 @@ final class SingleSelectHeroBaseComposer {
                 "background extracted: " + (backgroundExtracted ? "yes" : "no") + "\n" +
                 "hero tables retained: " + heroTablesRetained + "/4\n" +
                 "career runes retained: " + careerRunesRetained + "/10\n" +
+                "coffin frames retained: " + coffinFramesRetained + "/9\n" +
                 "confirm frames retained: " + confirmFramesRetained + "/4\n" +
                 "hero table failure: " + heroTableFailure + "\n" +
                 "career rune failure: " + careerRuneFailure + "\n" +
+                "coffin failure: " + coffinFailure + "\n" +
                 "confirm failure: " + confirmFailure;
     }
 
@@ -78,6 +94,7 @@ final class SingleSelectHeroBaseComposer {
             throws Exception {
         nativeClearHeroTables();
         nativeClearCareerRunes();
+        nativeClearCoffinAssets();
         nativeClearConfirmControl();
         resetStatus();
 
@@ -102,6 +119,46 @@ final class SingleSelectHeroBaseComposer {
                 return null;
             }
             backgroundExtracted = true;
+
+            String[] coffinFrames = {
+                    "xrshiguan.png",
+                    "xrguangai.png",
+                    "xrguancaigai.png",
+                    "P01DL_Ani_0001.png",
+                    "P01DL_Ani_0001_grey.png",
+                    "P01DL_Ani_0001b.png",
+                    "P02DL_Ani_0001.png",
+                    "P02DL_Ani_0001_grey.png",
+                    "P02DL_Ani_0001b.png",
+            };
+            for (int index = 0; index < coffinFrames.length; index++) {
+                String frameName = coffinFrames[index];
+                SingleLoginAtlasComposer.AtlasLayer layer =
+                        extractLayer(plistFile, atlas, frameName);
+                if (layer == null) {
+                    coffinFailure = "missing/invalid " + frameName +
+                            " after " + coffinFramesRetained + " accepted";
+                    nativeClearCoffinAssets();
+                    coffinFramesRetained = 0;
+                    break;
+                }
+                if (!nativeUploadCoffinAsset(
+                        index,
+                        layer.width,
+                        layer.height,
+                        layer.left,
+                        layer.top,
+                        layer.sourceWidth,
+                        layer.sourceHeight,
+                        layer.pixels)) {
+                    coffinFailure = "native upload rejected " + frameName +
+                            " after " + coffinFramesRetained + " accepted";
+                    nativeClearCoffinAssets();
+                    coffinFramesRetained = 0;
+                    break;
+                }
+                coffinFramesRetained = index + 1;
+            }
 
             // HeroTable is part of the same shipped atlas and is loaded on this
             // GL thread so the native compositor can select frames at runtime

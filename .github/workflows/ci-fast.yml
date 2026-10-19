@@ -187,6 +187,8 @@ jobs:
             android/app/src/main/cpp/tutorial_enemy_roster.cpp \
             android/app/src/main/cpp/tutorial_enemy_spawn_plan.cpp \
             android/app/src/main/cpp/enemy_health_state.cpp \
+            android/app/src/main/cpp/enemy_online_state_contract.cpp \
+            android/app/src/main/cpp/enemy_physical_state.cpp \
             android/app/src/main/cpp/tutorial_gameplay_state.cpp \
             -o /tmp/tutorial_enemy_roster_smoke
           /tmp/tutorial_enemy_roster_smoke

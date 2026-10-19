@@ -10,11 +10,20 @@ The player render queue consumes the complete currently loaded action document a
 
 - `meplayer_live_action_state.generation`;
 - committed `loaded_revision`;
-- committed `current_action_state`.
+- committed `current_action_state` and its `looping` flag from the selected
+  `pNN_actions.plist` entry.
 
 When any of those changes, the cursor restarts with the recovered `MeActionsSystem::play()` initialization. This matches the point at which `PlayerActionRuntimeLoader` has successfully loaded the new imported `.actData` document and committed the desired MEPLAYERSTATE.
 
-The state is advanced from `game_clock::tick_count()` using the existing fixed 35 Hz logical clock. A render queue may be queried more than once during one logical tick; repeated queries at the same tick are intentionally idempotent and cannot accelerate animation. If several logical ticks elapse between queries, their elapsed fixed-step time is accumulated in one `waUpdate()` call, which can itself advance several frames through the recovered retained-accumulator loop.
+The state is advanced from `game_clock::tick_count()` using the existing fixed 35 Hz logical clock. A render queue may be queried more than once during one logical tick; repeated queries at the same tick are intentionally idempotent and cannot accelerate animation. If several logical ticks elapse between queries, playback calls `waUpdate()` once per elapsed tick so an action completion and loop restart happen at the same boundary as native `step()`; each call can still advance multiple frames through the recovered retained-accumulator loop.
+
+When the action reaches its recovered terminal frame, entries marked
+`looping=true` restart from `MeActionsSystem::play()` frame zero. This keeps
+idle (`action28`), walk (`action01`), run (`action02`) and other looping poses
+animated. Non-looping attacks, jumps and the first block action still expose
+their completion to the MEPlayer state transition. The loop restart also
+mirrors the original `step()` path, which immediately runs `play()` and
+`waStep()` in the completion tick before continuing the next cycle.
 
 A game-clock reset (for example GL surface recreation) moves only the tick baseline and cannot underflow elapsed time or jump the action cursor.
 
@@ -45,7 +54,18 @@ The shipped `MeActionsSystem::updateData()` body path resolves the current prima
 
 For the project-supported `play(int,float)` path, native explicitly zeros `MeActionsSystem +0x204/+0x208` before the first `updateData()` call. The current clean-room runtime does not synthesize non-zero action-local position offsets, cut/H-point offsets, or alternate play-overload parameters. Within that bounded path the existing validated direct-frame transform can therefore be applied to every selected primary frame.
 
-Facing remains overridden by the already reconstructed live `player_control_runtime_state`, matching the player-control route rather than freezing the initial frame's facing bit.
+Facing remains overridden by the already reconstructed live `player_control_runtime_state`, matching the player-control route rather than freezing the initial frame's facing bit. The held B follow-up state (`0x1e`, `action31`) uses its imported looping flag; releasing B returns to idle, including when the follow-up is still being loaded.
+
+## Locomotion actions
+
+The shipped `pNN_actions.plist` maps movement action state `0` to `action01`
+(`pNN_w01.actData`, looping) and fast state `1` to `action02`
+(`pNN_r01.actData`, looping). The recovered horizontal joystick path now queues
+those states while walking or running and returns to the initial idle state
+`0x1b` when the stick is released. The loader reuses its existing direct
+state-to-action-data resolver, so each transition also selects the original
+frame sequence and its matching atlas. Active jump/attack actions retain control
+until their existing completion transition returns to idle.
 
 ## Remaining transform boundary
 

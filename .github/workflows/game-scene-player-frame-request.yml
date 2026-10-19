@@ -6,6 +6,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_player_frame_request.cpp'
       - 'android/app/src/main/cpp/game_scene_player_frame_request.h'
       - 'android/app/src/main/cpp/me_actions_runtime_state.h'
+      - 'android/app/src/main/cpp/action_hitpoint_record_contract.*'
       - 'tools/game_scene_player_frame_request_smoke.cpp'
       - 'docs/evidence/me-actions-initial-frame.md'
       - 'docs/player-action-asset-probe.md'
@@ -16,6 +17,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_player_frame_request.cpp'
       - 'android/app/src/main/cpp/game_scene_player_frame_request.h'
       - 'android/app/src/main/cpp/me_actions_runtime_state.h'
+      - 'android/app/src/main/cpp/action_hitpoint_record_contract.*'
       - 'tools/game_scene_player_frame_request_smoke.cpp'
       - 'docs/evidence/me-actions-initial-frame.md'
       - 'docs/player-action-asset-probe.md'
@@ -35,6 +37,7 @@ jobs:
           g++ -std=c++17 -Wall -Wextra -Werror \
             -Iandroid/app/src/main/cpp \
             android/app/src/main/cpp/game_scene_player_frame_request.cpp \
+            android/app/src/main/cpp/action_hitpoint_record_contract.cpp \
             tools/game_scene_player_frame_request_smoke.cpp \
             -o /tmp/game_scene_player_frame_request_smoke
       - name: Run player frame request bridge smoke

@@ -8,6 +8,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.h'
       - 'android/app/src/main/cpp/game_scene_player_frame_request.cpp'
       - 'android/app/src/main/cpp/game_scene_player_frame_request.h'
+      - 'android/app/src/main/cpp/action_hitpoint_record_contract.*'
       - 'android/app/src/main/cpp/me_actions_runtime_state.h'
       - 'tools/me_actions_initial_sprite_transform_smoke.cpp'
       - 'tools/game_scene_initial_player_sprite_request_smoke.cpp'
@@ -21,6 +22,7 @@ on:
       - 'android/app/src/main/cpp/game_scene_initial_player_sprite_request.h'
       - 'android/app/src/main/cpp/game_scene_player_frame_request.cpp'
       - 'android/app/src/main/cpp/game_scene_player_frame_request.h'
+      - 'android/app/src/main/cpp/action_hitpoint_record_contract.*'
       - 'android/app/src/main/cpp/me_actions_runtime_state.h'
       - 'tools/me_actions_initial_sprite_transform_smoke.cpp'
       - 'tools/game_scene_initial_player_sprite_request_smoke.cpp'
@@ -49,6 +51,7 @@ jobs:
             -Iandroid/app/src/main/cpp \
             android/app/src/main/cpp/game_scene_player_frame_request.cpp \
             android/app/src/main/cpp/game_scene_initial_player_sprite_request.cpp \
+            android/app/src/main/cpp/action_hitpoint_record_contract.cpp \
             tools/game_scene_initial_player_sprite_request_smoke.cpp \
             -o /tmp/game_scene_initial_player_sprite_request_smoke
           /tmp/game_scene_initial_player_sprite_request_smoke

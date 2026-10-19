@@ -54,14 +54,18 @@ The old Java career buttons remain instantiated only as a developer/compatibilit
 
 ## Remaining Android compatibility presentation
 
-When `character_name_state` becomes active, the overlay exposes:
+When `character_name_state` becomes active, the overlay:
 
-- an Android single-line text field / IME;
-- Random -> recovered tag `3`;
-- Confirm -> recovered tag `1`;
-- Cancel -> recovered tag `2`.
+- runs the initial recovered random-name action if it is still pending;
+- automatically submits the generated name through recovered tag `1`;
+- leaves the Android text field / IME available if name generation or creation
+  dispatch fails.
 
-Entering CharacterName mode invokes the recovered initial random-name action only while native state still marks it pending. A successful randomization therefore survives Activity recreation without generating a different second name. Failure to load imported `RandomName.csv` remains visible/retryable instead of fabricating a fallback name.
+The selected career integer continues unchanged through the existing native
+create request. The overlay checks native submit state before retrying so an
+Activity recreation does not send a second automatic request. Failure to load
+imported `RandomName.csv` remains visible/retryable instead of fabricating a
+fallback name.
 
 JNI carries semantic values and action tags only. It does not expose pending Lua requests or duplicate validation/network logic in Java.
 

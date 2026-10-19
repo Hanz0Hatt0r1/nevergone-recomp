@@ -19,9 +19,8 @@ import android.widget.LinearLayout;
  * Career selection, SingleSelectHero Confirm, CharacterName Random/Confirm/Cancel,
  * and modal touch ownership are now provided by the reconstructed native surface.
  * This view mirrors the active role name into an Android EditText so the platform
- * IME can edit the recovered native CharacterName state. IME Done/Enter is also
- * retained as a compatibility submit path until the native CharacterName surface
- * is fully usable on physical devices.
+ * Generated names are submitted automatically. IME remains available as a
+ * fallback when generation or automatic creation fails.
  */
 final class FreshRoleCompatOverlay extends LinearLayout {
     private static final int MODE_HIDDEN = 0;
@@ -32,6 +31,7 @@ final class FreshRoleCompatOverlay extends LinearLayout {
     private static native int nativeMode();
     private static native String nativeRoleName();
     private static native boolean nativeRandomizePending();
+    private static native boolean nativeNameSubmissionAttempted();
     private static native boolean nativeSetRoleName(String roleName);
     private static native String nativeDispatchNameAction(int tag);
 
@@ -113,16 +113,38 @@ final class FreshRoleCompatOverlay extends LinearLayout {
 
         setVisibility(mode == MODE_NAME ? VISIBLE : GONE);
         if (mode == MODE_NAME) {
-            if (previousMode != MODE_NAME && nativeRandomizePending()) {
-                // CharacterNameLayer::CretaUI immediately triggers the shipped
-                // random-name callback. Keep that one-time semantic side effect
-                // here until the edit-box itself is reconstructed natively.
-                nativeDispatchNameAction(3);
-            }
-            syncRoleName();
             if (previousMode != MODE_NAME) {
-                roleName.requestFocus();
-                handler.postDelayed(this::showKeyboard, 80L);
+                // CharacterNameLayer::CretaUI immediately triggers the shipped
+                // random-name callback. Create the role with that selected name
+                // as soon as it has been generated.
+                if (nativeRandomizePending()) {
+                    final String randomized = nativeDispatchNameAction(3);
+                    if (randomized == null || !randomized.startsWith("randomized")) {
+                        roleName.setError(randomized == null || randomized.isEmpty()
+                                ? "Character name generation failed"
+                                : randomized);
+                    }
+                }
+                syncRoleName();
+                final String generatedName = nativeRoleName();
+                if (nativeNameSubmissionAttempted()) {
+                    hideKeyboard();
+                } else if (generatedName != null && !generatedName.isEmpty()) {
+                    final String outcome = nativeDispatchNameAction(1);
+                    if (outcome != null && outcome.startsWith("submitted")) {
+                        roleName.setError(null);
+                        hideKeyboard();
+                    } else {
+                        roleName.setError(outcome == null || outcome.isEmpty()
+                                ? "Automatic character creation failed"
+                                : outcome);
+                        roleName.requestFocus();
+                        handler.postDelayed(this::showKeyboard, 80L);
+                    }
+                } else {
+                    roleName.requestFocus();
+                    handler.postDelayed(this::showKeyboard, 80L);
+                }
             }
         }
         previousMode = mode;

@@ -13,7 +13,9 @@ Every iteration consumes exactly `0x18` bytes:
 - 4 × signed `int32`;
 - 2 × `float32`.
 
-The four integer gameplay meanings remain unresolved and therefore stay structurally named in the clean-room representation.
+The second serialized integer remains structural; its incremented value is
+written to `ActionComboValue +0x1c` in the `+0x9c` array and is returned as the
+current frame power. The other three integers remain structurally named.
 
 ## Proven float destinations
 
@@ -47,6 +49,12 @@ One `ActionComboValue` is emitted for every tuple (`0x290374..0x290384`). The ob
 
 - object `+0x1c = tuple.i32_values[2] + 1`.
 
+`EnemyActionsSystem::curFramePower()` selects this array by current frame
+(`EnemyActionsSystem +0x294`) and returns the selected object's `+0x1c`, falling
+back to integer `1` for an out-of-range frame or null element. Thus the
+project-owned per-frame equivalent is
+`combo_block.array_9c_values[frame].field_1c`, with the same `1` fallback.
+
 ### `EnemyActionsData + 0x94`
 
 The loop starts with current state `1` and previous boundary index `-1`. It compares current state with `tuple.i32_values[3] + 1`.
@@ -73,10 +81,11 @@ The first serialized integer is not used by the recovered ActionComboValue emiss
 - accepts the already-parsed primary record count explicitly;
 - consumes no extra count/header bytes;
 - requires exactly 24 bytes per tuple;
-- preserves all four integers and both floats without assigning gameplay semantics;
+  - preserves all four integers and both floats structurally, while exposing
+    the proven `+0x9c` frame-power consumer through the original `field_1c` value;
 - derives the two exact destination byte offsets through `enemy_actions_layout_evidence`;
 - reconstructs the exact observed `ActionComboValue` field writes and target-array selection for `+0x94`, `+0x98` and `+0x9c`;
 - pre-bounds the count against both the 100-entry destination regions and remaining serialized bytes;
 - leaves the output unchanged on truncation or an out-of-range count.
 
-The module does not instantiate original Cocos objects, call the original library, or include proprietary WBG payloads. Gameplay meanings of the integer fields and downstream consumers of the three combo arrays remain unresolved.
+The module does not instantiate original Cocos objects, call the original library, or include proprietary WBG payloads. The `+0x9c` frame-power consumer is now recovered; downstream consumers of the `+0x94` and `+0x98` boundary arrays remain unresolved.

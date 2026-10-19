@@ -6,16 +6,25 @@
 namespace nevergone::meplayer_live_action_state {
 
 constexpr std::uint32_t kInitialActionState = 0x1bu;
+constexpr std::uint32_t kWalkActionState = 0x00u;
+constexpr std::uint32_t kRunActionState = 0x01u;
+constexpr std::uint32_t kWalkAttackActionState = 0x10u;
+constexpr std::uint32_t kRunAttackActionState = 0x14u;
 constexpr std::uint32_t kTutorialJumpActionState = 0x20u;
 constexpr std::uint32_t kBaseAActionState = 0x02u;
 constexpr std::uint32_t kBaselineBActionState = 0x1du;
 constexpr std::uint32_t kHeldBFollowupActionState = 0x1eu;
+constexpr std::uint32_t kDirectionalACombo1ActionState = 0x0au;
+constexpr std::uint32_t kDirectionalAComboActionState = 0x0cu;
 
 struct Snapshot {
     bool ready = false;
     std::uint64_t generation = 0;
     std::uint64_t spawn_generation = 0;
+    std::uint32_t player_index = 0;
     std::uint32_t current_action_state = kInitialActionState;
+    bool current_action_looping = false;
+    bool current_action_done = false;
     std::uint32_t desired_action_state = kInitialActionState;
     std::uint64_t desired_revision = 0;
     std::uint64_t loaded_revision = 0;
@@ -40,13 +49,20 @@ void reset();
 // from a previous spawn cannot replay into the new player instance.
 bool sync_spawn(
     std::uint64_t spawn_generation,
-    std::uint64_t tutorial_jump_request_count);
+    std::uint64_t tutorial_jump_request_count,
+    std::uint32_t player_index = 0u);
 
 // Consume accepted C/jump requests from game_scene_action_input. A new request
 // queues the recovered tutorial jump MEPLAYERSTATE 0x20 only while the currently
 // loaded action is the initial 0x1b state.
 bool observe_tutorial_jump_request_count(
     std::uint64_t tutorial_jump_request_count);
+
+// Maps horizontal Controls movement to action01 walk/action02 run, then returns
+// to idle on release. Other active actions retain control until completion.
+bool observe_movement_action_state(
+    std::uint32_t movement_action_state,
+    bool moving);
 
 // Consumes the edge of the reconstructed Controls +0x118 function-state stream.
 bool observe_base_function_state(
@@ -56,11 +72,16 @@ bool observe_base_function_state(
     std::uint32_t pending_meplayer_state,
     bool pending_has_additional_guard);
 
-// Mirrors the recovered MEPlayer::actionState() completion transitions for the
+// Mirrors recovered MEPlayer::actionState() completion transitions for the
 // currently supported live actions. The generation/revision/state tuple binds a
 // completion to the exact loaded MeActionsSystem instance that became done.
 // A(0x02) and tutorial jump(0x20) queue 0x1b. B(0x1d) queues 0x1e while
-// function state 8 remains held, otherwise 0x1b. Unsupported states fail closed.
+// function state 8 remains held, otherwise 0x1b. Career 1's directional A
+// combo 1 holds completed action 0x0a until function state 0, then queues
+// 0x1b. Its combo action 0x0c queues 0x0d -> 0x0e -> 0x1b. Career 1's full-Rage
+// super sequence queues 0x3a -> 0x3b -> 0x3c -> 0x1b. Completed movement
+// attacks (0x10/0x14) remain in their native state until a later control sample.
+// Unsupported states fail closed.
 bool observe_action_completion(
     std::uint64_t action_generation,
     std::uint64_t loaded_revision,
@@ -70,7 +91,7 @@ bool observe_action_completion(
 
 // Called only after PlayerActionRuntimeLoader has successfully resolved and
 // parsed the action document corresponding to desired_action_state.
-bool commit_loaded_action(std::uint32_t action_state);
+bool commit_loaded_action(std::uint32_t action_state, bool looping = false);
 
 Snapshot snapshot();
 std::string status_report();

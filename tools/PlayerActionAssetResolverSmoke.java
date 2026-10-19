@@ -33,12 +33,18 @@ public final class PlayerActionAssetResolverSmoke {
                 "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" " +
                 "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n" +
                 "<plist version=\"1.0\"><dict>" +
-                "<key>action01</key><dict><key>name</key><string>idle0.actData</string></dict>" +
-                "<key>action03</key><dict><key>name</key><string>attack_a.actData</string></dict>" +
-                "<key>action18</key><dict><key>name</key><string>block_b.actData</string></dict>" +
-                "<key>action28</key><dict><key>name</key><string>" + initialActionName + "</string></dict>" +
-                "<key>action30</key><dict><key>name</key><string>b_fallback.actData</string></dict>" +
-                "<key>action33</key><dict><key>name</key><string>jump_c.actData</string></dict>" +
+                "<key>action01</key><dict><key>name</key><string>idle0.actData</string>" +
+                "<key>looping</key><true/></dict>" +
+                "<key>action03</key><dict><key>name</key><string>attack_a.actData</string>" +
+                "<key>looping</key><true/></dict>" +
+                "<key>action18</key><dict><key>name</key><string>block_b.actData</string>" +
+                "<key>looping</key><true/></dict>" +
+                "<key>action28</key><dict><key>name</key><string>" + initialActionName +
+                "</string><key>looping</key><true/></dict>" +
+                "<key>action30</key><dict><key>name</key><string>b_fallback.actData</string>" +
+                "<key>looping</key><true/></dict>" +
+                "<key>action33</key><dict><key>name</key><string>jump_c.actData</string>" +
+                "<key>looping</key><true/></dict>" +
                 "</dict></plist>\n";
     }
 
