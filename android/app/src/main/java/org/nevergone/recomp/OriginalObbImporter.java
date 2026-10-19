@@ -55,6 +55,9 @@ final class OriginalObbImporter {
     private OriginalObbImporter() {}
 
     static Result importAssets(ContentResolver resolver, Uri obbUri, File filesDir) throws IOException {
+        // A terminated previous import may have moved the active tree aside.
+        // Restore it before deleting any stale staging/backup directories.
+        OriginalAssetImportRecovery.recover(filesDir);
         File target = new File(filesDir, "assets");
         if (!target.isDirectory()) {
             throw new IOException("import the original APK before importing the OBB");
