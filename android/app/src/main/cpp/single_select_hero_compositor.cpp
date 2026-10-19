@@ -9,6 +9,7 @@
 #include "single_select_hero_rune_layout.h"
 #include "single_select_hero_character_layout.h"
 #include "single_select_hero_coffin_layout.h"
+#include "single_select_hero_lid_presentation.h"
 #include "single_select_hero_state.h"
 #include "single_select_hero_table_layout.h"
 
@@ -563,6 +564,45 @@ void draw_hero_character() {
     bind_and_draw(asset.texture, vertices, true);
 }
 
+void draw_coffin_lid() {
+    // The input gate is unlocked at the START of the visual open action.
+    // The independent visual snapshot continues until the cover has moved
+    // away, unless an interrupted lid action leaves its starting pose unknown.
+    const auto selector = single_select_hero_state::snapshot();
+    if (!selector.active) return;
+    const auto visual = single_select_hero_transition_timeline::visual_snapshot();
+    const auto pose = single_select_hero_lid_presentation::sample(
+        visual, game_clock::tick_count(), selector.generation);
+    if (!pose.draw_lid) return;
+
+    PositionedTexture& asset =
+        g_coffin_frames[single_select_hero_coffin_layout::kLidFrame];
+    if (!ensure_texture(
+            &asset, g_coffin_pixels[single_select_hero_coffin_layout::kLidFrame])) {
+        return;
+    }
+    single_select_hero_coffin_layout::FrameGeometry geometry;
+    geometry.width = asset.width;
+    geometry.height = asset.height;
+    geometry.left = asset.left;
+    geometry.top = asset.top;
+    geometry.source_width = asset.source_width;
+    geometry.source_height = asset.source_height;
+    const auto quad = single_select_hero_coffin_layout::lid_quad_for_surface(
+        geometry, pose.lid_local_x, pose.reel_x,
+        g_surface_width, g_surface_height);
+    if (!quad.valid) return;
+    const GLfloat vertices[] = {
+        quad.x0, quad.y0,
+        quad.x0, quad.y1,
+        quad.x1, quad.y0,
+        quad.x1, quad.y1,
+    };
+    // The lid is a higher-z-order sibling of the body in initUI().
+    // It is intentionally rendered before the rune/menu controls.
+    bind_and_draw(asset.texture, vertices, true);
+}
+
 void draw_hero_table() {
     const auto state = single_select_hero_state::snapshot();
     const int table_index = single_select_hero_table_layout::frame_index(
@@ -620,6 +660,7 @@ void draw() {
     draw_background();
     draw_fixed_coffin_back();
     draw_hero_character();
+    draw_coffin_lid();
     draw_career_runes();
     draw_hero_table();
 }
