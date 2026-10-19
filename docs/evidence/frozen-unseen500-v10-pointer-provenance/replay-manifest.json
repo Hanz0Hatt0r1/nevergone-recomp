@@ -41,6 +41,7 @@
     "binary_sha256": "94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e",
     "program_id": "libcocos2dcpp.so"
   },
+  "consumer_replay_pull_request": "https://github.com/Hanz0Hatt0r1/nevergone-recomp/pull/736",
   "created": "2026-10-19",
   "format": "NEVERGONE.PointerProvenanceReplay/1",
   "ghidra": {
