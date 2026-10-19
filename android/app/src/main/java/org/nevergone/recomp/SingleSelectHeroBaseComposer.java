@@ -90,6 +90,14 @@ final class SingleSelectHeroBaseComposer {
                 "confirm failure: " + confirmFailure;
     }
 
+    static void clearStagedFrames() {
+        nativeClearHeroTables();
+        nativeClearHeroCharacters();
+        nativeClearCareerRunes();
+        nativeClearConfirmControl();
+        resetStatus();
+    }
+
     static SingleLoginAtlasComposer.AtlasLayer composeBackground(File plistFile, File atlasFile)
             throws Exception {
         nativeClearHeroTables();
