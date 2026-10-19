@@ -48,6 +48,17 @@ jobs:
             -o /tmp/offline_hero_creation_smoke
           /tmp/offline_hero_creation_smoke
 
+      - name: Validate SingleSelectHero visual lid timeline
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -Wall -Wextra -Werror -O2 -pthread \
+            -I android/app/src/main/cpp \
+            tools/single_select_hero_lid_presentation_smoke.cpp \
+            android/app/src/main/cpp/single_select_hero_transition_timeline.cpp \
+            -o /tmp/single_select_hero_lid_presentation_smoke
+          /tmp/single_select_hero_lid_presentation_smoke
+
       - name: Validate original SingleSelectHero carousel and door timing
         shell: bash
         run: |
