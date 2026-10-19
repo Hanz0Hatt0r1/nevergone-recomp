@@ -1,0 +1,118 @@
+{
+  "artifacts": [
+    {
+      "bytes": 4500,
+      "contract": "plain function-entry list/1",
+      "path": "function-entries.txt",
+      "rows": 500,
+      "sha256": "2b5fda46c34a8036ca6c8c5b7179e784c14a572f8b2557afc0e04ed529a26e6d"
+    },
+    {
+      "bytes": 179869,
+      "contract": "REVENGINSTR.CallindPopulation/1",
+      "path": "callind-population.jsonl",
+      "rows": 500,
+      "sha256": "0ef987f750973c1db6ca5488d0eb526348791da059bbd0205bb321869a9cbf6b"
+    },
+    {
+      "bytes": 90917,
+      "contract": "REVENGINSTR.GhidraPcodeFlowAcquisition/1",
+      "path": "pcode-acquisition.jsonl",
+      "rows": 500,
+      "sha256": "9144ee4d27461b17c0acae77ef2a6f08d8acd34bcd24cd894803c8053492d079"
+    },
+    {
+      "bytes": 3525730,
+      "contract": "REVENGINSTR.GhidraFunctionPcodeFlow/1",
+      "path": "high-pcode-flow.tsv",
+      "rows": 40519,
+      "sha256": "48ee04a8047dc5429ca1caabdf1b74e1f9646ae45d95f20c4df21beece8b287f"
+    },
+    {
+      "bytes": 69512,
+      "contract": "REVENGINSTR.GhidraIndirectCallEvidence/1",
+      "path": "callind-target-expressions.jsonl",
+      "rows": 203,
+      "sha256": "ed14188ffd75cb1bd96cb3e9f929a4a07661470d8818f850e5af6ed6a1687a55"
+    },
+    {
+      "bytes": 647067,
+      "contract": "REVENGINSTR.CallindInventory/1",
+      "path": "callind-inventory.jsonl",
+      "rows": 703,
+      "sha256": "1f88e89303d8122525c1cfd07c644dc9562942be2a5242628373402047030ec3"
+    },
+    {
+      "bytes": 1362,
+      "contract": "REVENGINSTR.CallindInventorySummary/1",
+      "path": "callind-summary.json",
+      "rows": 1,
+      "sha256": "f2071b7c60663569ba26aa54c9b3035f7ccb1eb7530952295099684046419659"
+    }
+  ],
+  "consumer": {
+    "population_adapter": {
+      "path": "tools/build_callind_population.py",
+      "sha256": "cd330e556033c71c8c5deb0a3b70eaba51125a67228d4fdf960082006256a7eb"
+    },
+    "program_id": "libcocos2dcpp.so",
+    "source_binary_sha256": "94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e"
+  },
+  "created": "2026-10-19",
+  "format": "NEVERGONE.CallindInventoryReplay/1",
+  "ghidra": {
+    "analysis_disabled": true,
+    "decompile_timeout_seconds": 60,
+    "java_version": "21.0.12.1",
+    "max_functions": 500,
+    "max_total_seconds": 1800,
+    "project_tree_hash_algorithm": "SHA-256 over sorted relative paths; D/F marker and path for every entry, plus file size and bytes for files",
+    "project_tree_scope": "nevergone.gpr plus every entry below nevergone.rep",
+    "project_tree_sha256": "85d95b2cab8803c500377f769f3060d455e078c17d7c836d1b8ed02b90f3e6f7",
+    "read_only": true,
+    "version": "12.1.2-DEV"
+  },
+  "holdout": {
+    "frozen_corpus_rows": 500,
+    "frozen_corpus_sha256": "c4ac5b71a5ca89e3d18490141892b59a7b71d53920290eca9ce09c712ba69c94",
+    "record_id_scheme": "program:source_entry",
+    "scrubbed_source_manifest_sha256": "6d941481b80aa30feef1e302fecc855f28f4d27fd5efb74aa2ddc618e504e856",
+    "selection": "stable_hash_internal_identity_disjoint",
+    "tag": "unseen500-v10"
+  },
+  "results": {
+    "canonical_truncated_functions": 24,
+    "complete_flow_functions": 500,
+    "decompile_failed_functions": 0,
+    "expected_callind_sites": 203,
+    "function_count_reconciliations": {
+      "matched": 500
+    },
+    "no_pcode_functions": 0,
+    "observed_callind_sites": 203,
+    "pcode_flow_rows": 40519,
+    "requested_functions": 500,
+    "schema_valid_rows": {
+      "acquisition": 500,
+      "callind_evidence": 203,
+      "inventory": 703,
+      "population": 500,
+      "summary": 1
+    },
+    "site_classifications": {
+      "unknown": 203
+    },
+    "target_expression_cycles": 0,
+    "target_expression_depth_limited": 140,
+    "target_expression_missing": 0,
+    "target_expression_rows": 203
+  },
+  "revenginstr": {
+    "batch_exporter_sha256": "e06d669d85766cb35d8141bc5064e4a49ed99622134fbdcbdec1d8360086ef18",
+    "batch_runner_sha256": "3cf199914574172937839d0e6480d398ea125cf606ce24d05db1adddaf3ca3f4",
+    "inventory_reader_sha256": "40a186dfaf29dbbb56014e4c63fad73fdbbdc0a0068b9aa64c927a678d550714",
+    "pull_request_base": "https://github.com/Hanz0Hatt0r1/revenginstr/pull/147",
+    "revision": "252d4bd5ae8f2c11d3556c5200a70c37f9497208",
+    "revision_url": "https://github.com/Hanz0Hatt0r1/revenginstr/commit/252d4bd5ae8f2c11d3556c5200a70c37f9497208"
+  }
+}
