@@ -81,7 +81,7 @@ final class SingleSelectHeroBaseComposer {
                 "atlas decoded: " + (atlasDecoded ? "yes" : "no") + "\n" +
                 "background extracted: " + (backgroundExtracted ? "yes" : "no") + "\n" +
                 "hero tables retained: " + heroTablesRetained + "/4\n" +
-                "hero character frames retained: " + heroCharactersRetained + "/4\n" +
+                "hero character frames retained: " + heroCharactersRetained + "/6\n" +
                 "career runes retained: " + careerRunesRetained + "/10\n" +
                 "confirm frames retained: " + confirmFramesRetained + "/4\n" +
                 "hero table failure: " + heroTableFailure + "\n" +
