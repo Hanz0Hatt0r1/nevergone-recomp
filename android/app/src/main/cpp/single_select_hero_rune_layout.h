@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstdint>
 
 namespace nevergone::single_select_hero_rune_layout {
 
