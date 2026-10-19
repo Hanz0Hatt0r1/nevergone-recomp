@@ -38,6 +38,11 @@ int main() {
     const float top = 640.0f - preview::kPreviewCenterY - 232.5f;
     assert(near(q.x0, left * 2.0f / 1136.0f - 1.0f));
     assert(near(q.y0, 1.0f - top * 2.0f / 640.0f));
+    // Exact design-coordinate bounds for the original Dawn sprite.
+    assert(near(left, 178.0f));
+    assert(near(top, 87.5f));
+    assert(near(q.x1, 396.0f * 2.0f / 1136.0f - 1.0f));
+    assert(near(q.y1, 1.0f - 552.5f * 2.0f / 640.0f));
 
     // Shipped P02DL frame uses TexturePacker trim {13,11} {204,439}.
     preview::FrameGeometry higgs{204, 439, 13, 11, 218, 465};
@@ -47,6 +52,11 @@ int main() {
     assert(p.y0 < q.y0);
     assert(p.x1 < q.x1);
     assert(p.y1 > q.y1);
+    // The same actor center with the shipped rotated + trimmed Higgs frame.
+    assert(near(p.x0, 191.0f * 2.0f / 1136.0f - 1.0f));
+    assert(near(p.x1, 395.0f * 2.0f / 1136.0f - 1.0f));
+    assert(near(p.y0, 1.0f - 98.5f * 2.0f / 640.0f));
+    assert(near(p.y1, 1.0f - 537.5f * 2.0f / 640.0f));
 
     auto scaled = preview::quad_for_surface(higgs, 2272, 1280);
     assert(scaled.valid && near(scaled.x0, p.x0) && near(scaled.y1, p.y1));
