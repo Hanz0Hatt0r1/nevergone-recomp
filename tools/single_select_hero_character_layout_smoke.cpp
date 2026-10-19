@@ -17,6 +17,19 @@ int main() {
     assert(preview::frame_index(2, 2) == 3);
     assert(preview::frame_index(3, 0) == -1);
 
+    // Proven initial (and post-Carousel centered) position:
+    // initUI vldr d7 = 150.0, shiguan width = 274, s20 = 0.5,
+    // and P01DL copies shiguan's CCPoint.
+    assert(near(preview::kShiguanLeftMargin, 150.0f));
+    assert(near(preview::kShiguanSourceWidth, 274.0f));
+    assert(near(preview::kCarouselSpacing, 271.0f));
+    assert(near(preview::kPreviewCenterX, 287.0f));
+    assert(near(preview::kPreviewCenterY, 320.0f));
+    const float reelOffsetForHiggs = -preview::kCarouselSpacing;
+    const float heroCompensationForHiggs = preview::kCarouselSpacing;
+    assert(near(preview::kPreviewCenterX +
+        reelOffsetForHiggs + heroCompensationForHiggs, 287.0f));
+
     // Shipped Singleselechero.plist: P01DL untrimmed 218x465.
     preview::FrameGeometry dawn{218, 465, 0, 0, 218, 465};
     auto q = preview::quad_for_surface(dawn, 1136, 640);
