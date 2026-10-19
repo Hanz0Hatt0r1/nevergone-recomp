@@ -16,6 +16,11 @@ int main() {
     assert(preview::frame_index(2, 1) == 2);
     assert(preview::frame_index(2, 2) == 3);
     assert(preview::frame_index(3, 0) == -1);
+    assert(preview::kBodyFrameCount == 4);
+    assert(preview::kFrameCount == 6);
+    assert(preview::hidden_overlay_frame_index(1) == 4);
+    assert(preview::hidden_overlay_frame_index(2) == 5);
+    assert(preview::hidden_overlay_frame_index(3) == -1);
 
     // Proven initial (and post-Carousel centered) position:
     // initUI vldr d7 = 150.0, shiguan width = 274, s20 = 0.5,
