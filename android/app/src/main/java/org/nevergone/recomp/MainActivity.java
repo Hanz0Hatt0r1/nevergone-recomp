@@ -17,6 +17,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -71,6 +72,15 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        String assetRecoveryNotice = null;
+        try {
+            if (OriginalAssetImportRecovery.recover(getFilesDir())) {
+                assetRecoveryNotice = "Restored previous game resources after interrupted import.";
+            }
+        } catch (IOException error) {
+            assetRecoveryNotice = "Asset recovery failed: " + error.getMessage();
+        }
 
         nativeConfigureRuntime(
                 getFilesDir().getAbsolutePath(),
@@ -137,7 +147,7 @@ public final class MainActivity extends Activity {
         status.setGravity(Gravity.START);
         status.setTextSize(14.0f);
         status.setPadding(0, 16, 0, 24);
-        status.setText(buildStatusText(null));
+        status.setText(buildStatusText(assetRecoveryNotice));
         content.addView(status, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -239,15 +249,11 @@ public final class MainActivity extends Activity {
     }
 
     private boolean originalApkAssetsReady() {
-        return new File(getFilesDir(), "assets/Script/Game/StartLua.lua").isFile();
+        return OriginalAssetImportRecovery.apkAssetsReady(getFilesDir());
     }
 
     private boolean originalObbAssetsReady() {
-        File pvpScene = new File(getFilesDir(), "assets/gamescene/gs_list/pvp_scene.glData");
-        File chooseHeroAtlas = new File(
-                getFilesDir(),
-                "assets/gamescene_ui/LevelUI/Gate_Background_UI/Gate_BackgroundPNG_01.plist");
-        return pvpScene.isFile() && chooseHeroAtlas.isFile();
+        return OriginalAssetImportRecovery.obbAssetsReady(getFilesDir());
     }
 
     private boolean originalGameFilesReady() {
