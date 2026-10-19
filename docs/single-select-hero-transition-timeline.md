@@ -75,9 +75,12 @@ uninterrupted actions); a near career change through
 `2.69 + 2.4 + 3.39 = 8.48` seconds.
 
 `single_select_hero_coffin_motion.h` records the recovered spatial
-targets and easing for the reel and door. Those curves remain separate
-from the existing interaction gate until the other node visibility
-and callback actions have been proven.
+targets and easing for the reel and door. The current GLES compositor
+uses `single_select_hero_lid_presentation.h` to render the active lid,
+with a separate `VisualSnapshot` retained beyond the interaction gate.
+Ambiguous starts from overlapping Cocos actions abstain rather than
+force an unproven position. Rendering the other covers, masks and callback
+effects remains separate work.
 
 ## Runtime integration
 
