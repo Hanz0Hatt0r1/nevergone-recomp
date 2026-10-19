@@ -37,10 +37,37 @@ The selected `single_select_hero_state` career chooses normal or grey
 preview without keeping a second, renderer-only selection state.
 The body is drawn after the background and before runes/information,
 with aspect-fit transform and untrimmed center-anchor geometry.
-The exact preview pose is still provisional (`320,320` design units):
-original `SingleSelectHero::Carousel` actor position/animation values
-have not yet been independently established. Geometry here must not
-be cited as recovered instruction-level evidence.
+The initial/settled preview anchor is now recovered as
+**(287,320)** on the original 1136x640 design surface, not the
+previous provisional (320,320):
+
+- `SingleSelectHero::initUI` at `0x00438c20` constructs
+  `xrshiguan.png` with X = `150 + 0.5 * contentWidth`
+  and Y = `0.5 * visibleHeight` (machine instructions
+  `0x00439344..0x0043938c`).
+- In the original imported atlas, `xrshiguan.png` is
+  274x514, making its X coordinate `150 + 137 = 287`.
+- At `0x004393a0..0x004393ac` the original code copies that
+  position into a `CCPoint`; at `0x00439646..0x00439662`
+  it sets the `P01DL_Ani_0001.png` body to the same point.
+- The five `xrguangai.png` carousel control points
+  (`0x004393e0..0x00439454`) are spaced by that image's
+  271-pixel content width. `Carousel()` computes the
+  current-vs-first control-point displacement and counter-moves
+  the hero container via `CCNode::setPositionX` at
+  `0x00438ac8`. The selected body therefore returns to the
+  original anchor on completion.
+
+The original ELF SHA-256 is
+`94b1ef6a9469e261183ac08199c5b0eb65c0c40b81918ca097bd32920828eb5e`,
+and these instructions are from the user's
+`00438c20.pcode-flow.tsv`, `004388ac.pcode-flow.tsv` and
+`selection.instructions.jsonl.gz` exports. Only derived
+facts are committed; no original executable or asset bytes.
+
+**Remaining distinction:** the selected body *settled position* is
+supported by this evidence. Intermediate door/carousel movement,
+overlay effects and exact per-frame animation still require reconstruction.
 
 A surface recreation invalidates GPU handles but keeps the decoded
 CPU pixel backing. Explicit asset reload clears both CPU and GPU
