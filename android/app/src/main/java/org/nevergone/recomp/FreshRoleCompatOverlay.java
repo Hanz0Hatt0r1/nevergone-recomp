@@ -11,6 +11,10 @@ import android.view.KeyEvent;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.Button;
+import android.widget.TextView;
+
+import java.util.Locale;
 import android.widget.LinearLayout;
 
 /**
@@ -34,9 +38,14 @@ final class FreshRoleCompatOverlay extends LinearLayout {
     private static native boolean nativeRandomizePending();
     private static native boolean nativeSetRoleName(String roleName);
     private static native String nativeDispatchNameAction(int tag);
+    private static native String nativeCreateOfflineHero(int languageColumn);
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final EditText roleName;
+    private final TextView offlineStatus;
+    private final Button retryOffline;
+    private final Button cancelOffline;
+    private boolean offlineCreation;
     private boolean polling;
     private boolean syncingName;
     private int previousMode = MODE_HIDDEN;
@@ -85,6 +94,23 @@ final class FreshRoleCompatOverlay extends LinearLayout {
             return submitRoleNameFromIme();
         });
         addView(roleName, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+
+        offlineStatus = new TextView(context);
+        offlineStatus.setTextColor(Color.WHITE);
+        offlineStatus.setVisibility(GONE);
+        addView(offlineStatus, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+
+        retryOffline = new Button(context);
+        retryOffline.setText("Retry hero creation");
+        retryOffline.setVisibility(GONE);
+        retryOffline.setOnClickListener(view -> updateOfflineCreation(nativeCreateOfflineHero(languageColumn())));
+        addView(retryOffline, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+
+        cancelOffline = new Button(context);
+        cancelOffline.setText("Back to hero selection");
+        cancelOffline.setVisibility(GONE);
+        cancelOffline.setOnClickListener(view -> nativeDispatchNameAction(2));
+        addView(cancelOffline, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
     }
 
     @Override
@@ -107,10 +133,33 @@ final class FreshRoleCompatOverlay extends LinearLayout {
         if (mode == MODE_HIDDEN || mode == MODE_CAREER) {
             if (previousMode == MODE_NAME) hideKeyboard();
             previousMode = mode;
+            offlineCreation = false;
             setVisibility(GONE);
             return;
         }
 
+        if (mode == MODE_NAME && previousMode != MODE_NAME) {
+            // Standalone Never Gone uses two fixed hero identities. The
+            // legacy CharacterName IME is not part of that offline route.
+            final String outcome = nativeCreateOfflineHero(languageColumn());
+            offlineCreation = !"not-offline".equals(outcome);
+            if (offlineCreation) {
+                hideKeyboard();
+                roleName.setVisibility(GONE);
+                updateOfflineCreation(outcome);
+                previousMode = mode;
+                return;
+            }
+        }
+
+        if (offlineCreation) {
+            previousMode = mode;
+            return;
+        }
+        roleName.setVisibility(VISIBLE);
+        offlineStatus.setVisibility(GONE);
+        retryOffline.setVisibility(GONE);
+        cancelOffline.setVisibility(GONE);
         setVisibility(mode == MODE_NAME ? VISIBLE : GONE);
         if (mode == MODE_NAME) {
             if (previousMode != MODE_NAME && nativeRandomizePending()) {
@@ -126,6 +175,36 @@ final class FreshRoleCompatOverlay extends LinearLayout {
             }
         }
         previousMode = mode;
+    }
+
+    private void updateOfflineCreation(String outcome) {
+        // Only a fully successful offline handoff hides the compatibility view.
+        // Failed imports/Lua dispatches remain retryable without editable names.
+        final boolean successful = "submitted".equals(outcome);
+        offlineStatus.setVisibility(successful ? GONE : VISIBLE);
+        retryOffline.setVisibility(successful ? GONE : VISIBLE);
+        cancelOffline.setVisibility(successful ? GONE : VISIBLE);
+        if (!successful) {
+            offlineStatus.setText("Unable to create selected hero: " +
+                    (outcome == null ? "unknown error" : outcome));
+        }
+        setVisibility(successful ? GONE : VISIBLE);
+    }
+
+    private static int languageColumn() {
+        // Original ManagementLayer::GetPlistString column assignments.
+        final Locale locale = Locale.getDefault();
+        final String language = locale.getLanguage();
+        if ("zh".equals(language)) {
+            final String country = locale.getCountry();
+            return "Hant".equalsIgnoreCase(locale.getScript()) ||
+                    "TW".equalsIgnoreCase(country) || "HK".equalsIgnoreCase(country) ||
+                    "MO".equalsIgnoreCase(country) ? 3 : 2;
+        }
+        if ("fr".equals(language)) return 6;
+        if ("de".equals(language)) return 7;
+        if ("ja".equals(language)) return 8;
+        return 4;
     }
 
     private boolean submitRoleNameFromIme() {
@@ -160,7 +239,7 @@ final class FreshRoleCompatOverlay extends LinearLayout {
     }
 
     private void showKeyboard() {
-        if (getVisibility() != VISIBLE) return;
+        if (getVisibility() != VISIBLE || offlineCreation) return;
         InputMethodManager manager =
                 (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         if (manager != null) manager.showSoftInput(roleName, InputMethodManager.SHOW_IMPLICIT);
