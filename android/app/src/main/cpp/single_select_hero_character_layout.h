@@ -20,7 +20,15 @@ constexpr float kShiguanSourceWidth = 274.0f;
 constexpr float kCarouselSpacing = 271.0f;  // xrguangai.png content width
 constexpr float kPreviewCenterX = kShiguanLeftMargin + kShiguanSourceWidth * 0.5f;
 constexpr float kPreviewCenterY = single_select_hero_table_layout::kDesignHeight * 0.5f;
-constexpr int kFrameCount = 4;
+constexpr int kBodyFrameCount = 4;
+constexpr int kFrameCount = 6;  // four body/grey frames, two initially-hidden overlays
+
+// The additional _0001b textures are real atlas frames, but initUI sets
+// their starting opacity to zero. Keep them available for later verified
+// transition playback without inventing a default overlay.
+inline int hidden_overlay_frame_index(std::int64_t selected_career) {
+    return selected_career == 1 ? 4 : selected_career == 2 ? 5 : -1;
+}
 
 // Atlas upload order: Dawn normal, Dawn grey, Higgs normal, Higgs grey.
 inline int frame_index(std::int64_t selected_career, std::int64_t existing_career) {
