@@ -40,9 +40,12 @@ rune frames on the shared 35 Hz game clock.
 
 ## Implementation
 
-`SingleSelectHeroBaseComposer` extracts and uploads four original
-preview frames from **the same decoded selection atlas** already
+`SingleSelectHeroBaseComposer` extracts and uploads six original
+preview frames (four body/grey frames and two initially hidden
+`_0001b` overlays) from **the same decoded selection atlas** already
 used for `xrbeijing.png`, `HeroTable` and the five rune pairs.
+Only the body/grey frames are drawn until verified original scene
+logic enables the overlays.
 They are retained as pixel backing in the native
 `single_select_hero_compositor` and converted into GLES textures
 only when the offline `opening-dialogue` scene is active.
@@ -97,7 +100,7 @@ animated selection scene, coffin/door timeline, grey transition, or
   career selection, grey variant, shipped trim geometry, aspect-fit,
   invalid dimensions and out-of-range careers.
 - `SingleSelectHeroBaseComposer.statusReport()` now includes
-  `hero character frames retained: 4/4` and a separate failure string.
+  `hero character frames retained: 6/6` and a separate failure string.
 - The fast CI compiles/runs the host geometry regression.
 - Android Java/NDK builds and an on-device side-by-side screenshot are
   still needed to establish successful integration and correct pose.
