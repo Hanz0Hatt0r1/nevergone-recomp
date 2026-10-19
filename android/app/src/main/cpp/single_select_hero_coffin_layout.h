@@ -36,4 +36,33 @@ inline Quad base_quad_for_surface(const FrameGeometry& frame, int width, int hei
     return single_select_hero_character_layout::quad_for_surface(frame, width, height);
 }
 
+// TexturePacker geometry for a moving cover in its reel parent. The lid's
+// position is in REEL-LOCAL design coordinates, and reel_x is the parent's
+// animated translation. This helper intentionally does not decide visibility
+// or whether a door is open; those require the original action hierarchy.
+inline Quad lid_quad_for_surface(
+        const FrameGeometry& frame,
+        float lid_local_x,
+        float reel_x,
+        int width,
+        int height) {
+    Quad result = base_quad_for_surface(frame, width, height);
+    if (!result.valid || !std::isfinite(lid_local_x) || !std::isfinite(reel_x)) {
+        result.valid = false;
+        return result;
+    }
+    const float scale = std::min(
+        static_cast<float>(width) / single_select_hero_table_layout::kDesignWidth,
+        static_cast<float>(height) / single_select_hero_table_layout::kDesignHeight);
+    const float delta = (lid_local_x + reel_x - kFixedCenterX) *
+        (2.0f * scale / static_cast<float>(width));
+    if (!std::isfinite(delta)) {
+        result.valid = false;
+        return result;
+    }
+    result.x0 += delta;
+    result.x1 += delta;
+    return result;
+}
+
 }  // namespace nevergone::single_select_hero_coffin_layout
