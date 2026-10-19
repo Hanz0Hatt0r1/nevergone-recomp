@@ -21,8 +21,22 @@ Use `TexturePackerAtlasExtractor` rather than cropping or sampling
 the rotated rectangle directly.
 
 The atlas also contains `P01DL_Ani_0001b.png` and
-`P02DL_Ani_0001b.png`. Their exact composition/animation timing has
-**not** been recovered and they are not rendered as invented overlays.
+`P02DL_Ani_0001b.png`. Their existence and initial construction are
+confirmed: `initUI` creates Dawn's `_0001b` sprite in
+`0x004396d4..0x00439730` as a child of the body and invokes
+`setOpacity(0)` at `0x00439732..0x0043973e`. The action/visibility
+policy that later brings it on screen remains unresolved, so the
+recomp must **not** draw it at full opacity on the initial frame.
+
+The other early fade loop in `initUI` is **not** the `_0001b` body
+overlay. Reading the original ELF's PC-relative format strings
+(`0x0043960c` = `xrfuwenfaguang%02d.png` and `0x00439610` =
+`xrfuwen%02d.png`) ties the repeated `CCFadeTo` sequence to
+the rune's glow sprite. Specifically, `0x0043953e..0x00439574`
+sets its opacity to 76, fades over 2 seconds to 255, fades over
+another 2 seconds back to 76, then repeats indefinitely. The
+recompiler now reproduces the pulse for visible selected/pressed
+rune frames on the shared 35 Hz game clock.
 
 ## Implementation
 
