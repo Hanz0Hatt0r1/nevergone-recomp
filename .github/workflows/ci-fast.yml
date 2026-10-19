@@ -36,6 +36,17 @@ jobs:
       - name: Validate enemy record cross evidence
         run: python3 tools/enemy_record_cross_evidence_smoke.py
 
+      - name: Validate imported asset recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/nevergone-asset-recovery
+          javac -d /tmp/nevergone-asset-recovery \
+            android/app/src/main/java/org/nevergone/recomp/OriginalAssetImportRecovery.java \
+            tools/OriginalAssetImportRecoverySmoke.java
+          java -cp /tmp/nevergone-asset-recovery \
+            org.nevergone.recomp.OriginalAssetImportRecoverySmoke
+
       - name: Validate local resource indexer
         run: python3 tools/resource_index_smoke.py
 
