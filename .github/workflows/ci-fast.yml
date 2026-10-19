@@ -36,6 +36,15 @@ jobs:
       - name: Validate enemy record cross evidence
         run: python3 tools/enemy_record_cross_evidence_smoke.py
 
+      - name: Validate SingleSelectHero character preview geometry
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -I android/app/src/main/cpp \
+            tools/single_select_hero_character_layout_smoke.cpp \
+            -o /tmp/single_select_hero_character_layout_smoke
+          /tmp/single_select_hero_character_layout_smoke
+
       - name: Validate imported asset recovery
         shell: bash
         run: |
