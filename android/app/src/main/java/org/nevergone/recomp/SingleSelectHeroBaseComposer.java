@@ -180,6 +180,8 @@ final class SingleSelectHeroBaseComposer {
                     "P01DL_Ani_0001_grey.png",
                     "P02DL_Ani_0001.png",
                     "P02DL_Ani_0001_grey.png",
+                    "P01DL_Ani_0001b.png",
+                    "P02DL_Ani_0001b.png",
             };
             for (int frameIndex = 0; frameIndex < heroCharacterFrames.length; frameIndex++) {
                 final String frameName = heroCharacterFrames[frameIndex];
