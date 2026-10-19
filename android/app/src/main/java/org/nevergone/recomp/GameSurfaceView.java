@@ -475,6 +475,9 @@ public final class GameSurfaceView extends GLSurfaceView implements GLSurfaceVie
 
     private void loadSingleSelectHeroBaseOnGlThread() {
         nativeClearSingleSelectHeroBackground();
+        // A user reimport may remove or replace the selection atlas. Clear
+        // CPU/GLES preview frames as well as the background before retrying.
+        SingleSelectHeroBaseComposer.clearStagedFrames();
         File directory = new File(assetRoot, SINGLE_SELECT_HERO_DIR);
         File plist = new File(directory, SINGLE_SELECT_HERO_PLIST);
         File atlasFile = new File(directory, SINGLE_SELECT_HERO_ATLAS);

@@ -12,15 +12,39 @@ final class SingleSelectHeroBaseComposer {
     private static volatile boolean atlasDecoded;
     private static volatile boolean backgroundExtracted;
     private static volatile int heroTablesRetained;
+    private static volatile int heroCharactersRetained;
+    private static volatile int coffinFramesRetained;
     private static volatile int careerRunesRetained;
     private static volatile int confirmFramesRetained;
     private static volatile String heroTableFailure = "not staged";
+    private static volatile String heroCharacterFailure = "not staged";
+    private static volatile String coffinFrameFailure = "not staged";
     private static volatile String careerRuneFailure = "not staged";
     private static volatile String confirmFailure = "not staged";
 
     private static native void nativeClearHeroTables();
     private static native boolean nativeUploadHeroTable(
             int tableIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
+    private static native void nativeClearHeroCharacters();
+    private static native boolean nativeUploadHeroCharacter(
+            int frameIndex,
+            int width,
+            int height,
+            int left,
+            int top,
+            int sourceWidth,
+            int sourceHeight,
+            int[] argbPixels);
+    private static native void nativeClearCoffinFrames();
+    private static native boolean nativeUploadCoffinFrame(
+            int frameIndex,
             int width,
             int height,
             int left,
@@ -55,9 +79,13 @@ final class SingleSelectHeroBaseComposer {
         atlasDecoded = false;
         backgroundExtracted = false;
         heroTablesRetained = 0;
+        heroCharactersRetained = 0;
+        coffinFramesRetained = 0;
         careerRunesRetained = 0;
         confirmFramesRetained = 0;
         heroTableFailure = "none";
+        heroCharacterFailure = "none";
+        coffinFrameFailure = "none";
         careerRuneFailure = "none";
         confirmFailure = "none";
     }
@@ -67,16 +95,31 @@ final class SingleSelectHeroBaseComposer {
                 "atlas decoded: " + (atlasDecoded ? "yes" : "no") + "\n" +
                 "background extracted: " + (backgroundExtracted ? "yes" : "no") + "\n" +
                 "hero tables retained: " + heroTablesRetained + "/4\n" +
+                "hero character frames retained: " + heroCharactersRetained + "/6\n" +
+                "coffin frames retained: " + coffinFramesRetained + "/2\n" +
                 "career runes retained: " + careerRunesRetained + "/10\n" +
                 "confirm frames retained: " + confirmFramesRetained + "/4\n" +
                 "hero table failure: " + heroTableFailure + "\n" +
+                "hero character failure: " + heroCharacterFailure + "\n" +
+                "coffin frame failure: " + coffinFrameFailure + "\n" +
                 "career rune failure: " + careerRuneFailure + "\n" +
                 "confirm failure: " + confirmFailure;
+    }
+
+    static void clearStagedFrames() {
+        nativeClearHeroTables();
+        nativeClearHeroCharacters();
+        nativeClearCoffinFrames();
+        nativeClearCareerRunes();
+        nativeClearConfirmControl();
+        resetStatus();
     }
 
     static SingleLoginAtlasComposer.AtlasLayer composeBackground(File plistFile, File atlasFile)
             throws Exception {
         nativeClearHeroTables();
+        nativeClearHeroCharacters();
+        nativeClearCoffinFrames();
         nativeClearCareerRunes();
         nativeClearConfirmControl();
         resetStatus();
@@ -86,6 +129,8 @@ final class SingleSelectHeroBaseComposer {
         Bitmap atlas = BitmapFactory.decodeFile(atlasFile.getAbsolutePath(), options);
         if (atlas == null) {
             heroTableFailure = "atlas decode failed";
+            heroCharacterFailure = "atlas decode failed";
+            coffinFrameFailure = "atlas decode failed";
             careerRuneFailure = "atlas decode failed";
             confirmFailure = "atlas decode failed";
             return null;
@@ -97,6 +142,8 @@ final class SingleSelectHeroBaseComposer {
                     extractLayer(plistFile, atlas, BACKGROUND_FRAME);
             if (background == null) {
                 heroTableFailure = "background frame missing or invalid";
+                heroCharacterFailure = "background frame missing or invalid";
+                coffinFrameFailure = "background frame missing or invalid";
                 careerRuneFailure = "background frame missing or invalid";
                 confirmFailure = "background frame missing or invalid";
                 return null;
@@ -144,6 +191,71 @@ final class SingleSelectHeroBaseComposer {
                     heroTablesRetained = outputIndex;
                 }
                 if (outputIndex != career * 2) break;
+            }
+
+            // The original initUI creates xrshiguan.png at (287,320) as
+            // the coffin backing, plus five copies of xrguangai.png in the
+            // reel. Stage one atlas frame per artwork; the five cover nodes
+            // must not be drawn over the hero before OpenTheDoor is recovered.
+            final String[] coffinFrames = {"xrshiguan.png", "xrguangai.png"};
+            for (int frameIndex = 0; frameIndex < coffinFrames.length; frameIndex++) {
+                final String frameName = coffinFrames[frameIndex];
+                SingleLoginAtlasComposer.AtlasLayer layer =
+                        extractLayer(plistFile, atlas, frameName);
+                if (layer == null || !nativeUploadCoffinFrame(
+                        frameIndex,
+                        layer.width,
+                        layer.height,
+                        layer.left,
+                        layer.top,
+                        layer.sourceWidth,
+                        layer.sourceHeight,
+                        layer.pixels)) {
+                    coffinFrameFailure = "missing/invalid or rejected " + frameName;
+                    nativeClearCoffinFrames();
+                    coffinFramesRetained = 0;
+                    break;
+                }
+                coffinFramesRetained = frameIndex + 1;
+            }
+
+            // Preview bodies belong to this APK atlas, not to the OBB player
+            // action atlases used later by GameScene/MEPlayer.
+            final String[] heroCharacterFrames = {
+                    "P01DL_Ani_0001.png",
+                    "P01DL_Ani_0001_grey.png",
+                    "P02DL_Ani_0001.png",
+                    "P02DL_Ani_0001_grey.png",
+                    "P01DL_Ani_0001b.png",
+                    "P02DL_Ani_0001b.png",
+            };
+            for (int frameIndex = 0; frameIndex < heroCharacterFrames.length; frameIndex++) {
+                final String frameName = heroCharacterFrames[frameIndex];
+                SingleLoginAtlasComposer.AtlasLayer layer =
+                        extractLayer(plistFile, atlas, frameName);
+                if (layer == null) {
+                    heroCharacterFailure = "missing/invalid " + frameName +
+                            " after " + frameIndex + " accepted";
+                    nativeClearHeroCharacters();
+                    heroCharactersRetained = 0;
+                    break;
+                }
+                if (!nativeUploadHeroCharacter(
+                        frameIndex,
+                        layer.width,
+                        layer.height,
+                        layer.left,
+                        layer.top,
+                        layer.sourceWidth,
+                        layer.sourceHeight,
+                        layer.pixels)) {
+                    heroCharacterFailure = "native upload rejected " + frameName +
+                            " after " + frameIndex + " accepted";
+                    nativeClearHeroCharacters();
+                    heroCharactersRetained = 0;
+                    break;
+                }
+                heroCharactersRetained = frameIndex + 1;
             }
 
             // initUI() creates five tagged CCMenuItemSprite rune controls.

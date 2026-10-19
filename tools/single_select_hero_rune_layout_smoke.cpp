@@ -43,6 +43,16 @@ int main() {
     assert(close_enough(layout::opacity(3), 0.0f));
     assert(close_enough(layout::opacity(4), 0.0f));
     assert(close_enough(layout::opacity(5), 0.0f));
+    // Native SingleSelectHero::initUI CCRepeatForever of two linear
+    // CCFadeTo(2.0) legs: 76 -> 255 -> 76 at the 35 Hz game clock.
+    assert(layout::kGlowFadeTicks == 70);
+    assert(layout::kGlowCycleTicks == 140);
+    assert(close_enough(layout::glow_opacity_after_ticks(0), 76.0f / 255.0f));
+    assert(close_enough(layout::glow_opacity_after_ticks(35), (76.0f + 179.0f * .5f) / 255.0f));
+    assert(close_enough(layout::glow_opacity_after_ticks(70), 1.0f));
+    assert(close_enough(layout::glow_opacity_after_ticks(105), (76.0f + 179.0f * .5f) / 255.0f));
+    assert(close_enough(layout::glow_opacity_after_ticks(140), 76.0f / 255.0f));
+    assert(close_enough(layout::glow_opacity_after_ticks(280), 76.0f / 255.0f));
 
     // Stable original-game captures with Dawn then Higgs show persistent glow
     // moving from rune 1 to rune 2 without an active touch gesture.

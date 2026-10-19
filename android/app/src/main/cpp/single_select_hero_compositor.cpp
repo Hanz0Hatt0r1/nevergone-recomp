@@ -5,7 +5,11 @@
 #include <vector>
 
 #include "offline_startup_flow.h"
+#include "game_clock.h"
 #include "single_select_hero_rune_layout.h"
+#include "single_select_hero_character_layout.h"
+#include "single_select_hero_coffin_layout.h"
+#include "single_select_hero_lid_presentation.h"
 #include "single_select_hero_state.h"
 #include "single_select_hero_table_layout.h"
 
@@ -13,6 +17,8 @@ namespace nevergone::single_select_hero {
 namespace {
 
 constexpr int kHeroTableCount = 4;
+constexpr int kHeroCharacterFrameCount = single_select_hero_character_layout::kFrameCount;
+constexpr int kCoffinFrameCount = single_select_hero_coffin_layout::kFrameCount;
 constexpr int kCareerRuneFrameCount = single_select_hero_rune_layout::kFrameCount;
 
 struct PositionedTexture {
@@ -32,10 +38,16 @@ PositionedTexture g_background{};
 std::vector<std::uint32_t> g_background_pixels;
 PositionedTexture g_hero_tables[kHeroTableCount]{};
 std::vector<std::uint32_t> g_hero_table_pixels[kHeroTableCount];
+PositionedTexture g_hero_characters[kHeroCharacterFrameCount]{};
+std::vector<std::uint32_t> g_hero_character_pixels[kHeroCharacterFrameCount];
+PositionedTexture g_coffin_frames[kCoffinFrameCount]{};
+std::vector<std::uint32_t> g_coffin_pixels[kCoffinFrameCount];
 PositionedTexture g_career_runes[kCareerRuneFrameCount]{};
 std::vector<std::uint32_t> g_career_rune_pixels[kCareerRuneFrameCount];
 int g_surface_width = 0;
 int g_surface_height = 0;
+std::uint64_t g_rune_glow_generation = 0;
+std::uint64_t g_rune_glow_start_tick = 0;
 
 GLuint compile_shader(GLenum type, const char* source) {
     const GLuint shader = glCreateShader(type);
@@ -123,6 +135,24 @@ void clear_hero_tables() {
     }
 }
 
+void clear_hero_characters() {
+    for (int index = 0; index < kHeroCharacterFrameCount; ++index) {
+        delete_texture(&g_hero_characters[index]);
+        g_hero_characters[index] = {};
+        g_hero_character_pixels[index].clear();
+        g_hero_character_pixels[index].shrink_to_fit();
+    }
+}
+
+void clear_coffin_frames() {
+    for (int index = 0; index < kCoffinFrameCount; ++index) {
+        delete_texture(&g_coffin_frames[index]);
+        g_coffin_frames[index] = {};
+        g_coffin_pixels[index].clear();
+        g_coffin_pixels[index].shrink_to_fit();
+    }
+}
+
 void clear_career_runes() {
     for (int index = 0; index < kCareerRuneFrameCount; ++index) {
         delete_texture(&g_career_runes[index]);
@@ -189,6 +219,8 @@ void on_surface_created() {
     // available until Java refreshes the imported atlas frames.
     g_background.texture = 0;
     for (auto& table : g_hero_tables) table.texture = 0;
+    for (auto& hero : g_hero_characters) hero.texture = 0;
+    for (auto& frame : g_coffin_frames) frame.texture = 0;
     for (auto& rune : g_career_runes) rune.texture = 0;
     if (g_program != 0) glDeleteProgram(g_program);
     g_program = build_program();
@@ -277,6 +309,72 @@ bool upload_hero_table(
         return true;
     }
     return ensure_texture(&asset, g_hero_table_pixels[table_index]);
+}
+
+bool upload_hero_character(
+        int frame_index,
+        int width,
+        int height,
+        int left,
+        int top,
+        int source_width,
+        int source_height,
+        const std::uint32_t* argb,
+        size_t count) {
+    if (frame_index < 0 || frame_index >= kHeroCharacterFrameCount ||
+            !validate_asset_geometry(
+                width, height, left, top, source_width, source_height, argb, count)) {
+        return false;
+    }
+
+    PositionedTexture& asset = g_hero_characters[frame_index];
+    delete_texture(&asset);
+    asset = {};
+    asset.width = width;
+    asset.height = height;
+    asset.left = left;
+    asset.top = top;
+    asset.source_width = source_width;
+    asset.source_height = source_height;
+    g_hero_character_pixels[frame_index].assign(argb, argb + count);
+
+    if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue) {
+        return true;
+    }
+    return ensure_texture(&asset, g_hero_character_pixels[frame_index]);
+}
+
+bool upload_coffin_frame(
+        int frame_index,
+        int width,
+        int height,
+        int left,
+        int top,
+        int source_width,
+        int source_height,
+        const std::uint32_t* argb,
+        size_t count) {
+    if (frame_index < 0 || frame_index >= kCoffinFrameCount ||
+            !validate_asset_geometry(
+                width, height, left, top, source_width, source_height, argb, count)) {
+        return false;
+    }
+
+    PositionedTexture& asset = g_coffin_frames[frame_index];
+    delete_texture(&asset);
+    asset = {};
+    asset.width = width;
+    asset.height = height;
+    asset.left = left;
+    asset.top = top;
+    asset.source_width = source_width;
+    asset.source_height = source_height;
+    g_coffin_pixels[frame_index].assign(argb, argb + count);
+
+    if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue) {
+        return true;
+    }
+    return ensure_texture(&asset, g_coffin_pixels[frame_index]);
 }
 
 bool upload_career_rune(
@@ -394,12 +492,115 @@ void draw_career_runes() {
             quad.x1, quad.y0,
             quad.x1, quad.y1,
         };
+        const std::uint64_t now_tick = game_clock::tick_count();
+        const std::uint64_t glow_ticks = now_tick >= g_rune_glow_start_tick
+            ? now_tick - g_rune_glow_start_tick : 0;
+        const float selected_alpha = (frame_index % 2 == 1 &&
+                g_rune_glow_generation != 0)
+            ? single_select_hero_rune_layout::glow_opacity_after_ticks(glow_ticks)
+            : 1.0f;
         bind_and_draw(
             asset.texture,
             vertices,
             true,
-            single_select_hero_rune_layout::opacity(tag));
+            selected_alpha * single_select_hero_rune_layout::opacity(tag));
     }
+}
+
+void draw_fixed_coffin_back() {
+    // Confirmed initUI() z-order: xrshiguan.png is placed behind the
+    // character body. The foreground door is drawn separately using the
+    // visual timeline, which survives the selector input-unlock callback.
+    PositionedTexture& asset = g_coffin_frames[single_select_hero_coffin_layout::kBaseFrame];
+    if (!ensure_texture(
+            &asset, g_coffin_pixels[single_select_hero_coffin_layout::kBaseFrame])) {
+        return;
+    }
+    single_select_hero_coffin_layout::FrameGeometry geometry;
+    geometry.width = asset.width;
+    geometry.height = asset.height;
+    geometry.left = asset.left;
+    geometry.top = asset.top;
+    geometry.source_width = asset.source_width;
+    geometry.source_height = asset.source_height;
+    const auto quad = single_select_hero_coffin_layout::base_quad_for_surface(
+        geometry, g_surface_width, g_surface_height);
+    if (!quad.valid) return;
+    const GLfloat vertices[] = {
+        quad.x0, quad.y0,
+        quad.x0, quad.y1,
+        quad.x1, quad.y0,
+        quad.x1, quad.y1,
+    };
+    bind_and_draw(asset.texture, vertices, true);
+}
+
+void draw_hero_character() {
+    const auto state = single_select_hero_state::snapshot();
+    const int frame_index = single_select_hero_character_layout::frame_index(
+        state.selected_career, state.existing_career);
+    if (!state.active || frame_index < 0 || frame_index >= kHeroCharacterFrameCount) return;
+
+    PositionedTexture& asset = g_hero_characters[frame_index];
+    if (!ensure_texture(&asset, g_hero_character_pixels[frame_index])) return;
+
+    single_select_hero_character_layout::FrameGeometry geometry;
+    geometry.width = asset.width;
+    geometry.height = asset.height;
+    geometry.left = asset.left;
+    geometry.top = asset.top;
+    geometry.source_width = asset.source_width;
+    geometry.source_height = asset.source_height;
+    const auto quad = single_select_hero_character_layout::quad_for_surface(
+        geometry, g_surface_width, g_surface_height);
+    if (!quad.valid) return;
+
+    const GLfloat vertices[] = {
+        quad.x0, quad.y0,
+        quad.x0, quad.y1,
+        quad.x1, quad.y0,
+        quad.x1, quad.y1,
+    };
+    bind_and_draw(asset.texture, vertices, true);
+}
+
+void draw_coffin_lid() {
+    // The input gate is unlocked at the START of the visual open action.
+    // The independent visual snapshot continues until the cover has moved
+    // away, unless an interrupted lid action leaves its starting pose unknown.
+    const auto selector = single_select_hero_state::snapshot();
+    if (!selector.active) return;
+    const auto visual = single_select_hero_transition_timeline::visual_snapshot();
+    const auto pose = single_select_hero_lid_presentation::sample(
+        visual, game_clock::tick_count(), selector.generation);
+    if (!pose.draw_lid) return;
+
+    PositionedTexture& asset =
+        g_coffin_frames[single_select_hero_coffin_layout::kLidFrame];
+    if (!ensure_texture(
+            &asset, g_coffin_pixels[single_select_hero_coffin_layout::kLidFrame])) {
+        return;
+    }
+    single_select_hero_coffin_layout::FrameGeometry geometry;
+    geometry.width = asset.width;
+    geometry.height = asset.height;
+    geometry.left = asset.left;
+    geometry.top = asset.top;
+    geometry.source_width = asset.source_width;
+    geometry.source_height = asset.source_height;
+    const auto quad = single_select_hero_coffin_layout::lid_quad_for_surface(
+        geometry, pose.lid_local_x, pose.reel_x,
+        g_surface_width, g_surface_height);
+    if (!quad.valid) return;
+    const GLfloat vertices[] = {
+        quad.x0, quad.y0,
+        quad.x0, quad.y1,
+        quad.x1, quad.y0,
+        quad.x1, quad.y1,
+    };
+    // The lid is a higher-z-order sibling of the body in initUI().
+    // It is intentionally rendered before the rune/menu controls.
+    bind_and_draw(asset.texture, vertices, true);
 }
 
 void draw_hero_table() {
@@ -435,8 +636,21 @@ void draw() {
     if (offline_startup_flow::snapshot().route != offline_startup_flow::Route::kOpeningDialogue) {
         delete_texture(&g_background);
         for (auto& table : g_hero_tables) delete_texture(&table);
+        for (auto& hero : g_hero_characters) delete_texture(&hero);
+        for (auto& frame : g_coffin_frames) delete_texture(&frame);
         for (auto& rune : g_career_runes) delete_texture(&rune);
+        g_rune_glow_generation = 0;
+        g_rune_glow_start_tick = 0;
         return;
+    }
+    const auto selector = single_select_hero_state::snapshot();
+    if (selector.active && selector.generation != 0 &&
+            g_rune_glow_generation != selector.generation) {
+        g_rune_glow_generation = selector.generation;
+        g_rune_glow_start_tick = game_clock::tick_count();
+    } else if (!selector.active) {
+        g_rune_glow_generation = 0;
+        g_rune_glow_start_tick = 0;
     }
     if (g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
             g_surface_width <= 0 || g_surface_height <= 0) {
@@ -444,6 +658,9 @@ void draw() {
     }
 
     draw_background();
+    draw_fixed_coffin_back();
+    draw_hero_character();
+    draw_coffin_lid();
     draw_career_runes();
     draw_hero_table();
 }
@@ -531,6 +748,80 @@ Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeUploadHeroTable(
             static_cast<int>(source_height),
             reinterpret_cast<const std::uint32_t*>(values),
             expected);
+    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
+    return uploaded ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeClearHeroCharacters(JNIEnv*, jclass) {
+    nevergone::single_select_hero::clear_hero_characters();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeUploadHeroCharacter(
+        JNIEnv* env,
+        jclass,
+        jint frame_index,
+        jint width,
+        jint height,
+        jint left,
+        jint top,
+        jint source_width,
+        jint source_height,
+        jintArray pixels) {
+    if (pixels == nullptr || width <= 0 || height <= 0) return JNI_FALSE;
+    const jsize length = env->GetArrayLength(pixels);
+    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (static_cast<size_t>(length) != expected) return JNI_FALSE;
+    jint* values = env->GetIntArrayElements(pixels, nullptr);
+    if (values == nullptr) return JNI_FALSE;
+    const bool uploaded = nevergone::single_select_hero::upload_hero_character(
+        static_cast<int>(frame_index),
+        static_cast<int>(width),
+        static_cast<int>(height),
+        static_cast<int>(left),
+        static_cast<int>(top),
+        static_cast<int>(source_width),
+        static_cast<int>(source_height),
+        reinterpret_cast<const std::uint32_t*>(values),
+        expected);
+    env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
+    return uploaded ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeClearCoffinFrames(JNIEnv*, jclass) {
+    nevergone::single_select_hero::clear_coffin_frames();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_nevergone_recomp_SingleSelectHeroBaseComposer_nativeUploadCoffinFrame(
+        JNIEnv* env,
+        jclass,
+        jint frame_index,
+        jint width,
+        jint height,
+        jint left,
+        jint top,
+        jint source_width,
+        jint source_height,
+        jintArray pixels) {
+    if (pixels == nullptr || width <= 0 || height <= 0) return JNI_FALSE;
+    const jsize length = env->GetArrayLength(pixels);
+    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (static_cast<size_t>(length) != expected) return JNI_FALSE;
+    jint* values = env->GetIntArrayElements(pixels, nullptr);
+    if (values == nullptr) return JNI_FALSE;
+    const bool uploaded = nevergone::single_select_hero::upload_coffin_frame(
+        static_cast<int>(frame_index),
+        static_cast<int>(width),
+        static_cast<int>(height),
+        static_cast<int>(left),
+        static_cast<int>(top),
+        static_cast<int>(source_width),
+        static_cast<int>(source_height),
+        reinterpret_cast<const std::uint32_t*>(values),
+        expected);
     env->ReleaseIntArrayElements(pixels, values, JNI_ABORT);
     return uploaded ? JNI_TRUE : JNI_FALSE;
 }

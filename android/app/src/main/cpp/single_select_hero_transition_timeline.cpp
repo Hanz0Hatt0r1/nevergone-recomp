@@ -9,6 +9,7 @@ namespace {
 
 std::mutex g_mutex;
 Snapshot g_state;
+VisualSnapshot g_visual;
 
 std::uint64_t saturating_add(std::uint64_t lhs, std::uint64_t rhs) {
     if (rhs > std::numeric_limits<std::uint64_t>::max() - lhs) {
@@ -37,6 +38,29 @@ void begin_locked(
     g_state.begin_count = prior_begin_count + 1;
     g_state.completion_count = prior_completion_count;
     g_state.stale_generation_count = prior_stale_count;
+
+    // Retain this independent from the input deadline: the original
+    // callback reenables selection while the new lid continues opening.
+    // Do not render a guessed starting lid pose if the user starts another
+    // selection before the previous lid finishes (or after such a race).
+    const bool first_visual = g_visual.phase == Phase::kInactive;
+    const bool previous_settled =
+        g_visual.selector_generation == selector_generation &&
+        g_visual.initial_positions_verified &&
+        tick >= g_visual.expected_finish_tick;
+    const std::uint64_t visual_duration =
+        phase == Phase::kInitialCarousel ? kInitialVisualTicks :
+        duration_ticks == kNearCareerChangeUnlockTicks ?
+            kNearCareerVisualTicks : kFarCareerVisualTicks;
+    g_visual.phase = phase;
+    g_visual.selector_generation = selector_generation;
+    g_visual.begin_tick = tick;
+    g_visual.expected_finish_tick = saturating_add(tick, visual_duration);
+    g_visual.old_career = old_career;
+    g_visual.new_career = new_career;
+    g_visual.initial_positions_verified =
+        phase == Phase::kInitialCarousel ?
+            first_visual : previous_settled;
 }
 
 }  // namespace
@@ -63,6 +87,7 @@ std::uint64_t career_change_unlock_ticks(
 void reset() {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_state = Snapshot{};
+    g_visual = VisualSnapshot{};
 }
 
 void begin_initial(
@@ -107,6 +132,7 @@ bool advance(std::uint64_t tick, std::uint64_t selector_generation) {
         const std::uint64_t completion_count = g_state.completion_count;
         const std::uint64_t stale_count = g_state.stale_generation_count + 1;
         g_state = Snapshot{};
+        g_visual = VisualSnapshot{};
         g_state.begin_count = begin_count;
         g_state.completion_count = completion_count;
         g_state.stale_generation_count = stale_count;
@@ -130,6 +156,11 @@ Snapshot snapshot() {
     return g_state;
 }
 
+VisualSnapshot visual_snapshot() {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    return g_visual;
+}
+
 const char* phase_name(Phase phase) {
     switch (phase) {
         case Phase::kInactive: return "inactive";
@@ -148,6 +179,14 @@ std::string status_report() {
         << " new-career=" << g_state.new_career
         << " begin-tick=" << g_state.begin_tick
         << " unlock-tick=" << g_state.unlock_tick << "\n";
+    out << "single select visual transition: " << phase_name(g_visual.phase)
+        << " generation=" << g_visual.selector_generation
+        << " old=" << g_visual.old_career
+        << " new=" << g_visual.new_career
+        << " begin=" << g_visual.begin_tick
+        << " end=" << g_visual.expected_finish_tick
+        << " positions-verified=" << (g_visual.initial_positions_verified ? 1 : 0)
+        << "\n";
     out << "single select transition counts: begin=" << g_state.begin_count
         << " complete=" << g_state.completion_count
         << " stale=" << g_state.stale_generation_count << "\n";
