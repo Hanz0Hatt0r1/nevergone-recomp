@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "offline_startup_flow.h"
+#include "game_clock.h"
 #include "single_select_hero_rune_layout.h"
 #include "single_select_hero_character_layout.h"
 #include "single_select_hero_state.h"
@@ -40,6 +41,8 @@ PositionedTexture g_career_runes[kCareerRuneFrameCount]{};
 std::vector<std::uint32_t> g_career_rune_pixels[kCareerRuneFrameCount];
 int g_surface_width = 0;
 int g_surface_height = 0;
+std::uint64_t g_rune_glow_generation = 0;
+std::uint64_t g_rune_glow_start_tick = 0;
 
 GLuint compile_shader(GLenum type, const char* source) {
     const GLuint shader = glCreateShader(type);
@@ -441,11 +444,16 @@ void draw_career_runes() {
             quad.x1, quad.y0,
             quad.x1, quad.y1,
         };
+        const float selected_alpha = (frame_index % 2 == 1 &&
+                g_rune_glow_generation != 0)
+            ? single_select_hero_rune_layout::glow_opacity_after_ticks(
+                game_clock::tick_count() - g_rune_glow_start_tick)
+            : 1.0f;
         bind_and_draw(
             asset.texture,
             vertices,
             true,
-            single_select_hero_rune_layout::opacity(tag));
+            selected_alpha * single_select_hero_rune_layout::opacity(tag));
     }
 }
 
@@ -513,7 +521,18 @@ void draw() {
         for (auto& table : g_hero_tables) delete_texture(&table);
         for (auto& hero : g_hero_characters) delete_texture(&hero);
         for (auto& rune : g_career_runes) delete_texture(&rune);
+        g_rune_glow_generation = 0;
+        g_rune_glow_start_tick = 0;
         return;
+    }
+    const auto selector = single_select_hero_state::snapshot();
+    if (selector.active && selector.generation != 0 &&
+            g_rune_glow_generation != selector.generation) {
+        g_rune_glow_generation = selector.generation;
+        g_rune_glow_start_tick = game_clock::tick_count();
+    } else if (!selector.active) {
+        g_rune_glow_generation = 0;
+        g_rune_glow_start_tick = 0;
     }
     if (g_program == 0 || g_sampler < 0 || g_alpha < 0 ||
             g_surface_width <= 0 || g_surface_height <= 0) {
