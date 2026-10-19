@@ -186,7 +186,7 @@ std::string status_report() {
         << " begin=" << g_visual.begin_tick
         << " end=" << g_visual.expected_finish_tick
         << " positions-verified=" << (g_visual.initial_positions_verified ? 1 : 0)
-        << "\\n";
+        << "\n";
     out << "single select transition counts: begin=" << g_state.begin_count
         << " complete=" << g_state.completion_count
         << " stale=" << g_state.stale_generation_count << "\n";
