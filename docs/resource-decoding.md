@@ -80,6 +80,12 @@ The recovered `StartLua.lua` is normal Lua source after decoding, confirming tha
 
 Of the 107 Lua files, 99 decode as UTF-8 directly. Eight contain legacy Simplified-Chinese text in comments and validate as GB18030-compatible text; their Lua code remains ordinary source.
 
+## Physical-device runtime cross-check
+
+Two ARM32 device traces recorded 85 calls to `cocos2d::Decode`. The probe checked 10,392 output bytes across 83 non-empty calls; all matched the recovered transform with key `1`. Two zero-length calls had no bytes to compare. The detailed, pointer-free observations and capture limits are in [the 2026-10-20 runtime evidence](evidence/decode-runtime-trace-2026-10-20.md).
+
+Large buffers were checked at 128 evenly spaced byte positions rather than exhaustively. This is a runtime cross-check of the statically recovered transform, not a replacement for the full decoder tests.
+
 ## Tool usage
 
 Dry-run validation without writing proprietary decoded assets:
