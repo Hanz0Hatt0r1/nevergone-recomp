@@ -1,0 +1,980 @@
+{
+  "claim": "For the recorded ARM32 calls, all non-empty full or sampled output bytes matched ((input[i] XOR key) - (i mod 127)) mod 256; zero-length calls have no sample and are inconclusive.",
+  "combined": {
+    "all_recorded_nonempty_samples_match": true,
+    "decode_calls": 85,
+    "formula_false_calls": 0,
+    "formula_true_calls": 83,
+    "inconclusive_calls": 2,
+    "sampled_bytes": 10392
+  },
+  "formula": "output[i] = ((input[i] XOR key) - (i mod 127)) & 0xff",
+  "privacy": "Raw traces, native pointers, register snapshots, file contents, user save files, and full path inventories are not included.",
+  "runs": [
+    {
+      "calls": {
+        "decode": 42,
+        "get_file_data": 46,
+        "level_load": 42
+      },
+      "decode_observations": [
+        {
+          "at_ms": 1717,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 94624,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 1728,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 38362,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 1737,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 13632,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 1744,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 104579,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 1754,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 87555,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 1763,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 79153,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 7311,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 3731,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 7318,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 3874,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 7330,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 1609306,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 7402,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 2758344,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 7612,
+          "callsite_offset": "0x534be1",
+          "formula_matches": null,
+          "input_length": 0,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 0,
+          "sample_mode": "empty"
+        },
+        {
+          "at_ms": 74636,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 1432,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74676,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 113,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 113,
+          "sample_mode": "full"
+        },
+        {
+          "at_ms": 74678,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 48,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 48,
+          "sample_mode": "full"
+        },
+        {
+          "at_ms": 74686,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 471,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74691,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 995,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74693,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 399,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74698,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 13849,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74708,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 17256,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74710,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 34091,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74716,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 1899,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74721,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 2943,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74725,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 107,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 107,
+          "sample_mode": "full"
+        },
+        {
+          "at_ms": 74729,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 289,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74731,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 203,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74733,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 3749,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74735,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 2418,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74739,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 323,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74743,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 536,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74745,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 443,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74749,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 567,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74750,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 907,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74756,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 885,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74757,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 885,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74781,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 11500,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74799,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 5526,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74805,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 9610,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74810,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 5466,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74816,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 8952,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74821,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 5631,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 74859,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 2098,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 75102,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 7911,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        }
+      ],
+      "decode_summary": {
+        "count": 42,
+        "formula_false": 0,
+        "formula_true": 41,
+        "inconclusive": 1,
+        "max_input_length": 2758344,
+        "sample_modes": {
+          "empty": 1,
+          "evenly_spaced": 38,
+          "full": 3
+        },
+        "sampled_bytes": 5132
+      },
+      "duration_ms": 75102,
+      "event_counts": {
+        "call": 130,
+        "file_access": 200,
+        "file_hook": 3,
+        "header": 1,
+        "hook": 3,
+        "loader": 1,
+        "module": 1
+      },
+      "file_access_api_counts": {
+        "fopen": 100,
+        "open": 100
+      },
+      "file_access_failed": 162,
+      "file_access_success": 38,
+      "file_trace": "game",
+      "limits": {
+        "firstPerSymbol": 40,
+        "flushEveryMs": 750,
+        "maxEvents": 40000,
+        "maxFileEvents": 200,
+        "maxHooks": 180,
+        "maxPerFileApi": 100,
+        "maxPerSymbol": 250,
+        "maxStringBytes": 384,
+        "sampleEvery": 25
+      },
+      "profile": "scene",
+      "run_id": "user-reported-play",
+      "trace_bytes": 110670,
+      "trace_format": "nevergone-trace/2",
+      "trace_mode": "resources",
+      "trace_sha256": "fe684bec8e41de6b99b53cdb9377299ba564e887624b16ef698942b7536f2957",
+      "unique_asset_paths": 127
+    },
+    {
+      "calls": {
+        "decode": 43,
+        "get_file_data": 48,
+        "level_load": 42
+      },
+      "decode_observations": [
+        {
+          "at_ms": 1900,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 94624,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 1917,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 38362,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 1929,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 13632,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 1939,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 104579,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 1950,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 87555,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 1964,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 79153,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 7541,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 3731,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 7562,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 3874,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 7576,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 1609306,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 7684,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 2758344,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 7966,
+          "callsite_offset": "0x534be1",
+          "formula_matches": null,
+          "input_length": 0,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 0,
+          "sample_mode": "empty"
+        },
+        {
+          "at_ms": 38180,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 1432,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38248,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 113,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 113,
+          "sample_mode": "full"
+        },
+        {
+          "at_ms": 38250,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 48,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 48,
+          "sample_mode": "full"
+        },
+        {
+          "at_ms": 38268,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 471,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38307,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 995,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38310,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 399,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38327,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 13849,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38337,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 17256,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38342,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 34091,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38362,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 1899,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38380,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 2943,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38424,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 107,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 107,
+          "sample_mode": "full"
+        },
+        {
+          "at_ms": 38439,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 289,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38441,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 203,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38445,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 3749,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38447,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 2418,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38486,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 323,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38501,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 536,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38519,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 443,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38552,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 567,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38555,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 907,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38620,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 885,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38622,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 885,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38689,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 11500,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38705,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 5526,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38757,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 9610,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38767,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 5466,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38773,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 8952,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38779,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 5631,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 38831,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 2098,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 39260,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 7911,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        },
+        {
+          "at_ms": 67006,
+          "callsite_offset": "0x534be1",
+          "formula_matches": true,
+          "input_length": 17287,
+          "key": 1,
+          "module_offset": "0x534a41",
+          "sample_count": 128,
+          "sample_mode": "evenly_spaced"
+        }
+      ],
+      "decode_summary": {
+        "count": 43,
+        "formula_false": 0,
+        "formula_true": 42,
+        "inconclusive": 1,
+        "max_input_length": 2758344,
+        "sample_modes": {
+          "empty": 1,
+          "evenly_spaced": 39,
+          "full": 3
+        },
+        "sampled_bytes": 5260
+      },
+      "duration_ms": 67006,
+      "event_counts": {
+        "call": 133,
+        "file_access": 2000,
+        "file_hook": 3,
+        "header": 1,
+        "hook": 3,
+        "loader": 1,
+        "module": 1
+      },
+      "file_access_api_counts": {
+        "fopen": 1000,
+        "open": 1000
+      },
+      "file_access_failed": 1819,
+      "file_access_success": 181,
+      "file_trace": "game",
+      "limits": {
+        "firstPerSymbol": 40,
+        "flushEveryMs": 750,
+        "maxEvents": 40000,
+        "maxFileEvents": 3000,
+        "maxHooks": 180,
+        "maxPerFileApi": 1000,
+        "maxPerSymbol": 250,
+        "maxStringBytes": 384,
+        "sampleEvery": 25
+      },
+      "profile": "scene",
+      "run_id": "tap-to-start-smoke",
+      "trace_bytes": 554523,
+      "trace_format": "nevergone-trace/2",
+      "trace_mode": "resources",
+      "trace_sha256": "c7d20ac1e04fd6a59c951c6901ff6e9642ef4ba6eb77ca019927f8a1633e67a0",
+      "unique_asset_paths": 961
+    }
+  ],
+  "schema": "nevergone-decode-runtime-evidence/1"
+}
